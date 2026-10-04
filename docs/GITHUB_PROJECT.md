@@ -318,7 +318,7 @@ Decide how, in the ADR of [M0-7]: a history merge keeps upstream's commits and m
 #### Findings, 2026-10-04
 
 +  **The fork builds and passes as it stands**: `npm ci`, `npm run build`, `npm test` and `npm run check` all pass with the flake's node 22.22.2.  Served with the isolation headers on localhost, it was ready in 1.15 s and finished its first check at 2.58 s; the first visit made 25 requests for 15,630,936 bytes, and a warm reload made none.
-+  **Binaries**: upstream commits about 48.6 MB under `static/` (the 33 MB compiler, its 10 MB gzip, the archives and the fonts).
++  **Binaries**: at `ae0aa84c`, `static/` holds 60,183,062 bytes, 59,422,474 of them in 37 binary files (the 33 MB compiler, its 10 MB gzip, the archives and the fonts); across upstream's four commits the distinct binary blobs total about 172 MB raw, three compiler builds among them (`git ls-tree -r -l`, 2026-10-04; an earlier version of this finding said 48.6 MB, which does not reproduce).
 +  **Audit**: `npm audit` reports 5 high and 3 low findings; `devalue` is bundled into the page, and the rest (`cookie` through SvelteKit, `undici`, `sharp`, `miniflare`, `wrangler`) are build-time only.  Dropping the Cloudflare tooling (`wrangler`, `workerd`, `sharp`) removes most of them, and both LGPL packages.
 +  **Licenses** of the bundled npm packages are permissive (MIT for most, ISC for `@lucide/svelte`, Apache-2.0 for `comlink`, whose text must ship; `jszip` is MIT or GPL-3.0, so choose MIT).
 
@@ -466,7 +466,9 @@ What the fork ships carries more licenses than its NOTICE names (measured 2026-1
 
 +  **The compiler binaries statically link GHC's runtime and boot libraries**, under the Glasgow Haskell Compiler License (BSD-3 style, which requires the notice with a binary redistribution), **and GMP**, under LGPL-3.0-or-later or GPL-2.0-or-later: `strings` finds GMP's assertions and `ghc-bignum`'s wrappers in `als-2.8ext.wasm`, and in the `agda-opt.wasm` of the second lane.  About 60 Hackage packages are linked too.  The language server is MIT and Agda MIT-style.
 +  **The fork's LICENSE names Andy Pan** (the copyright it inherits from agda-web/als-demo), **while every commit is Seungheon Oh's**; credit both.
-+  **The standard-library archive omits the standard library's LICENCE**, and JuliaMono (OFL-1.1) carries its notice only in the fonts' metadata.
++  **JuliaMono (OFL-1.1) carries its notice only in the fonts' metadata**, and the favicon (the official Agda mark, `favicon.svg` and `favicon.png`) has terms nobody has checked yet.
+
+(Corrected 2026-10-04: an earlier version of this issue said the standard-library archive omits the library's LICENCE.  It does not: it carries `agda-stdlib-2.3/LICENCE`, as `unzip -l` shows; one probe's search missed the uppercase name.)
 
 The same GHC and GMP gap is in agda-algebras PR 585's published notice.
 
