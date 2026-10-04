@@ -27,7 +27,8 @@ and the fork has not been imported yet.  Nothing is deployed.
    server, models in the loop, the theory view, and the proof view) and
    their issues.  The issues on GitHub own their bodies, and many carry the
    measurements that shaped them.
-+  `docs/adr/`: the decision records, from ADR 0001 (the runtime) on.
++  `docs/adr/`, not yet created: the decision records, starting with ADR
+   0001 on the runtime, which issue [M0-7][adr-0001] writes.
 +  The proposal this project follows: agda-native-air's
    [`docs/notes/browser-ide-proposal.md`][proposal].
 
@@ -57,3 +58,4 @@ ships will carry their own notices in `NOTICE`.
 [plan]: docs/GITHUB_PROJECT.md
 [proposal]: https://github.com/formalverification/agda-native-air/blob/main/docs/notes/browser-ide-proposal.md
 [williamdemeo/github-project]: https://github.com/williamdemeo/github-project
+[adr-0001]: https://github.com/formalverification/agda-native-ide/issues/7
