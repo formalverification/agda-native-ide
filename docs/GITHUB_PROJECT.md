@@ -315,6 +315,13 @@ Decide how, in the ADR of [M0-7]: a history merge keeps upstream's commits and m
 
 [plfa]: https://github.com/SeungheonOh/plfa-playground
 
+#### Findings, 2026-10-04
+
++  **The fork builds and passes as it stands**: `npm ci`, `npm run build`, `npm test` and `npm run check` all pass with the flake's node 22.22.2.  Served with the isolation headers on localhost, it was ready in 1.15 s and finished its first check at 2.58 s; the first visit made 25 requests for 15,630,936 bytes, and a warm reload made none.
++  **Binaries**: upstream commits about 48.6 MB under `static/` (the 33 MB compiler, its 10 MB gzip, the archives and the fonts).
++  **Audit**: `npm audit` reports 5 high and 3 low findings; `devalue` is bundled into the page, and the rest (`cookie` through SvelteKit, `undici`, `sharp`, `miniflare`, `wrangler`) are build-time only.  Dropping the Cloudflare tooling (`wrangler`, `workerd`, `sharp`) removes most of them, and both LGPL packages.
++  **Licenses** of the bundled npm packages are permissive (MIT for most, ISC for `@lucide/svelte`, Apache-2.0 for `comlink`, whose text must ship; `jszip` is MIT or GPL-3.0, so choose MIT).
+
 ---
 
 ### Issue M0-3: A reproducible build under Nix (#3)
@@ -327,6 +334,12 @@ A dev shell with the pinned node, and a `packages.site` output that builds the s
 
 +  `nix build .#site` from a clean clone succeeds, twice, with the same output hash.
 +  `nix develop --command make test` runs upstream's unit tests.
+
+#### Findings, 2026-10-04
+
++  **The build is `vite build`** (SvelteKit's static adapter, prerendered, no server rendering) plus one post-step that gzips the compiler and deletes the raw copy; every Agda asset is a committed file copied through verbatim.
++  **Generate what upstream maintains by hand**: the `?cache=` tokens, the compiler's byte length hard-coded in the controller, and the IndexedDB cache namespace.  Derive them from content hashes and real sizes at build time, or a rebuilt asset is served stale behind a 14,400 s cache.
++  **Trim**: the main chunk is 1,144 kB (362 kB gzipped), and carries `zod`, `marked` and CodeMirror's markdown, HTML, JavaScript and CSS modes, which only the PLFA reader needs.
 
 ---
 
@@ -365,6 +378,12 @@ One workflow on every pull request: the Nix build, upstream's vitest and svelte-
 +  The browser job fails when the check path is broken (shown by a deliberately broken build).
 +  Its timings are uploaded as an artifact.
 
+#### Findings, 2026-10-04
+
++  **The browser job is the only way to test the language server**: it cannot be driven under wasmtime (it cannot make stdin nonblocking there, and answers only at end of input).
++  **What to assert**: the count of `Checking` lines in the running info (one, for `Main`, when the shipped interfaces are accepted) and a deliberate type error reported at its position.  The count is the only signal that separates acceptance from silent recompilation.
++  **A working harness exists**: a small node server that sends the isolation headers and a CDP driver that waits for readiness and counts checks were used for these measurements; they are a starting point alongside upstream's Playwright benchmark.
+
 ---
 
 ### Issue M0-6: Choose the host and deploy with cross-origin isolation (#6)
@@ -393,6 +412,15 @@ Measured 2026-10-04: formalverification.io's DNS is on Cloudflare and its site i
 +  **Limits of the service-worker path**.  It needs service workers and a secure context; where they are disabled, the page cannot start ([#8]).  Only Chromium was driven: open the deployed page in Firefox and Safari before relying on it.
 
 [#8]: https://github.com/formalverification/agda-native-ide/issues/8
+
+
+
+#### More findings, 2026-10-04
+
++  **A second, independent fix of the service worker's race**, `window.coi.doReload = () => navigator.serviceWorker.ready.then(() => location.reload())` set before `coi-serviceworker.js` loads, gave 20 of 20 first visits isolated where the unpatched worker left 4 of 15 on a blank page.
++  **No base path is needed**: SvelteKit's default relative paths compute the base from the page's location at run time, so the build works under any path once the four root-absolute `/plfa/...` fetches go through `asset()` or `base`.
++  **On a shared origin**, namespace the localStorage keys, the IndexedDB database name and the worker's sessionStorage keys, which are origin-wide.
++  **HTML is cached for 600 s**, so a visitor holding a stale `index.html` just after a deploy may ask for code chunks the deploy replaced (inferred from the headers, not tested).
 
 ---
 
@@ -424,6 +452,10 @@ The fork has a friendly message for a page that is not cross-origin isolated, bu
 
 +  Served without the headers and without the service worker, the page shows the message, and a headless test checks it.
 
+#### Findings, 2026-10-04
+
+Confirmed twice: without the isolation headers, the fork's service-worker fallback left 3 of 8 and 4 of 15 fresh first visits on a page that threw before its explanatory message could render, because the shared buffers are allocated when the page component is created.  A manual reload recovered.
+
 ---
 
 ### Issue M0-9: A complete notice for everything the page ships (#48)
@@ -443,6 +475,18 @@ The same GHC and GMP gap is in agda-algebras PR 585's published notice.
 +  NOTICE names every shipped artifact with its license text, and a copy is published beside the assets.
 +  GMP's relinking condition is met by pointing at the pinned sources and the build recipe, or the judgment that it is met otherwise is recorded.
 +  The linked Hackage packages are listed from the build plan, or the reason they cannot be yet is recorded.
+
+---
+
+### Issue M0-10: Ship builtin interfaces that Agda 2.8 accepts (#49)
+
+**Labels:** `bug`, `milestone-0-foundations`, `runtime`
+
+The fork's `static/agda-data.zip` (Agda's `lib/prim`) carries interfaces in Agda 2.7.0.1's format: all 37 have header version 202406290, where Agda 2.8.0 writes and reads 202507030.  So every fresh profile's first check type-checks five builtin modules again (measured 2026-10-04: 6 `Checking` lines instead of 1).  The rejection does not cascade, since the standard library's and agda-algebras' interfaces are still accepted, but it costs every first visit.  Ship the 2.8 interfaces from the native data directory (`lib/prim/_build/2.8.0/agda`), built by the same procedure as the libraries' ([M1-4]).
+
+#### Acceptance criteria
+
++  A fresh profile's first check of a `Main.agda` that imports only builtins type-checks only `Main`.
 
 <!-- END GENERATED: milestone-0 -->
 
@@ -495,6 +539,12 @@ A scratch project whose `.agda-lib` depends on `standard-library-2.3` and `agda-
 +  `open import Setoid.Algebras.Basic` resolves.
 +  A postulate in `Main.agda` is refused.
 
+#### Findings, 2026-10-04
+
++  **A layout that worked** for `open import Overture.Basic`: agda-algebras at `/agda-algebras` (its `.agda-lib`, `src/`, and `_build/2.8.0/agda/src/`); the standard library's interfaces under `/stdlib/_build/2.8.0/agda/src/`; the builtins' under `/lib/prim/_build/2.8.0/agda/`; a root library for `/Main.agda` (`depend: standard-library agda-algebras`) in place of the fork's `/plfa.agda-lib`; and a libraries file naming both libraries' `.agda-lib` files.  agda-algebras' `depend: standard-library-2.3` resolves, since the fork's standard library is named exactly that.
++  **`mountDriveArchives()` alone cannot add a library**: it extracts archives at `/`, but the libraries and defaults files are written once, hard-coded, when the drive worker starts.  Generalize the drive's start message to a list of libraries (archive, `.agda-lib` path, name) and write those files from it.
++  **Prefer an explicit root library** over listing libraries in `defaults`: which flags apply to a file covered only by `defaults` was not verified.
+
 ---
 
 ### Issue M1-4: Per-closure library archives, indexed by Agda's own dependency graph (#12)
@@ -517,6 +567,12 @@ The packing the measurement recommends: the standard library in nine dependency 
 +  For each root, a cold check that mounts only what the index names type-checks only the root.
 +  The total and per-root sizes are recorded with the run.
 
+#### Findings, 2026-10-04
+
++  **Native interfaces reproduce the fork's**: the flake's native Agda rebuilt upstream's PLFA interfaces identical entry for entry (by CRC), and the browser accepted them.
++  **Do not use the fork's closure index as is**: it is a regular expression over source text, which misses `open import` inside parameterized or nested modules and has no literate handling beyond fenced blocks.  A missed import shows up as a silently slow check.
++  **Ship an interface for everything that can be imported**: modules the browser checks from source are not reused across reloads (`Data.Nat.Base` took 27.4 s, then 22.5 s again after a reload).
+
 ---
 
 ### Issue M1-5: Prove that the shipped compiler accepts the shipped interfaces (#13)
@@ -532,6 +588,17 @@ PR 585 proved this for `agda-opt.wasm` (native interfaces accepted unchanged; 1.
 +  A build step, run in CI, checks every root under the shipped compiler and fails unless each checks exactly one module.
 +  A deliberately stale interface makes it fail.
 
+#### Findings, 2026-10-04
+
++  **The language server accepts natively built interfaces**.  Its Agda reports "Agda v2.8.0 Language Server v6 (WebAssembly build RAW)", and both it and the flake's native Agda 2.8.0 use interface version 202507030; agda-web/agda `e2f8c694` is one commit ahead of `v2.8.0` (nonblocking stdin on wasm32, a lock file, packaging) and two behind (CI and the test suite), with no change to serialization.
++  **Measured in headless Chromium 153** against a locally built, instrumented copy of the fork: a `Main` importing `Overture.Basic` reported one `Checking` line (13.6 to 18.5 s), where the sources-only control checked all 66 modules (92.2 s); a `Main` importing `Setoid.Varieties.HSP` (313 interfaces, 92 of agda-algebras) again checked only `Main`.  A deliberate type error came back with the right position and message, so the page elaborates against the shipped interfaces rather than skipping work.  The library's own `make check` output was accepted as it stood once placed in the browser's layout.
++  **Agda 2.8 compares** the interface version, the source hash, the pragma options (library flags and the file's own options) and the imports' hashes; absolute paths are not compared, so interfaces built at a host path are accepted at the guest's root.
++  **The gate must run in a browser**.  The language server cannot be driven under wasmtime: it fails to make stdin nonblocking there and answers only at end of input.
++  **What remains slow** is the drive, not Agda: [#50].  The fork's builtin interfaces are the one set rejected: [#49].
+
+[#49]: https://github.com/formalverification/agda-native-ide/issues/49
+[#50]: https://github.com/formalverification/agda-native-ide/issues/50
+
 ---
 
 ### Issue M1-6: Mount what the imports need, and say how much before fetching it (#14)
@@ -545,6 +612,12 @@ Mount only the closures `Main.agda`'s imports need.  When an import needs archiv
 +  Adding `open import Setoid.Varieties.HSP` asks once, with the right size.
 +  A second visit mounts from the cache with no network request for the archives.
 +  An archive whose hash changed is fetched again and the old copy is evicted.
+
+#### Findings, 2026-10-04
+
+The fork restores IndexedDB records over the shipped files at the same paths, so a reader's edit to a library file persists across deploys until the cache namespace changes, and is then dropped silently, while the old database (possibly tens of MB of interfaces built in the browser) is never deleted.  Delete databases whose namespace is stale on startup, and keep library modules read-only ([#10]).
+
+[#10]: https://github.com/formalverification/agda-native-ide/issues/10
 
 ---
 
@@ -660,6 +733,25 @@ In ualib/agda-algebras.  Every top-level group but `Order` pulls in at least 22 
 #### Acceptance criteria
 
 +  An agda-algebras issue tracks the change, and the closure sizes before and after are measured with [M1-4]'s pipeline.
+
+---
+
+### Issue M1-16: Index the virtual drive's file lookups (#50)
+
+**Labels:** `milestone-1-library-ide`, `runtime`, `measurement`
+
+The dominant cost of a check in the fork is not Agda but its in-memory filesystem (`@runno/wasi` 0.10.0): every file-status lookup scans every key on the drive and builds a regular expression per key, and Agda makes about 130 lookups per imported module.  Measured 2026-10-04 in headless Chromium 153, with interfaces Agda accepted (one `Checking` line):
+
++  `Main` importing `Overture.Basic`: 13.6 to 18.5 s per check; with a 40-line index (a set of paths and a map of directories, answering lookups directly), 1.8 to 3.7 s, with the same answers.
++  `Main` importing `Setoid.Varieties.HSP` (313 interfaces): 79 to 104 s; with the index, 11 to 22 s.
++  The same work (7,371 lookups on a warm reload) took 8.4 s with 1,361 files on the drive, 25.2 s with 3,361 and 34.6 s with 5,361: 80 to 99% of it drive time.  agda-algebras puts roughly 2,500 to 3,500 files there.
+
+Index the drive (maintained on create, unlink, rename and archive extraction), mount only the standard-library sources the closures need rather than all 1,153, and avoid `include: .` at `/`, where every module is probed again.
+
+#### Acceptance criteria
+
++  The per-lookup cost no longer grows with the number of files on the drive (a scaling run shows it).
++  A warm check of `Main` importing `Setoid.Varieties.HSP` is recorded by [M1-10]'s benchmark, before and after.
 
 <!-- END GENERATED: milestone-1 -->
 
