@@ -285,7 +285,7 @@ is written back into the heading.
 
 <!-- BEGIN GENERATED: milestone-0 -->
 
-### Issue M0-1: Detach the template's engine and write the project's working rules
+### Issue M0-1: Detach the template's engine and write the project's working rules (#1)
 
 **Labels:** `milestone-0-foundations`, `build`, `documentation`
 
@@ -304,7 +304,7 @@ house rules a session working here must follow.
 
 ---
 
-### Issue M0-2: Fork plfa-playground into this repository, history and attribution intact
+### Issue M0-2: Fork plfa-playground into this repository, history and attribution intact (#2)
 
 **Labels:** `milestone-0-foundations`, `provenance`, `runtime`
 
@@ -330,7 +330,7 @@ binaries are then removed from the tree and pinned by hash instead
 
 ---
 
-### Issue M0-3: A reproducible build under Nix
+### Issue M0-3: A reproducible build under Nix (#3)
 
 **Labels:** `milestone-0-foundations`, `build`
 
@@ -347,7 +347,7 @@ targets: `dev`, `build`, `test`, `check`.
 
 ---
 
-### Issue M0-4: Pin the compiler and the standard library by hash, with a rebuild recipe
+### Issue M0-4: Pin the compiler and the standard library by hash, with a rebuild recipe (#4)
 
 **Labels:** `milestone-0-foundations`, `build`, `provenance`, `runtime`
 
@@ -369,7 +369,7 @@ byte-identical, whichever way it comes out.
 
 ---
 
-### Issue M0-5: CI: build, unit tests, type checks, and a real check in headless Chromium
+### Issue M0-5: CI: build, unit tests, type checks, and a real check in headless Chromium (#5)
 
 **Labels:** `milestone-0-foundations`, `build`, `measurement`
 
@@ -388,7 +388,7 @@ starting point.
 
 ---
 
-### Issue M0-6: Choose the host and deploy with cross-origin isolation
+### Issue M0-6: Choose the host and deploy with cross-origin isolation (#6)
 
 **Labels:** `milestone-0-foundations`, `hosting`, `adr`
 
@@ -417,7 +417,7 @@ compiler and the archives versioned by hash), and the deploy workflow.
 
 ---
 
-### Issue M0-7: ADR 0001, the runtime: what is forked, what is kept, and the second lane
+### Issue M0-7: ADR 0001, the runtime: what is forked, what is kept, and the second lane (#7)
 
 **Labels:** `milestone-0-foundations`, `adr`, `runtime`, `documentation`
 
@@ -437,7 +437,7 @@ separate note.
 
 ---
 
-### Issue M0-8: Say so when the page is not cross-origin isolated
+### Issue M0-8: Say so when the page is not cross-origin isolated (#8)
 
 **Labels:** `milestone-0-foundations`, `runtime`, `bug`
 
@@ -461,7 +461,7 @@ page.
 
 <!-- BEGIN GENERATED: milestone-1 -->
 
-### Issue M1-1: A library Explorer: every module, as a tree, from a manifest
+### Issue M1-1: A library Explorer: every module, as a tree, from a manifest (#9)
 
 **Labels:** `milestone-1-library-ide`, `ui`
 
@@ -490,7 +490,7 @@ below; neither suits a library browser.
 
 ---
 
-### Issue M1-2: Open library modules read-only, and copy one into the playground
+### Issue M1-2: Open library modules read-only, and copy one into the playground (#10)
 
 **Labels:** `milestone-1-library-ide`, `ui`
 
@@ -514,7 +514,7 @@ page on the agda-algebras site, which already renders it ([M1-11]).
 
 ---
 
-### Issue M1-3: The playground project: Main.agda over the standard library and agda-algebras
+### Issue M1-3: The playground project: Main.agda over the standard library and agda-algebras (#11)
 
 **Labels:** `milestone-1-library-ide`, `libraries`
 
@@ -536,7 +536,7 @@ under [M1-4]'s packing, and heavier imports load on demand ([M1-6]).
 
 ---
 
-### Issue M1-4: Per-closure library archives, indexed by Agda's own dependency graph
+### Issue M1-4: Per-closure library archives, indexed by Agda's own dependency graph (#12)
 
 **Labels:** `milestone-1-library-ide`, `libraries`, `build`
 
@@ -577,7 +577,7 @@ more findings bind the build:
 
 ---
 
-### Issue M1-5: Prove that the shipped compiler accepts the shipped interfaces
+### Issue M1-5: Prove that the shipped compiler accepts the shipped interfaces (#13)
 
 **Labels:** `milestone-1-library-ide`, `libraries`, `runtime`, `measurement`
 
@@ -601,7 +601,7 @@ its own proof.
 
 ---
 
-### Issue M1-6: Mount what the imports need, and say how much before fetching it
+### Issue M1-6: Mount what the imports need, and say how much before fetching it (#14)
 
 **Labels:** `milestone-1-library-ide`, `libraries`, `ui`
 
@@ -620,7 +620,7 @@ is 1,024 bytes).
 
 ---
 
-### Issue M1-7: Open the IDE from the agda-algebras site, in a new tab
+### Issue M1-7: Open the IDE from the agda-algebras site, in a new tab (#15)
 
 **Labels:** `milestone-1-library-ide`, `cross-repo`
 
@@ -642,7 +642,7 @@ change stands on its own.
 
 ---
 
-### Issue M1-8: Port PR 585's three exercises as example files
+### Issue M1-8: Port PR 585's three exercises as example files (#16)
 
 **Labels:** `milestone-1-library-ide`, `libraries`, `good first issue`
 
@@ -657,7 +657,7 @@ scope in the homomorphism exercise so its goal prints as an equation.
 
 ---
 
-### Issue M1-9: A dark theme
+### Issue M1-9: A dark theme (#17)
 
 **Labels:** `milestone-1-library-ide`, `ui`
 
@@ -674,7 +674,7 @@ that follows the system preference and can be switched.
 
 ---
 
-### Issue M1-10: A browser benchmark over agda-algebras
+### Issue M1-10: A browser benchmark over agda-algebras (#18)
 
 **Labels:** `milestone-1-library-ide`, `measurement`
 
@@ -691,7 +691,7 @@ these runs.
 
 ---
 
-### Issue M1-11: Retire the reader pane; link each module to its documentation page
+### Issue M1-11: Retire the reader pane; link each module to its documentation page (#19)
 
 **Labels:** `milestone-1-library-ide`, `ui`
 
@@ -711,7 +711,7 @@ dependency, and give each library module a link to its page.
 
 ---
 
-### Issue M1-12: Retire the fork's PLFA-specific code and content
+### Issue M1-12: Retire the fork's PLFA-specific code and content (#20)
 
 **Labels:** `milestone-1-library-ide`, `provenance`
 
@@ -729,7 +729,7 @@ back as a plugin, and keep the NOTICE accurate about what is still shipped.
 
 ---
 
-### Issue M1-13: The commands for browsing a library
+### Issue M1-13: The commands for browsing a library (#21)
 
 **Labels:** `milestone-1-library-ide`, `ui`, `enhancement`
 
@@ -747,7 +747,7 @@ their answers.
 
 ---
 
-### Issue M1-14: The Explorer and the commands on a phone
+### Issue M1-14: The Explorer and the commands on a phone (#22)
 
 **Labels:** `milestone-1-library-ide`, `ui`
 
@@ -762,7 +762,7 @@ let the command strip wrap or scroll.
 
 ---
 
-### Issue M1-15: Narrow agda-algebras' umbrella imports, to shrink every closure
+### Issue M1-15: Narrow agda-algebras' umbrella imports, to shrink every closure (#23)
 
 **Labels:** `milestone-1-library-ide`, `cross-repo`, `libraries`
 
@@ -788,7 +788,7 @@ import `Overture` this way.
 
 <!-- BEGIN GENERATED: milestone-2 -->
 
-### Issue M2-1: The plugin manifest and its loader
+### Issue M2-1: The plugin manifest and its loader (#24)
 
 **Labels:** `milestone-2-plugins`, `plugins`, `adr`
 
@@ -807,7 +807,7 @@ the design in an ADR.
 
 ---
 
-### Issue M2-2: The install consent gate
+### Issue M2-2: The install consent gate (#25)
 
 **Labels:** `milestone-2-plugins`, `plugins`, `security`, `ui`
 
@@ -821,7 +821,7 @@ plugin and version.
 
 ---
 
-### Issue M2-3: A third library added by its manifest alone
+### Issue M2-3: A third library added by its manifest alone (#26)
 
 **Labels:** `milestone-2-plugins`, `plugins`, `libraries`
 
@@ -835,7 +835,7 @@ the [M1-4] pipeline.
 
 ---
 
-### Issue M2-4: Versioned caches and storage controls
+### Issue M2-4: Versioned caches and storage controls (#27)
 
 **Labels:** `milestone-2-plugins`, `plugins`, `ui`
 
@@ -849,7 +849,7 @@ plugin uses and clears it; eviction when a pin changes.
 
 ---
 
-### Issue M2-5: User projects of several files with their own .agda-lib
+### Issue M2-5: User projects of several files with their own .agda-lib (#28)
 
 **Labels:** `milestone-2-plugins`, `runtime`, `ui`
 
@@ -869,7 +869,7 @@ imports between its modules, and a project exported and imported as a ZIP.
 
 <!-- BEGIN GENERATED: milestone-3 -->
 
-### Issue M3-1: The tool surface: agda-mcp's contract, in the page
+### Issue M3-1: The tool surface: agda-mcp's contract, in the page (#29)
 
 **Labels:** `milestone-3-tool-server`, `tool-server`, `adr`
 
@@ -890,7 +890,7 @@ with JSON schemas, for model tool calling.
 
 ---
 
-### Issue M3-2: The batch lane: agda-opt.wasm for the verdict of record
+### Issue M3-2: The batch lane: agda-opt.wasm for the verdict of record (#30)
 
 **Labels:** `milestone-3-tool-server`, `runtime`
 
@@ -908,7 +908,7 @@ error or an open hole).
 
 ---
 
-### Issue M3-3: Replay archived agent sessions through the browser surface
+### Issue M3-3: Replay archived agent sessions through the browser surface (#31)
 
 **Labels:** `milestone-3-tool-server`, `measurement`
 
@@ -925,7 +925,7 @@ browser's tools and compare every answer.
 
 ---
 
-### Issue M3-4: Corpus plugins and their searches
+### Issue M3-4: Corpus plugins and their searches (#32)
 
 **Labels:** `milestone-3-tool-server`, `plugins`, `tool-server`
 
@@ -940,7 +940,7 @@ heuristic caveats the corpus cards state.
 
 ---
 
-### Issue M3-5: Full-text search over the mounted sources
+### Issue M3-5: Full-text search over the mounted sources (#33)
 
 **Labels:** `milestone-3-tool-server`, `tool-server`, `ui`
 
@@ -958,7 +958,7 @@ people, and a tool for models.
 
 ---
 
-### Issue M3-6: search_in_scope, the three steps the native tool takes
+### Issue M3-6: search_in_scope, the three steps the native tool takes (#34)
 
 **Labels:** `milestone-3-tool-server`, `tool-server`
 
@@ -978,7 +978,7 @@ neither what the file can name nor what Agda says its type is.
 
 <!-- BEGIN GENERATED: milestone-4 -->
 
-### Issue M4-1: Key isolation and the consent gate: the threat model
+### Issue M4-1: Key isolation and the consent gate: the threat model (#35)
 
 **Labels:** `milestone-4-models`, `models`, `security`, `adr`
 
@@ -994,7 +994,7 @@ on the IDE's origin reading or reusing the key) and the design in an ADR.
 
 ---
 
-### Issue M4-2: A frontier model on the user's key, working through the tool surface
+### Issue M4-2: A frontier model on the user's key, working through the tool surface (#36)
 
 **Labels:** `milestone-4-models`, `models`, `tool-server`
 
@@ -1008,7 +1008,7 @@ Agda's verdict, never the model's claim.
 
 ---
 
-### Issue M4-3: Sessions archived and rendered in the replay format
+### Issue M4-3: Sessions archived and rendered in the replay format (#37)
 
 **Labels:** `milestone-4-models`, `models`, `ui`
 
@@ -1024,7 +1024,7 @@ beside them.  Export a session as an archive that the replay renders.
 
 ---
 
-### Issue M4-4: An external agent attached over a local bridge
+### Issue M4-4: An external agent attached over a local bridge (#38)
 
 **Labels:** `milestone-4-models`, `models`, `tool-server`
 
@@ -1037,7 +1037,7 @@ and the page is its tool server.
 
 ---
 
-### Issue M4-5: A local model plugin, labeled unmeasured
+### Issue M4-5: A local model plugin, labeled unmeasured (#39)
 
 **Labels:** `milestone-4-models`, `models`, `plugins`
 
@@ -1056,7 +1056,7 @@ local-model measurements in agda-native-air's Milestone 4 say otherwise.
 
 <!-- BEGIN GENERATED: milestone-5 -->
 
-### Issue M5-1: The precedents: Paperproof, the Incredible Proof Machine, and others
+### Issue M5-1: The precedents: Paperproof, the Incredible Proof Machine, and others (#40)
 
 **Labels:** `milestone-5-theory-view`, `diagrams`, `documentation`
 
@@ -1071,7 +1071,7 @@ note on what to take from each.
 
 ---
 
-### Issue M5-2: The agda-algebras definition graph, each edge labeled by its provenance
+### Issue M5-2: The agda-algebras definition graph, each edge labeled by its provenance (#41)
 
 **Labels:** `milestone-5-theory-view`, `diagrams`
 
@@ -1090,7 +1090,7 @@ corpus cut that carries `bodyRefs` (agda-native-air [#15][a15]).
 
 ---
 
-### Issue M5-3: From a node to its source, and back
+### Issue M5-3: From a node to its source, and back (#42)
 
 **Labels:** `milestone-5-theory-view`, `diagrams`, `ui`
 
@@ -1109,7 +1109,7 @@ is highlighted in the graph.
 
 <!-- BEGIN GENERATED: milestone-6 -->
 
-### Issue M6-1: The proof-term export, in agda-native-air
+### Issue M6-1: The proof-term export, in agda-native-air (#43)
 
 **Labels:** `milestone-6-proof-view`, `cross-repo`, `diagrams`
 
@@ -1125,7 +1125,7 @@ a goal.
 
 ---
 
-### Issue M6-2: One checked gold as a derivation, read-only; the elision rules
+### Issue M6-2: One checked gold as a derivation, read-only; the elision rules (#44)
 
 **Labels:** `milestone-6-proof-view`, `diagrams`
 
@@ -1141,7 +1141,7 @@ body on demand.
 
 ---
 
-### Issue M6-3: One mode, two registers: checked structure solid, hole interiors dashed
+### Issue M6-3: One mode, two registers: checked structure solid, hole interiors dashed (#45)
 
 **Labels:** `milestone-6-proof-view`, `diagrams`
 
@@ -1156,7 +1156,7 @@ not in the source.
 
 ---
 
-### Issue M6-4: Editing at a leaf: refine and give, then case split
+### Issue M6-4: Editing at a leaf: refine and give, then case split (#46)
 
 **Labels:** `milestone-6-proof-view`, `diagrams`, `tool-server`
 
