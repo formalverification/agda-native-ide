@@ -342,6 +342,16 @@ Upstream commits its compiler, `als-2.8ext.wasm` (32,996,332 bytes, SHA-256 `53c
 +  The provenance table names every pinned artifact, its source, its hash and its license.
 +  The rebuild was attempted and its outcome is recorded.
 
+#### Findings, 2026-10-04
+
++  **The exact binary is not a release asset anywhere**.  No wasm release asset of agda-web/agda-language-server, agda/agda-language-server or agda-web/agda-wasm-dist has its digest; agda-web/als-demo and plfa-playground publish no releases, and als-demo's own copy is a different nightly build.  It exists only in plfa-playground's git tree, and re-gzipped on plfa.isotopy.xyz.
++  **A flake can pin it today**.  `fetchurl` of `https://raw.githubusercontent.com/SeungheonOh/plfa-playground/8a03ddaf95a81232fe8467063ff373ca53e5837e/static/als-2.8ext.wasm` with `sha256-U8YrCtVpqdEj90SxksE3gMSUreDN3vTaqgDbQezX96E=` succeeded (`nix store prefetch-file`), and the committed file's SHA-256 matches the upstream README.  It is a single source in a personal repository, so add a mirror this organization controls (a release asset here) under the same hash, and prove the failover.
++  **What the pins are**.  ALS `e65419f8` is the head of agda-web/agda-language-server's branch `wasm-only-raw-responses` (2025-10-22); Agda `e2f8c694` is agda-web's wasm32 patch on a base two packaging commits short of the `v2.8.0` tag.  The nearest release asset (agda-web's `nightly-20260407`, which als-demo uses) differs by one commit that changes response handling, so it is not a drop-in replacement.
++  **The recipe is not hermetic**.  `build-agda-wasm.sh` runs `cabal update` with no `index-state` and fetches sources and a Hackage tarball at build time.  Make the from-source rebuild an optional CI job that pins `index-state` first, not the flake's default path.
++  **Licenses** the published notice must carry are in [#48].
+
+[#48]: https://github.com/formalverification/agda-native-ide/issues/48
+
 ---
 
 ### Issue M0-5: CI: build, unit tests, type checks, and a real check in headless Chromium (#5)
@@ -373,6 +383,17 @@ Measured 2026-10-04: formalverification.io's DNS is on Cloudflare and its site i
 +  The compiler and the archives are cached at the edge (Cloudflare caches `.gz` and `.zip` by default, and not `.wasm` or `.json`).
 +  If the app is served under a path rather than at a domain's root, every fetch goes through the configured base path (the fork fetches its PLFA data by root-absolute URLs and sets no base path).
 
+#### Findings, 2026-10-04
+
++  **GitHub Pages works with the fork's service worker, given a guard**.  Served with no isolation headers, coi-serviceworker v0.1.7 (MIT), scoped to the app's directory, isolated the page, its URL workers and its blob workers after one self-reload on a first visit (and one more after a hard reload), in headless Chromium 153.  But its reload can start before the worker activates, leaving the page neither controlled nor isolated, and it never retries: 1 of 12 fresh visits on loopback, 0 of 12 with 150 ms of added latency, 3 of 8 in trials of the real app.  A guard gave 30 of 30: an inline script before the worker's script saves `sessionStorage.coiReloadedBySelf`, and one after it reloads at most once per tab when that load was the worker's own reload and the page is still not isolated once `navigator.serviceWorker.ready` resolves.
++  **A host that sends the headers avoids the reload and the race**.  Upstream's Cloudflare deployment sends COOP, COEP and CORP from `static/_headers`, so its worker never registers.  formalverification.io's DNS is already on Cloudflare, so a Cloudflare Pages project on a subdomain, or a response-header rule on a proxied path, is open to whoever holds the account.
++  **`require-corp` breaks nothing the fork loads**.  All 25 requests of a first load of plfa.isotopy.xyz were same-origin: 14.68 MB, 10.36 MB of it the compiler's gzip.
++  **Compression**.  GitHub Pages serves `.gz` as `application/gzip` with no `Content-Encoding`, and `.wasm` as `application/wasm`, gzipped on the fly when asked; the fork's fetch handles both, through the service worker too (the same SHA-256 after inflation).
++  **Caching**.  GitHub Pages fixes `max-age=600`, and Cloudflare's browser TTL was 14400 s on assets, so upstream's `_headers` cache rules cannot apply there: version every archive by content hash in its name or query.
++  **Limits of the service-worker path**.  It needs service workers and a secure context; where they are disabled, the page cannot start ([#8]).  Only Chromium was driven: open the deployed page in Firefox and Safari before relying on it.
+
+[#8]: https://github.com/formalverification/agda-native-ide/issues/8
+
 ---
 
 ### Issue M0-7: ADR 0001, the runtime: what is forked, what is kept, and the second lane (#7)
@@ -402,6 +423,26 @@ The fork has a friendly message for a page that is not cross-origin isolated, bu
 #### Acceptance criteria
 
 +  Served without the headers and without the service worker, the page shows the message, and a headless test checks it.
+
+---
+
+### Issue M0-9: A complete notice for everything the page ships (#48)
+
+**Labels:** `milestone-0-foundations`, `provenance`
+
+What the fork ships carries more licenses than its NOTICE names (measured 2026-10-04):
+
++  **The compiler binaries statically link GHC's runtime and boot libraries**, under the Glasgow Haskell Compiler License (BSD-3 style, which requires the notice with a binary redistribution), **and GMP**, under LGPL-3.0-or-later or GPL-2.0-or-later: `strings` finds GMP's assertions and `ghc-bignum`'s wrappers in `als-2.8ext.wasm`, and in the `agda-opt.wasm` of the second lane.  About 60 Hackage packages are linked too.  The language server is MIT and Agda MIT-style.
++  **The fork's LICENSE names Andy Pan** (the copyright it inherits from agda-web/als-demo), **while every commit is Seungheon Oh's**; credit both.
++  **The standard-library archive omits the standard library's LICENCE**, and JuliaMono (OFL-1.1) carries its notice only in the fonts' metadata.
+
+The same GHC and GMP gap is in agda-algebras PR 585's published notice.
+
+#### Acceptance criteria
+
++  NOTICE names every shipped artifact with its license text, and a copy is published beside the assets.
++  GMP's relinking condition is met by pointing at the pinned sources and the build recipe, or the judgment that it is met otherwise is recorded.
++  The linked Hackage packages are listed from the build plan, or the reason they cannot be yet is recorded.
 
 <!-- END GENERATED: milestone-0 -->
 
