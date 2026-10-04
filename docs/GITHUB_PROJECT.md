@@ -287,14 +287,9 @@ is written back into the heading.
 
 ### Issue M0-1: Detach the template's engine and write the project's working rules (#1)
 
-**Labels:** `milestone-0-foundations`, `build`, `documentation`
+**Labels:** `documentation`, `milestone-0-foundations`, `build`
 
-This repository was created from williamdemeo/github-project and still
-carries a copy of its engine.  Run `make init`, which deletes the copy and
-installs a consumer flake taking the engine as a pinned input, then
-`nix flake lock`.  Replace the template's README and CLAUDE.md with this
-project's: what it is, where its plan and decisions live, the build, and the
-house rules a session working here must follow.
+This repository was created from williamdemeo/github-project and still carries a copy of its engine.  Run `make init`, which deletes the copy and installs a consumer flake taking the engine as a pinned input, then `nix flake lock`.  Replace the template's README and CLAUDE.md with this project's: what it is, where its plan and decisions live, the build, and the house rules a session working here must follow.
 
 #### Acceptance criteria
 
@@ -306,19 +301,11 @@ house rules a session working here must follow.
 
 ### Issue M0-2: Fork plfa-playground into this repository, history and attribution intact (#2)
 
-**Labels:** `milestone-0-foundations`, `provenance`, `runtime`
+**Labels:** `milestone-0-foundations`, `runtime`, `provenance`
 
-Bring in [`plfa-playground`][plfa] at `ae0aa84` (2026-08-31), the runtime
-this project builds on, unchanged.  Its LICENSE is MIT, Copyright 2026 Andy
-Pan; its NOTICE records the lineage (agda-web/als-demo, agda-web/agda-language-server, agda-web/agda, agda/agda-stdlib) and the PLFA chapters it embeds under CC BY 4.0.
+Bring in [`plfa-playground`][plfa] at `ae0aa84` (2026-08-31), the runtime this project builds on, unchanged.  Its LICENSE is MIT, Copyright 2026 Andy Pan; its NOTICE records the lineage (agda-web/als-demo, agda-web/agda-language-server, agda-web/agda, agda/agda-stdlib) and the PLFA chapters it embeds under CC BY 4.0.
 
-Decide how, in the ADR of [M0-7]: a history merge keeps upstream's commits
-and makes later syncs a merge, but upstream commits the 33 MB compiler, its
-10 MB gzip and the standard-library archive, so every one of those blobs
-enters this repository for good; a snapshot import with a provenance record
-(the upstream commit and each file's hash) does not.  Either way the
-binaries are then removed from the tree and pinned by hash instead
-([M0-4]).
+Decide how, in the ADR of [M0-7]: a history merge keeps upstream's commits and makes later syncs a merge, but upstream commits the 33 MB compiler, its 10 MB gzip and the standard-library archive, so every one of those blobs enters this repository for good; a snapshot import with a provenance record (the upstream commit and each file's hash) does not.  Either way the binaries are then removed from the tree and pinned by hash instead ([M0-4]).
 
 #### Acceptance criteria
 
@@ -334,11 +321,7 @@ binaries are then removed from the tree and pinned by hash instead
 
 **Labels:** `milestone-0-foundations`, `build`
 
-A dev shell with the pinned node, and a `packages.site` output that builds
-the static site from `package-lock.json` with fixed-output dependencies (for
-example `buildNpmPackage` with a pinned `npmDepsHash`), so a clean clone
-builds the same site with no network beyond fixed-output fetches.  Make
-targets: `dev`, `build`, `test`, `check`.
+A dev shell with the pinned node, and a `packages.site` output that builds the static site from `package-lock.json` with fixed-output dependencies (for example `buildNpmPackage` with a pinned `npmDepsHash`), so a clean clone builds the same site with no network beyond fixed-output fetches.  Make targets: `dev`, `build`, `test`, `check`.
 
 #### Acceptance criteria
 
@@ -349,17 +332,9 @@ targets: `dev`, `build`, `test`, `check`.
 
 ### Issue M0-4: Pin the compiler and the standard library by hash, with a rebuild recipe (#4)
 
-**Labels:** `milestone-0-foundations`, `build`, `provenance`, `runtime`
+**Labels:** `milestone-0-foundations`, `runtime`, `build`, `provenance`
 
-Upstream commits its compiler, `als-2.8ext.wasm` (32,996,332 bytes, SHA-256
-`53c62b0ad569a9d123f744b192c13780c494ade0cddef4daaa00db41ecd7f7a1` per its
-`compiler/README.md`), built from agda-web/agda-language-server `e65419f8`,
-agda-web/agda `e2f8c694` and ghc-wasm-meta `c3f44696` (the 9.10 flavour).
-Pin it, and the standard-library archive, as fixed-output derivations
-fetched by URL and hash, never committed here, and record the provenance in
-one table.  Port `compiler/build-agda-wasm.sh` into a flake app that
-rebuilds the compiler from those pins, and record whether the rebuild is
-byte-identical, whichever way it comes out.
+Upstream commits its compiler, `als-2.8ext.wasm` (32,996,332 bytes, SHA-256 `53c62b0ad569a9d123f744b192c13780c494ade0cddef4daaa00db41ecd7f7a1` per its `compiler/README.md`), built from agda-web/agda-language-server `e65419f8`, agda-web/agda `e2f8c694` and ghc-wasm-meta `c3f44696` (the 9.10 flavour).  Pin it, and the standard-library archive, as fixed-output derivations fetched by URL and hash, never committed here, and record the provenance in one table.  Port `compiler/build-agda-wasm.sh` into a flake app that rebuilds the compiler from those pins, and record whether the rebuild is byte-identical, whichever way it comes out.
 
 #### Acceptance criteria
 
@@ -373,13 +348,7 @@ byte-identical, whichever way it comes out.
 
 **Labels:** `milestone-0-foundations`, `build`, `measurement`
 
-One workflow on every pull request: the Nix build, upstream's vitest and
-svelte-check, and a browser job that serves the built site with
-`Cross-Origin-Opener-Policy: same-origin` and
-`Cross-Origin-Embedder-Policy: require-corp`, waits for "Agda ready",
-checks `Main.agda`, gives at a goal, and asserts the goal count and
-`crossOriginIsolated`.  Upstream's Playwright benchmark harness is the
-starting point.
+One workflow on every pull request: the Nix build, upstream's vitest and svelte-check, and a browser job that serves the built site with `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`, waits for "Agda ready", checks `Main.agda`, gives at a goal, and asserts the goal count and `crossOriginIsolated`.  Upstream's Playwright benchmark harness is the starting point.
 
 #### Acceptance criteria
 
@@ -392,20 +361,9 @@ starting point.
 
 **Labels:** `milestone-0-foundations`, `hosting`, `adr`
 
-The language server's workers share memory, so the page needs
-`SharedArrayBuffer`, so every route must be served with COOP `same-origin`
-and COEP `require-corp`, or the fork's service-worker fallback
-(`static/coi-serviceworker.js`) must add them, at the cost of one reload on
-a first visit.  The options are a host that sets headers (upstream deploys
-to Cloudflare from `static/_headers`), or GitHub Pages with the service
-worker.
+The language server's workers share memory, so the page needs `SharedArrayBuffer`, so every route must be served with COOP `same-origin` and COEP `require-corp`, or the fork's service-worker fallback (`static/coi-serviceworker.js`) must add them, at the cost of one reload on a first visit.  The options are a host that sets headers (upstream deploys to Cloudflare from `static/_headers`), or GitHub Pages with the service worker.
 
-Measured 2026-10-04: formalverification.io's DNS is on Cloudflare and its
-site is served by GitHub Pages directly; agda-algebras.universalalgebra.org
-is proxied by Cloudflare in front of GitHub Pages; plfa.isotopy.xyz sends
-both headers from Cloudflare.  Decide the host and the domain (for example
-`ide.formalverification.io`), a cache policy (hashed, immutable assets; the
-compiler and the archives versioned by hash), and the deploy workflow.
+Measured 2026-10-04: formalverification.io's DNS is on Cloudflare and its site is served by GitHub Pages directly; agda-algebras.universalalgebra.org is proxied by Cloudflare in front of GitHub Pages; plfa.isotopy.xyz sends both headers from Cloudflare.  Decide the host and the domain (for example `ide.formalverification.io`), a cache policy (hashed, immutable assets; the compiler and the archives versioned by hash), and the deploy workflow.
 
 #### Acceptance criteria
 
@@ -419,11 +377,9 @@ compiler and the archives versioned by hash), and the deploy workflow.
 
 ### Issue M0-7: ADR 0001, the runtime: what is forked, what is kept, and the second lane (#7)
 
-**Labels:** `milestone-0-foundations`, `adr`, `runtime`, `documentation`
+**Labels:** `documentation`, `milestone-0-foundations`, `runtime`, `adr`
 
-Record the runtime decision in the ADR form agda-native-air uses (decision,
-evidence, status, a decision log), with the companion explanation in a
-separate note.
+Record the runtime decision in the ADR form agda-native-air uses (decision, evidence, status, a decision log), with the companion explanation in a separate note.
 
 +  **The fork**: plfa-playground for its language-server lane, its two-worker architecture, its give rule (an edit inside one goal goes through `Cmd_give`; anything else is a full `Cmd_load`), and its archive format; how it is imported ([M0-2]).
 +  **The second lane**: the plain `agda-opt.wasm` for the verdict of record, as the proposal's § 1 asks.  agda-algebras [PR 585][pr-585] measured that the same checker answers every goal command through `--interaction-json` with no isolation (headless Chromium 153, 2026-10-04), and a JavaScript Promise Integration probe kept one process alive across commands without isolation (1.45 s per reload, 45 to 55 ms per goal query on a 244-module closure, Chromium only).  Record what that means for the isolation requirement and for browsers without it.
@@ -439,21 +395,13 @@ separate note.
 
 ### Issue M0-8: Say so when the page is not cross-origin isolated (#8)
 
-**Labels:** `milestone-0-foundations`, `runtime`, `bug`
+**Labels:** `bug`, `milestone-0-foundations`, `runtime`
 
-The fork has a friendly message for a page that is not cross-origin
-isolated, but it creates its shared buffers while the page's script
-initializes, before that check, and `SharedArrayBuffer` is undefined on such
-a page (measured in Chromium, 2026-10-04), so the message is probably never
-reached.  Move the allocation after the check, so that a host without the
-headers, or a browser without the feature, gets a sentence instead of a dead
-page.
+The fork has a friendly message for a page that is not cross-origin isolated, but it creates its shared buffers while the page's script initializes, before that check, and `SharedArrayBuffer` is undefined on such a page (measured in Chromium, 2026-10-04), so the message is probably never reached.  Move the allocation after the check, so that a host without the headers, or a browser without the feature, gets a sentence instead of a dead page.
 
 #### Acceptance criteria
 
 +  Served without the headers and without the service worker, the page shows the message, and a headless test checks it.
-
----
 
 <!-- END GENERATED: milestone-0 -->
 
@@ -465,21 +413,9 @@ page.
 
 **Labels:** `milestone-1-library-ide`, `ui`
 
-The fork's Explorer is hard-coded to two levels: a PLAYGROUND section with
-`Main.agda`, and PLFA's three parts and their chapters, read from
-`/plfa/manifest.json`.  Replace it with a tree generated from a library
-manifest: directories as folders, modules as files, for every module of
-agda-algebras' `src/`, collapsible and filterable by name.  The PLAYGROUND
-section keeps the scratch files.
+The fork's Explorer is hard-coded to two levels: a PLAYGROUND section with `Main.agda`, and PLFA's three parts and their chapters, read from `/plfa/manifest.json`.  Replace it with a tree generated from a library manifest: directories as folders, modules as files, for every module of agda-algebras' `src/`, collapsible and filterable by name.  The PLAYGROUND section keeps the scratch files.
 
-The shape, measured 2026-10-04: 344 modules in 64 folders, at most four
-folders deep, 408 rows fully expanded, so no virtualization is needed.  63
-of the 64 folders sit beside a module of the same name (`Setoid/` beside
-`Setoid.lagda.md`); show each such pair as one row, whose chevron toggles
-and whose label opens the module (`Legacy/` is the exception).  A flat
-manifest of module, path and title is 4.7 KB gzipped.  The fork also
-disables file rows while Agda is busy, and hides the Explorer at 800 px and
-below; neither suits a library browser.
+The shape, measured 2026-10-04: 344 modules in 64 folders, at most four folders deep, 408 rows fully expanded, so no virtualization is needed.  63 of the 64 folders sit beside a module of the same name (`Setoid/` beside `Setoid.lagda.md`); show each such pair as one row, whose chevron toggles and whose label opens the module (`Legacy/` is the exception).  A flat manifest of module, path and title is 4.7 KB gzipped.  The fork also disables file rows while Agda is busy, and hides the Explorer at 800 px and below; neither suits a library browser.
 
 #### Acceptance criteria
 
@@ -494,17 +430,9 @@ below; neither suits a library browser.
 
 **Labels:** `milestone-1-library-ide`, `ui`
 
-The fork makes every file editable and autosaves everything, and it swaps
-one editor document between files, so undo crosses files: measured on the
-live site 2026-10-04, Ctrl-Z after opening a chapter put `Main.agda`'s text
-into the chapter, and the autosave stored it there.  Keep one editor state
-per open file instead, switched as a whole.
+The fork makes every file editable and autosaves everything, and it swaps one editor document between files, so undo crosses files: measured on the live site 2026-10-04, Ctrl-Z after opening a chapter put `Main.agda`'s text into the chapter, and the autosave stored it there.  Keep one editor state per open file instead, switched as a whole.
 
-A library module opens read-only, since it is the checked library and its
-interface is what other files import, and is loaded so that hover, infer
-and normalize work in its scope.  Actions: copy it (or a selection) into an
-editable scratch file; insert `open import` for it into `Main.agda`; open its
-page on the agda-algebras site, which already renders it ([M1-11]).
+A library module opens read-only, since it is the checked library and its interface is what other files import, and is loaded so that hover, infer and normalize work in its scope.  Actions: copy it (or a selection) into an editable scratch file; insert `open import` for it into `Main.agda`; open its page on the agda-algebras site, which already renders it ([M1-11]).
 
 #### Acceptance criteria
 
@@ -518,15 +446,7 @@ page on the agda-algebras site, which already renders it ([M1-11]).
 
 **Labels:** `milestone-1-library-ide`, `libraries`
 
-A scratch project whose `.agda-lib` depends on `standard-library-2.3` and
-`agda-algebras`, with the library's flags (`-WnoUnsupportedIndexedMatch`).
-The default `Main.agda` carries the library's own options line,
-`{-# OPTIONS --cubical-compatible --exact-split --safe #-}`, so that a
-postulate or a `TERMINATING` pragma is refused as the library would refuse
-it (PR 585's review found that an exercise without it reported a postulated
-"proof" as checked), and opens one goal.  Keep its imports light, so the
-first check is quick: `Overture.Basic` alone is 7.1 MB in three fetches
-under [M1-4]'s packing, and heavier imports load on demand ([M1-6]).
+A scratch project whose `.agda-lib` depends on `standard-library-2.3` and `agda-algebras`, with the library's flags (`-WnoUnsupportedIndexedMatch`).  The default `Main.agda` carries the library's own options line, `{-# OPTIONS --cubical-compatible --exact-split --safe #-}`, so that a postulate or a `TERMINATING` pragma is refused as the library would refuse it (PR 585's review found that an exercise without it reported a postulated "proof" as checked), and opens one goal.  Keep its imports light, so the first check is quick: `Overture.Basic` alone is 7.1 MB in three fetches under [M1-4]'s packing, and heavier imports load on demand ([M1-6]).
 
 #### Acceptance criteria
 
@@ -540,30 +460,11 @@ under [M1-4]'s packing, and heavier imports load on demand ([M1-6]).
 
 **Labels:** `milestone-1-library-ide`, `libraries`, `build`
 
-Build agda-algebras' and the standard library's sources and interfaces with
-the flake's native Agda 2.8.0 from a pinned agda-algebras commit, laid out
-as the fork mounts them (sources under each library root, interfaces under
-`_build/2.8.0/agda/`), with an index taken from the node set
-`agda --dependency-graph` writes, never from the corpus's module graph,
-which under-counts imports (the proposal's "What is hard").  Agda's graph is
-transitively reduced, but reachability in it is exact.
+Build agda-algebras' and the standard library's sources and interfaces with the flake's native Agda 2.8.0 from a pinned agda-algebras commit, laid out as the fork mounts them (sources under each library root, interfaces under `_build/2.8.0/agda/`), with an index taken from the node set `agda --dependency-graph` writes, never from the corpus's module graph, which under-counts imports (the proposal's "What is hard").  Agda's graph is transitively reduced, but reachability in it is exact.
 
-What there is to ship, measured 2026-10-04 from a fresh native build of the
-whole library (1 min 42 s, 1.84 GB peak): 607 modules (344 of agda-algebras,
-251 of the standard library's 1,153, and 12 builtins), whose interfaces are
-113,999,732 bytes raw and 96,346,359 gzipped; the sources are 670,837 bytes
-as one tar.gz.  An interface is already gzip-compressed inside, so packing
-saves about 15%.
+What there is to ship, measured 2026-10-04 from a fresh native build of the whole library (1 min 42 s, 1.84 GB peak): 607 modules (344 of agda-algebras, 251 of the standard library's 1,153, and 12 builtins), whose interfaces are 113,999,732 bytes raw and 96,346,359 gzipped; the sources are 670,837 bytes as one tar.gz.  An interface is already gzip-compressed inside, so packing saves about 15%.
 
-The packing the measurement recommends: the standard library in nine
-dependency tiers (each module in the tier of the first agda-algebras
-subdirectory that needs it; the largest 13.4 MB), one compressed interface
-per agda-algebras module, and all sources in one archive loaded eagerly
-(it also fills the Explorer).  A `Main.agda` importing `Overture.Basic`,
-`Setoid.Algebras.Basic` and `Setoid.Varieties.HSP` then fetches 99 files,
-54.6 MB, against an exact floor of 54.3 MB; with the compiler, about 66.5 MB
-on a first visit, 4.3 times the fork's first PLFA chapter (15.6 MB).  Three
-more findings bind the build:
+The packing the measurement recommends: the standard library in nine dependency tiers (each module in the tier of the first agda-algebras subdirectory that needs it; the largest 13.4 MB), one compressed interface per agda-algebras module, and all sources in one archive loaded eagerly (it also fills the Explorer).  A `Main.agda` importing `Overture.Basic`, `Setoid.Algebras.Basic` and `Setoid.Varieties.HSP` then fetches 99 files, 54.6 MB, against an exact floor of 54.3 MB; with the compiler, about 66.5 MB on a first visit, 4.3 times the fork's first PLFA chapter (15.6 MB).  Three more findings bind the build:
 
 +  **Compress, and name artifacts `.gz` or `.zip`**.  Cloudflare caches those at its edge and does not cache `.wasm`, `.json` or unknown extensions such as `.agdai` by default; the fork's stored ZIPs cost 15 to 17% more over the wire.
 +  **Build with one fixed procedure, in CI**.  65 interfaces (Legacy, `Examples.Structures` and the modules importing them) are not reproducible: they store deprecation warnings that contain absolute source paths, and how many depends on build order.  The other 281 were byte-identical across builds in different directories.
@@ -579,20 +480,11 @@ more findings bind the build:
 
 ### Issue M1-5: Prove that the shipped compiler accepts the shipped interfaces (#13)
 
-**Labels:** `milestone-1-library-ide`, `libraries`, `runtime`, `measurement`
+**Labels:** `milestone-1-library-ide`, `runtime`, `libraries`, `measurement`
 
-Agda accepts an interface only when it was built by the same Agda under the
-same options, and a mismatch is silent: the module is type-checked again,
-and the page is merely slow.  So acceptance is measured, not assumed: the
-build checks every root under the shipped compiler with only its archives
-mounted and fails unless exactly one module was type-checked.  Count the
-`Checking` lines unanchored, since Agda indents nested ones (an anchored
-count reads 1 for every run; this cost PR 585 a defect).
+Agda accepts an interface only when it was built by the same Agda under the same options, and a mismatch is silent: the module is type-checked again, and the page is merely slow.  So acceptance is measured, not assumed: the build checks every root under the shipped compiler with only its archives mounted and fails unless exactly one module was type-checked.  Count the `Checking` lines unanchored, since Agda indents nested ones (an anchored count reads 1 for every run; this cost PR 585 a defect).
 
-PR 585 proved this for `agda-opt.wasm` (native interfaces accepted unchanged;
-1.89 to 1.92 s against 1.90 to 1.94 s for wasm-built ones).  The language
-server embeds its own build of Agda (agda-web/agda `e2f8c694`), which needs
-its own proof.
+PR 585 proved this for `agda-opt.wasm` (native interfaces accepted unchanged; 1.89 to 1.92 s against 1.90 to 1.94 s for wasm-built ones).  The language server embeds its own build of Agda (agda-web/agda `e2f8c694`), which needs its own proof.
 
 #### Acceptance criteria
 
@@ -603,14 +495,9 @@ its own proof.
 
 ### Issue M1-6: Mount what the imports need, and say how much before fetching it (#14)
 
-**Labels:** `milestone-1-library-ide`, `libraries`, `ui`
+**Labels:** `milestone-1-library-ide`, `ui`, `libraries`
 
-Mount only the closures `Main.agda`'s imports need.  When an import needs
-archives not yet present, compute them from the index, state the bytes, and
-fetch on consent; keep them in IndexedDB keyed by the archive's hash.  The
-fork's cache namespace is a hand-edited string that names the PLFA commit;
-derive it from the pins instead.  State sizes in one unit everywhere (a KB
-is 1,024 bytes).
+Mount only the closures `Main.agda`'s imports need.  When an import needs archives not yet present, compute them from the index, state the bytes, and fetch on consent; keep them in IndexedDB keyed by the archive's hash.  The fork's cache namespace is a hand-edited string that names the PLFA commit; derive it from the pins instead.  State sizes in one unit everywhere (a KB is 1,024 bytes).
 
 #### Acceptance criteria
 
@@ -624,32 +511,22 @@ is 1,024 bytes).
 
 **Labels:** `milestone-1-library-ide`, `cross-repo`
 
-In ualib/agda-algebras: the navigation's "Playground" entry links to this
-IDE and opens it in a new tab (MkDocs Material has no per-entry target, so a
-small script sets it), pinned to the library version the site documents,
-with deep links that open a module (for example
-`?open=Setoid/Varieties/HSP.lagda.md`).  Settle there what becomes of
-[PR 585][pr-585]'s in-page playground (issue [#577][i577]); its link-hook
-change stands on its own.
+In ualib/agda-algebras: the navigation's "Playground" entry links to this IDE and opens it in a new tab (MkDocs Material has no per-entry target, so a small script sets it), pinned to the library version the site documents, with deep links that open a module (for example `?open=Setoid/Varieties/HSP.lagda.md`).  Settle there what becomes of [PR 585][pr-585]'s in-page playground (issue [#577][i577]); its link-hook change stands on its own.
 
 #### Acceptance criteria
 
 +  On the agda-algebras site, "Playground" opens the IDE in a new tab.
 +  A deep link opens the named module.
 
-[pr-585]: https://github.com/ualib/agda-algebras/pull/585
-[i577]: https://github.com/ualib/agda-algebras/issues/577
+[pr-585]: https://github.com/ualib/agda-algebras/pull/585 [i577]: https://github.com/ualib/agda-algebras/issues/577
 
 ---
 
 ### Issue M1-8: Port PR 585's three exercises as example files (#16)
 
-**Labels:** `milestone-1-library-ide`, `libraries`, `good first issue`
+**Labels:** `good first issue`, `milestone-1-library-ide`, `libraries`
 
-`graft` and `_✦_` from `Overture.Terms.Interpretation`, and `⊙-is-hom` from
-`Setoid.Homomorphisms.Properties`, with the hints PR 585 verified through its
-page.  Keep its review's fixes: the library's options line, and `_≈_` in
-scope in the homomorphism exercise so its goal prints as an equation.
+`graft` and `_✦_` from `Overture.Terms.Interpretation`, and `⊙-is-hom` from `Setoid.Homomorphisms.Properties`, with the hints PR 585 verified through its page.  Keep its review's fixes: the library's options line, and `_≈_` in scope in the homomorphism exercise so its goal prints as an equation.
 
 #### Acceptance criteria
 
@@ -661,11 +538,7 @@ scope in the homomorphism exercise so its goal prints as an equation.
 
 **Labels:** `milestone-1-library-ide`, `ui`
 
-The fork is light only, and on a dark system it draws Agda's dark token
-palette on a white editor (measured 2026-10-04); the agda-algebras site
-defaults to a dark palette, so a reader arriving from it gets a jarring
-switch.  Turn the page's 88 literal colors into tokens, and add a dark set
-that follows the system preference and can be switched.
+The fork is light only, and on a dark system it draws Agda's dark token palette on a white editor (measured 2026-10-04); the agda-algebras site defaults to a dark palette, so a reader arriving from it gets a jarring switch.  Turn the page's 88 literal colors into tokens, and add a dark set that follows the system preference and can be switched.
 
 #### Acceptance criteria
 
@@ -678,11 +551,7 @@ that follows the system preference and can be switched.
 
 **Labels:** `milestone-1-library-ide`, `measurement`
 
-Adapt the fork's PLFA benchmark (every chapter, real edits, warm and cold)
-to a fixed set of agda-algebras roots: the time to mount, the first check,
-a warm reload after an edit, and a goal command, archived with the commit
-and the machine.  Every number the documentation states comes from one of
-these runs.
+Adapt the fork's PLFA benchmark (every chapter, real edits, warm and cold) to a fixed set of agda-algebras roots: the time to mount, the first check, a warm reload after an edit, and a goal command, archived with the commit and the machine.  Every number the documentation states comes from one of these runs.
 
 #### Acceptance criteria
 
@@ -695,14 +564,7 @@ these runs.
 
 **Labels:** `milestone-1-library-ide`, `ui`
 
-The fork renders a PLFA chapter's prose beside its source, with `marked`
-and PLFA's kramdown conventions.  agda-algebras' conventions would render
-badly there (measured 2026-10-04: 1,901 kramdown attribute spans in 137
-modules would show as literal text, `$` math in 40, and reference links that
-depend on the site's shared link file would break), and the agda-algebras
-site already renders every module, with semantic highlighting, at its
-dotted path.  So remove the reader pane, its scroll sync and the `marked`
-dependency, and give each library module a link to its page.
+The fork renders a PLFA chapter's prose beside its source, with `marked` and PLFA's kramdown conventions.  agda-algebras' conventions would render badly there (measured 2026-10-04: 1,901 kramdown attribute spans in 137 modules would show as literal text, `$` math in 40, and reference links that depend on the site's shared link file would break), and the agda-algebras site already renders every module, with semantic highlighting, at its dotted path.  So remove the reader pane, its scroll sync and the `marked` dependency, and give each library module a link to its page.
 
 #### Acceptance criteria
 
@@ -715,12 +577,7 @@ dependency, and give each library module a link to its page.
 
 **Labels:** `milestone-1-library-ide`, `provenance`
 
-The fork carries PLFA throughout: about 750 lines of the page component,
-the whole of `browser-source.js` (position-compatible import aliases for
-PLFA paths), PLFA tests, four build scripts (645 lines), and 9.8 MB of
-chapters and interface archives under `static/plfa/`, under CC BY 4.0.
-Remove them from the default build, keeping what [M2-3] needs to bring PLFA
-back as a plugin, and keep the NOTICE accurate about what is still shipped.
+The fork carries PLFA throughout: about 750 lines of the page component, the whole of `browser-source.js` (position-compatible import aliases for PLFA paths), PLFA tests, four build scripts (645 lines), and 9.8 MB of chapters and interface archives under `static/plfa/`, under CC BY 4.0.  Remove them from the default build, keeping what [M2-3] needs to bring PLFA back as a plugin, and keep the NOTICE accurate about what is still shipped.
 
 #### Acceptance criteria
 
@@ -731,15 +588,9 @@ back as a plugin, and keep the NOTICE accurate about what is still shipped.
 
 ### Issue M1-13: The commands for browsing a library (#21)
 
-**Labels:** `milestone-1-library-ide`, `ui`, `enhancement`
+**Labels:** `enhancement`, `milestone-1-library-ide`, `ui`
 
-The fork's toolbar has Type, Context, Give, Refine, Case split, Infer and
-Normalize, and its response handler reads seven kinds of answer.  The
-commands that matter most for browsing a library are missing: module
-contents (`Cmd_show_module_contents_toplevel`, C-c C-o), search about
-(`Cmd_search_about_toplevel`, C-c C-z) and why in scope
-(`Cmd_why_in_scope_toplevel`, C-c C-w).  Add them, with result cards for
-their answers.
+The fork's toolbar has Type, Context, Give, Refine, Case split, Infer and Normalize, and its response handler reads seven kinds of answer.  The commands that matter most for browsing a library are missing: module contents (`Cmd_show_module_contents_toplevel`, C-c C-o), search about (`Cmd_search_about_toplevel`, C-c C-z) and why in scope (`Cmd_why_in_scope_toplevel`, C-c C-w).  Add them, with result cards for their answers.
 
 #### Acceptance criteria
 
@@ -751,10 +602,7 @@ their answers.
 
 **Labels:** `milestone-1-library-ide`, `ui`
 
-At 800 px and below the fork hides the Explorer, so a phone cannot change
-files, and at 1,000 px its command strip already clips its last buttons
-(measured 2026-10-04).  Show the Explorer as a drawer on small screens, and
-let the command strip wrap or scroll.
+At 800 px and below the fork hides the Explorer, so a phone cannot change files, and at 1,000 px its command strip already clips its last buttons (measured 2026-10-04).  Show the Explorer as a drawer on small screens, and let the command strip wrap or scroll.
 
 #### Acceptance criteria
 
@@ -764,23 +612,13 @@ let the command strip wrap or scroll.
 
 ### Issue M1-15: Narrow agda-algebras' umbrella imports, to shrink every closure (#23)
 
-**Labels:** `milestone-1-library-ide`, `cross-repo`, `libraries`
+**Labels:** `milestone-1-library-ide`, `libraries`, `cross-repo`
 
-In ualib/agda-algebras.  Every top-level group but `Order` pulls in at least
-22 MB (gzipped) of standard-library interfaces, because modules import
-umbrella modules: `Setoid.Algebras.Basic` imports the whole `Overture`
-(which reaches `Overture.Cayley`, and with it `Data.Nat.Properties`,
-`Data.Fin.Properties` and `Data.Bool.Properties`) for six names from three
-submodules.  Importing the submodules instead would cut that module's
-standard-library closure from 25 MB to about 7 MB (an estimate from the
-dependency graph, measured 2026-10-04, not a rebuild); about 120 files
-import `Overture` this way.
+In ualib/agda-algebras.  Every top-level group but `Order` pulls in at least 22 MB (gzipped) of standard-library interfaces, because modules import umbrella modules: `Setoid.Algebras.Basic` imports the whole `Overture` (which reaches `Overture.Cayley`, and with it `Data.Nat.Properties`, `Data.Fin.Properties` and `Data.Bool.Properties`) for six names from three submodules.  Importing the submodules instead would cut that module's standard-library closure from 25 MB to about 7 MB (an estimate from the dependency graph, measured 2026-10-04, not a rebuild); about 120 files import `Overture` this way.
 
 #### Acceptance criteria
 
 +  An agda-algebras issue tracks the change, and the closure sizes before and after are measured with [M1-4]'s pipeline.
-
----
 
 <!-- END GENERATED: milestone-1 -->
 
@@ -792,13 +630,7 @@ import `Overture` this way.
 
 **Labels:** `milestone-2-plugins`, `plugins`, `adr`
 
-A plugin is a manifest and its archives (the proposal's § 5): its kind
-(library, corpus, model, tool); its pins (the Agda version, the source
-commit, the digests); what it mounts (archives, with the verified closure
-index of [M1-4]); what it registers (tools, search indices); and what it
-costs, in bytes.  Generalize the fork's PLFA manifest and its
-`mountDriveArchives()` hook, validate manifests with a schema, and record
-the design in an ADR.
+A plugin is a manifest and its archives (the proposal's § 5): its kind (library, corpus, model, tool); its pins (the Agda version, the source commit, the digests); what it mounts (archives, with the verified closure index of [M1-4]); what it registers (tools, search indices); and what it costs, in bytes.  Generalize the fork's PLFA manifest and its `mountDriveArchives()` hook, validate manifests with a schema, and record the design in an ADR.
 
 #### Acceptance criteria
 
@@ -809,11 +641,9 @@ the design in an ADR.
 
 ### Issue M2-2: The install consent gate (#25)
 
-**Labels:** `milestone-2-plugins`, `plugins`, `security`, `ui`
+**Labels:** `milestone-2-plugins`, `ui`, `plugins`, `security`
 
-Installing a plugin says what it is, from which origin, and how many bytes,
-and fetches nothing before the reader agrees.  Consent is remembered per
-plugin and version.
+Installing a plugin says what it is, from which origin, and how many bytes, and fetches nothing before the reader agrees.  Consent is remembered per plugin and version.
 
 #### Acceptance criteria
 
@@ -823,11 +653,9 @@ plugin and version.
 
 ### Issue M2-3: A third library added by its manifest alone (#26)
 
-**Labels:** `milestone-2-plugins`, `plugins`, `libraries`
+**Labels:** `milestone-2-plugins`, `libraries`, `plugins`
 
-Prove the plugin model on a library nobody wrote code for: PLFA, already
-packaged by the fork, re-expressed as a plugin, or another library built by
-the [M1-4] pipeline.
+Prove the plugin model on a library nobody wrote code for: PLFA, already packaged by the fork, re-expressed as a plugin, or another library built by the [M1-4] pipeline.
 
 #### Acceptance criteria
 
@@ -837,10 +665,9 @@ the [M1-4] pipeline.
 
 ### Issue M2-4: Versioned caches and storage controls (#27)
 
-**Labels:** `milestone-2-plugins`, `plugins`, `ui`
+**Labels:** `milestone-2-plugins`, `ui`, `plugins`
 
-Caches keyed by each plugin's pins; a panel that shows the storage each
-plugin uses and clears it; eviction when a pin changes.
+Caches keyed by each plugin's pins; a panel that shows the storage each plugin uses and clears it; eviction when a pin changes.
 
 #### Acceptance criteria
 
@@ -853,15 +680,11 @@ plugin uses and clears it; eviction when a pin changes.
 
 **Labels:** `milestone-2-plugins`, `runtime`, `ui`
 
-Multi-file projects in the virtual filesystem (the proposal's "What is
-hard"): files and folders under PLAYGROUND, an `.agda-lib` for the project,
-imports between its modules, and a project exported and imported as a ZIP.
+Multi-file projects in the virtual filesystem (the proposal's "What is hard"): files and folders under PLAYGROUND, an `.agda-lib` for the project, imports between its modules, and a project exported and imported as a ZIP.
 
 #### Acceptance criteria
 
 +  A two-module project checks, and survives a ZIP round trip.
-
----
 
 <!-- END GENERATED: milestone-2 -->
 
@@ -873,14 +696,7 @@ imports between its modules, and a project exported and imported as a ZIP.
 
 **Labels:** `milestone-3-tool-server`, `tool-server`, `adr`
 
-Implement the proposal's table: `get_goal`, `type_of`, `normalize`,
-`resolve_name`, `exports_of`, `fill_hole`, `check_file`, `get_diagnostics`,
-`search_by_name`, `search_by_type`, `search_in_scope`, `get_dependencies`,
-`definition_of`, with `check_project` unsupported until projects are
-([M2-5]).  The contract is agda-native-air [ADR 0002][adr0002]'s: a verdict
-is an exit code and never a reading of diagnostics text; every answer names
-the tree it checked; a lane answer carries no verdict.  Expose the tools
-with JSON schemas, for model tool calling.
+Implement the proposal's table: `get_goal`, `type_of`, `normalize`, `resolve_name`, `exports_of`, `fill_hole`, `check_file`, `get_diagnostics`, `search_by_name`, `search_by_type`, `search_in_scope`, `get_dependencies`, `definition_of`, with `check_project` unsupported until projects are ([M2-5]).  The contract is agda-native-air [ADR 0002][adr0002]'s: a verdict is an exit code and never a reading of diagnostics text; every answer names the tree it checked; a lane answer carries no verdict.  Expose the tools with JSON schemas, for model tool calling.
 
 #### Acceptance criteria
 
@@ -894,12 +710,7 @@ with JSON schemas, for model tool calling.
 
 **Labels:** `milestone-3-tool-server`, `runtime`
 
-Ship `agda-opt.wasm` from agda-web/agda-wasm-dist `v2.8.0-ghc9.10.3-r0`
-(31,524,760 bytes; 9,703,518 gzipped) as the second artifact, pinned by
-hash.  Port agda-algebras PR 585's worker: its WASI host (the 24 imports the
-checker declares), its tar reader, and its interaction-protocol reader, with
-their node test suites.  The batch exit code is the verdict (42 for a type
-error or an open hole).
+Ship `agda-opt.wasm` from agda-web/agda-wasm-dist `v2.8.0-ghc9.10.3-r0` (31,524,760 bytes; 9,703,518 gzipped) as the second artifact, pinned by hash.  Port agda-algebras PR 585's worker: its WASI host (the 24 imports the checker declares), its tar reader, and its interaction-protocol reader, with their node test suites.  The batch exit code is the verdict (42 for a type error or an open hole).
 
 #### Acceptance criteria
 
@@ -912,10 +723,7 @@ error or an open hole).
 
 **Labels:** `milestone-3-tool-server`, `measurement`
 
-As agda-native-air [#163][a163] checked the persistent lane against the batch
-verdict (80 distinct obligation and candidate pairs, zero disagreements on
-committed candidates), replay the archived `fill_hole` calls through the
-browser's tools and compare every answer.
+As agda-native-air [#163][a163] checked the persistent lane against the batch verdict (80 distinct obligation and candidate pairs, zero disagreements on committed candidates), replay the archived `fill_hole` calls through the browser's tools and compare every answer.
 
 #### Acceptance criteria
 
@@ -929,10 +737,7 @@ browser's tools and compare every answer.
 
 **Labels:** `milestone-3-tool-server`, `plugins`, `tool-server`
 
-Mount agda-native-air's published corpora (agda-algebras, 13,123 rows; the
-standard library, 55,576 rows) as corpus plugins, and answer
-`search_by_name`, `search_by_type` and `get_dependencies` over them, with the
-heuristic caveats the corpus cards state.
+Mount agda-native-air's published corpora (agda-algebras, 13,123 rows; the standard library, 55,576 rows) as corpus plugins, and answer `search_by_name`, `search_by_type` and `get_dependencies` over them, with the heuristic caveats the corpus cards state.
 
 #### Acceptance criteria
 
@@ -942,13 +747,9 @@ heuristic caveats the corpus cards state.
 
 ### Issue M3-5: Full-text search over the mounted sources (#33)
 
-**Labels:** `milestone-3-tool-server`, `tool-server`, `ui`
+**Labels:** `milestone-3-tool-server`, `ui`, `tool-server`
 
-agda-native-air [#162][a162] measured that a model reading a library's source
-constructs proofs where one querying names cites lemmas (with a shell, it
-solved 50 of 55 and restated none; with the server alone, 47 and 6).  The
-sources are mounted here, so a search over them is cheap: a search panel for
-people, and a tool for models.
+agda-native-air [#162][a162] measured that a model reading a library's source constructs proofs where one querying names cites lemmas (with a shell, it solved 50 of 55 and restated none; with the server alone, 47 and 6).  The sources are mounted here, so a search over them is cheap: a search panel for people, and a tool for models.
 
 #### Acceptance criteria
 
@@ -962,15 +763,11 @@ people, and a tool for models.
 
 **Labels:** `milestone-3-tool-server`, `tool-server`
 
-The corpus query, then the file's import surface, then `Cmd_infer` on the
-lane to type each accepted rendering in that scope: the corpus alone answers
-neither what the file can name nor what Agda says its type is.
+The corpus query, then the file's import surface, then `Cmd_infer` on the lane to type each accepted rendering in that scope: the corpus alone answers neither what the file can name nor what Agda says its type is.
 
 #### Acceptance criteria
 
 +  On a sample of files and queries, the answers agree with native `agda-mcp`'s.
-
----
 
 <!-- END GENERATED: milestone-3 -->
 
@@ -982,11 +779,7 @@ neither what the file can name nor what Agda says its type is.
 
 **Labels:** `milestone-4-models`, `models`, `security`, `adr`
 
-The key is a secret in a page that also loads plugins.  A provider frame on
-its own origin holds it and forwards requests and answers; plugins run in
-sandboxed frames or workers with no path to it; the gate says, in a reader's
-words, what leaves the tab, when, and to whom.  Record the threat (a script
-on the IDE's origin reading or reusing the key) and the design in an ADR.
+The key is a secret in a page that also loads plugins.  A provider frame on its own origin holds it and forwards requests and answers; plugins run in sandboxed frames or workers with no path to it; the gate says, in a reader's words, what leaves the tab, when, and to whom.  Record the threat (a script on the IDE's origin reading or reusing the key) and the design in an ADR.
 
 #### Acceptance criteria
 
@@ -996,11 +789,9 @@ on the IDE's origin reading or reusing the key) and the design in an ADR.
 
 ### Issue M4-2: A frontier model on the user's key, working through the tool surface (#36)
 
-**Labels:** `milestone-4-models`, `models`, `tool-server`
+**Labels:** `milestone-4-models`, `tool-server`, `models`
 
-Ordinary tool calling against [M3-1]'s surface.  A suggestion is a
-candidate: it goes through `Cmd_give` or the batch lane, and the page shows
-Agda's verdict, never the model's claim.
+Ordinary tool calling against [M3-1]'s surface.  A suggestion is a candidate: it goes through `Cmd_give` or the batch lane, and the page shows Agda's verdict, never the model's claim.
 
 #### Acceptance criteria
 
@@ -1010,11 +801,9 @@ Agda's verdict, never the model's claim.
 
 ### Issue M4-3: Sessions archived and rendered in the replay format (#37)
 
-**Labels:** `milestone-4-models`, `models`, `ui`
+**Labels:** `milestone-4-models`, `ui`, `models`
 
-Render a session as agda-native-air's demo page does ([#85][a85]): the
-model's words, its calls and the answers in full, with the judge's verdict
-beside them.  Export a session as an archive that the replay renders.
+Render a session as agda-native-air's demo page does ([#85][a85]): the model's words, its calls and the answers in full, with the judge's verdict beside them.  Export a session as an archive that the replay renders.
 
 #### Acceptance criteria
 
@@ -1026,10 +815,9 @@ beside them.  Export a session as an archive that the replay renders.
 
 ### Issue M4-4: An external agent attached over a local bridge (#38)
 
-**Labels:** `milestone-4-models`, `models`, `tool-server`
+**Labels:** `milestone-4-models`, `tool-server`, `models`
 
-A Claude Code session (or any agent) attaches to the IDE over a local bridge,
-and the page is its tool server.
+A Claude Code session (or any agent) attaches to the IDE over a local bridge, and the page is its tool server.
 
 #### Acceptance criteria
 
@@ -1039,16 +827,13 @@ and the page is its tool server.
 
 ### Issue M4-5: A local model plugin, labeled unmeasured (#39)
 
-**Labels:** `milestone-4-models`, `models`, `plugins`
+**Labels:** `milestone-4-models`, `plugins`, `models`
 
-A model that runs in the browser, as a plugin, labeled unmeasured until the
-local-model measurements in agda-native-air's Milestone 4 say otherwise.
+A model that runs in the browser, as a plugin, labeled unmeasured until the local-model measurements in agda-native-air's Milestone 4 say otherwise.
 
 #### Acceptance criteria
 
 +  The plugin loads, proposes candidates at a goal, and the page labels it unmeasured.
-
----
 
 <!-- END GENERATED: milestone-4 -->
 
@@ -1058,12 +843,9 @@ local-model measurements in agda-native-air's Milestone 4 say otherwise.
 
 ### Issue M5-1: The precedents: Paperproof, the Incredible Proof Machine, and others (#40)
 
-**Labels:** `milestone-5-theory-view`, `diagrams`, `documentation`
+**Labels:** `documentation`, `milestone-5-theory-view`, `diagrams`
 
-Study, before designing: Paperproof (Lean 4 proofs as trees), the Incredible
-Proof Machine (natural deduction built graphically in a browser), jsCoq, and
-Isabelle's Isar for what a readable large proof looks like as text.  A short
-note on what to take from each.
+Study, before designing: Paperproof (Lean 4 proofs as trees), the Incredible Proof Machine (natural deduction built graphically in a browser), jsCoq, and Isabelle's Isar for what a readable large proof looks like as text.  A short note on what to take from each.
 
 #### Acceptance criteria
 
@@ -1075,12 +857,7 @@ note on what to take from each.
 
 **Labels:** `milestone-5-theory-view`, `diagrams`
 
-Nodes are definitions; edges are "uses", of three provenances the view
-labels: exact (body references read from internal terms), approximate (the
-corpus's `dependencies`, from the printed type), and module edges from
-`agda --dependency-graph` (a load order, not the import relation).  The
-published corpora carry only the approximate edges; the exact ones need a
-corpus cut that carries `bodyRefs` (agda-native-air [#15][a15]).
+Nodes are definitions; edges are "uses", of three provenances the view labels: exact (body references read from internal terms), approximate (the corpus's `dependencies`, from the printed type), and module edges from `agda --dependency-graph` (a load order, not the import relation).  The published corpora carry only the approximate edges; the exact ones need a corpus cut that carries `bodyRefs` (agda-native-air [#15][a15]).
 
 #### Acceptance criteria
 
@@ -1092,16 +869,13 @@ corpus cut that carries `bodyRefs` (agda-native-air [#15][a15]).
 
 ### Issue M5-3: From a node to its source, and back (#42)
 
-**Labels:** `milestone-5-theory-view`, `diagrams`, `ui`
+**Labels:** `milestone-5-theory-view`, `ui`, `diagrams`
 
-A node opens its definition in the editor; the definition under the cursor
-is highlighted in the graph.
+A node opens its definition in the editor; the definition under the cursor is highlighted in the graph.
 
 #### Acceptance criteria
 
 +  Both directions work for every node of the agda-algebras graph.
-
----
 
 <!-- END GENERATED: milestone-5 -->
 
@@ -1111,13 +885,9 @@ is highlighted in the graph.
 
 ### Issue M6-1: The proof-term export, in agda-native-air (#43)
 
-**Labels:** `milestone-6-proof-view`, `cross-repo`, `diagrams`
+**Labels:** `milestone-6-proof-view`, `diagrams`, `cross-repo`
 
-The proof view's prerequisite, which lands in agda-native-air: the clause
-bodies exported through the encoder the type already uses (`typeAst`), and a
-typing pass that records the judgment at each node.  Without it, the
-judgments exist only at open leaves, where the interaction protocol reports
-a goal.
+The proof view's prerequisite, which lands in agda-native-air: the clause bodies exported through the encoder the type already uses (`typeAst`), and a typing pass that records the judgment at each node.  Without it, the judgments exist only at open leaves, where the interaction protocol reports a goal.
 
 #### Acceptance criteria
 
@@ -1129,11 +899,7 @@ a goal.
 
 **Labels:** `milestone-6-proof-view`, `diagrams`
 
-Render one gold's term as a derivation tree with the judgment at each node
-and holes as open leaves.  Settle elision (which nodes to hide) and folding
-(which subtrees collapse to a lemma leaf) on the 55 golds, read-only, before
-any editing; a lemma leaf links to its node in the theory view and shows its
-body on demand.
+Render one gold's term as a derivation tree with the judgment at each node and holes as open leaves.  Settle elision (which nodes to hide) and folding (which subtrees collapse to a lemma leaf) on the 55 golds, read-only, before any editing; a lemma leaf links to its node in the theory view and shows its body on demand.
 
 #### Acceptance criteria
 
@@ -1145,10 +911,7 @@ body on demand.
 
 **Labels:** `milestone-6-proof-view`, `diagrams`
 
-No free-drawing mode.  A hole is a sketch of a term and its interior is a
-sketch of intent, and the diagram draws both from the file: solid for checked
-structure, dashed for what is inside a hole.  No node or edge appears that is
-not in the source.
+No free-drawing mode.  A hole is a sketch of a term and its interior is a sketch of intent, and the diagram draws both from the file: solid for checked structure, dashed for what is inside a hole.  No node or edge appears that is not in the source.
 
 #### Acceptance criteria
 
@@ -1158,18 +921,13 @@ not in the source.
 
 ### Issue M6-4: Editing at a leaf: refine and give, then case split (#46)
 
-**Labels:** `milestone-6-proof-view`, `diagrams`, `tool-server`
+**Labels:** `milestone-6-proof-view`, `tool-server`, `diagrams`
 
-At an open leaf, applying a lemma is `Cmd_refine` (its new leaves are new
-holes), closing is `Cmd_give`, and branching is `Cmd_make_case`.  Every edit
-is a real command against the checker, and the diagram redraws from the
-re-checked term.
+At an open leaf, applying a lemma is `Cmd_refine` (its new leaves are new holes), closing is `Cmd_give`, and branching is `Cmd_make_case`.  Every edit is a real command against the checker, and the diagram redraws from the re-checked term.
 
 #### Acceptance criteria
 
 +  Refine and give at a leaf re-check the file and redraw the diagram; then case split does.
-
----
 
 <!-- END GENERATED: milestone-6 -->
 
@@ -1180,7 +938,7 @@ mirrored here by `make update`, grouped by milestone.
 
 <!-- BEGIN GENERATED: unplanned -->
 
-_(no organically-filed issues; every issue on GitHub carries a `[MN-k]` planning prefix)_
+_(no organically-filed issues — every issue on GitHub carries a `[MN-k]` planning prefix)_
 <!-- END GENERATED: unplanned -->
 
 ---
