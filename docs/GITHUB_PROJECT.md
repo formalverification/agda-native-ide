@@ -484,7 +484,7 @@ The same GHC and GMP gap is in agda-algebras PR 585's published notice.
 
 **Labels:** `bug`, `milestone-0-foundations`, `runtime`
 
-The fork's `static/agda-data.zip` (Agda's `lib/prim`) carries interfaces in Agda 2.7.0.1's format: all 37 have header version 202406290, where Agda 2.8.0 writes and reads 202507030.  So every fresh profile's first check type-checks five builtin modules again (measured 2026-10-04: 6 `Checking` lines instead of 1).  The rejection does not cascade, since the standard library's and agda-algebras' interfaces are still accepted, but it costs every first visit.  Ship the 2.8 interfaces from the native data directory (`lib/prim/_build/2.8.0/agda`), built by the same procedure as the libraries' ([M1-4]).
+The fork's `static/agda-data.zip` (Agda's `lib/prim`) carries interfaces in Agda 2.7.0.1's format: all 37 have header version 202406290, where Agda 2.8.0 writes and reads 202507030.  So every fresh profile's first check type-checks the builtins it imports again (measured 2026-10-04: 6 `Checking` lines instead of 1 for a `Main` importing `Overture.Basic`, and 4 for the fork's default `Main.agda`: `Main`, `Agda.Builtin.Nat`, `Agda.Builtin.Bool` and `Agda.Builtin.Equality`).  The rejection does not cascade, since the standard library's and agda-algebras' interfaces are still accepted, but it costs every first visit.  Ship the 2.8 interfaces from the native data directory (`lib/prim/_build/2.8.0/agda`), built by the same procedure as the libraries' ([M1-4]).
 
 #### Acceptance criteria
 
