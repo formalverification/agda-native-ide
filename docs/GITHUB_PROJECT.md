@@ -341,6 +341,13 @@ A dev shell with the pinned node, and a `packages.site` output that builds the s
 +  **Generate what upstream maintains by hand**: the `?cache=` tokens, the compiler's byte length hard-coded in the controller, and the IndexedDB cache namespace.  Derive them from content hashes and real sizes at build time, or a rebuilt asset is served stale behind a 14,400 s cache.
 +  **Trim**: the main chunk is 1,144 kB (362 kB gzipped), and carries `zod`, `marked` and CodeMirror's markdown, HTML, JavaScript and CSS modes, which only the PLFA reader needs.
 
+
+#### More findings, 2026-10-05
+
++  **The built site has no raw compiler, so a browser without `DecompressionStream` cannot start Agda.**  `scripts/prepare-cloudflare-assets.mjs` deletes `build/als-2.8ext.wasm` after gzipping it, but `fetchWASMAndData` falls back to that raw file when `DecompressionStream` is missing or the `.gz` request fails; the request is then a 404 (on upstream's live site, the page's own HTML labelled `application/wasm`), the controller swallows the failure (`controller.svelte.ts:283-290`), and the page says "Agda ready" with no goals and never checks, with no error shown.  Measured 2026-10-05 in headless Chrome 153 with `DecompressionStream` removed from the page: no check after 60 s; with the raw file put back in `build/`, two goals in 1.20 s.  Of the build's declared targets (`vite.config.js`: Chrome 89, Edge 89, Firefox 89, Safari 15), Firefox before 113 and Safari before 16.4 lack `DecompressionStream` (MDN's compatibility data).  Decide here whether the built site ships the raw file as well (33 MB more per deploy; upstream deletes it for Cloudflare's per-file limit) or drops the branch and says so on the page ([M0-8] is the same kind of gap).  Found in [#52]'s review.
+
+[#52]: https://github.com/formalverification/agda-native-ide/pull/52
+
 ---
 
 ### Issue M0-4: Pin the compiler and the standard library by hash, with a rebuild recipe (#4)
