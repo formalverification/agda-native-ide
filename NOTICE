@@ -1,0 +1,443 @@
+NOTICE
+
+agda-native-ide
+Copyright (c) 2026 William DeMeo
+Copyright 2026 Andy Pan
+MIT License; see LICENSE.
+
+This notice names every artifact the agda-native-ide app ships (the code
+bundled into its page, and every file served beside it) with its copyright
+and its license.  The license texts are in licenses/, each copied verbatim
+from its source; the build publishes this file as NOTICE.txt, with
+licenses/ beside it.  docs/provenance.md records where each file comes
+from, with its SHA-256.
+
+Contents
+
+  1.  The app: plfa-playground
+  2.  The JavaScript bundled into the page
+  3.  The compiler: als-2.8ext.wasm.gz
+  4.  Agda's builtin library: agda-data.zip
+  5.  The Agda standard library 2.3: agda-stdlib-2.3.zip
+  6.  PLFA: plfa/
+  7.  JuliaMono: JuliaMono-*.woff2
+  8.  coi-serviceworker: coi-serviceworker.js
+  9.  The Agda mark: favicon.svg and favicon.png
+
+
+1.  The app: plfa-playground
+
+    Files:     index.html, the app's code in _app/ (bundled with the
+               packages of section 2), julia-mono.css, _headers.
+    Source:    https://github.com/SeungheonOh/plfa-playground, commit
+               ae0aa84c24363a8d6dadc292b6eb8f88f7f38705 (2026-08-31).
+    Copyright: Copyright 2026 Andy Pan.  Every commit of plfa-playground
+               is Seungheon Oh's; the copyright line is the one
+               agda-web/als-demo's license carries, where plfa-playground
+               began (https://github.com/agda-web/als-demo).
+    License:   MIT.  licenses/plfa-playground.txt (byte-identical to
+               agda-web/als-demo's LICENSE).
+
+    plfa-playground's own NOTICE.md read, in full:
+
+    | # Third-party notices
+    |
+    | The WASI worker, virtual filesystem, CodeMirror Agda highlighting, Agda input
+    | method, and language-server transport began from
+    | [`agda-web/als-demo`](https://github.com/agda-web/als-demo), copyright Andy Pan,
+    | under the MIT license in `LICENSE`.
+    |
+    | The compiler is built from
+    | [`agda-web/agda-language-server`](https://github.com/agda-web/agda-language-server)
+    | and [`agda-web/agda`](https://github.com/agda-web/agda). The bundled standard
+    | library is from [`agda/agda-stdlib`](https://github.com/agda/agda-stdlib).
+    | Their respective upstream licenses apply to those artifacts.
+    |
+    | The embedded literate Agda book chapters are from
+    | [`plfa/plfa.github.io`](https://github.com/plfa/plfa.github.io), *Programming
+    | Language Foundations in Agda*, by Philip Wadler, Wen Kokke, Jeremy G. Siek,
+    | and contributors. They are redistributed under the Creative Commons
+    | Attribution 4.0 International license. The bundled revision and full license
+    | text are recorded in `static/plfa/manifest.json` and `static/plfa/LICENSE`.
+
+
+2.  The JavaScript bundled into the page
+
+    The page's code in _app/ bundles the npm packages below, as listed
+    from the build's source maps (not from the lockfile).  Each package's
+    license file is in licenses/npm/<package>/.
+
+     @andy0130tw/vscode-jsonrpc-esm 9.0.0-next-esm.9  MIT
+     @codemirror/autocomplete 6.20.1                  MIT
+     @codemirror/commands 6.10.2                      MIT
+     @codemirror/lang-css 6.3.1                       MIT
+     @codemirror/lang-html 6.4.12                     MIT
+     @codemirror/lang-javascript 6.2.5                MIT
+     @codemirror/lang-markdown 6.5.2                  MIT
+     @codemirror/language 6.12.2                      MIT
+     @codemirror/lint 6.9.5                           MIT
+     @codemirror/lsp-client 6.2.2                     MIT
+     @codemirror/search 6.6.0                         MIT
+     @codemirror/state 6.5.4                          MIT
+     @codemirror/view 6.39.16                         MIT
+     @lezer/common 1.5.1                              MIT
+     @lezer/css 1.3.6                                 MIT
+     @lezer/highlight 1.2.1                           MIT
+     @lezer/html 1.3.13                               MIT
+     @lezer/javascript 1.5.4                          MIT
+     @lezer/lr 1.4.2                                  MIT
+     @lezer/markdown 1.7.2                            MIT
+     @lucide/svelte 1.37.0                            ISC
+     @marijn/find-cluster-break 1.0.2                 MIT
+     @runno/wasi 0.10.0                               MIT
+     @sveltejs/kit 2.70.3                             MIT
+     clsx 2.1.1                                       MIT
+     codemirror 6.0.2                                 MIT
+     comlink 4.4.2                                    Apache-2.0
+     crelt 1.0.6                                      MIT
+     jszip 3.10.1                                     (MIT OR GPL-3.0-or-later)
+     marked 16.4.2                                    MIT
+     spsc 0.0.7                                       MIT
+     style-mod 4.1.2                                  MIT
+     svelte 5.57.0                                    MIT
+     w3c-keyname 2.2.8                                MIT
+     zod 4.3.6                                        MIT
+
+    jszip is offered under MIT or GPL-3.0-or-later, and is distributed
+    here under MIT.  Its prebuilt dist/jszip.min.js, which the page bundles,
+    embeds four more packages; their license files, from the installed
+    copies, are in licenses/npm/<package>/ too:
+
+     pako 1.0.11                                      (MIT AND Zlib)
+     lie 3.3.0                                        MIT
+     immediate 3.0.6                                  MIT
+     setimmediate 1.0.5                               MIT
+
+    comlink is Apache-2.0 ("Copyright 2019 Google LLC" in its source,
+    "Copyright 2017 Google Inc." in its LICENSE); licenses/npm/comlink/LICENSE
+    is the license's full text.
+
+    The bundler adds its own runtime helpers to the page:
+
+     vite 8.2.2 (the module preload helper)           MIT
+     rolldown 1.2.6 (the module runtime helpers)      MIT
+
+    licenses/npm/vite/LICENSE.core.md is the first 24 lines of Vite's
+    LICENSE.md, its own license; the rest of that file lists the licenses
+    of Vite's own dependencies, which run at build time and are not in the
+    page.  licenses/npm/rolldown/THIRD-PARTY-LICENSE carries the licenses of
+    Rollup and esbuild, from which Rolldown's code derives.
+
+
+3.  The compiler: als-2.8ext.wasm.gz
+
+    The Agda Language Server with Agda 2.8.0, compiled to WebAssembly (WASI)
+    by GHC 9.10.3.20250924 and statically linked.  plfa-playground built it
+    with compiler/build-agda-wasm.sh from these sources:
+
+      agda-web/agda-language-server  e65419f89e3152c2922e948b3e4d24580172bc6a
+      agda-web/agda                  e2f8c69414fa115328280ecc4de1d2b7a23be7fa
+      ghc-wasm-meta                  c3f44696d29aaeadd755d69c51735954bfcd59db
+                                     (the 9.10 flavour)
+
+    The uncompressed binary's SHA-256 is
+    53c62b0ad569a9d123f744b192c13780c494ade0cddef4daaa00db41ecd7f7a1; the
+    build ships it gzipped.  It contains the following, each under its own
+    license.
+
+    3.1  The Agda Language Server 0.2.7.0.1.5.  MIT, Copyright (c) 2017 -
+         2020 Luā Tîng-Giān.  licenses/compiler/agda-language-server.txt.
+
+    3.2  Agda 2.8.0 (agda-web/agda e2f8c694).  MIT, Copyright (c)
+         2005-2025 remains with the authors.  licenses/compiler/agda.txt.
+
+    3.3  GHC's runtime system and boot libraries, from GHC 9.10.3.20250924
+         (ghc-wasm-bindists release 20250925T165110).  The Glasgow Haskell
+         Compiler License, Copyright 2002, The University Court of the
+         University of Glasgow: licenses/compiler/ghc.txt.  Each boot
+         library's own license is listed in 3.5.
+
+    3.4  GMP 6.3.0, the GNU Multiple Precision Arithmetic Library, linked
+         into GHC's ghc-bignum library.  Copyright Free Software
+         Foundation, Inc.  GMP is offered under LGPL-3.0-or-later or
+         GPL-2.0-or-later, and is distributed here under the GNU Lesser
+         General Public License, version 3 or later:
+         licenses/compiler/gmp/COPYING.LESSERv3, with the GNU General
+         Public License version 3 it incorporates,
+         licenses/compiler/gmp/COPYINGv3, and GMP's own statement,
+         licenses/compiler/gmp/README.license.
+
+         GMP's source: gmp-6.3.0-nodoc.tar.xz (SHA-256
+         5312838fe855512acfea6ea24197b8620643a823fe309dc6faceb3eee214f4f0)
+         and GHC's two patches to it, in
+         https://gitlab.haskell.org/ghc/gmp-tarballs at commit
+         01149ce3471128e9fe0feca607579981f4b64395, the GMP that GHC 9.10
+         builds.
+
+         To relink with a modified GMP: every other part of the compiler
+         is free software whose source is public at the commits named in
+         this section, and compiler/build-agda-wasm.sh links them with the
+         toolchain ghc-wasm-meta pins.  Replace GMP's objects in that
+         toolchain's libHSghc-bignum-1.3-inplace.a with a modified GMP's
+         (or rebuild GHC's ghc-bignum against it) and run the recipe.
+
+    3.5  The Haskell packages linked into it: the executable's link
+         closure in a cabal build plan, 150 packages, each package's
+         license file in licenses/compiler/haskell/<name>-<version>/.
+         "GHC" marks a boot package shipped with the compiler, "local" a
+         package of the project (entropy 0.4.1.11 with the recipe's patch;
+         network from the haskell-wasm fork at 1dc8708, a submodule of the
+         language server), and "git" network-simple from
+         https://github.com/k0001/network-simple at 2c3ab6e.
+
+         adjunctions 4.4.4                       BSD-2-Clause    Hackage
+         aeson 2.2.5.1                           BSD-3-Clause    Hackage
+         Agda 2.8.0                              MIT             local
+         agda-language-server 0.2.7.0.1.5        MIT             local
+         ansi-terminal 1.1.5                     BSD-3-Clause    Hackage
+         ansi-terminal-types 1.1.3               BSD-3-Clause    Hackage
+         ap-normalize 0.1.0.1                    MIT             Hackage
+         array 0.5.8.0                           BSD-3-Clause    GHC
+         assoc 1.1.1                             BSD-3-Clause    Hackage
+         async 2.2.6                             BSD-3-Clause    Hackage
+         attoparsec 0.14.4                       BSD-3-Clause    Hackage
+         base 4.20.2.0                           BSD-3-Clause    GHC
+         base-compat 0.15.0                      MIT             Hackage
+         base-orphans 0.9.4                      MIT             Hackage
+         base64-bytestring 1.2.1.0               BSD-3-Clause    Hackage
+         bifunctors 5.6.3                        BSD-3-Clause    Hackage
+         binary 0.8.9.3                          BSD-3-Clause    GHC
+         blaze-builder 0.4.4.1                   BSD-3-Clause    Hackage
+         blaze-html 0.9.2.0                      BSD-3-Clause    Hackage
+         blaze-markup 0.8.3.0                    BSD-3-Clause    Hackage
+         boring 0.2.2.1                          BSD-3-Clause    Hackage
+         boxes 0.1.5                             BSD-3-Clause    Hackage
+         bytestring 0.12.2.0                     BSD-3-Clause    GHC
+         call-stack 0.4.0                        MIT             Hackage
+         case-insensitive 1.2.1.0                BSD-3-Clause    Hackage
+         character-ps 0.1                        BSD-3-Clause    Hackage
+         clock 0.8.4                             BSD-3-Clause    Hackage
+         co-log-core 0.3.2.7                     MPL-2.0         Hackage
+         colour 2.3.7                            MIT             Hackage
+         comonad 5.0.10                          BSD-3-Clause    Hackage
+         constraints 0.14.4                      BSD-2-Clause    Hackage
+         containers 0.7                          BSD-3-Clause    GHC
+         contravariant 1.5.6                     BSD-3-Clause    Hackage
+         data-default 0.8.0.2                    BSD-3-Clause    Hackage
+         data-fix 0.3.4                          BSD-3-Clause    Hackage
+         data-hash 0.2.0.1                       BSD-3-Clause    Hackage
+         deepseq 1.5.0.0                         BSD-3-Clause    GHC
+         Diff 1.0.2                              BSD-3-Clause    Hackage
+         directory 1.3.8.5                       BSD-3-Clause    GHC
+         distributive 0.6.3                      BSD-3-Clause    Hackage
+         dlist 1.0                               BSD-3-Clause    Hackage
+         edit-distance 0.2.2.1                   BSD-3-Clause    Hackage
+         entropy 0.4.1.11                        BSD-3-Clause    local
+         enummapset 0.7.3.0                      BSD-3-Clause    Hackage
+         equivalence 0.4.1.1                     BSD-3-Clause    Hackage
+         exceptions 0.10.9                       BSD-3-Clause    GHC
+         extra 1.8.1                             BSD-3-Clause    Hackage
+         filemanip 0.3.6.3                       BSD-3-Clause    Hackage
+         filepath 1.5.4.0                        BSD-3-Clause    GHC
+         fmlist 0.9.5                            BSD-3-Clause    Hackage
+         free 5.2                                BSD-3-Clause    Hackage
+         generic-data 1.1.0.2                    MIT             Hackage
+         generic-deriving 1.14.7                 BSD-3-Clause    Hackage
+         generic-lens 2.3.0.0                    BSD-3-Clause    Hackage
+         generic-lens-core 2.3.0.0               BSD-3-Clause    Hackage
+         ghc-bignum 1.3                          BSD-3-Clause    GHC
+         ghc-boot-th 9.10.3.20250924             BSD-3-Clause    GHC
+         ghc-compact 0.1.0.0                     BSD-3-Clause    GHC
+         ghc-internal 9.1003.0                   BSD-3-Clause    GHC
+         ghc-prim 0.12.0                         BSD-3-Clause    GHC
+         gitrev 1.3.1                            BSD-3-Clause    Hackage
+         hashable 1.5.1.0                        BSD-3-Clause    Hackage
+         haskeline 0.8.2.1                       BSD-3-Clause    GHC
+         indexed-profunctors 0.1.1.1             BSD-3-Clause    Hackage
+         indexed-traversable 0.1.5               BSD-2-Clause    Hackage
+         indexed-traversable-instances 0.1.2.1   BSD-2-Clause    Hackage
+         integer-conversion 0.1.1                BSD-3-Clause    Hackage
+         integer-logarithms 1.0.5                MIT             Hackage
+         invariant 0.6.5                         BSD-2-Clause    Hackage
+         kan-extensions 5.2.8                    BSD-3-Clause    Hackage
+         lens 5.3.6                              BSD-2-Clause    Hackage
+         lens-aeson 1.2.3                        MIT             Hackage
+         ListLike 4.7.8.4                        BSD-3-Clause    Hackage
+         lsp 2.8.0.0                             MIT             Hackage
+         lsp-types 2.4.0.0                       MIT             Hackage
+         mod 0.2.2.0                             MIT             Hackage
+         monad-control 1.0.3.1                   BSD-3-Clause    Hackage
+         mtl 2.3.1                               BSD-3-Clause    GHC
+         murmur-hash 0.1.0.11                    BSD-3-Clause    Hackage
+         network 3.2.7.0                         BSD-3-Clause    local
+         network-simple 0.4.2                    BSD-3-Clause    git
+         network-uri 2.6.4.2                     BSD-3-Clause    Hackage
+         nonempty-containers 0.3.6.0             BSD-3-Clause    Hackage
+         nonempty-vector 0.2.4                   BSD-3-Clause    Hackage
+         OneTuple 0.4.3                          BSD-3-Clause    Hackage
+         os-string 2.0.7                         BSD-3-Clause    GHC
+         parallel 3.2.2.0                        BSD-3-Clause    Hackage
+         parsec 3.1.18.0                         BSD-2-Clause    GHC
+         peano 0.1.1.0                           BSD-3-Clause    Hackage
+         pqueue 1.5.0.0                          BSD-3-Clause    Hackage
+         pretty 1.1.3.6                          BSD-3-Clause    GHC
+         prettyprinter 1.7.2                     BSD-2-Clause    Hackage
+         primitive 0.9.1.0                       BSD-3-Clause    Hackage
+         process 1.6.26.1                        BSD-3-Clause    GHC
+         process-extras 0.7.4                    MIT             Hackage
+         profunctors 5.6.3                       BSD-3-Clause    Hackage
+         QuickCheck 2.18.0.0                     BSD-3-Clause    Hackage
+         random 1.3.1                            BSD-3-Clause    Hackage
+         reflection 2.1.9                        BSD-3-Clause    Hackage
+         regex-base 0.94.0.3                     BSD-3-Clause    Hackage
+         regex-tdfa 1.3.2.6                      BSD-3-Clause    Hackage
+         row-types 1.0.1.2                       MIT             Hackage
+         rts 1.0.2                               BSD-3-Clause    GHC
+         safe 0.3.21                             BSD-3-Clause    Hackage
+         safe-exceptions 0.1.7.4                 MIT             Hackage
+         scientific 0.3.8.1                      BSD-3-Clause    Hackage
+         semialign 1.4                           BSD-3-Clause    Hackage
+         semigroupoids 6.0.2                     BSD-2-Clause    Hackage
+         semirings 0.7                           BSD-3-Clause    Hackage
+         SHA 1.6.4.4                             BSD-3-Clause    Hackage
+         show-combinators 0.2.0.0                MIT             Hackage
+         some 1.0.6                              BSD-3-Clause    Hackage
+         sorted-list 0.3.1.0                     MIT             Hackage
+         split 0.2.5.1                           BSD-3-Clause    Hackage
+         splitmix 0.1.3.2                        BSD-3-Clause    Hackage
+         StateVar 1.2.2                          BSD-3-Clause    Hackage
+         stm 2.5.3.1                             BSD-3-Clause    GHC
+         STMonadTrans 0.4.8.1                    BSD-3-Clause    Hackage
+         streaming-commons 0.2.3.1               MIT             Hackage
+         strict 0.5.1                            BSD-3-Clause    Hackage
+         system-cxx-std-lib 1.0                  BSD-3-Clause    GHC
+         tagged 0.8.10                           BSD-3-Clause    Hackage
+         template-haskell 2.22.0.0               BSD-3-Clause    GHC
+         text 2.1.3                              BSD-2-Clause    GHC
+         text-iso8601 0.1.1.2                    BSD-3-Clause    Hackage
+         text-rope 0.3                           BSD-3-Clause    Hackage
+         text-short 0.1.6.1                      BSD-3-Clause    Hackage
+         th-abstraction 0.7.2.0                  ISC             Hackage
+         th-compat 0.1.7                         BSD-3-Clause    Hackage
+         these 1.2.1                             BSD-3-Clause    Hackage
+         time 1.14                               BSD-2-Clause    GHC
+         time-compat 1.9.9                       BSD-3-Clause    Hackage
+         transformers 0.6.1.1                    BSD-3-Clause    GHC
+         transformers-base 0.4.6.1               BSD-3-Clause    Hackage
+         transformers-compat 0.7.2               BSD-3-Clause    Hackage
+         unix 2.8.7.0                            BSD-3-Clause    GHC
+         unix-compat 0.7.4.1                     BSD-3-Clause    Hackage
+         unliftio 0.2.25.1                       MIT             Hackage
+         unliftio-core 0.2.1.0                   MIT             Hackage
+         unordered-containers 0.2.21             BSD-3-Clause    Hackage
+         uri-encode 1.5.0.7                      BSD-3-Clause    Hackage
+         utf8-string 1.0.2                       BSD-3-Clause    Hackage
+         uuid-types 1.0.6.1                      BSD-3-Clause    Hackage
+         vector 0.13.2.0                         BSD-3-Clause    Hackage
+         vector-hashtables 0.1.2.1               BSD-3-Clause    Hackage
+         vector-stream 0.1.0.1                   BSD-3-Clause    Hackage
+         websockets 0.13.0.0                     BSD-3-Clause    Hackage
+         witherable 0.5                          BSD-3-Clause    Hackage
+         zlib 0.7.1.1                            BSD-3-Clause    Hackage
+         zlib-clib 1.3.2                         Zlib            Hackage
+
+         co-log-core is MPL-2.0: its Source Code Form is at
+         https://hackage.haskell.org/package/co-log-core-0.3.2.7.
+         system-cxx-std-lib has no license file of its own: it stands for
+         libc++, in 3.6.  zlib-clib carries the zlib library's C sources.
+
+         How the list was made.  The recipe pins no Hackage index state
+         and has no freeze file, so the plan was solved with the pinned
+         toolchain (wasm32-wasi-cabal 3.14.2.0, GHC 9.10.3.20250924) at
+         index state 2026-08-31T23:24:32Z, the time the binary was
+         committed; any index state from 2026-08-29T13:20:56Z (the last
+         upload among the planned packages) to then gives the same plan.
+         Checked against the binary: its strings carry 57 unit ids (35
+         with a content hash, which fixes the package's source, flags and
+         dependencies), every one of them in the plan, and none
+         disagreeing.  24 Hackage packages are not confirmed by the
+         binary, though their versions follow from the same plan:
+         ansi-terminal, ansi-terminal-types, ap-normalize, base-compat,
+         base64-bytestring, blaze-html, case-insensitive, colour,
+         data-hash, enummapset, filemanip, generic-data, gitrev,
+         lens-aeson, monad-control, murmur-hash, SHA, show-combinators,
+         sorted-list, streaming-commons, unix-compat, unliftio, uri-encode
+         and websockets.
+
+    3.6  C and C++ libraries from the toolchain's wasi-sdk 27.0:
+
+         +  wasi-libc cbe30c6ac3053c1ac44b6cf97342469123e6e221, the C
+            library every link takes (the binary carries musl's error
+            strings): Apache-2.0 WITH LLVM-exception, Apache-2.0, or MIT;
+            with portions from musl (MIT, Copyright 2005-2020 Rich Felker,
+            et al.), cloudlibc (BSD-2-Clause), musl-fts (BSD-3-Clause),
+            dlmalloc (CC0) and emmalloc (MIT), as its LICENSE says.
+            licenses/compiler/wasi-libc/.
+         +  libc++ and libc++abi (the binary names libc++abi), and
+            compiler-rt's builtins, which the toolchain's clang adds to
+            every link, from LLVM 21.1.3: Apache-2.0 WITH LLVM-exception.
+            licenses/compiler/llvm/.
+         +  simdutf, bundled by text 2.1.3: Apache-2.0 or MIT, Copyright
+            2020 and 2021 The simdutf authors.  licenses/compiler/simdutf/.
+         +  libffi-wasm, Copyright (c) 2022-2026 Cheng Shao: MIT-style.
+            licenses/compiler/libffi-wasm.txt.  GHC's runtime links it;
+            whether this binary carries its code is not confirmed.
+
+
+4.  Agda's builtin library: agda-data.zip
+
+    Agda's lib/prim (the Agda.Primitive and Agda.Builtin modules, their
+    interfaces and agda-builtins.agda-lib), as of Agda 2.7.0.1;
+    byte-identical to agda-web/als-demo's static/agda-data.zip.
+    MIT, Copyright (c) 2005-2024 remains with the authors:
+    licenses/agda-builtins.txt (Agda's LICENSE at v2.7.0.1).
+
+
+5.  The Agda standard library 2.3: agda-stdlib-2.3.zip
+
+    The sources of https://github.com/agda/agda-stdlib at v2.3, unchanged.
+    MIT, Copyright (c) 2007-2025 Nils Anders Danielsson, Ulf Norell, and
+    the others its LICENCE names.  The archive carries its LICENCE as
+    agda-stdlib-2.3/LICENCE; licenses/agda-stdlib.txt is the same text.
+
+
+6.  PLFA: plfa/
+
+    Programming Language Foundations in Agda, by Philip Wadler, Wen Kokke,
+    Jeremy G. Siek and contributors, https://github.com/plfa/plfa.github.io
+    at 870f9bb12d61927cdea3311cedcbbc48ac3fc422 (2026-08-21).
+    Creative Commons Attribution 4.0 International: plfa/LICENSE, and
+    licenses/plfa-cc-by-4.0.txt.
+
+    plfa/content/ holds the book's chapters, unchanged.  plfa/project.zip
+    holds the same sources with two adapter modules of plfa-playground's
+    own (plfa/browser/*.agda, MIT, section 1), and plfa/interfaces/ holds
+    the chapters compiled by Agda 2.8.0, with the standard-library
+    modules they import (section 5).
+
+
+7.  JuliaMono: JuliaMono-*.woff2
+
+    JuliaMono 0.060, https://github.com/cormullion/juliamono at v0.060,
+    six of its web fonts, unchanged.  Copyright (c) 2020 - 2023,
+    cormullion, with Reserved Font Name JuliaMono (the fonts' own metadata
+    says "Copyright 2020 - 2025 The JuliaMono Project Authors").  SIL Open
+    Font License 1.1: licenses/juliamono.txt.
+
+
+8.  coi-serviceworker: coi-serviceworker.js
+
+    https://github.com/gzuidhof/coi-serviceworker at
+    509a799daa6583b83b2a70b4dd1898c7e5a902dd (its header says v0.1.7),
+    unchanged.  MIT, Copyright (c) 2021 Guido Zuidhof:
+    licenses/coi-serviceworker.txt.
+
+
+9.  The Agda mark: favicon.svg and favicon.png
+
+    plfa-playground's adaptation of Agda's official mark,
+    doc/user-manual/agda.svg in https://github.com/agda/agda, designed by
+    Miëtek Bak.  The mark ships in the Agda package as one of its
+    extra-doc-files, under Agda's MIT license (licenses/compiler/agda.txt
+    is that license as of Agda 2.8.0); the adaptation is plfa-playground's
+    (section 1).

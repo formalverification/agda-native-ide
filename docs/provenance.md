@@ -4,8 +4,10 @@
 
 Where every file this repository took from elsewhere comes from, what became
 of it here, and the license it ships under.  The imported tree and the pinned
-binaries are recorded file by file, with their SHA-256s.  ADR 0001 records
-the decisions behind this shape.
+binaries are recorded file by file, with their SHA-256s.  [`NOTICE`][notice]
+names everything the built site ships, with its license, and
+[`licenses/`][licenses] holds the texts; ADR 0001 records the decisions
+behind this shape.
 
 ## Upstream
 
@@ -111,8 +113,8 @@ The JuliaMono 0.060 web fonts, byte-identical to `webfonts/` in
 [cormullion/juliamono] at tag `v0.060` (commit
 `5908c8613863806b3f053859e35049780c9c4784`), the Latin subsets included.
 License: SIL Open Font License 1.1, with Reserved Font Name JuliaMono; the
-fonts carry the notice in their metadata, and NOTICE carries the license
-text.
+fonts carry the notice in their metadata, and `licenses/juliamono.txt`
+carries the license text.
 
 | Path | Bytes | SHA-256 |
 |---|---:|---|
@@ -217,6 +219,8 @@ Each change is its own commit, named here by its subject.
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
 [records]: ../upstream/
+[notice]: ../NOTICE
+[licenses]: ../licenses/
 [#3]: https://github.com/formalverification/agda-native-ide/issues/3
 [#4]: https://github.com/formalverification/agda-native-ide/issues/4
 [#6]: https://github.com/formalverification/agda-native-ide/issues/6

@@ -156,7 +156,8 @@ guard-gh:
 # flake fetches each one from upstream at the imported commit and checks
 # it against its SHA-256 in $(PINS); `make assets` copies the set into
 # static/, and `make build` refuses to build unless every file there
-# still matches its pin.  docs/provenance.md records them all.
+# still matches its pin.  docs/provenance.md records them all.  `make
+# build` also publishes NOTICE (as NOTICE.txt) and licenses/ in build/.
 #
 #   PINS       the pinned binaries     (default: upstream/assets.sha256)
 #   UNCHANGED  the imported files that are still upstream's, byte for
@@ -177,6 +178,8 @@ assets-check: ## Check every pinned binary in static/ against its SHA-256
 
 build: assets-check ## Build the site into build/, after checking the pins
 	npm run build
+	install -m 644 NOTICE build/NOTICE.txt
+	cp -R licenses build/licenses
 
 provenance-check: ## Check the unchanged files, and that docs/provenance.md lists every pin
 	@sha256sum --check --strict --quiet $(UNCHANGED) && \
