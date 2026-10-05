@@ -351,6 +351,11 @@ Contents
          empty file is kept as shipped, and LICENSE.supplied beside it is
          the BSD-3-Clause text as SPDX publishes it, with that copyright
          line, supplied by this notice rather than by the author.
+         pqueue 1.5.0.0's LICENSE, in its tarball and its repository
+         alike, is two lines, "Copyright Louis Wasserman 2010" and "BSD
+         license", with none of the license's conditions; its cabal file
+         declares BSD3, so LICENSE.supplied beside it is the same SPDX
+         text with that copyright line, supplied the same way.
 
          How the list was made.  The recipe pins no Hackage index state
          and has no freeze file, so the plan was solved with the pinned
