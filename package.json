@@ -32,8 +32,7 @@
     "svelte-check": "^4.4.5",
     "typescript": "^5.9.3",
     "vite": "^8.2.2",
-    "vitest": "^4.1.11",
-    "wrangler": "^4.127.1"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=20.19.0 <25.0.0"
