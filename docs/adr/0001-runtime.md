@@ -235,7 +235,13 @@ consumes against the same pins.
 +  **The gzip**: `npm run build` wrote a 10,154,917-byte gzip that inflates
    to the pinned compiler; with no `.gz` in `static/`, `npm run dev` served a
    404 for it, the page fetched the raw compiler, and Agda checked
-   `Main.agda` (2 open goals, isolated).
+   `Main.agda` (2 open goals, isolated).  The built site has no raw
+   compiler at all (the post-step deletes it), so a browser without
+   `DecompressionStream` (Firefox before 113 and Safari before 16.4, both
+   inside the build's declared targets) gets a 404 for the fallback and a
+   page that says "Agda ready" and never checks, as on upstream's live
+   site; measured 2026-10-05 ([`docs/notes/runtime.md`][note], "Startup"),
+   and [#3]'s to decide.
 
 **Status**.  Adopted.  Open on [#4]: a mirror this organization controls
 (the compiler has one source, a personal repository), and the rebuild
@@ -385,7 +391,7 @@ and are cited here rather than measured again.
 | 4 | Every change to an imported file is its own commit, with a header comment or a provenance row, and leaves `upstream/unchanged.sha256` | Adopted ([#2]) | `make provenance-check` |
 | 5 | Sync file by file from the record, with `git merge-file` for changed files | Adopted ([#2]) | Rehearsed on a constructed later commit (§ 2) |
 | 6 | Pin the 36 binaries by SHA-256, one fixed-output fetch per file; check `static/` before every build | Adopted (part of [#4]) | A changed pin fails the fetch; a flipped byte fails the build (§ 3) |
-| 7 | Do not pin upstream's compiler gzip | Adopted | The build writes its own; `npm run dev` falls back (§ 3) |
+| 7 | Do not pin upstream's compiler gzip | Adopted | The build writes its own; `npm run dev` falls back; the built site's raw fallback is a 404, [#3]'s to decide (§ 3) |
 | 8 | Node 22 in the dev shell | Adopted (part of [#3]) | 22.22.2, inside upstream's engines range |
 | 9 | `NOTICE` plus `licenses/`, published as `NOTICE.txt` and `licenses/`; upstream's `NOTICE.md` removed | Adopted ([#48]) | Every text read at its source (§ 4) |
 | 10 | GMP under LGPL-3.0-or-later, relinking met by the pinned sources and the recipe | Adopted provisionally; the judgment deferred to [#53] | § 4 |

@@ -78,10 +78,23 @@ blocks on memory another thread writes.
 1. It starts the language-server worker and, in parallel, fetches the
    compiler and the data.  The compiler comes as `als-2.8ext.wasm.gz`,
    decompressed in the page with `DecompressionStream` unless the server
-   already sent it with `Content-Encoding: gzip`; if the `.gz` cannot be
-   fetched, the page fetches the raw `als-2.8ext.wasm` instead
-   (`fetchWASMAndData`, `:111-141`).  The data are `agda-data.zip` (Agda's
-   builtin library), `agda-stdlib-2.3.zip` and `plfa/project.zip`.
+   already sent it with `Content-Encoding: gzip`; without
+   `DecompressionStream`, or if the `.gz` cannot be fetched, the page
+   fetches the raw `als-2.8ext.wasm` instead (`fetchWASMAndData`,
+   `:111-141`).  That fallback is dead in the built site: the build's
+   post-step deletes the raw file (`scripts/prepare-cloudflare-assets.mjs`),
+   so the request is a 404 (on upstream's live site, the page's own HTML
+   labelled `application/wasm`); the controller swallows the failure
+   (`:283-290`), so the page says "Agda ready" with no goals and never
+   checks, and shows no error.  Measured 2026-10-05 in headless Chrome 153
+   with `DecompressionStream` removed from the page: no check after 60 s;
+   with the raw file put back in `build/`, two goals in 1.20 s.  Of the
+   build's declared targets (`vite.config.js`: Chrome 89, Edge 89, Firefox
+   89, Safari 15), Firefox before 113 and Safari before 16.4 have no
+   `DecompressionStream` (MDN's compatibility data, read 2026-10-05).
+   Whether the built site ships the raw file too, or drops the branch and
+   says so, is [#3]'s.  The data are `agda-data.zip` (Agda's builtin
+   library), `agda-stdlib-2.3.zip` and `plfa/project.zip`.
 2. The drive worker extracts the three archives (`drive.ts:214-251`): the
    builtins at `/lib/prim`, with their interfaces moved under
    `/lib/prim/_build/2.8.0/agda/`, where Agda 2.8 looks; the standard
@@ -187,6 +200,7 @@ acceptance is counted, never inferred: the running info prints one
    ([#50]).
 
 [adr]: ../adr/0001-runtime.md
+[#3]: https://github.com/formalverification/agda-native-ide/issues/3
 [#6]: https://github.com/formalverification/agda-native-ide/issues/6
 [#8]: https://github.com/formalverification/agda-native-ide/issues/8
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
