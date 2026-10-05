@@ -10,7 +10,8 @@ File: `agda-native-ide/docs/adr/0001-runtime.md`
 +  **Date**: 2026-10-04.
 +  **Tracking**: [#7] (this record); [#2] (the fork), [#48] (the notice),
    [#4] (the pins; its mirror and rebuild stay open), [#3] (its dev-shell
-   clause); [#30] (the second lane).
+   clause); [#30] (the second lane); [#53] (the license questions deferred
+   until before the repository goes public).
 +  **Ancestry**: agda-native-air's [browser IDE proposal][proposal], § 1
    "Fork the runtime"; agda-algebras PR [585][pr-585] and its
    [ADR-011][adr-011], which built and measured the second lane; the
@@ -50,8 +51,8 @@ and its type check pass, and it checks `Main.agda` in headless Chromium with
 
 Where it goes: a mirror for the compiler and a rebuild recipe ([#4]), the
 site as a Nix package ([#3]), CI with a browser check ([#5]), hosting
-([#6]), and the second lane, the plain checker as the verdict of record
-([#30]).
+([#6]), the license review before the repository goes public ([#53]), and
+the second lane, the plain checker as the verdict of record ([#30]).
 
 ---
 
@@ -130,13 +131,14 @@ history.
    upstream's, merges the changed ones three ways with `git merge-file`, and
    updates the records and the pins.
 
-**This departs from the plan's wording**.  [#2]'s title says "history and
-attribution intact", and Milestone 0's description says "The fork comes in
-with its history".  The history does not come in; the attribution does, in
-`LICENSE`, `NOTICE` and the record.  Proposed wording, for William to
-adopt or refuse: [#2]'s title "Fork plfa-playground into this repository,
-as a recorded snapshot with its attribution", and Milestone 0's sentence
-"The fork comes in as a recorded snapshot, with its attribution".
+**This departed from the plan's wording**, and the plan was changed to
+match on 2026-10-05, by William's decision.  [#2]'s title had said "history
+and attribution intact", and Milestone 0's description "The fork comes in
+with its history"; the history does not come in, and the attribution does,
+in `LICENSE`, `NOTICE` and the record.  The title now reads "Fork
+plfa-playground into this repository, as a recorded snapshot with its
+attribution", and the description "The fork comes in as a recorded
+snapshot, with its attribution".
 
 **Evidence**.
 
@@ -162,9 +164,7 @@ as a recorded snapshot with its attribution", and Milestone 0's sentence
    history modifier ("bad substitution"), so the README writes
    `"${NEW}:path"`.
 
-**Status**.  Adopted.  Open: the wording above, William's to change: [#2]'s
-title on GitHub (keeping its `[M0-2]` prefix), and Milestone 0's
-description in `docs/GITHUB_PROJECT.md`.
+**Status**.  Adopted, the plan's wording included (2026-10-05).
 
 ---
 
@@ -261,7 +261,10 @@ lineage paragraphs are carried into `NOTICE` verbatim.
    can rebuild it with a modified GMP.  This is a judgment, not counsel's,
    and William's to confirm; the GPL's source clause also leaves the
    distributor responsible for those sources staying available, so the GMP
-   tarball belongs in [#4]'s mirror beside the compiler.
+   tarball belongs in [#4]'s mirror beside the compiler.  On 2026-10-05
+   William deferred this and every other open license question to [#53],
+   to be settled before the repository goes public; the notice stands as
+   written meanwhile.
 +  **The favicon** is Agda's official mark, adapted; agda/agda ships the
    mark in its package as an `extra-doc-files` entry under its MIT license
    and states no other terms, so the notice credits it under Agda's license
@@ -271,7 +274,10 @@ lineage paragraphs are carried into `NOTICE` verbatim.
 
 +  **Every text was read at its source**, at the commit or tag `NOTICE`
    names, and copied verbatim (`.gitattributes` keeps git from changing
-   their line endings).
+   their line endings).  One could not be: nonempty-vector 0.2.4's
+   `LICENSE` is empty in its Hackage tarball and in its repository alike,
+   so `NOTICE` supplies the BSD-3-Clause text its cabal file declares, in a
+   file that says it was supplied (found in review).
 +  **The page's packages** were listed from a build with source maps, not
    from the lockfile: 35 npm packages, four more embedded in `jszip`'s
    prebuilt file, and the bundler's helpers.  Only comlink's license
@@ -291,8 +297,10 @@ lineage paragraphs are carried into `NOTICE` verbatim.
    adds both to every link), libc++ and libc++abi (the binary names
    libc++abi), and simdutf (bundled by `text`).
 
-**Status**.  Adopted.  Open: the GMP judgment above, and the notice's
-upkeep when the dependencies change ([#3] trims them).
+**Status**.  Adopted.  Open: [#53], the license review before the
+repository goes public (the GMP judgment, the 24 packages the binary does
+not confirm, libffi-wasm, and nonempty-vector's supplied text), and the
+notice's upkeep when the dependencies change ([#3] trims them).
 
 ---
 
@@ -372,7 +380,7 @@ and are cited here rather than measured again.
 | # | Decision | Status | Evidence |
 |---|---|---|---|
 | 1 | Fork plfa-playground whole, not als-demo or the plain checker; keep its two workers, transport, give rule, archive format and persistence | Adopted ([#2]) | als-demo sends only `Cmd_load`; the fork builds, tests and checks `Main.agda` here (§ 3) |
-| 2 | Import a snapshot of `ae0aa84c`, 89 files byte for byte, with a per-file SHA-256 record; no history merge | Adopted ([#2]) | 67 binary blobs, 171,397,049 bytes, in upstream's history; blob ids equal |
+| 2 | Import a snapshot of `ae0aa84c`, 89 files byte for byte, with a per-file SHA-256 record; no history merge | Adopted ([#2]; the plan's wording changed to match, 2026-10-05) | 67 binary blobs, 171,397,049 bytes, in upstream's history; blob ids equal |
 | 3 | Keep upstream's colliding files at new paths (`README.plfa-playground.md`, `LICENSE.plfa-playground`, `app.yml`); merge its `.gitignore`; leave out `wrangler.jsonc` | Adopted ([#2]) | `docs/provenance.md` |
 | 4 | Every change to an imported file is its own commit, with a header comment or a provenance row, and leaves `upstream/unchanged.sha256` | Adopted ([#2]) | `make provenance-check` |
 | 5 | Sync file by file from the record, with `git merge-file` for changed files | Adopted ([#2]) | Rehearsed on a constructed later commit (§ 2) |
@@ -380,10 +388,11 @@ and are cited here rather than measured again.
 | 7 | Do not pin upstream's compiler gzip | Adopted | The build writes its own; `npm run dev` falls back (§ 3) |
 | 8 | Node 22 in the dev shell | Adopted (part of [#3]) | 22.22.2, inside upstream's engines range |
 | 9 | `NOTICE` plus `licenses/`, published as `NOTICE.txt` and `licenses/`; upstream's `NOTICE.md` removed | Adopted ([#48]) | Every text read at its source (§ 4) |
-| 10 | GMP under LGPL-3.0-or-later, relinking met by the pinned sources and the recipe | Adopted, a judgment for William | § 4 |
+| 10 | GMP under LGPL-3.0-or-later, relinking met by the pinned sources and the recipe | Adopted provisionally; the judgment deferred to [#53] | § 4 |
 | 11 | The Agda mark stays, under Agda's MIT license | Adopted ([#48]) | `Agda.cabal`'s `extra-doc-files` |
 | 12 | The plain checker is the planned verdict of record, not adopted here | Recorded ([#30]) | PR 585: no isolation; JSPI 1.45 s reloads, 45 to 55 ms queries |
 | 13 | Native interfaces are accepted; the drive is the cost; the builtins are stale | Settled | [#13], [#50], [#49] |
+| 14 | The open license questions wait until before the repository goes public; the notice stands as written meanwhile | Adopted (William, 2026-10-05; [#53]) | § 4 |
 
 ---
 
@@ -393,7 +402,7 @@ and are cited here rather than measured again.
    (CI), [#6] (hosting), [#7] (this record), [#8] (a page that cannot
    isolate itself), [#13] (interface acceptance), [#20] (PLFA's removal),
    [#30] (the second lane), [#48] (the notice), [#49] (the builtins), [#50]
-   (the drive).
+   (the drive), [#53] (the license review before going public).
 +  **Elsewhere**: agda-algebras PR [585][pr-585] and its [ADR-011][adr-011];
    agda-native-air's [browser IDE proposal][proposal]; [plfa-playground][upstream]
    at `ae0aa84c`.
@@ -416,6 +425,7 @@ and are cited here rather than measured again.
 [#48]: https://github.com/formalverification/agda-native-ide/issues/48
 [#49]: https://github.com/formalverification/agda-native-ide/issues/49
 [#50]: https://github.com/formalverification/agda-native-ide/issues/50
+[#53]: https://github.com/formalverification/agda-native-ide/issues/53
 [pr-585]: https://github.com/ualib/agda-algebras/pull/585
 [adr-011]: https://github.com/ualib/agda-algebras/blob/577-an-interactive-agda-proof-environment/docs/adr/011-interactive-playground.md
 [proposal]: https://github.com/formalverification/agda-native-air/blob/main/docs/notes/browser-ide-proposal.md
