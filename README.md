@@ -61,18 +61,30 @@ assets` fetches them by hash into `static/`.
 
 ```sh
 make assets        # fetch the 36 pinned binaries into static/, and check them
-npm ci             # install the locked npm dependencies
-npm run check      # svelte-check
-npm test           # the unit tests (vitest)
+make check         # svelte-check
+make test          # the unit tests (vitest)
 make build         # check the pins, then npm run build, into build/
-npm run dev        # serve the app at http://localhost:5173
+make dev           # serve the app at http://localhost:5173
 ```
 
-`make build` refuses to build when a file in `static/` differs from its
-pin; `make assets` puts it back.  The dev server sends the two headers the
-language server's shared memory needs (`Cross-Origin-Opener-Policy:
-same-origin` and `Cross-Origin-Embedder-Policy: require-corp`), and so must
-any server of `build/`.
+`make check`, `make test`, `make build` and `make dev` first install the
+locked npm dependencies (`npm ci`) whenever `package.json` or
+`package-lock.json` is newer than the last install.  `make build` refuses
+to build when a file in `static/` differs from its pin; `make assets` puts
+it back.  The dev server sends the two headers the language server's shared
+memory needs (`Cross-Origin-Opener-Policy: same-origin` and
+`Cross-Origin-Embedder-Policy: require-corp`), and so must any server of
+`build/`.
+
+`nix build .#site` builds the same site in the Nix sandbox, from a clean
+clone: it runs `make build` with the pinned binaries and the npm
+dependencies `package-lock.json` names, each fetched by hash, and reaches
+the network for nothing else.  The build is named by the commit it is built
+from (SvelteKit's version, with `-dirty` for a tree that differs from it),
+and two builds of one commit are identical: `nix build .#site --rebuild`
+builds it again and fails if a byte differs.  After a change to
+`package-lock.json`, update `npmDepsHash` in `flake.nix` (its comment says
+how).
 
 `make provenance-check` verifies that every imported file recorded as
 unchanged still is, and that `docs/provenance.md` lists every pin.  To
@@ -140,7 +152,7 @@ provenance-check` passes.
 
    ```sh
    make assets && make provenance-check
-   npm ci && npm run check && npm test && make build
+   make check && make test && make build && nix build .#site
    ```
 
    then check `Main.agda` in a browser.

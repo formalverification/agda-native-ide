@@ -4,8 +4,8 @@
 # lists the targets; `make populate` / `make update` are the two
 # directions of the contract stated in the README.
 #
-# The app's targets (assets, assets-check, build, provenance-check) are
-# at the end of this file.
+# The app's targets (assets, assets-check, dev, build, test, check,
+# provenance-check) are at the end of this file.
 #
 # The engine (gh_project_*.py) has exactly one home — the
 # williamdemeo/github-project repository — and this Makefile finds it
@@ -56,9 +56,9 @@ else
   ENGINE_MODE := missing
 endif
 
-.PHONY: help populate-dry populate update update-check lint test init \
+.PHONY: help populate-dry populate update update-check lint init \
         guard-gh guard-engine engine-mode \
-        assets assets-check build provenance-check
+        assets assets-check dev build test check provenance-check
 .DEFAULT_GOAL := help
 
 # In `path` mode the resolved CLI is (typically) a Nix wrapper carrying
@@ -90,14 +90,6 @@ update-check: guard-engine $(GH_GUARD) ## Report whether $(PLAN) is stale withou
 
 lint: guard-engine ## Validate $(PLAN)'s structure (no network)
 	$(LINT) $(PLAN)
-
-test: ## Run the engine test suite (offline; engine repo / pre-init copies only)
-ifneq (,$(wildcard scripts/tests))
-	$(PYTHON) -m unittest discover -s scripts/tests
-else
-	@echo "No local engine copy: the engine's tests run in its own repository"
-	@echo "(https://github.com/williamdemeo/github-project)."
-endif
 
 init: ## Detach this template copy from the engine (one-time, consumer projects)
 ifneq ($(ENGINE_MODE),local)
@@ -158,18 +150,29 @@ guard-gh:
 # static/, and `make build` refuses to build unless every file there
 # still matches its pin.  docs/provenance.md records them all.  `make
 # build` also publishes NOTICE (as NOTICE.txt) and licenses/ in build/.
+# `nix build .#site` runs the same `make build` in the Nix sandbox.
+#
+# dev, build, test and check install the locked npm dependencies first
+# (`npm ci`) when package.json or package-lock.json is newer than the
+# last install.
 #
 #   PINS           the pinned binaries (default: upstream/assets.sha256)
 #   UNCHANGED      the imported files that are still upstream's, byte for
 #                  byte                (default: upstream/unchanged.sha256)
 #   SITE_REVISION  what names the build: SvelteKit's kit.version.name and
 #                  the commit vite.config.js records (default: the
-#                  commit, with -dirty when the tree differs from it)
+#                  commit, with -dirty when the tree differs from it; the
+#                  flake passes its own, since its sandbox has no .git)
 
 PINS      ?= upstream/assets.sha256
 UNCHANGED ?= upstream/unchanged.sha256
 SITE_REVISION ?= $(shell rev=$$(git rev-parse HEAD 2>/dev/null) && \
   if [ -n "$$(git status --porcelain 2>/dev/null)" ]; then echo $$rev-dirty; else echo $$rev; fi)
+
+# npm ci writes node_modules/.package-lock.json, so this reinstalls only
+# after the manifest or the lockfile changes.
+node_modules/.package-lock.json: package.json package-lock.json
+	npm ci
 
 assets: ## Fetch the pinned binaries (nix build .#assets) into static/
 	@out=$$(nix build .#assets --no-link --print-out-paths) && \
@@ -181,10 +184,19 @@ assets-check: ## Check every pinned binary in static/ against its SHA-256
 	@sha256sum --check --strict --quiet $(PINS) && \
 	  echo "assets-check: all $$(grep -c . $(PINS)) pinned files match"
 
-build: assets-check ## Build the site into build/, after checking the pins
+dev: node_modules/.package-lock.json assets-check ## Serve the app at http://localhost:5173, reloading on change
+	npm run dev
+
+build: node_modules/.package-lock.json assets-check ## Build the site into build/, after checking the pins
 	SITE_REVISION=$(SITE_REVISION) npm run build
 	install -m 644 NOTICE build/NOTICE.txt
 	cp -R licenses build/licenses
+
+test: node_modules/.package-lock.json ## Run the app's unit tests (vitest)
+	npm test
+
+check: node_modules/.package-lock.json ## Type-check the app (svelte-check)
+	npm run check
 
 provenance-check: ## Check the unchanged files, and that docs/provenance.md lists every pin
 	@sha256sum --check --strict --quiet $(UNCHANGED) && \

@@ -15,6 +15,13 @@
 # into static/, and `make build` checks static/ against the same pins
 # before it builds.  docs/provenance.md records where each file comes
 # from and its license.
+#
+# `nix build .#site` builds the static site: the npm dependencies are
+# one fixed-output fetch of everything package-lock.json names (pinned
+# by npmDepsHash), the binaries are `assets`, and the build is `make
+# build`, as in the dev shell, named by this flake's source revision.
+# Nothing else reaches the network, and two builds of one commit are
+# identical; check with `nix build .#site --rebuild`.
 {
   description = "agda-native-ide: an Agda IDE in the browser, with its pinned runtime";
 
@@ -52,14 +59,80 @@
         url = "https://raw.githubusercontent.com/${upstream.owner}/${upstream.repo}/${upstream.rev}/${pin.path}";
         inherit (pin) sha256;
       };
+
+      # The source revision the site is named by (SvelteKit's
+      # kit.version.name, and the commit vite.config.js records): the
+      # commit, with "-dirty" when the tree differs from it, as `make
+      # build` computes it outside the sandbox, which has no .git.
+      revision = self.rev or self.dirtyRev or "unknown";
+
+      # What the site's build reads, and nothing else, so that a change
+      # to the documentation or the plan does not change its source.
+      siteSource = lib.fileset.toSource {
+        root = ./.;
+        fileset = lib.fileset.unions [
+          ./Makefile
+          ./NOTICE
+          ./licenses
+          ./upstream/assets.sha256
+          ./package.json
+          ./package-lock.json
+          ./svelte.config.js
+          ./vite.config.js
+          ./tsconfig.json
+          ./tsconfigs
+          ./scripts/prepare-cloudflare-assets.mjs
+          ./src
+          ./static
+        ];
+      };
+
+      # The npm dependencies: every package package-lock.json names, for
+      # every platform, fetched once by hash.  After a change to the
+      # lockfile, set npmDepsHash to lib.fakeHash, build, and copy the
+      # hash the failure reports.
+      npmDepsHash = "sha256-4AJmGkkw8pveLasWMlQ4KUptfA2BKH4N7wsdAWn1NGQ=";
+      npmDeps = pkgs: pkgs.fetchNpmDeps {
+        name = "agda-native-ide-npm-deps";
+        src = lib.fileset.toSource {
+          root = ./.;
+          fileset = lib.fileset.unions [ ./package.json ./package-lock.json ];
+        };
+        hash = npmDepsHash;
+      };
     in
     {
-      packages = forAllSystems (system: pkgs: {
+      packages = forAllSystems (system: pkgs: rec {
         # Every pinned binary at its path in the tree (static/...).
         assets = pkgs.runCommand "plfa-playground-assets" { } (
           lib.concatMapStrings (pin: ''
             install -D -m 444 ${fetchPin pkgs pin} "$out/${pin.path}"
           '') pins);
+
+        # The static site, as `make build` writes it into build/.
+        site = pkgs.buildNpmPackage {
+          name = "agda-native-ide-site";
+          src = siteSource;
+          nodejs = pkgs.nodejs_22;
+          npmDeps = npmDeps pkgs;
+          preBuild = ''
+            cp -R --no-preserve=mode ${assets}/static/. static/
+          '';
+          buildPhase = ''
+            runHook preBuild
+            make build SITE_REVISION=${revision}
+            runHook postBuild
+          '';
+          installPhase = ''
+            runHook preInstall
+            cp -R build "$out"
+            runHook postInstall
+          '';
+          # The output is what `make build` wrote, byte for byte: nothing
+          # in it runs here, so fixup (which would rewrite a `#!` line)
+          # has nothing to do.
+          dontFixup = true;
+        };
       });
 
       devShells = forAllSystems (system: pkgs: {
