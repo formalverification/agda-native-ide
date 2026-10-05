@@ -1,3 +1,12 @@
+// File: vite.config.js
+//
+// Changed from upstream: this is SeungheonOh/plfa-playground's
+// vite.config.js at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
+// (docs/provenance.md).  A build records SITE_REVISION, the source
+// revision the Makefile and the flake pass in, as its commit, and falls
+// back to `git describe` without it; in the Nix sandbox, which has no
+// .git, the fallback recorded "WORKTREE" for every commit (issue 3).
+
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vitest/config";
 import { exec } from "child_process";
@@ -32,7 +41,9 @@ const getGitCommitHash = () =>
 
 export default defineConfig(async ({ command }) => {
   const GIT_COMMIT_HASH = JSON.stringify(
-    command === "serve" ? "DEV" : await getGitCommitHash(),
+    command === "serve"
+      ? "DEV"
+      : process.env.SITE_REVISION || (await getGitCommitHash()),
   );
 
   console.log(`GIT_COMMIT_HASH is ${GIT_COMMIT_HASH}`);

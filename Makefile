@@ -159,12 +159,17 @@ guard-gh:
 # still matches its pin.  docs/provenance.md records them all.  `make
 # build` also publishes NOTICE (as NOTICE.txt) and licenses/ in build/.
 #
-#   PINS       the pinned binaries     (default: upstream/assets.sha256)
-#   UNCHANGED  the imported files that are still upstream's, byte for
-#              byte                    (default: upstream/unchanged.sha256)
+#   PINS           the pinned binaries (default: upstream/assets.sha256)
+#   UNCHANGED      the imported files that are still upstream's, byte for
+#                  byte                (default: upstream/unchanged.sha256)
+#   SITE_REVISION  what names the build: SvelteKit's kit.version.name and
+#                  the commit vite.config.js records (default: the
+#                  commit, with -dirty when the tree differs from it)
 
 PINS      ?= upstream/assets.sha256
 UNCHANGED ?= upstream/unchanged.sha256
+SITE_REVISION ?= $(shell rev=$$(git rev-parse HEAD 2>/dev/null) && \
+  if [ -n "$$(git status --porcelain 2>/dev/null)" ]; then echo $$rev-dirty; else echo $$rev; fi)
 
 assets: ## Fetch the pinned binaries (nix build .#assets) into static/
 	@out=$$(nix build .#assets --no-link --print-out-paths) && \
@@ -177,7 +182,7 @@ assets-check: ## Check every pinned binary in static/ against its SHA-256
 	  echo "assets-check: all $$(grep -c . $(PINS)) pinned files match"
 
 build: assets-check ## Build the site into build/, after checking the pins
-	npm run build
+	SITE_REVISION=$(SITE_REVISION) npm run build
 	install -m 644 NOTICE build/NOTICE.txt
 	cp -R licenses build/licenses
 

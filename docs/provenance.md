@@ -218,6 +218,8 @@ Each change is its own commit, named here by its subject.
 | `package.json` | The `deploy` script (`npm run build && wrangler deploy`) removed.  JSON carries no comment, so this row is the record. | "Remove the deploy script from package.json" |
 | `package.json`, `package-lock.json` | The `wrangler` dev dependency removed, with the 84 other lockfile entries only it brought in (`workerd`, `miniflare`, `sharp`, `undici`, and `esbuild`, which vite takes only as an optional peer).  The lockfile is upstream's with those 85 entries deleted, nothing else re-resolved, and the built site is byte-identical ([#3]).  JSON carries no comment, so this row is the record. | "Remove wrangler, and the packages only it brings in" |
 | `package-lock.json` | `devalue` 5.9.2 to 5.9.4, the newest release inside SvelteKit's and Svelte's `^5.8.1`, which fixes the six advisories npm audit reported against it; only its entry changed.  The page does not bundle `devalue`, so the built site is byte-identical ([#3]). | "Update devalue to 5.9.4" |
+| `svelte.config.js` | `kit.version.name` is `SITE_REVISION`, the source revision the Makefile and the flake pass in, rather than the time of the build, so that two builds of one commit are identical ([#3]) | "Name the build by its source revision" |
+| `vite.config.js` | The commit a build records is `SITE_REVISION` when it is set, before falling back to `git describe`, which finds no `.git` in the Nix sandbox ([#3]) | "Name the build by its source revision" |
 | `NOTICE.md` | Removed; `NOTICE` names everything the site ships and quotes it in full (its section 1) | "Remove upstream's NOTICE.md, which NOTICE supersedes" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
