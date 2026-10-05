@@ -38,7 +38,7 @@ upstream commit.
 |---|---|---|
 | `README.md` | `README.plfa-playground.md`, unchanged | This repository has its own README. |
 | `LICENSE` | `LICENSE.plfa-playground`, unchanged | This repository's `LICENSE` is William DeMeo's; it names upstream's. |
-| `.github/workflows/ci.yml` | `.github/workflows/app.yml`, changed | This repository's `ci.yml` lints the plan. |
+| `.github/workflows/ci.yml` | `.github/workflows/app.yml`, changed, then removed | This repository's `ci.yml` lints the plan; `site.yml` replaced it ([#5]). |
 | `.gitignore` | not imported | Its lines are merged into this repository's `.gitignore`. |
 | `wrangler.jsonc` | not imported | Upstream's Cloudflare account and route; hosting is [#6]. |
 | `NOTICE.md` | imported, then removed | `NOTICE` supersedes it and carries its text verbatim. |
@@ -215,6 +215,7 @@ Each change is its own commit, named here by its subject.
 | File | Change | Commit |
 |---|---|---|
 | `.github/workflows/app.yml` (upstream's `ci.yml`) | Installs Nix, materializes the pinned binaries (`make assets`) and builds with `make build`; uses the dev shell's node; runs on pushes to `main`; the deploy job removed (hosting is [#6]) | "Build the app workflow from the pinned binaries" |
+| `.github/workflows/app.yml` | Removed: `.github/workflows/site.yml` replaces it, with its npm steps as `make test` and `make check` and its build as `nix build .#site` ([#5]) | "Check Main.agda in headless Chromium, in CI" |
 | `package.json` | The `deploy` script (`npm run build && wrangler deploy`) removed.  JSON carries no comment, so this row is the record. | "Remove the deploy script from package.json" |
 | `package.json`, `package-lock.json` | The `wrangler` dev dependency removed, with the 84 other lockfile entries only it brought in (`workerd`, `miniflare`, `sharp`, `undici`, and `esbuild`, which vite takes only as an optional peer).  The lockfile is upstream's with those 85 entries deleted, nothing else re-resolved, and the built site is byte-identical ([#3]).  JSON carries no comment, so this row is the record. | "Remove wrangler, and the packages only it brings in" |
 | `package-lock.json` | `devalue` 5.9.2 to 5.9.4, the newest release inside SvelteKit's and Svelte's `^5.8.1`, which fixes the six advisories npm audit reported against it; only its entry changed.  The page does not bundle `devalue`, so the built site is byte-identical ([#3]). | "Update devalue to 5.9.4" |
@@ -232,6 +233,7 @@ Each change is its own commit, named here by its subject.
 [licenses]: ../licenses/
 [#3]: https://github.com/formalverification/agda-native-ide/issues/3
 [#4]: https://github.com/formalverification/agda-native-ide/issues/4
+[#5]: https://github.com/formalverification/agda-native-ide/issues/5
 [#6]: https://github.com/formalverification/agda-native-ide/issues/6
 [#20]: https://github.com/formalverification/agda-native-ide/issues/20
 [#49]: https://github.com/formalverification/agda-native-ide/issues/49

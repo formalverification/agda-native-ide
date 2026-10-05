@@ -149,6 +149,23 @@
 
       # `nix run .#update -- docs/GITHUB_PROJECT.md`, pinned by this
       # project's own flake.lock.
-      apps = forAllSystems (system: pkgs: github-project.apps.${system});
+      #
+      # `nix run .#browser-check -- <site> [--out DIR]` checks Main.agda
+      # in a built site (build/, or `nix build .#site`'s result) in
+      # headless Chromium, with node and Chromium both pinned here
+      # (scripts/browser-check/run.mjs).  Linux only: nixpkgs builds
+      # Chromium for Linux alone.
+      apps = forAllSystems (system: pkgs:
+        github-project.apps.${system}
+        // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+          browser-check = {
+            type = "app";
+            program = toString (pkgs.writeShellScript "browser-check" ''
+              export CHROME=${lib.getExe pkgs.chromium}
+              exec ${lib.getExe pkgs.nodejs_22} ${./scripts/browser-check}/run.mjs "$@"
+            '');
+            meta.description = "Check Main.agda in a built site, in headless Chromium";
+          };
+        });
     };
 }

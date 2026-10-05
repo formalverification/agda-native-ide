@@ -5,7 +5,7 @@
 # directions of the contract stated in the README.
 #
 # The app's targets (assets, assets-check, dev, build, test, check,
-# provenance-check) are at the end of this file.
+# browser-check, provenance-check) are at the end of this file.
 #
 # The engine (gh_project_*.py) has exactly one home — the
 # williamdemeo/github-project repository — and this Makefile finds it
@@ -58,7 +58,8 @@ endif
 
 .PHONY: help populate-dry populate update update-check lint init \
         guard-gh guard-engine engine-mode \
-        assets assets-check dev build test check provenance-check
+        assets assets-check dev build test check browser-check \
+        provenance-check
 .DEFAULT_GOAL := help
 
 # In `path` mode the resolved CLI is (typically) a Nix wrapper carrying
@@ -159,6 +160,8 @@ guard-gh:
 #   PINS           the pinned binaries (default: upstream/assets.sha256)
 #   UNCHANGED      the imported files that are still upstream's, byte for
 #                  byte                (default: upstream/unchanged.sha256)
+#   SITE           the built site browser-check serves, which must exist
+#                  (default: build, from `make build`)
 #   SITE_REVISION  what names the build: SvelteKit's kit.version.name and
 #                  the commit vite.config.js records (default: the
 #                  commit, with -dirty when the tree differs from it; the
@@ -197,6 +200,11 @@ test: node_modules/.package-lock.json ## Run the app's unit tests (vitest)
 
 check: node_modules/.package-lock.json ## Type-check the app (svelte-check)
 	npm run check
+
+SITE ?= build
+
+browser-check: ## Check Main.agda in $(SITE), served isolated, in headless Chromium
+	nix run .#browser-check -- $(SITE) --out browser-check
 
 provenance-check: ## Check the unchanged files, and that docs/provenance.md lists every pin
 	@sha256sum --check --strict --quiet $(UNCHANGED) && \

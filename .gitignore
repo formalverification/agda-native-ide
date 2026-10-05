@@ -21,6 +21,9 @@ result
 /static/favicon.png
 /static/plfa/**/*.zip
 
+# What `make browser-check` writes: the timings, the requests, a screenshot
+/browser-check
+
 # From plfa-playground's .gitignore at ae0aa84c (docs/provenance.md),
 # verbatim
 node_modules

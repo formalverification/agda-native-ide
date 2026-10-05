@@ -18,9 +18,10 @@ with every module of that library in the Explorer.
 ## Status
 
 Milestone 0, foundations.  The fork is imported: plfa-playground at
-`ae0aa84c`, every file as upstream has it except its CI workflow and its
-deploy script, and without its binaries, which the flake pins by hash.  It
-builds, its unit tests and type checks pass, and it checks `Main.agda` in
+`ae0aa84c`, without its binaries, which the flake pins by hash, and with
+the changes [`docs/provenance.md`][provenance] lists.  `nix build .#site`
+builds it reproducibly, and on every pull request CI builds it twice and
+compares, runs its unit tests and type checks, and checks `Main.agda` in
 headless Chromium.  Nothing is deployed.
 
 ## Where things are
@@ -64,6 +65,7 @@ make assets        # fetch the 36 pinned binaries into static/, and check them
 make check         # svelte-check
 make test          # the unit tests (vitest)
 make build         # check the pins, then npm run build, into build/
+make browser-check # check Main.agda in build/ in headless Chromium
 make dev           # serve the app at http://localhost:5173
 ```
 
@@ -85,6 +87,19 @@ and two builds of one commit are identical: `nix build .#site --rebuild`
 builds it again and fails if a byte differs.  After a change to
 `package-lock.json`, update `npmDepsHash` in `flake.nix` (its comment says
 how).
+
+`make browser-check` (or `nix run .#browser-check -- <site>`, for any
+built site, such as `nix build .#site`'s `result`) serves the site with the
+two headers and uses it in headless Chromium, with node and Chromium pinned
+by the flake.  It waits for "Agda ready" and the first check of the
+default `Main.agda`, asserts two open goals and the modules that check
+type-checked (the `Checking` lines of Agda's running info, read from the
+inspector after an Infer), gives at a goal, and checks a deliberate type
+error.  It writes
+its timings, every request and a screenshot into `browser-check/`.  CI's
+[`site.yml`][site-ci] runs it on every pull request.  It is the language
+server's only test, since the server cannot be driven under wasmtime (its
+standard input cannot be made nonblocking there).
 
 `make provenance-check` verifies that every imported file recorded as
 unchanged still is, and that `docs/provenance.md` lists every pin.  To
@@ -187,6 +202,7 @@ every artifact the app ships, with its license.
 [adr-0001]: docs/adr/0001-runtime.md
 [runtime-note]: docs/notes/runtime.md
 [provenance]: docs/provenance.md
+[site-ci]: .github/workflows/site.yml
 [records]: upstream/
 [notice]: NOTICE
 [licenses]: licenses/
