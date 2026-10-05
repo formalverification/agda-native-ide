@@ -285,7 +285,7 @@ is written back into the heading.
 
 <!-- BEGIN GENERATED: milestone-0 -->
 
-### Issue M0-1: Detach the template's engine and write the project's working rules (#1)
+### Issue M0-1: Detach the template's engine and write the project's working rules (#1, closed)
 
 **Labels:** `documentation`, `milestone-0-foundations`, `build`
 
