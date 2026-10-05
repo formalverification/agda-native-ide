@@ -41,9 +41,10 @@ upstream commit.
 | `.github/workflows/ci.yml` | `.github/workflows/app.yml`, changed | This repository's `ci.yml` lints the plan. |
 | `.gitignore` | not imported | Its lines are merged into this repository's `.gitignore`. |
 | `wrangler.jsonc` | not imported | Upstream's Cloudflare account and route; hosting is [#6]. |
+| `NOTICE.md` | imported, then removed | `NOTICE` supersedes it and carries its text verbatim. |
 | 36 binaries under `static/` | not imported; pinned | Fetched by hash ([below](#pinned-binaries)). |
 | `static/als-2.8ext.wasm.gz` | not imported; not pinned | The build makes its own ([below](#the-compilers-gzip)). |
-| every other file (86) | same path, unchanged unless listed below | Listed in `upstream/unchanged.sha256`. |
+| every other file (85) | same path, unchanged unless listed below | Listed in `upstream/unchanged.sha256`. |
 
 Every change made here to an imported file is listed under [Changes to
 upstream files](#changes-to-upstream-files), and a file that can carry a
@@ -215,6 +216,7 @@ Each change is its own commit, named here by its subject.
 |---|---|---|
 | `.github/workflows/app.yml` (upstream's `ci.yml`) | Installs Nix, materializes the pinned binaries (`make assets`) and builds with `make build`; uses the dev shell's node; runs on pushes to `main`; the deploy job removed (hosting is [#6]) | "Build the app workflow from the pinned binaries" |
 | `package.json` | The `deploy` script (`npm run build && wrangler deploy`) removed; the `wrangler` dev dependency and `package-lock.json` are upstream's (trimming them is [#3]).  JSON carries no comment, so this row is the record. | "Remove the deploy script from package.json" |
+| `NOTICE.md` | Removed; `NOTICE` names everything the site ships and quotes it in full (its section 1) | "Remove upstream's NOTICE.md, which NOTICE supersedes" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
