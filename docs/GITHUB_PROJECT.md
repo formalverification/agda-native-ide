@@ -106,12 +106,12 @@ others are topic labels.
 **Description**:
 
 Turn this template copy into a project that builds, tests and deploys the
-forked runtime, before changing what it does.  The fork comes in with its
-history and attribution; the build is reproducible under Nix; the compiler
-and the standard library are pinned by hash, never committed blind; CI
-drives a real check in a headless browser; and the site is served with the
-cross-origin isolation the language server needs.  ADR 0001 records the
-runtime decision and the second lane.
+forked runtime, before changing what it does.  The fork comes in as a
+recorded snapshot, with its attribution; the build is reproducible under
+Nix; the compiler and the standard library are pinned by hash, never
+committed blind; CI drives a real check in a headless browser; and the site
+is served with the cross-origin isolation the language server needs.  ADR
+0001 records the runtime decision and the second lane.
 
 **Exit criterion**:
 
@@ -299,7 +299,7 @@ This repository was created from williamdemeo/github-project and still carries a
 
 ---
 
-### Issue M0-2: Fork plfa-playground into this repository, history and attribution intact (#2)
+### Issue M0-2: Fork plfa-playground into this repository, as a recorded snapshot with its attribution (#2)
 
 **Labels:** `milestone-0-foundations`, `runtime`, `provenance`
 
