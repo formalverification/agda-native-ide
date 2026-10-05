@@ -212,10 +212,12 @@ Each change is its own commit, named here by its subject.
 | File | Change | Commit |
 |---|---|---|
 | `.github/workflows/app.yml` (upstream's `ci.yml`) | Installs Nix, materializes the pinned binaries (`make assets`) and builds with `make build`; uses the dev shell's node; runs on pushes to `main`; the deploy job removed (hosting is [#6]) | "Build the app workflow from the pinned binaries" |
+| `package.json` | The `deploy` script (`npm run build && wrangler deploy`) removed; the `wrangler` dev dependency and `package-lock.json` are upstream's (trimming them is [#3]).  JSON carries no comment, so this row is the record. | "Remove the deploy script from package.json" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
 [records]: ../upstream/
+[#3]: https://github.com/formalverification/agda-native-ide/issues/3
 [#4]: https://github.com/formalverification/agda-native-ide/issues/4
 [#6]: https://github.com/formalverification/agda-native-ide/issues/6
 [#20]: https://github.com/formalverification/agda-native-ide/issues/20

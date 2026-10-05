@@ -7,7 +7,6 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build && node scripts/prepare-cloudflare-assets.mjs",
-    "deploy": "npm run build && wrangler deploy",
     "preview": "vite preview",
     "prepare": "svelte-kit sync || true",
     "svelte-kit-sync": "svelte-kit sync && rm -f node_modules/.tmp/*.tsbuildinfo",
