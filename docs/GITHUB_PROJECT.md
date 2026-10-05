@@ -24,7 +24,7 @@ Two grammar tokens below are the engine's, not prose: the em-dash in each
 
 # agda-native-ide: GitHub Project Roadmap
 
-**Project Title**:  agda-native-ide, an Agda IDE in the browser with proof-assist and corpus-search plugins
+**Project Title**:  agda-native-ide, an Agda workbench for the browser, VS Code and Emacs, with proof-assist and corpus-search plugins
 
 **Repository**:  `formalverification/agda-native-ide`
 
@@ -32,22 +32,43 @@ Two grammar tokens below are the engine's, not prose: the em-dash in each
 
 ## Summary
 
-An Agda IDE that runs in a browser tab, with no server: the type-checker is
-loaded by default, and everything else is a plugin (libraries, corpora,
-models, tools).  A reader opens a library in an Explorer, writes in a
-`Main.agda` buffer, and reads Agda's goals and errors in an info pane, the
-way <https://plfa.isotopy.xyz/> already lets them do for PLFA.  A model can
-work in the same tab through the tool contract `agda-mcp` defines, judged by
-Agda and never by itself.  Later, a development can be seen as a diagram,
-generated from the checked source.
+An Agda workbench on three platforms, sharing one core, on Agda 2.9.0.
+
++  **In a browser tab, with no server**, it is the playground a documentation
+   site links to: the type-checker (Agda compiled to WebAssembly) is loaded
+   by default and everything else is a plugin (libraries, corpora, models,
+   tools).  A reader opens a library in an Explorer, writes in a `Main.agda`
+   buffer, and reads Agda's goals and errors in an info pane, the way
+   <https://plfa.isotopy.xyz/> already lets them do for PLFA.  It is the only
+   platform that reaches a reader who has installed nothing.
++  **In VS Code**, a companion extension beside agda-mode-vscode gives an
+   author the same views and the same tool contract over a native Agda on
+   their own checkout, with git, a terminal, and the agents they already run.
+   Native Agda loads a large agda-algebras closure in a fifth of the time the
+   page takes, and agents reach Agda there today through `agda-mcp`.
++  **In Emacs**, agda2-mode's commands are exposed to agents and the corpus
+   is searched from a picker.  Nothing more is built there: Emacs cannot draw
+   the diagrams, and it cannot reach a web reader.
+
+The core the three share is four TypeScript packages: the engine client
+(Agda's interaction protocol behind one interface, over a wasm worker or a
+native process), the tool surface (`agda-mcp`'s contract, under which a
+model's claims are never the verdict and Agda's are), the two views (a
+development as a graph of definitions, and a proof as a derivation,
+generated from the checked source), and the plugin manifest.
 
 The plan follows the proposal carried from agda-native-air as
-[`docs/notes/browser-ide-proposal.md`][proposal], with one change of order:
-the first deliverable is the library IDE that the agda-algebras site needs
-(its "Playground" link opens this IDE in a new tab), because it is what a
-reader can use now, and every later milestone is built on it.
+[`docs/notes/browser-ide-proposal.md`][proposal], with two changes.  The
+first deliverable is the library IDE that the agda-algebras site needs (its
+"Playground" link opens this IDE in a new tab), because it is what a reader
+can use now, and every later milestone is built on it.  And since
+2026-10-05 the plan targets all three platforms on Agda 2.9.0, the decision
+a platform brief of that date argued and ADR 0002 ([M0-15]) records: the
+browser is the only platform that reaches a reader who installs nothing,
+VS Code is the better one for an author with a checkout, and the three new
+things the proposal adds are platform-neutral if they are built as packages.
 
-Two facts make the project cheaper than it sounds.
+Three facts make the project cheaper than it sounds.
 
 +  A complete browser Agda IDE already exists and is MIT-licensed:
    [`plfa-playground`][plfa-playground] (Svelte, CodeMirror 6, and the Agda
@@ -58,6 +79,16 @@ Two facts make the project cheaper than it sounds.
    in a browser, with no cross-origin isolation, archives proved under the
    shipped compiler, and a review that found the traps.  Its numbers and its
    code seed the second lane and the library archives.
++  Agda 2.9.0 is the first version whose wasm build needs no patch:
+   agda/agda builds for wasm32-wasi in its own CI since December 2025, and
+   the language server's reactor build (September 2026) needs no shared
+   memory, so the cross-origin isolation the fork is designed around is a
+   transitional cost.  The editor half exists too: agda-mode-vscode (77
+   commands, a server it downloads itself, a web build that type-checks PLFA
+   in vscode.dev) and agda2-mode, and `agda-mcp` already serves the agents
+   that speak MCP.  Agda 2.9.0 is unreleased as of 2026-10-05 (master and a
+   nightly prerelease); the runtime tracks a pinned nightly and moves to the
+   release when it lands ([M0-13]).
 
 [proposal]: notes/browser-ide-proposal.md
 [plfa-playground]: https://github.com/SeungheonOh/plfa-playground
@@ -78,6 +109,8 @@ others are topic labels.
 - `milestone-4-models` (d93f0b): Milestone 4, models in the loop.
 - `milestone-5-theory-view` (c5def5): Milestone 5, the theory view.
 - `milestone-6-proof-view` (bfd4f2): Milestone 6, the proof view.
+- `milestone-7-vscode` (1f5fb4): Milestone 7, the VS Code companion.
+- `milestone-8-emacs` (7a3da6): Milestone 8, Emacs.
 - `runtime` (0052cc): The compiler, its workers, WASI, and the virtual filesystem.
 - `ui` (1d76db): The editor, the Explorer, the info pane, and the layout.
 - `libraries` (5319e7): Library archives, closure indices, and interfaces.
@@ -92,6 +125,9 @@ others are topic labels.
 - `security` (b60205): Secrets, isolation, and what leaves the tab.
 - `adr` (ededed): A decision that gets an ADR.
 - `cross-repo` (ededed): Work that lands in another repository.
+- `core` (237a4c): The shared packages: engine client, tool surface, views, manifest.
+- `vscode` (1f5fb4): The VS Code companion extension and its web build.
+- `emacs` (7a3da6): agda2-mode and the Emacs packages.
 - `documentation` (0075ca): Improvements or additions to documentation
 - `bug` (d73a4a): Something isn't working
 - `enhancement` (a2eeef): New feature or request
@@ -111,14 +147,20 @@ recorded snapshot, with its attribution; the build is reproducible under
 Nix; the compiler and the standard library are pinned by hash, never
 committed blind; CI drives a real check in a headless browser; and the site
 is served with the cross-origin isolation the language server needs.  ADR
-0001 records the runtime decision and the second lane.
+0001 records the runtime decision and the second lane.  Revised 2026-10-05:
+the compiler becomes this project's own build of Agda 2.9.0 and its
+language server from Agda's own wasm flake, with no patched fork ([M0-13]);
+the language server's reactor build removes the isolation requirement
+([M0-14]); and ADR 0002 records the three-platform decision ([M0-15]).
 
 **Exit criterion**:
 
-A commit on `main` deploys the unmodified fork to the chosen host, where
-`crossOriginIsolated` is true on a first visit in a fresh browser profile;
-`nix build` reproduces the site from a clean clone; CI builds it, runs the
-unit tests, and checks `Main.agda` in headless Chromium.
+A commit on `main` deploys the fork, on the pinned Agda 2.9.0 compiler, to
+the chosen host, where a first visit in a fresh browser profile checks
+`Main.agda` (with `crossOriginIsolated` true until the reactor build makes
+isolation unnecessary); `nix build` reproduces the site and the compiler
+from a clean clone; CI builds it, runs the unit tests, and checks
+`Main.agda` in headless Chromium; ADR 0001 and ADR 0002 are accepted.
 
 ---
 
@@ -133,15 +175,17 @@ Agda info pane.  Most of the work is generalizing the fork from PLFA's
 hard-coded two-level Explorer to a library tree, and building the library's
 archives: per-closure, verified against Agda's own dependency graph, and
 proved under the shipped compiler, because an interface Agda does not
-accept is silently checked again.
+accept is silently checked again.  The archives are built by the same Agda
+2.9.0 the IDE ships, so agda-algebras and its standard library must check
+under 2.9.0 first ([M1-17]).
 
 **Exit criterion**:
 
 From agda-algebras.universalalgebra.org, "Playground" opens the IDE in a new
 tab; the Explorer lists all of the library's modules; a `Main.agda` that
-imports `Setoid.Varieties.HSP` checks with only `Main` type-checked from
-source; give, refine and case split work on it; and every download is
-stated, in bytes, before it starts.
+imports `Setoid.Varieties.HSP` checks, under the shipped Agda 2.9.0, with
+only `Main` type-checked from source; give, refine and case split work on
+it; and every download is stated, in bytes, before it starts.
 
 ---
 
@@ -155,54 +199,67 @@ version, the commit, the digests), what it mounts, what it registers, and
 what it costs.  A consent gate installs one, saying how many bytes from
 which origin.  The fork's PLFA manifest and its `mountDriveArchives()` hook
 are the template.  Projects of several files with their own `.agda-lib`
-arrive here too.
+arrive here too.  The manifest is a shared-core format: the VS Code
+companion reads the same manifests from disk and the Emacs picker the same
+corpus index, so a plugin is written once ([M3-7]).
 
 **Exit criterion**:
 
 The standard library and agda-algebras are installed as plugins through the
 consent gate; a third library is added by a manifest alone, with no code
-change; and a two-module user project checks.
+change; a two-module user project checks; and the manifest's schema lives in
+a package every host imports.
 
 ---
 
-### Milestone 3 — The browser as a tool server
+### Milestone 3 — The tool surface, in the page and in the editor
 
 **Description**:
 
-`agda-mcp`'s tools, answered in the page, under agda-native-air ADR 0002's
-contract: a verdict is an exit code and never a reading of diagnostics text,
-every answer names the tree it checked, and a lane answer carries no
-verdict.  The language server is the interaction lane; the plain
-`agda-opt.wasm` is the second artifact, the batch lane whose exit code is the
-verdict of record.  The library's sources are mounted, so a full-text search
-answers what agda-native-air's measurements say a model wants from a
-library: the text, beside the verdict.
+`agda-mcp`'s tools under agda-native-air ADR 0002's contract (a verdict is
+an exit code and never a reading of diagnostics text, every answer names
+the tree it checked, and a lane answer carries no verdict), as a shared
+TypeScript package over an engine interface with two implementations: the
+wasm lanes in the page's workers (the language server as the interaction
+lane; the plain Agda checker as the batch lane whose exit code is the
+verdict of record) and native processes in the editor.  The page hosts it
+first, because the sources and the corpora are already mounted there and a
+full-text search answers what agda-native-air's measurements say a model
+wants from a library: the text, beside the verdict.  The editor hosts the
+same package in Milestone 7.
 
 **Exit criterion**:
 
-Every tool in the proposal's table is answered client-side or marked
-unsupported with its reason; the archived agent sessions replay through the
-browser surface with zero disagreements on committed candidates.
+Every tool in the proposal's table is answered by the shared package in the
+page or marked unsupported with its reason; the archived agent sessions
+replay through the page's surface with zero disagreements on committed
+candidates; and the package's engine interface has a native implementation
+that passes the same tests.
 
 ---
 
-### Milestone 4 — Models in the loop
+### Milestone 4 — Agents in the browser
 
 **Description**:
 
-A model works in the IDE through ordinary tool calling against the Milestone
-3 surface.  The default is a frontier model on the user's own key, behind a
-consent gate that says what leaves the tab and when; the key lives on its
-own origin, out of reach of the page and its plugins.  A local model is a
-plugin labeled unmeasured until it is measured.  The rule does not change:
-the model's claims are never the verdict; Agda's are.
+The browser's share of the agent work.  Agents are MCP clients, and a page
+cannot be an MCP server, so the first path is a local bridge process
+through which an external agent (a Claude Code session) uses the page as
+its tool server.  The in-page model on the user's own key, behind a consent
+gate that says what leaves the tab and when, with the key held on its own
+origin out of reach of the page and its plugins, comes last and is a
+demonstration for readers.  A local model is a plugin labeled unmeasured
+until it is measured.  The editor's agents need none of this: in VS Code
+and Emacs they reach the same contract through `agda-mcp` (Milestones 7 and
+8).  The rule does not change: the model's claims are never the verdict;
+Agda's are.
 
 **Exit criterion**:
 
-A frontier model, on the user's key behind the gate, proves a benchmark
-obligation through the browser surface; the session is archived and renders
-in the replay format of agda-native-air's demo page; and no script on the
-IDE's origin can read the key.
+An external agent attached over the bridge proves a benchmark obligation
+through the page's surface, and the session is archived and renders in the
+replay format of agda-native-air's demo page; the in-page model does the
+same behind the gate; and no script on the IDE's origin can read the key.
 
 ---
 
@@ -215,12 +272,15 @@ no Agda running: nodes are definitions, and each edge says where it came
 from (exact body references, approximate type dependencies, or Agda's module
 load order).  The proposal ranks this the cheapest step with the best
 payoff, so it may start whenever someone is free; it depends only on the
-corpus.
+corpus.  The view is a component of the shared core, drawn in the page
+first and in the VS Code companion's webview unchanged; only its host
+interface (open this definition, highlight that node) differs.
 
 **Exit criterion**:
 
 The agda-algebras definition graph renders in the IDE with every edge
-labeled by its provenance, and a node opens its source in the editor.
+labeled by its provenance, a node opens its source in the editor, and the
+same component renders in the VS Code companion's webview.
 
 ---
 
@@ -235,13 +295,68 @@ commands at a leaf.  It needs a proof-term export that does not exist yet
 and its elision rules are settled read-only on agda-native-air's 55
 benchmark golds before any editing.  One mode, two registers: solid for
 checked structure, dashed for hole interiors; nothing appears that is not
-in the source.
+in the source.  Like the theory view, it is a component of the shared core,
+and its edits go through whichever engine its host has.
 
 **Exit criterion**:
 
 A benchmark gold renders as a readable derivation under the settled elision
-rules, and refine and give at an open leaf re-check the file and redraw the
-diagram from the result.
+rules, in the page and in the VS Code companion's webview, and refine and
+give at an open leaf re-check the file and redraw the diagram from the
+result.
+
+---
+
+### Milestone 7 — The VS Code companion
+
+**Description**:
+
+A TypeScript extension beside agda-mode-vscode, which already gives VS Code
+the editor half (77 commands, the input method, a language server it
+downloads itself, and a web build), in the shape Paperproof takes beside
+the Lean extension: a webview hosting the shared views, the shared tool
+surface over a native engine (an `agda --interaction-json` lane and a batch
+`agda`, as child processes), the tool contract registered for the agents
+that are already there (an MCP server definition for Claude Code, Cline and
+Copilot; LM tools for Copilot's agent mode), and corpus and full-text
+search over the open workspace.  The author gets native speed on their own
+checkout, with git, a terminal and their agents; the companion drives the
+mode through its commands until upstream exports a client.  The web build,
+the companion in VS Code for the Web with the WASM engine, is verified, not
+promised: no agent runs there today.
+
+**Exit criterion**:
+
+Installed beside agda-mode-vscode on a desktop VS Code with an agda-algebras
+checkout, the companion shows the theory view and the proof view in a
+webview for the open module; refine and give at a leaf edit the real file;
+Claude Code proves a benchmark obligation through the MCP server definition
+the companion contributes, and the session is archived in the replay
+format; and the extension is published on the Marketplace and Open VSX.
+
+---
+
+### Milestone 8 — Emacs
+
+**Description**:
+
+agda2-mode is the reference implementation and where most Agda is still
+written, and it cannot draw the diagrams or reach a web reader; so this
+milestone builds only what Emacs is good for and measures the rest.  The
+agent half: agda2-mode's commands (load, goals, give, refine, case split)
+registered as tools with claude-code-ide.el's MCP server, so a Claude Code
+session beside Emacs works at the buffer's goals; and `agda-mcp` reached
+from inside Emacs through gptel or ellama.  The search half: the corpus
+index as a `completing-read` picker.  The views: a measured experiment with
+a static SVG and image-map hot-spots, kept only if it is useful.
+
+**Exit criterion**:
+
+From an Emacs with agda2-mode on an agda-algebras checkout, a Claude Code
+session lists and calls the goal tools and a give it makes appears in the
+buffer; the picker finds a definition by name or type and opens it; every
+setup is tested in `emacs --batch` with the project's harness; and the view
+experiment's result is recorded, whichever way it comes out.
 
 ---
 
@@ -266,11 +381,19 @@ graph TD
   M2 --> M5
   M5 --> M6
   M3 --> M6
+  M3 --> M7
+  M5 --> M7
+  M6 --> M7
+  M2 --> M8
 ```
 
 M5 needs only a corpus plugin from M2, and its drawing needs no Agda; it can
 start early.  M6 needs M3's commands for editing and an export from
-agda-native-air (its issue [M6-1] is cross-repo).
+agda-native-air (its issue [M6-1] is cross-repo).  M7 needs M3's shared
+package and takes each view as it lands; its first issues (the companion's
+skeleton, the native engine, the agents' registrations) need neither view.
+M8 needs only the corpus plugin and `agda-mcp`, which exists, so it can
+start whenever someone is free.
 
 ---
 
@@ -372,6 +495,10 @@ Upstream commits its compiler, `als-2.8ext.wasm` (32,996,332 bytes, SHA-256 `53c
 
 [#48]: https://github.com/formalverification/agda-native-ide/issues/48
 
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+The compiler to pin becomes this project's own build of Agda 2.9.0 and its language server ([M0-13]), published as a release of this organization: the mirror this issue asks for is then the primary source, and the agda-web binary a historical pin kept until the new compiler passes [M1-5]'s gate.  The rebuild recipe this issue asks for is [M0-13]'s flake package; record its outcome here as planned.
+
 ---
 
 ### Issue M0-5: CI: build, unit tests, type checks, and a real check in headless Chromium (#5)
@@ -393,7 +520,7 @@ One workflow on every pull request: the Nix build, upstream's vitest and svelte-
 
 ---
 
-### Issue M0-6: Choose the host and deploy with cross-origin isolation (#6)
+### Issue M0-6: Choose the host and deploy; cross-origin isolation only until the reactor build lands (#6)
 
 **Labels:** `milestone-0-foundations`, `hosting`, `adr`
 
@@ -429,6 +556,10 @@ Measured 2026-10-04: formalverification.io's DNS is on Cloudflare and its site i
 +  **On a shared origin**, namespace the localStorage keys, the IndexedDB database name and the worker's sessionStorage keys, which are origin-wide.
 +  **HTML is cached for 600 s**, so a visitor holding a stale `index.html` just after a deploy may ask for code chunks the deploy replaced (inferred from the headers, not tested).
 
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+The language server's reactor build ([M0-14]) removes the shared memory that requires isolation, so the host need not send the headers once it lands; until then the choice stands as written, and the service-worker guard this issue measured remains the fallback.  Decide the host for the long run (a static host of any kind, GitHub Pages included), and record the headers as a transitional requirement in the ADR.
+
 ---
 
 ### Issue M0-7: ADR 0001, the runtime: what is forked, what is kept, and the second lane (#7, closed)
@@ -463,6 +594,10 @@ The fork has a friendly message for a page that is not cross-origin isolated, bu
 
 Confirmed twice: without the isolation headers, the fork's service-worker fallback left 3 of 8 and 4 of 15 fresh first visits on a page that threw before its explanatory message could render, because the shared buffers are allocated when the page component is created.  A manual reload recovered.
 
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+Still needed while the stdio build ships; moot after [M0-14].  Keep the message, and retire it with the shared buffers.
+
 ---
 
 ### Issue M0-9: A complete notice for everything the page ships (#48, closed)
@@ -487,7 +622,7 @@ The same GHC and GMP gap is in agda-algebras PR 585's published notice.
 
 ---
 
-### Issue M0-10: Ship builtin interfaces that Agda 2.8 accepts (#49)
+### Issue M0-10: Ship builtin interfaces the shipped Agda accepts (#49)
 
 **Labels:** `bug`, `milestone-0-foundations`, `runtime`
 
@@ -496,6 +631,10 @@ The fork's `static/agda-data.zip` (Agda's `lib/prim`) carries interfaces in Agda
 #### Acceptance criteria
 
 +  A fresh profile's first check of a `Main.agda` that imports only builtins type-checks only `Main`.
+
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+The compiler moves to Agda 2.9.0 ([M0-13]); the builtins are then 2.9.0's `lib/prim`, built by the same Agda, under `_build/2.9.0/agda/`.  The acceptance criterion stands as written, for whichever Agda the page ships.
 
 ---
 
@@ -527,6 +666,53 @@ The design this project follows is agda-native-air's `docs/notes/browser-ide-pro
 
 +  `docs/notes/browser-ide-proposal.md` exists, byte for byte the source text apart from the header and the rewritten link definitions, and the header names the source file and commit.
 +  The README, `CLAUDE.md`, ADR 0001 and this plan's preamble link the local copy.
+
+---
+
+### Issue M0-13: Agda 2.9.0 as the compiler: pin a nightly, build Agda and the language server for wasm32-wasi from Agda's own flake, and move to the release (#58)
+
+**Labels:** `milestone-0-foundations`, `runtime`, `build`, `provenance`, `adr`
+
+The fork's compiler is a patched Agda 2.8.0 (agda-web/agda `e2f8c694`) with a patched language server, built by a recipe that is not hermetic ([M0-4]'s findings).  Agda itself builds for wasm32-wasi since agda/agda PR 8205 (merged 2025-12-07): a flake with the GHC wasm toolchain, and a CI workflow that runs the Succeed and Fail suites under wasmtime weekly.  None of that is in the 2.8.0.x releases, so Agda 2.9.0 is the first version whose wasm build needs no patch.  As of 2026-10-05 it is unreleased (master declares 2.9.0 and a `nightly` prerelease exists), and the language server has no 2.9.0 build (its releases cover 2.8.0, 2.7.0.1 and 2.6.4.3).
+
+Make this project's compiler its own build: pin an agda/agda commit (a nightly, then the 2.9.0 release when it lands), build `agda` for wasm32-wasi from Agda's own flake, and build the language server against that Agda (its cabal file names Agda versions, so a 2.9.0 target may need a patch until upstream adds one; record it as such).  Publish both binaries as a release of this organization, pinned by hash in the flake ([M0-4]'s mirror), and record in ADR 0001 the move, the pins, and anything 2.9.0 changed in Agda's interaction protocol or interface format.  The standard library and agda-algebras must check under the pinned Agda first ([M1-17]); the builtin interfaces are rebuilt by it ([M0-10]).
+
+Risk to record: a nightly moves and a pin does not.  Keep the move to the release a one-line change, and keep the 2.8.0 compiler buildable until the 2.9.0 one has passed [M1-5]'s acceptance gate.
+
+#### Acceptance criteria
+
++  `nix build .#compiler` produces Agda's wasm and the language server's wasm from the pinned commits with no agda-web patch, and records their hashes.
++  The browser check in CI passes with the new compiler, and `--version` reports 2.9.0.
++  ADR 0001 records the pins, the recipe, and the plan for the release pin.
+
+---
+
+### Issue M0-14: Adopt the language server's reactor build, which needs no shared memory (#59)
+
+**Labels:** `milestone-0-foundations`, `runtime`, `hosting`, `measurement`
+
+The fork blocks the language server on standard input through a SharedArrayBuffer, which is why every route must be served cross-origin isolated, why [M0-6] weighs hosts by their headers, and why [M0-8] exists.  agda/agda-language-server PR 48 (merged 2026-09-13) adds a `reactor` build: the server exports `new_language_server`, `run_language_server`, `send_message`, `recv_message` and `run_setup` through GHC's JavaScript FFI, and the host drives it by message passing, with no blocking read and no shared memory.  Its author's justification is this project's problem statement: the stdio approach "relies on SharedArrayBuffer ... the web page has to be cross-origin isolated.  This is proven to be a very unusual requirement."
+
+Build the reactor variant in [M0-13]'s recipe, drive it from the language-server worker in place of the stdin and stdout rings (the drive worker's file protocol stays until [M1-16] decides otherwise), and measure it against the stdio build on [M1-10]'s roots: startup, a give, a warm reload.  If it holds, the isolation headers, the service-worker fallback and its race leave the hosting decision ([M0-6]), and GitHub Pages becomes an ordinary option.  A reactor cannot run under a standalone wasm runtime, so the browser job stays the only test of the language server ([M0-5]).
+
+#### Acceptance criteria
+
++  The page checks `Main.agda` with the reactor build on a host that sends no isolation headers, with `crossOriginIsolated` false, in a fresh profile.
++  The comparison with the stdio build is recorded with its run.
++  `docs/notes/runtime.md` describes the new transport.
+
+---
+
+### Issue M0-15: ADR 0002: where the workbench lives: three platforms, one shared core, Agda 2.9.0 (#60)
+
+**Labels:** `documentation`, `milestone-0-foundations`, `adr`
+
+On 2026-10-05 a platform brief ("Where the Agda Workbench Lives") asked whether the browser is the right platform for the IDE the proposal describes, or a VS Code extension, or Emacs, and answered from the infrastructure up; William's decision the same day was to target all three on Agda 2.9.0, sharing one core, and this plan was revised to match.  Record the decision in the ADR form: the question; the evidence (the brief's measurements: native Agda loads the `Setoid.Varieties.HSP` closure in 5.1 s at 767 MB where the fork takes 11 to 22 s with its drive indexed, and that closure's interfaces are 54 MB gzipped per reader; agda-mode-vscode's state; the language server's private `agda` request and its reactor build; agda-web's VS Code for the Web deployment; the convergence of every 2025 to 2026 prover-agent integration on a local MCP process); the decision per platform (browser: the reader's playground and the views' first host; VS Code: the author's workbench, a companion beside agda-mode-vscode; Emacs: the agent half only); the shared core (engine client, tool surface, views, manifest); and Agda 2.9.0 as the compiler ([M0-13]).  Carry the brief's text into `docs/notes/platform-brief-2026-10-05.md` as the companion note the ADR links, with its evidence table and its sources, so the record is self-contained.
+
+#### Acceptance criteria
+
++  `docs/adr/0002-where-the-workbench-lives.md` exists in the ADR form, with a decision log and every figure cited to a dated run.
++  The companion note carries the brief, and the README's description matches the decision.
 
 <!-- END GENERATED: milestone-0 -->
 
@@ -585,6 +771,10 @@ A scratch project whose `.agda-lib` depends on `standard-library-2.3` and `agda-
 +  **`mountDriveArchives()` alone cannot add a library**: it extracts archives at `/`, but the libraries and defaults files are written once, hard-coded, when the drive worker starts.  Generalize the drive's start message to a list of libraries (archive, `.agda-lib` path, name) and write those files from it.
 +  **Prefer an explicit root library** over listing libraries in `defaults`: which flags apply to a file covered only by `defaults` was not verified.
 
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+The scratch project depends on the standard-library version that checks under Agda 2.9.0 ([M1-17]), and agda-algebras' `depend:` line follows that decision.
+
 ---
 
 ### Issue M1-4: Per-closure library archives, indexed by Agda's own dependency graph (#12)
@@ -613,6 +803,10 @@ The packing the measurement recommends: the standard library in nine dependency 
 +  **Do not use the fork's closure index as is**: it is a regular expression over source text, which misses `open import` inside parameterized or nested modules and has no literate handling beyond fenced blocks.  A missed import shows up as a silently slow check.
 +  **Ship an interface for everything that can be imported**: modules the browser checks from source are not reused across reloads (`Data.Nat.Base` took 27.4 s, then 22.5 s again after a reload).
 
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+The archives are built by the pinned Agda 2.9.0 ([M0-13]), laid out under `_build/2.9.0/agda/`, from the agda-algebras commit [M1-17] settles.  The platform brief measured the HSP closure under 2.8.0 at 314 modules and 54.3 MB gzipped per interface (63.7 MB raw); re-measure under 2.9.0 and record the difference.
+
 ---
 
 ### Issue M1-5: Prove that the shipped compiler accepts the shipped interfaces (#13)
@@ -638,6 +832,10 @@ PR 585 proved this for `agda-opt.wasm` (native interfaces accepted unchanged; 1.
 
 [#49]: https://github.com/formalverification/agda-native-ide/issues/49
 [#50]: https://github.com/formalverification/agda-native-ide/issues/50
+
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+The proof is against the 2.9.0 compiler of [M0-13]; the 2026-10-04 findings are for the 2.8.0 one and stay as the baseline.
 
 ---
 
@@ -711,6 +909,10 @@ Adapt the fork's PLFA benchmark (every chapter, real edits, warm and cold) to a 
 
 +  One command runs the benchmark and writes a report.
 +  The documentation's figures cite a committed report.
+
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+Record a native baseline beside every browser figure, from the same Agda version and the same roots, so that the browser's cost is always stated as a ratio.  Measured 2026-10-05 for the platform brief, Agda 2.8.0 native, three runs, interfaces accepted: `Main` importing `Overture.Basic` 0.67 to 0.69 s at 149 MB RSS; `Main` importing `Setoid.Varieties.HSP` 5.10 to 5.23 s at 767 MB RSS (432 MB GHC maximum residency).
 
 ---
 
@@ -793,6 +995,23 @@ Index the drive (maintained on create, unlink, rename and archive extraction), m
 +  The per-lookup cost no longer grows with the number of files on the drive (a scaling run shows it).
 +  A warm check of `Main` importing `Setoid.Varieties.HSP` is recorded by [M1-10]'s benchmark, before and after.
 
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+The reactor build ([M0-14]) replaces the stdin and stdout rings but not the drive's file protocol, so the index this issue asks for stays.  OPFS with synchronous access handles (Chrome 102, Firefox 111, Safari 15.2; no isolation headers needed) is the candidate store for the written interfaces.
+
+---
+
+### Issue M1-17: agda-algebras and its standard library under Agda 2.9.0 (#61)
+
+**Labels:** `milestone-1-library-ide`, `libraries`, `cross-repo`
+
+Agda accepts an interface only from the same Agda, so the archives [M1-4] ships are built by the Agda 2.9.0 the IDE ships ([M0-13]), and that Agda must type-check agda-algebras and the standard-library version it depends on.  agda-algebras targets Agda 2.8.0 and standard-library 2.3 today; the standard library's 2.4 (2026-06-17) and its master are tested against 2.8.0.  In ualib/agda-algebras: check the library under the pinned 2.9.0 with the standard-library version that checks under it, record every warning and every change the move needs, and decide whether the library's own pin moves or the IDE builds its archives from a branch.  The deprecation warnings Agda stores in interfaces ([M1-4]'s reproducibility finding) are worth re-measuring under 2.9.0.
+
+#### Acceptance criteria
+
++  An agda-algebras issue tracks the check, and its outcome (warnings, changes, the standard-library version) is recorded here.
++  [M1-4]'s pipeline builds the archives from the pinned commit under Agda 2.9.0, and [M1-5]'s gate passes.
+
 <!-- END GENERATED: milestone-1 -->
 
 ## Milestone 2 — Plugins
@@ -809,6 +1028,10 @@ A plugin is a manifest and its archives (the proposal's § 5): its kind (library
 
 +  The standard library and agda-algebras are expressed as plugins and load through the loader.
 +  An invalid manifest is refused with a message naming the field.
+
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+The manifest is a shared-core format ([M3-7]): the VS Code companion reads the same manifests from disk ([M7-5]) and the Emacs picker the same corpus index ([M8-3]).  Validate it in a package every host imports, not in the page.
 
 ---
 
@@ -865,7 +1088,7 @@ Multi-file projects in the virtual filesystem (the proposal's "What is hard"): f
 
 <!-- BEGIN GENERATED: milestone-3 -->
 
-### Issue M3-1: The tool surface: agda-mcp's contract, in the page (#29)
+### Issue M3-1: The tool surface: agda-mcp's contract as a shared package, hosted in the page (#29)
 
 **Labels:** `milestone-3-tool-server`, `tool-server`, `adr`
 
@@ -877,9 +1100,13 @@ Implement the proposal's table: `get_goal`, `type_of`, `normalize`, `resolve_nam
 
 [adr0002]: https://github.com/formalverification/agda-native-air/blob/main/docs/adr/0002-agda-mcp.md
 
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+The surface is a package over [M3-7]'s engine interface, hosted first in the page over the wasm lanes and then in the editor over native processes ([M7-2], [M7-3]).  The table and the contract stand as written.
+
 ---
 
-### Issue M3-2: The batch lane: agda-opt.wasm for the verdict of record (#30)
+### Issue M3-2: The batch lane: plain Agda for the verdict of record, wasm in the page and a process in the editor (#30)
 
 **Labels:** `milestone-3-tool-server`, `runtime`
 
@@ -890,9 +1117,13 @@ Ship `agda-opt.wasm` from agda-web/agda-wasm-dist `v2.8.0-ghc9.10.3-r0` (31,524,
 +  `check_file` takes its verdict from the batch lane.
 +  The ported suites pass, and each was shown to fail against a mutated copy of the code it covers.
 
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+The wasm artifact becomes the `agda` of [M0-13]'s 2.9.0 build rather than agda-web's `agda-opt.wasm` release; PR 585's host, tar reader and interaction reader port as planned.  In the editor the same lane is a child process ([M7-2]); both sit behind the engine interface ([M3-7]).
+
 ---
 
-### Issue M3-3: Replay archived agent sessions through the browser surface (#31)
+### Issue M3-3: Replay archived agent sessions through each host's surface (#31)
 
 **Labels:** `milestone-3-tool-server`, `measurement`
 
@@ -903,6 +1134,10 @@ As agda-native-air [#163][a163] checked the persistent lane against the batch ve
 +  Zero disagreements on committed candidates; any deliberate case that differs is explained on this issue.
 
 [a163]: https://github.com/formalverification/agda-native-air/issues/163
+
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+Replay through the page's surface first, then through the native implementation ([M7-2]) as the same suite; both must show zero disagreements on committed candidates.
 
 ---
 
@@ -915,6 +1150,10 @@ Mount agda-native-air's published corpora (agda-algebras, 13,123 rows; the stand
 #### Acceptance criteria
 
 +  Each search answers over the mounted corpus, and its latency and the corpus's download size are recorded.
+
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+The same corpus plugins serve the editor ([M7-5]) and the Emacs picker ([M8-3]); the search code lives in the shared package.
 
 ---
 
@@ -930,6 +1169,10 @@ agda-native-air [#162][a162] measured that a model reading a library's source co
 
 [a162]: https://github.com/formalverification/agda-native-air/issues/162
 
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+Shared: in the page over the mounted sources, in the editor over the workspace ([M7-5]).
+
 ---
 
 ### Issue M3-6: search_in_scope, the three steps the native tool takes (#34)
@@ -941,6 +1184,24 @@ The corpus query, then the file's import surface, then `Cmd_infer` on the lane t
 #### Acceptance criteria
 
 +  On a sample of files and queries, the answers agree with native `agda-mcp`'s.
+
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+Shared; the lane it uses is whichever engine implementation the host has ([M3-7]).
+
+---
+
+### Issue M3-7: The shared core as packages: the engine interface with a wasm and a native implementation (#62)
+
+**Labels:** `milestone-3-tool-server`, `runtime`, `tool-server`, `adr`, `core`
+
+The three things the proposal adds (the tool surface, the views, the plugin model) are platform-neutral if they are written against an engine interface and not against the page.  Factor the fork's controller accordingly: an engine client package that speaks Agda's interaction protocol (the IOTCM commands, the response schemas the fork already validates with zod, the give rule) behind one interface with two implementations, the language server in a worker (the fork's transport, over the stdio rings or the reactor channel of [M0-14]) and a native process (`agda --interaction-json`, or the native language server, for the VS Code companion, [M7-2]); the tool surface ([M3-1]) and the manifest ([M2-1]) as packages that import only that interface; and the views ([M5-2], [M6-2]) as components that import nothing from the page.  Record the package boundaries and the interface in an ADR, and test the interface with one suite run against both implementations: the wasm one in headless Chromium, the native one under node.
+
+#### Acceptance criteria
+
++  The repository is a workspace of packages, and the page imports the engine client, the tool surface and the manifest as packages.
++  One test suite passes against the wasm implementation and against the native implementation.
++  The ADR records the interface and what each shell owns.
 
 <!-- END GENERATED: milestone-3 -->
 
@@ -958,6 +1219,10 @@ The key is a secret in a page that also loads plugins.  A provider frame on its 
 
 +  A test plugin that tries to read the key fails, and the test is in CI.
 
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+Order changed: this is the last agent item in the browser, after the bridge ([M4-4]) and after the editor's agents ([M7-3]).  The in-page model is a demonstration for readers; the research agenda runs natively and does not wait on it.
+
 ---
 
 ### Issue M4-2: A frontier model on the user's key, working through the tool surface (#36)
@@ -969,6 +1234,10 @@ Ordinary tool calling against [M3-1]'s surface.  A suggestion is a candidate: it
 #### Acceptance criteria
 
 +  A benchmark obligation is proved this way, end to end, in the IDE.
+
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+Order changed: after the bridge ([M4-4]) and the editor's agents ([M7-3]); the in-page model is a demonstration for readers.  A benchmark obligation proved through the page's surface stays the acceptance criterion.
 
 ---
 
@@ -984,9 +1253,13 @@ Render a session as agda-native-air's demo page does ([#85][a85]): the model's w
 
 [a85]: https://github.com/formalverification/agda-native-air/issues/85
 
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+The replay renderer is a shared component: the companion archives its sessions in the same format ([M7-3]), and so does the Emacs tool package ([M8-1]) if it archives at all.
+
 ---
 
-### Issue M4-4: An external agent attached over a local bridge (#38)
+### Issue M4-4: An external agent attached over a local bridge, the browser's first agent path (#38)
 
 **Labels:** `milestone-4-models`, `tool-server`, `models`
 
@@ -995,6 +1268,10 @@ A Claude Code session (or any agent) attaches to the IDE over a local bridge, an
 #### Acceptance criteria
 
 +  An external agent lists and calls the page's tools, and a give it makes shows in the editor.
+
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+Order changed: the first of the browser's agent items.  The bridge is the pattern every 2025 to 2026 prover-agent integration converged on (lean-beam's thin local broker, claude-code-ide.el's lock-file-discovered WebSocket server): a small process the agent launches over stdio or dials over HTTP on localhost, relaying to the page over a WebSocket, since the page cannot listen itself.  Design it so the same bridge exposes the page to any MCP client.
 
 ---
 
@@ -1014,7 +1291,7 @@ A model that runs in the browser, as a plugin, labeled unmeasured until the loca
 
 <!-- BEGIN GENERATED: milestone-5 -->
 
-### Issue M5-1: The precedents: Paperproof, the Incredible Proof Machine, and others (#40)
+### Issue M5-1: The precedents: Paperproof, ProofWidgets4, the Incredible Proof Machine, and others (#40)
 
 **Labels:** `documentation`, `milestone-5-theory-view`, `diagrams`
 
@@ -1023,6 +1300,10 @@ Study, before designing: Paperproof (Lean 4 proofs as trees), the Incredible Pro
 #### Acceptance criteria
 
 +  `docs/notes/diagram-precedents.md` exists and each section ends with what to adopt and what to avoid.
+
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+Add to the study: ProofWidgets4 (widgets written once and rendered by the infoview in VS Code and in lean4web), the Lean extension's infoview RPC over `postMessage`, and Paperproof v3's shadow document.  The note also settles the component boundary [M3-7] needs: what a view imports, and what its host provides.
 
 ---
 
@@ -1038,6 +1319,10 @@ Nodes are definitions; edges are "uses", of three provenances the view labels: e
 
 [a15]: https://github.com/formalverification/agda-native-air/issues/15
 
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+The view is a component of the shared core ([M3-7]) and renders in the page and, unchanged, in the VS Code companion's webview ([M7-4]).
+
 ---
 
 ### Issue M5-3: From a node to its source, and back (#42)
@@ -1049,6 +1334,10 @@ A node opens its definition in the editor; the definition under the cursor is hi
 #### Acceptance criteria
 
 +  Both directions work for every node of the agda-algebras graph.
+
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+Both directions go through a host interface: the page's editor, or VS Code's ([M7-4]).
 
 <!-- END GENERATED: milestone-5 -->
 
@@ -1078,6 +1367,10 @@ Render one gold's term as a derivation tree with the judgment at each node and h
 
 +  The elision and folding rules are written down, and every gold renders under them.
 
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+A component of the shared core ([M3-7]); it renders in the companion's webview unchanged ([M7-4]).
+
 ---
 
 ### Issue M6-3: One mode, two registers: checked structure solid, hole interiors dashed (#45)
@@ -1089,6 +1382,10 @@ No free-drawing mode.  A hole is a sketch of a term and its interior is a sketch
 #### Acceptance criteria
 
 +  A scaffold of declarations with hole bodies renders as a plan, with each hole's intended uses dashed.
+
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+A component of the shared core ([M3-7]); it renders in the companion's webview unchanged ([M7-4]).
 
 ---
 
@@ -1102,7 +1399,167 @@ At an open leaf, applying a lemma is `Cmd_refine` (its new leaves are new holes)
 
 +  Refine and give at a leaf re-check the file and redraw the diagram; then case split does.
 
+#### Revision, 2026-10-05: three platforms, Agda 2.9.0
+
+The commands go through the host's engine: the wasm lane in the page; the native lane, or the mode's own commands, in the editor ([M7-4]).
+
 <!-- END GENERATED: milestone-6 -->
+
+## Milestone 7 — The VS Code companion
+
+<!-- BEGIN GENERATED: milestone-7 -->
+
+### Issue M7-1: A companion extension beside agda-mode-vscode: activation, a webview host, and the mode driven through its commands (#63)
+
+**Labels:** `ui`, `milestone-7-vscode`, `vscode`
+
+A TypeScript extension that activates on Agda files, opens a webview panel beside the editor (a content security policy, `asWebviewUri`, state serialization), and drives agda-mode-vscode through its 77 `agda-mode.*` commands with `vscode.commands.executeCommand`; the mode exports no public API, and [M7-7] asks for one.  Verify what the commands give a second extension (a give or a refine at the cursor's goal, a load, the highlighting) and what they do not: the responses go to the mode's own panel, so the companion reads the document and runs its own lane for answers ([M7-2]).  Pin the agda-mode-vscode versions the companion was tested with, and say so when another is installed, as Paperproof's error page does for the Lean extension.
+
+#### Acceptance criteria
+
++  On an agda-algebras checkout, the companion opens its panel for the active module, and a command it issues edits the buffer through the mode.
++  A mismatched agda-mode-vscode version is reported, not guessed at.
+
+---
+
+### Issue M7-2: The native engine behind the shared interface: an interaction lane and a batch lane as child processes (#64)
+
+**Labels:** `runtime`, `tool-server`, `milestone-7-vscode`, `core`, `vscode`
+
+The second implementation of [M3-7]'s engine interface: `agda --interaction-json` kept alive per project root as the interaction lane (agda-native-air's `agda-mcp` already runs this lane, with its persistence rules), and a fresh `agda` per verdict as the batch lane, both as child processes of the extension host, resolving the Agda the user's project pins (a dev shell's wrapper, a PATH `agda`, or the language server agda-mode-vscode downloaded).  Native speed is the point: the brief measured a `Main` importing `Setoid.Varieties.HSP` at 5.1 s natively against 11 to 22 s in the page.
+
+#### Acceptance criteria
+
++  [M3-7]'s suite passes against this implementation under node.
++  The lane answers goal types and gives on an agda-algebras module, and the batch lane's exit code is the verdict.
+
+---
+
+### Issue M7-3: The tool contract for the editor's agents: an MCP server definition and LM tools (#65)
+
+**Labels:** `tool-server`, `models`, `milestone-7-vscode`, `vscode`
+
+Agents in VS Code are MCP clients: Claude Code's extension, Cline and Continue consume MCP servers and not LM tools, and Copilot's agent mode consumes both.  Contribute `agda-mcp` as an MCP server definition (`registerMcpServerDefinitionProvider`, with the project's Agda and root resolved), and register the same contract as LM tools (`vscode.lm.registerTool`) for Copilot; keep agda-native-air ADR 0002's contract word for word, so that a verdict is an exit code and a lane answer carries no verdict.  Prove it with a session: Claude Code proves a benchmark obligation on a checkout through the contributed server, and the session is archived in the replay format ([M4-3]).
+
+#### Acceptance criteria
+
++  Claude Code lists and calls the tools through the companion's definition, and Copilot agent mode calls the LM tools.
++  One benchmark obligation is proved this way, and its session is archived.
+
+---
+
+### Issue M7-4: The views in a webview: theory and proof views over the open workspace (#66)
+
+**Labels:** `diagrams`, `milestone-7-vscode`, `core`, `vscode`
+
+Host [M5-2]'s theory view and [M6-2]'s proof view in the companion's webview, unchanged as components, with the editor as host: a node opens its definition in a text editor and the definition under the cursor is highlighted in the graph ([M5-3]); refine, give and case split at a leaf ([M6-4]) edit the real file through the mode or the native lane.  The webview is an iframe on its own origin, so the host interface is a message protocol; design it once, for the page and for the webview.
+
+#### Acceptance criteria
+
++  Both views render for the open agda-algebras module, and [M5-3]'s and [M6-4]'s acceptance criteria hold in the editor.
+
+---
+
+### Issue M7-5: Corpus and full-text search in the editor (#67)
+
+**Labels:** `plugins`, `tool-server`, `milestone-7-vscode`, `vscode`
+
+The corpus plugins ([M3-4]), read from disk through the same manifest; a search view for people (by name, by type, by dependencies, with the corpus cards' caveats); full-text search over the workspace and the standard library's sources as a tool ([M3-5]); and `search_in_scope` through the native lane ([M3-6]).  The corpora are large (463 MB and 225 MB raw), so load the searched fields only, as `agda-mcp` does (308 MB and 727 MB resident), or an inverted index built once.
+
+#### Acceptance criteria
+
++  Each search answers in the editor over the agda-algebras corpus, with its latency recorded.
+
+---
+
+### Issue M7-6: The web build: the companion in VS Code for the Web with the WASM engine, verified (#68)
+
+**Labels:** `runtime`, `measurement`, `milestone-7-vscode`, `vscode`
+
+agda-web's PLFA fork type-checks in vscode.dev today: agda-mode-vscode's browser entry with the ALS WASM Loader extension (a patched WASM WASI Core, the server in a worker over shared memory; vscode.dev sends the isolation headers itself).  Build the companion as a web extension too (no Node, so no child processes: the engine is the wasm implementation of [M3-7]; and no agents, since Copilot Chat, Claude Code and Cline are desktop-only), and measure what works: the views, the searches, the tool surface without an agent behind it; note the CORS cost of `require-corp` on every fetch.  This is verification, not a deliverable: the result decides whether a vscode.dev link belongs beside the playground link on the agda-algebras site.
+
+#### Acceptance criteria
+
++  The companion loads in vscode.dev beside the mode and the loader, and what works and what does not is recorded with the run.
+
+---
+
+### Issue M7-7: Ask upstream for an exported client in agda-mode-vscode (#69)
+
+**Labels:** `cross-repo`, `milestone-7-vscode`, `vscode`
+
+The Lean extension exports its `clientProvider`, and Paperproof depends on it; agda-mode-vscode's `activate` returns test hooks only.  Propose an exported API to its maintainer: the connection (so a companion can send the `agda` request on the mode's own language server instead of running a second lane), the goals and highlighting the mode already parses, and a version string.  Until then [M7-1] drives commands and [M7-2] runs its own lane.  Record the answer here.
+
+#### Acceptance criteria
+
++  An issue or pull request exists on banacorn/agda-mode-vscode, and this issue records the outcome.
+
+---
+
+### Issue M7-8: Package and publish the companion: Marketplace and Open VSX, a web-extension test (#70)
+
+**Labels:** `build`, `milestone-7-vscode`, `vscode`
+
+Bundle with esbuild for both entries (`main` and `browser`), test the web entry with `@vscode/test-web`, publish to the Marketplace and Open VSX from CI on a tag, and pin the agda-mode-vscode versions tested.  The notice ([M0-9]) covers what the extension ships.
+
+#### Acceptance criteria
+
++  A tag publishes to both registries from CI, and the extension's page names the tested agda-mode-vscode versions.
+
+<!-- END GENERATED: milestone-7 -->
+
+## Milestone 8 — Emacs
+
+<!-- BEGIN GENERATED: milestone-8 -->
+
+### Issue M8-1: agda2-mode's commands as agent tools, through claude-code-ide.el (#71)
+
+**Labels:** `models`, `milestone-8-emacs`, `emacs`
+
+claude-code-ide.el runs a WebSocket MCP server inside Emacs, writes the lock file Anthropic's IDE plugins write, and registers any Elisp function as a tool with `claude-code-ide-make-tool`.  A small package registers agda2-mode's commands at the current buffer: load; the goals with their types and contexts; give, refine and case split at a goal by number; with results read back from Agda's responses rather than from the info buffer.  It keeps agda-native-air ADR 0002's rule that a lane answer is not a verdict, so it also offers a batch check of the file as the verdict.  Test it with the project's batch-Emacs harness, on an agda-algebras checkout.
+
+#### Acceptance criteria
+
++  A Claude Code session beside Emacs lists the tools and calls a give, and the give appears in the buffer.
++  The package's setup is tested in `emacs --batch` with the harness.
+
+---
+
+### Issue M8-2: agda-mcp from inside Emacs: gptel and ellama as MCP clients (#72)
+
+**Labels:** `documentation`, `models`, `milestone-8-emacs`, `emacs`
+
+gptel and ellama are tool-calling clients with MCP support through mcp.el, and `agda-mcp` is an MCP server over stdio.  Document the configuration that registers it (the project's Agda, its root, the corpus flags), verify it against an agda-algebras checkout, and record what each client does with the verdict block.  A note in `docs/notes/emacs.md`.
+
+#### Acceptance criteria
+
++  From Emacs, a gptel or ellama session calls `check_file` and `get_goal` on an agda-algebras module, and the note's configuration was tested in `emacs --batch`.
+
+---
+
+### Issue M8-3: Corpus search as a picker: completing-read over the corpus index (#73)
+
+**Labels:** `tool-server`, `milestone-8-emacs`, `emacs`
+
+A `completing-read` interface (vertico, consult or plain) over the corpus index [M3-4] defines, by name and by type text, opening the definition's source at its line or inserting an `open import`, with the heuristic caveats the corpus cards state shown.  It reads the same index the other hosts read, and no Agda runs.
+
+#### Acceptance criteria
+
++  The picker finds a definition by any part of its name or type and opens its source.
+
+---
+
+### Issue M8-4: What Emacs can show of the views: a static derivation as an SVG with hot-spots, measured (#74)
+
+**Labels:** `diagrams`, `measurement`, `milestone-8-emacs`, `emacs`
+
+Emacs displays an SVG as one image with clickable hot-spots (the image `:map` property) and rescales it; every change re-rasterizes the picture, and the embedded WebKit widget is build-dependent and uneven across platforms.  Render one gold's derivation ([M6-2]'s export, through the shared renderer to SVG) into an Emacs buffer with a hot-spot per leaf that jumps to the goal, and measure it: render time, legibility at a usable size, and what interaction is possible.  Keep it only if the result is useful, and record the result either way.
+
+#### Acceptance criteria
+
++  The experiment's result is recorded with its measurements, and the decision to keep or drop it is written down.
+
+<!-- END GENERATED: milestone-8 -->
 
 ## Unplanned work
 
