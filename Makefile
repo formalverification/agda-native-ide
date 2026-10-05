@@ -4,6 +4,9 @@
 # lists the targets; `make populate` / `make update` are the two
 # directions of the contract stated in the README.
 #
+# The app's targets (assets, assets-check, build, provenance-check) are
+# at the end of this file.
+#
 # The engine (gh_project_*.py) has exactly one home — the
 # williamdemeo/github-project repository — and this Makefile finds it
 # through whichever channel is available, in order:
@@ -54,7 +57,8 @@ else
 endif
 
 .PHONY: help populate-dry populate update update-check lint test init \
-        guard-gh guard-engine engine-mode
+        guard-gh guard-engine engine-mode \
+        assets assets-check build provenance-check
 .DEFAULT_GOAL := help
 
 # In `path` mode the resolved CLI is (typically) a Nix wrapper carrying
@@ -143,3 +147,42 @@ guard-gh:
 	  echo "       https://cli.github.com/  (or: nix develop)"; \
 	  exit 1; \
 	}
+
+# ---------------------------------------------------------------------
+# The app: its pinned binaries, and the build
+#
+# Run these in the dev shell (`nix develop`), which carries node 22 and
+# GNU coreutils.  The binaries the app ships are never committed.  The
+# flake fetches each one from upstream at the imported commit and checks
+# it against its SHA-256 in $(PINS); `make assets` copies the set into
+# static/, and `make build` refuses to build unless every file there
+# still matches its pin.  docs/provenance.md records them all.
+#
+#   PINS       the pinned binaries     (default: upstream/assets.sha256)
+#   UNCHANGED  the imported files that are still upstream's, byte for
+#              byte                    (default: upstream/unchanged.sha256)
+
+PINS      ?= upstream/assets.sha256
+UNCHANGED ?= upstream/unchanged.sha256
+
+assets: ## Fetch the pinned binaries (nix build .#assets) into static/
+	@out=$$(nix build .#assets --no-link --print-out-paths) && \
+	  cp -R --no-preserve=mode,ownership "$$out"/static/. static/ && \
+	  echo "assets: copied $$out/static into static/"
+	@$(MAKE) --no-print-directory assets-check
+
+assets-check: ## Check every pinned binary in static/ against its SHA-256
+	@sha256sum --check --strict --quiet $(PINS) && \
+	  echo "assets-check: all $$(grep -c . $(PINS)) pinned files match"
+
+build: assets-check ## Build the site into build/, after checking the pins
+	npm run build
+
+provenance-check: ## Check the unchanged files, and that docs/provenance.md lists every pin
+	@sha256sum --check --strict --quiet $(UNCHANGED) && \
+	  echo "provenance-check: all $$(grep -c . $(UNCHANGED)) unchanged files match upstream"
+	@awk 'NR == FNR { while (match($$0, /[0-9a-f]{64}/)) { seen[substr($$0, RSTART, 64)] = 1; \
+	                                                       $$0 = substr($$0, RSTART + 64) }; next } \
+	      !($$1 in seen) { print "provenance-check: " $$2 " is pinned but not in docs/provenance.md"; bad = 1 } \
+	      END { exit bad }' docs/provenance.md $(PINS) && \
+	  echo "provenance-check: docs/provenance.md lists all $$(grep -c . $(PINS)) pins"

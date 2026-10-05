@@ -11,3 +11,12 @@ result
 *~
 .vscode/
 .idea/
+
+# The pinned binaries `make assets` copies into static/ (never committed;
+# upstream/assets.sha256 lists them)
+/static/*.wasm
+/static/*.wasm.gz
+/static/*.zip
+/static/*.woff2
+/static/favicon.png
+/static/plfa/**/*.zip
