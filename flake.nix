@@ -67,6 +67,7 @@
           packages = [
             pkgs.gnumake
             pkgs.gh
+            pkgs.nodejs_22
             github-project.packages.${system}.gh-project-engine
           ];
         };
