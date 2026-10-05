@@ -62,7 +62,7 @@ cong : {A B : Set} {x y : A} → (f : A → B) → x ≡ y → f x ≡ f y
 cong f refl = refl
 
 plus-zero : (n : Nat) → n + 0 ≡ n
-plus-zero zero = refl
+plus-zero zero = zero
 plus-zero (suc n) = cong suc {! plus-zero n !}
 `;
 
