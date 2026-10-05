@@ -106,12 +106,12 @@ others are topic labels.
 **Description**:
 
 Turn this template copy into a project that builds, tests and deploys the
-forked runtime, before changing what it does.  The fork comes in with its
-history and attribution; the build is reproducible under Nix; the compiler
-and the standard library are pinned by hash, never committed blind; CI
-drives a real check in a headless browser; and the site is served with the
-cross-origin isolation the language server needs.  ADR 0001 records the
-runtime decision and the second lane.
+forked runtime, before changing what it does.  The fork comes in as a
+recorded snapshot, with its attribution; the build is reproducible under
+Nix; the compiler and the standard library are pinned by hash, never
+committed blind; CI drives a real check in a headless browser; and the site
+is served with the cross-origin isolation the language server needs.  ADR
+0001 records the runtime decision and the second lane.
 
 **Exit criterion**:
 
@@ -285,7 +285,7 @@ is written back into the heading.
 
 <!-- BEGIN GENERATED: milestone-0 -->
 
-### Issue M0-1: Detach the template's engine and write the project's working rules (#1)
+### Issue M0-1: Detach the template's engine and write the project's working rules (#1, closed)
 
 **Labels:** `documentation`, `milestone-0-foundations`, `build`
 
@@ -299,7 +299,7 @@ This repository was created from williamdemeo/github-project and still carries a
 
 ---
 
-### Issue M0-2: Fork plfa-playground into this repository, history and attribution intact (#2)
+### Issue M0-2: Fork plfa-playground into this repository, as a recorded snapshot with its attribution (#2)
 
 **Labels:** `milestone-0-foundations`, `runtime`, `provenance`
 
@@ -340,6 +340,13 @@ A dev shell with the pinned node, and a `packages.site` output that builds the s
 +  **The build is `vite build`** (SvelteKit's static adapter, prerendered, no server rendering) plus one post-step that gzips the compiler and deletes the raw copy; every Agda asset is a committed file copied through verbatim.
 +  **Generate what upstream maintains by hand**: the `?cache=` tokens, the compiler's byte length hard-coded in the controller, and the IndexedDB cache namespace.  Derive them from content hashes and real sizes at build time, or a rebuilt asset is served stale behind a 14,400 s cache.
 +  **Trim**: the main chunk is 1,144 kB (362 kB gzipped), and carries `zod`, `marked` and CodeMirror's markdown, HTML, JavaScript and CSS modes, which only the PLFA reader needs.
+
+
+#### More findings, 2026-10-05
+
++  **The built site has no raw compiler, so a browser without `DecompressionStream` cannot start Agda.**  `scripts/prepare-cloudflare-assets.mjs` deletes `build/als-2.8ext.wasm` after gzipping it, but `fetchWASMAndData` falls back to that raw file when `DecompressionStream` is missing or the `.gz` request fails; the request is then a 404 (on upstream's live site, the page's own HTML labelled `application/wasm`), the controller swallows the failure (`controller.svelte.ts:283-290`), and the page says "Agda ready" with no goals and never checks, with no error shown.  Measured 2026-10-05 in headless Chrome 153 with `DecompressionStream` removed from the page: no check after 60 s; with the raw file put back in `build/`, two goals in 1.20 s.  Of the build's declared targets (`vite.config.js`: Chrome 89, Edge 89, Firefox 89, Safari 15), Firefox before 113 and Safari before 16.4 lack `DecompressionStream` (MDN's compatibility data).  Decide here whether the built site ships the raw file as well (33 MB more per deploy; upstream deletes it for Cloudflare's per-file limit) or drops the branch and says so on the page ([M0-8] is the same kind of gap).  Found in [#52]'s review.
+
+[#52]: https://github.com/formalverification/agda-native-ide/pull/52
 
 ---
 
@@ -489,6 +496,24 @@ The fork's `static/agda-data.zip` (Agda's `lib/prim`) carries interfaces in Agda
 #### Acceptance criteria
 
 +  A fresh profile's first check of a `Main.agda` that imports only builtins type-checks only `Main`.
+
+---
+
+### Issue M0-11: Review the licenses before the repository goes public (#53)
+
+**Labels:** `milestone-0-foundations`, `provenance`
+
+The notice [M0-9] ships names every artifact and carries every license text that could be read at its source, but four questions were deferred on 2026-10-05, while the repository is private, so that they would not hold up the runtime's import ([M0-2]).  Settle them before the repository or the site goes public.
+
++  **GMP.**  The compiler links GMP 6.3.0, offered under LGPL-3.0-or-later or GPL-2.0-or-later.  `NOTICE` § 3.4 distributes it under the LGPL and meets the relinking condition by pointing at the pinned sources and the build recipe; ADR 0001 § 4 records that as a judgment, not counsel's.  Confirm it or change the terms, and put GMP's source tarball in [M0-4]'s mirror.
++  **The Haskell packages the binary does not confirm.**  24 of the 150 packages in `NOTICE` § 3.5 rest on the solved build plan alone; [M0-4]'s rebuild, with `index-state` pinned, would confirm them.
++  **libffi-wasm.**  Whether the binary carries its code is unconfirmed.
++  **nonempty-vector 0.2.4** ships an empty `LICENSE`, in its Hackage tarball and in its repository alike; the notice supplies the BSD-3-Clause text its cabal file declares, in `LICENSE.supplied`.  Decide whether that stands.
+
+#### Acceptance criteria
+
++  Each question above is answered in `NOTICE` or ADR 0001, with the decision recorded.
++  ADR 0001 § 4's status lists no open license question.
 
 <!-- END GENERATED: milestone-0 -->
 

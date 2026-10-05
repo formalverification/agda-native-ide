@@ -11,3 +11,40 @@ result
 *~
 .vscode/
 .idea/
+
+# The pinned binaries `make assets` copies into static/ (never committed;
+# upstream/assets.sha256 lists them)
+/static/*.wasm
+/static/*.wasm.gz
+/static/*.zip
+/static/*.woff2
+/static/favicon.png
+/static/plfa/**/*.zip
+
+# From plfa-playground's .gitignore at ae0aa84c (docs/provenance.md),
+# verbatim
+node_modules
+/research
+/.build-tools
+/.build-tmp
+/.compiler-work
+/.compiler-work-stock
+/.compiler-cabal
+/.compiler-meta
+/.compiler-toolchain
+/.browser-tmp
+/.wrangler
+/*.deb
+/quietui.tar.gz
+
+# build output
+/build
+/.svelte-kit
+
+# env
+.env
+.env.*
+!.env.sample
+
+# Vite
+vite.config.js.timestamp-*

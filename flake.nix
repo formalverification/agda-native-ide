@@ -1,35 +1,73 @@
 # File: flake.nix
 #
-# Consumer-side wiring for the github-project roadmap engine.  `make
-# init` installs this as the project's flake.nix (replacing the engine's
-# own flake, which only makes sense in the engine repository).
+# The project's dev shell, the github-project roadmap engine, and the
+# binaries the app ships, pinned by hash.
 #
-# The engine arrives as a flake input, pinned by this project's
-# flake.lock: `nix develop` puts the gh-project-* CLIs on PATH (the
-# Makefile stub finds them there), and the re-exported apps allow
-# `nix run .#update` directly.  Upgrade deliberately with
+# `nix develop` puts the gh-project-* CLIs on PATH (the Makefile stub
+# finds them there), and the re-exported apps allow `nix run .#update`
+# directly.  Upgrade the engine deliberately with
 # `nix flake update github-project`.
 #
-# If your project already has a flake, merge the input and the two
-# output attributes into it instead of replacing it.
+# `nix build .#assets` fetches every binary named in
+# upstream/assets.sha256 from upstream's repository at the commit this
+# repository imported, one fixed-output fetch per file, so a byte that
+# differs from its pin fails the fetch.  `make assets` copies the result
+# into static/, and `make build` checks static/ against the same pins
+# before it builds.  docs/provenance.md records where each file comes
+# from and its license.
 {
-  description = "Project dev shell with the github-project roadmap engine";
+  description = "agda-native-ide: an Agda IDE in the browser, with its pinned runtime";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
   inputs.github-project.url = "github:williamdemeo/github-project";
 
   outputs = { self, nixpkgs, github-project }:
     let
+      lib = nixpkgs.lib;
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
-      forAllSystems = f: nixpkgs.lib.genAttrs systems
+      forAllSystems = f: lib.genAttrs systems
         (system: f system nixpkgs.legacyPackages.${system});
+
+      # The upstream commit the binaries are fetched from: the commit
+      # imported in this repository's history (docs/provenance.md).
+      upstream = {
+        owner = "SeungheonOh";
+        repo = "plfa-playground";
+        rev = "ae0aa84c24363a8d6dadc292b6eb8f88f7f38705";
+      };
+
+      # One pin per line of upstream/assets.sha256, in sha256sum's
+      # format: 64 hex digits, two spaces, a path relative to the root.
+      parsePin = line:
+        let m = builtins.match "([0-9a-f]{64})  (static/[^ ]+)" line;
+        in if m == null
+           then throw "upstream/assets.sha256: not a pin: \"${line}\""
+           else { sha256 = builtins.elemAt m 0; path = builtins.elemAt m 1; };
+      pins = map parsePin
+        (builtins.filter (line: line != "")
+          (lib.splitString "\n" (builtins.readFile ./upstream/assets.sha256)));
+
+      fetchPin = pkgs: pin: pkgs.fetchurl {
+        name = "plfa-playground-" + lib.replaceStrings [ "/" ] [ "-" ] pin.path;
+        url = "https://raw.githubusercontent.com/${upstream.owner}/${upstream.repo}/${upstream.rev}/${pin.path}";
+        inherit (pin) sha256;
+      };
     in
     {
+      packages = forAllSystems (system: pkgs: {
+        # Every pinned binary at its path in the tree (static/...).
+        assets = pkgs.runCommand "plfa-playground-assets" { } (
+          lib.concatMapStrings (pin: ''
+            install -D -m 444 ${fetchPin pkgs pin} "$out/${pin.path}"
+          '') pins);
+      });
+
       devShells = forAllSystems (system: pkgs: {
         default = pkgs.mkShell {
           packages = [
             pkgs.gnumake
             pkgs.gh
+            pkgs.nodejs_22
             github-project.packages.${system}.gh-project-engine
           ];
         };

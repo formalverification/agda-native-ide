@@ -1,0 +1,3 @@
+# The license texts are verbatim copies of their sources, line endings
+# included (NOTICE), so git must not normalize them.
+licenses/** -text
