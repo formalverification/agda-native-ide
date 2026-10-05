@@ -345,6 +345,12 @@ Contents
          https://hackage.haskell.org/package/co-log-core-0.3.2.7.
          system-cxx-std-lib has no license file of its own: it stands for
          libc++, in 3.6.  zlib-clib carries the zlib library's C sources.
+         nonempty-vector 0.2.4 declares BSD-3-Clause and "(c) 2019-2024
+         Emily Pillmore" in its cabal file, but its LICENSE is an empty
+         file, in the Hackage tarball and in its repository alike; the
+         empty file is kept as shipped, and LICENSE.supplied beside it is
+         the BSD-3-Clause text as SPDX publishes it, with that copyright
+         line, supplied by this notice rather than by the author.
 
          How the list was made.  The recipe pins no Hackage index state
          and has no freeze file, so the plan was solved with the pinned
