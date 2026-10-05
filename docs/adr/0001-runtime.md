@@ -196,8 +196,9 @@ consumes against the same pins.
 
 **Evidence** (2026-10-04, this machine, headless Chrome 153.0.8010.47).
 
-+  **The pins hold**: `nix build .#assets` fetched all 36 in 66 s, and every
-   file matched; the compiler's pin is the one [#4] verified
++  **The pins hold**: with none of them in the Nix store, `nix build
+   .#assets` fetched all 36 (49,234,067 bytes) in 32.5 s, and every file
+   matched; the compiler's pin is the one [#4] verified
    (`sha256-U8YrCtVpqdEj90SxksE3gMSUreDN3vTaqgDbQezX96E=`, SHA-256
    `53c62b0a...`, the hash upstream's `compiler/README.md` records).
 +  **A changed pin fails the fetch**: with the last hex digit of
