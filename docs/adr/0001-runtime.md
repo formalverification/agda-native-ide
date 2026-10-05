@@ -434,7 +434,7 @@ and are cited here rather than measured again.
 [#53]: https://github.com/formalverification/agda-native-ide/issues/53
 [pr-585]: https://github.com/ualib/agda-algebras/pull/585
 [adr-011]: https://github.com/ualib/agda-algebras/blob/577-an-interactive-agda-proof-environment/docs/adr/011-interactive-playground.md
-[proposal]: https://github.com/formalverification/agda-native-air/blob/main/docs/notes/browser-ide-proposal.md
+[proposal]: ../notes/browser-ide-proposal.md
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [note]: ../notes/runtime.md
 [provenance]: ../provenance.md

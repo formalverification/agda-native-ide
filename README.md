@@ -49,8 +49,8 @@ headless Chromium.  Nothing is deployed.
    server, models in the loop, the theory view, and the proof view) and
    their issues.  The issues on GitHub own their bodies, and many carry the
    measurements that shaped them.
-+  The proposal this project follows: agda-native-air's
-   [`docs/notes/browser-ide-proposal.md`][proposal].
++  [`docs/notes/browser-ide-proposal.md`][proposal]: the proposal this project
+   follows, carried from agda-native-air (its header names the source commit).
 
 ## Working on the app
 
@@ -179,5 +179,5 @@ every artifact the app ships, with its license.
 [notice]: NOTICE
 [licenses]: licenses/
 [plan]: docs/GITHUB_PROJECT.md
-[proposal]: https://github.com/formalverification/agda-native-air/blob/main/docs/notes/browser-ide-proposal.md
+[proposal]: docs/notes/browser-ide-proposal.md
 [williamdemeo/github-project]: https://github.com/williamdemeo/github-project

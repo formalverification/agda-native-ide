@@ -41,7 +41,7 @@ work in the same tab through the tool contract `agda-mcp` defines, judged by
 Agda and never by itself.  Later, a development can be seen as a diagram,
 generated from the checked source.
 
-The plan follows the proposal in agda-native-air's
+The plan follows the proposal carried from agda-native-air as
 [`docs/notes/browser-ide-proposal.md`][proposal], with one change of order:
 the first deliverable is the library IDE that the agda-algebras site needs
 (its "Playground" link opens this IDE in a new tab), because it is what a
@@ -59,7 +59,7 @@ Two facts make the project cheaper than it sounds.
    shipped compiler, and a review that found the traps.  Its numbers and its
    code seed the second lane and the library archives.
 
-[proposal]: https://github.com/formalverification/agda-native-air/blob/main/docs/notes/browser-ide-proposal.md
+[proposal]: notes/browser-ide-proposal.md
 [plfa-playground]: https://github.com/SeungheonOh/plfa-playground
 [pr-585]: https://github.com/ualib/agda-algebras/pull/585
 
