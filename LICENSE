@@ -1,6 +1,13 @@
 MIT License
 
 Copyright (c) 2026 William DeMeo
+Copyright 2026 Andy Pan
+
+The app is forked from plfa-playground
+(https://github.com/SeungheonOh/plfa-playground), written by Seungheon Oh,
+whose license carries Andy Pan's copyright line from agda-web/als-demo, where
+plfa-playground began; that license is reproduced verbatim in
+LICENSE.plfa-playground, and NOTICE names everything else the app ships.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
