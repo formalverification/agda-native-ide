@@ -490,6 +490,24 @@ The fork's `static/agda-data.zip` (Agda's `lib/prim`) carries interfaces in Agda
 
 +  A fresh profile's first check of a `Main.agda` that imports only builtins type-checks only `Main`.
 
+---
+
+### Issue M0-11: Review the licenses before the repository goes public (#53)
+
+**Labels:** `milestone-0-foundations`, `provenance`
+
+The notice [M0-9] ships names every artifact and carries every license text that could be read at its source, but four questions were deferred on 2026-10-05, while the repository is private, so that they would not hold up the runtime's import ([M0-2]).  Settle them before the repository or the site goes public.
+
++  **GMP.**  The compiler links GMP 6.3.0, offered under LGPL-3.0-or-later or GPL-2.0-or-later.  `NOTICE` § 3.4 distributes it under the LGPL and meets the relinking condition by pointing at the pinned sources and the build recipe; ADR 0001 § 4 records that as a judgment, not counsel's.  Confirm it or change the terms, and put GMP's source tarball in [M0-4]'s mirror.
++  **The Haskell packages the binary does not confirm.**  24 of the 150 packages in `NOTICE` § 3.5 rest on the solved build plan alone; [M0-4]'s rebuild, with `index-state` pinned, would confirm them.
++  **libffi-wasm.**  Whether the binary carries its code is unconfirmed.
++  **nonempty-vector 0.2.4** ships an empty `LICENSE`, in its Hackage tarball and in its repository alike; the notice supplies the BSD-3-Clause text its cabal file declares, in `LICENSE.supplied`.  Decide whether that stands.
+
+#### Acceptance criteria
+
++  Each question above is answered in `NOTICE` or ADR 0001, with the decision recorded.
++  ADR 0001 § 4's status lists no open license question.
+
 <!-- END GENERATED: milestone-0 -->
 
 ## Milestone 1 — The agda-algebras IDE
