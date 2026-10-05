@@ -81,6 +81,7 @@
           ./vite.config.js
           ./tsconfig.json
           ./tsconfigs
+          ./scripts/asset-manifest.mjs
           ./scripts/prepare-cloudflare-assets.mjs
           ./src
           ./static

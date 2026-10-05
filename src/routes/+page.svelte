@@ -1,4 +1,12 @@
 <script lang="ts">
+  // File: src/routes/+page.svelte
+  //
+  // Changed from upstream: this is SeungheonOh/plfa-playground's
+  // src/routes/+page.svelte at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
+  // (docs/provenance.md).  The cache token of PLFA's interface manifest
+  // and archives comes from $lib/assets, which the build derives from the
+  // files, instead of a value maintained by hand (issue 3).
+
   import { onDestroy, onMount } from "svelte";
   import { SPSC } from "spsc";
   import { basicSetup } from "codemirror";
@@ -32,6 +40,7 @@
   } from "@lucide/svelte";
 
   import { AgdaController, LS_DOC_KEY } from "$lib/controller.svelte";
+  import { cacheTokens } from "$lib/assets";
   import { myCodeMirrorTheme } from "$lib/codemirror/theme";
   import { agdaCompletions } from "$lib/codemirror/completion";
   import { symbolInput } from "$lib/codemirror/symbol-input";
@@ -454,7 +463,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   function loadPlfaInterfaceManifest() {
     if (plfaInterfaceManifestPromise) return plfaInterfaceManifestPromise;
     plfaInterfaceManifestPromise = fetch(
-      "/plfa/interfaces/manifest.json?cache=dependency-closures-v1-20260831",
+      `/plfa/interfaces/manifest.json?cache=${cacheTokens.plfaInterfaces}`,
     )
       .then((response) => {
         if (!response.ok)
@@ -643,7 +652,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
       plfaChapters.slice(0, index + 1).map((candidate) => candidate.id);
     return archives.map(
       (archive) =>
-        `/plfa/interfaces/${archive}.zip?cache=dependency-closures-v1-20260831`,
+        `/plfa/interfaces/${archive}.zip?cache=${cacheTokens.plfaInterfaces}`,
     );
   }
 
