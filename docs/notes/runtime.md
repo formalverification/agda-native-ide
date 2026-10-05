@@ -94,12 +94,17 @@ blocks on memory another thread writes.
    build's declared targets (`vite.config.js`: Chrome 89, Edge 89, Firefox
    89, Safari 15), Firefox before 113 and Safari before 16.4 have no
    `DecompressionStream` (MDN's compatibility data, read 2026-10-05).
-   Whether the built site ships the raw file too, or drops the branch and
-   says so, is [#3]'s.  The data are `agda-data.zip` (Agda's builtin
-   library), `agda-stdlib-2.3.zip` and `plfa/project.zip`.  Each of these
-   URLs, and those of PLFA's interface archives, carries a `?cache=` token
-   that the build derives from the file's content (`src/lib/assets.ts`),
-   so a changed file is never served from a cache under its old URL.
+   [#3] decided that the built site does not ship the raw file: the
+   fallback could serve only Safari 15.2 to 16.3, since a Firefox without
+   `DecompressionStream` also lacks module workers (until 114), which the
+   page starts, and it would cost 33 MB a deploy, over Cloudflare Pages'
+   25 MiB limit for one file.  The page's silence when it cannot fetch or
+   decompress the compiler stays open, proposed for [#8].  The data are
+   `agda-data.zip` (Agda's builtin library), `agda-stdlib-2.3.zip` and
+   `plfa/project.zip`.  Each of these URLs, and those of PLFA's interface
+   archives, carries a `?cache=` token that the build derives from the
+   file's content (`src/lib/assets.ts`), so a changed file is never served
+   from a cache under its old URL.
 2. The drive worker extracts the three archives (`drive.ts:214-251`): the
    builtins at `/lib/prim`, with their interfaces moved under
    `/lib/prim/_build/2.8.0/agda/`, where Agda 2.8 looks; the standard
