@@ -62,23 +62,27 @@ function digest(path) {
  * @property {string} driveCacheNamespace
  */
 
-/** The archives PLFA's interface manifest names, relative to static/,
- * which the page fetches when a chapter opens: the directory is complete
- * only with every one of them, not with its manifest alone.
+/** PLFA's interface manifest and the archives it names, relative to
+ * static/, which the page fetches when a chapter opens: the directory is
+ * complete only with all of them, not with any one file in it.
  * @param {string} staticDir */
-function plfaArchives(staticDir) {
-  const index = join(staticDir, ASSETS.plfaInterfaces, "manifest.json");
-  if (!existsSync(index)) return [];
+function plfaInterfaceFiles(staticDir) {
+  const manifest = `${ASSETS.plfaInterfaces}/manifest.json`;
+  const index = join(staticDir, manifest);
+  if (!existsSync(index)) return [manifest];
   const { chapters = {} } = JSON.parse(readFileSync(index, "utf8"));
-  return [...new Set(Object.values(chapters).flat())].map(
-    (archive) => `${ASSETS.plfaInterfaces}/${archive}.zip`,
-  );
+  return [
+    manifest,
+    ...[...new Set(Object.values(chapters).flat())].map(
+      (archive) => `${ASSETS.plfaInterfaces}/${archive}.zip`,
+    ),
+  ];
 }
 
 /**
  * The manifest of the assets under `staticDir`.  With `strict` (the
- * build), a missing asset, or a missing archive that PLFA's interface
- * manifest names, is an error; without it (the dev server, the unit tests
+ * build), a missing asset, or a missing PLFA interface manifest or archive
+ * it names, is an error; without it (the dev server, the unit tests
  * and the type check, which can run before `make assets`), a missing
  * asset's token is "missing" and the compiler's length null.
  * @param {string} staticDir
@@ -90,7 +94,10 @@ export function assetManifest(staticDir, { strict = true } = {}) {
     !existsSync(join(staticDir, path));
   const missing = Object.values(ASSETS).filter(isAbsent);
   if (strict) {
-    const absent = [...missing, ...plfaArchives(staticDir).filter(isAbsent)];
+    const absent = [
+      ...missing,
+      ...plfaInterfaceFiles(staticDir).filter(isAbsent),
+    ];
     if (absent.length)
       throw new Error(
         `missing from ${staticDir}: ${absent.join(", ")} (run \`make assets\`)`,

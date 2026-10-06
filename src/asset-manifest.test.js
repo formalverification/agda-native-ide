@@ -88,6 +88,12 @@ describe("the asset manifest", () => {
     );
   });
 
+  it("refuses a missing PLFA interface manifest", () => {
+    rmSync(join(dir, "plfa/interfaces/manifest.json"));
+    expect(() => assetManifest(dir)).toThrow(/interfaces\/manifest\.json/);
+    expect(() => assetManifest(dir, { strict: false })).not.toThrow();
+  });
+
   it("refuses a missing asset, unless it is not building", () => {
     rmSync(join(dir, "agda-stdlib-2.3.zip"));
     expect(() => assetManifest(dir)).toThrow(/agda-stdlib-2\.3\.zip/);
