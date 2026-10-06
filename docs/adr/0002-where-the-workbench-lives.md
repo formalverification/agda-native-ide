@@ -62,16 +62,18 @@ they are written as packages, so a second and a third host should cost less
 than a second and a third IDE, an argument [#62] will test.  And Agda 2.9.0 is
 the first release whose WebAssembly build needs no patch, so the page's
 compiler can be built from Agda's own maintained sources instead of a
-one-person patched fork; that buys provenance and upkeep, not a feature a
-reader sees, and § 4 weighs it against its risks.
+one-person patched fork; that buys provenance and upkeep, and, as measured
+since, a smaller download (the HSP closure's interfaces are 41.7 MB under
+2.9.0, against 54.3 MB gzipped under 2.8.0); § 4 weighs it against its risks.
 
 Where it stands: the plan carries all of it (PR [#75]), and none of it is
 built.  The page still runs **the fork**'s patched Agda 2.8.0, and so still
 needs **cross-origin isolation**.  The riskiest decision is the Agda version
 (§ 4): on 2026-10-06, 2.9.0 is unreleased, the language server has no 2.9
 target, Agda's own WebAssembly workflow last passed in full on 2026-09-06, and
-no released standard library is known to check under 2.9.0 alongside
-agda-algebras.
+no released standard library checks under 2.9.0, though agda-algebras does with
+standard-library 2.3 patched by three upstream commits ([#61]'s findings of
+2026-10-06).
 
 Where it goes: the compiler ([#58]), the library ([#61]), the **reactor** and
 **the drive** ([#59]), the shared core ([#62]), then Milestones 7 and 8; and
@@ -248,12 +250,17 @@ and a corpus picker.
    imports, and 11 to 22 s and 1.8 to 3.7 s with a prototype index on its
    in-memory filesystem's lookups, in headless Chromium 153 on 2026-10-04
    ([#50]).  With the index, the page takes 2.1 to 4.3 times as long as native
-   Agda on the HSP closure and 2.6 to 5.5 times on `Overture.Basic`.  (The
-   plan's summary says native Agda takes "a fifth of the time the page takes";
-   measured, it takes a quarter to a half.  Flagged on [#60].)
+   Agda on the HSP closure and 2.6 to 5.5 times on `Overture.Basic`.  Under
+   Agda 2.9.0 the same native check took 2.09 to 2.11 s, against 5.90 to 6.22 s
+   for the 2.8.0 binary in the same sitting ([#61]'s findings, 2026-10-06; the
+   two binaries differ in build flags, so that ratio is the binaries', not the
+   versions'); the page has not been measured under 2.9.0.  (The plan's summary
+   says native Agda takes "a fifth of the time the page takes"; measured, it
+   takes a quarter to a half.  Flagged on [#60].)
 +  **Bytes**.  The HSP closure's interfaces are 63,719,275 bytes, 54,294,820
-   gzipped ([#60]): a download for every reader in the page, and already on
-   disk for the author.
+   gzipped, under 2.8.0 ([#60]), and 41,759,612 bytes under 2.9.0, which gzip
+   shrinks by 0.1 % since they come compressed ([#61]): a download for every
+   reader in the page, and already on disk for the author.
 +  **Memory does not decide it**.  750 MiB is well under the 4 GiB a 32-bit
    WebAssembly memory can address, so memory does not rule the browser out for
    this library.
@@ -362,9 +369,9 @@ master that the tag `nightly` follows) and moved to the release when it lands
    resolves the Agda the author's project pins (a dev shell's wrapper, an
    `agda` on the path, or the language server agda-mode-vscode downloaded;
    [#64]).  agda-algebras pins 2.8.0 today, so its authors run 2.9.0 in the
-   editor only once [#61] moves the library's pin; agda-mode-vscode's
-   downloaded servers are built for 2.8.0 and older, and the companion's engine
-   may use one but needs none.
+   editor only once the library moves (agda-algebras issue [588][aa-588]);
+   agda-mode-vscode's downloaded servers are built for 2.8.0 and older, and the
+   companion's engine may use one but needs none.
 +  **The 2.8.0 compiler stays buildable** until the 2.9.0 one passes [#13]'s
    gate: for every root, with only the archives it needs unpacked, the page's
    Agda must accept every imported interface and type-check the root alone, or
@@ -387,16 +394,16 @@ master that the tag `nightly` follows) and moved to the release when it lands
    by a recipe that is not hermetic, and the binary exists only in upstream's
    git tree ([ADR 0001][adr-0001] § 3).
 
-**The trade-off**.  What 2.9.0 buys is the compiler's provenance and upkeep: a
+**The trade-off**.  What 2.9.0 buys is the compiler's provenance and upkeep (a
 build from Agda's own maintained sources and CI, pinned here, in place of a
-one-person patched fork whose binary has a single source.  This record can name
-no feature a reader sees.  What it may cost is below, and the heaviest is the
-standard library: if none supports Agda 2.9.0 and agda-algebras'
-`--cubical-compatible` modules together, one of [#61]'s three paths must be
-chosen (a patched copy of standard-library 2.3; waiting for a release; or
-agda-algebras on `--without-K`, a policy change to the library itself).  Until
-then the 2.8.0 compiler stays, so the cost of waiting is the fork's patched
-compiler, not a broken page.
+one-person patched fork whose binary has a single source) and, measured on
+2026-10-06, smaller interfaces: the HSP closure is 41,725,378 bytes gzipped
+under 2.9.0 against 54,290,430 under 2.8.0 at the same commit, 23 % less for
+every reader ([#61]'s findings).  What it costs today is a patched standard
+library: no released one checks under 2.9.0, so the page would ship
+standard-library 2.3 with three upstream commits applied, one of them ported by
+hand, until Agda 2.9.0 and standard-library 3.0 are released and agda-algebras
+has moved to them.  The 2.8.0 compiler stays buildable meanwhile.
 
 **Evidence: the risks, on 2026-10-06**.
 
@@ -424,31 +431,33 @@ compiler, not a broken page.
    2026-10-11.  So the WebAssembly build last succeeded in the run of
    2026-09-27, and Agda's test suites last ran under WebAssembly on 2026-09-06;
    no run has tested a later commit, the nightly's included.
-+  **No released standard library is known to check under 2.9.0 with
-   agda-algebras**.  The latest release is agda-stdlib [v2.4][stdlib-v24]
-   (2026-06-17); agda-algebras depends on standard-library 2.3.  Agda's own CI
-   tests agda-stdlib's unreleased `agda-master` branch, at
-   [`1b7f26af`][stdlib-1b7f26af] (`standard-library-3.0`), the commit
-   agda/agda's `std-lib` submodule names at both nightlies (checked
-   2026-10-06).  [#61]'s later findings of 2026-10-05, not yet verified by a
-   run, say why that matters: `agda-master` carries three fixes Agda 2.9.0
-   needs, one of which removes a construct (projecting an irrelevant field in
-   `irrelevant-recompute`) that 2.3 and 2.4 use in modules of the HSP closure;
-   and 3.0 moves modules from `--cubical-compatible` back to `--without-K`,
-   which agda-algebras' `--cubical-compatible` modules cannot import (Agda
-   reports `CoInfectiveImport`).  The matrix that would settle it is [#61]'s,
-   and has not run.
++  **No released standard library checks under 2.9.0; a patched one does**
+   ([#61]'s findings, 2026-10-06, at the nightly `da66a8c`).  Standard-library
+   2.3 and 2.4 both fail at the construct one of `agda-master`'s fixes removes,
+   an irrelevant field projected in `irrelevant-recompute`
+   (`Relation.Nullary.Recomputable:35` in 2.3, `Data.Irrelevant:48` in 2.4).
+   With agda-stdlib's three `agda-master` commits applied to 2.3 (two cleanly,
+   one ported by hand), Agda 2.9.0 checks all 344 agda-algebras modules and the
+   251 standard-library modules they need, the set the 2.8.0 control checks,
+   and agda-algebras changes only two fixity declarations (agda-algebras PR
+   [587][aa-587]).  Standard-library 3.0 ([`1b7f26af`][stdlib-1b7f26af] on
+   `agda-master`) checks under 2.9.0 in Agda's own CI, but agda-algebras'
+   `--cubical-compatible` modules cannot import it (Agda reports
+   `CoInfectiveImport`), under 2.8.0 as well.  The latest release is
+   agda-stdlib [v2.4][stdlib-v24] (2026-06-17; checked 2026-10-06).
 
 **Status**.  Adopted as the plan's target (PR [#75]); not built.  Open: [#58]
-(the build, the pin, the move to the release), [#61] (which standard library,
-and whether agda-algebras' pin moves), [#49] and [#12] (rebuilt by 2.9.0),
-[#13] (the acceptance gate).  Milestone 0's exit criterion already asks for the
-pinned 2.9.0 compiler, so these risks bear on the first milestone, not only on
-later ones.  If [#61] finds no standard library that checks under 2.9.0
-alongside agda-algebras' `--cubical-compatible` modules, Milestone 1's exit
-criterion (the HSP `Main` checks under 2.9.0) cannot be met as written, and the
-choice among [#61]'s three paths (a patched 2.3, waiting for a release, or
-agda-algebras on `--without-K`) is William's.
+(the build, the pin, the move to the release), [#61] (its second criterion, the
+archives built under 2.9.0), [#49] and [#12] (rebuilt by 2.9.0), [#13] (the
+acceptance gate).  Milestone 0's exit criterion already asks for the pinned
+2.9.0 compiler, so these risks bear on the first milestone, not only on later
+ones.  [#61]'s first criterion is met: the library checks under the pinned
+2.9.0 with the patched 2.3, so Milestone 1's exit criterion (the HSP `Main`
+checks under 2.9.0) is within reach without moving agda-algebras' pin.
+William's plan of 2026-10-06 moves agda-algebras from `--cubical-compatible`
+back to `--without-K`, which makes 3.0 importable; once Agda 2.9.0 and
+standard-library 3.0 are released and the library has moved (agda-algebras
+issue [588][aa-588]), the page can ship an unpatched standard library.
 
 ---
 
@@ -640,7 +649,7 @@ will answer it.
 | 1 | Three platforms with different jobs: the browser for the reader and the views' first host, VS Code for the author, Emacs for the agent half and a picker | Adopted (William, 2026-10-05; PR [#75]) | Only the browser reaches a reader with nothing installed; native HSP check 5.10 to 5.23 s against 11 to 22 s in the page with its drive indexed; 54,294,820 bytes gzipped per reader ([#60], [#50]) |
 | 2 | An Emacs milestone, beyond the brief's recommendation to build nothing for Emacs, scoped to agents and a picker | Adopted (William, 2026-10-05) | Overrides the brief's "Emacs needs nothing built"; the views only as an experiment ([#74]) |
 | 3 | The engine client, tool surface, views and manifest as TypeScript packages over one engine interface, with a WebAssembly and a native implementation and one suite run against both | Adopted; to build ([#62]) | The fork's command path is already behind CodeMirror's `Transport`; its startup and rings are not; agda-mode-vscode's three connections; no cost measured |
-| 4 | The page's Agda is 2.9.0, built here from Agda's own flake with no agda-web patch, pinned to a nightly commit and moved to the release; the libraries it ships are carried to 2.9.0; the editors run the Agda the author's project pins | Adopted; to build ([#58], [#61], [#64]) | PR 8205 is not in 2.8.0.x; risks on 2026-10-06: unreleased, no language-server target, the WebAssembly workflow's last full pass 2026-09-06, no released standard library known to check with agda-algebras |
+| 4 | The page's Agda is 2.9.0, built here from Agda's own flake with no agda-web patch, pinned to a nightly commit and moved to the release; the libraries it ships are carried to 2.9.0; the editors run the Agda the author's project pins | Adopted; to build ([#58], [#61], [#64]) | PR 8205 is not in 2.8.0.x; risks on 2026-10-06: unreleased, no language-server target, the WebAssembly workflow's last full pass 2026-09-06, no released standard library checks (a patched 2.3 does, [#61]); the HSP closure's interfaces 23 % smaller gzipped |
 | 5 | Keep the 2.8.0 compiler buildable until the 2.9.0 one passes [#13]'s gate | Adopted ([#58]) | The risks of row 4 |
 | 6 | Agents attach through local processes: `agda-mcp` and the companion's registrations in VS Code and Emacs; in the browser a bridge first and the in-page model last | Adopted (PR [#75]; [#38], [#35], [#36], [#65], [#71], [#72]) | Every agent-facing prover integration found is a local MCP server; MCP's transports are a subprocess's stdio and Streamable HTTP; no agents in vscode.dev |
 | 7 | The tool contract is agda-native-air ADR 0002's on every platform | Adopted | Lane and batch agreed on all 80 committed candidate pairs (agda-native-air issue 163) |
@@ -668,16 +677,17 @@ will answer it.
    [`docs/notes/runtime.md`][runtime]; [the plan][plan].
 +  **Elsewhere**: agda-native-air's [ADR 0002][air-adr-0002] (`agda-mcp` and
    its contract) and [issue 163][air-163] (the lane's parity); agda-algebras PR
-   [585][pr-585] and its [ADR-011][adr-011]; [plfa-playground] at `ae0aa84c`;
-   agda/agda PRs [8205][agda-8205] and [8809][agda-8809] and issue
-   [8756][agda-8756], its [releases][agda-releases] and its WebAssembly runs
-   ([2026-09-06][agda-run-0906], [2026-09-27][agda-run-0927],
-   [2026-10-04][agda-run-1004]); agda/agda-language-server [v8][als-v8], PR
-   [48][als-48], [`package.yaml`][als-package-yaml] and
-   [`app/Reactor.hs`][als-reactor]; agda-stdlib [v2.4][stdlib-v24] and
-   [`1b7f26af`][stdlib-1b7f26af]; agda-web's [PLFA fork][agda-web-plfa] and the
-   [ALS WASM Loader][als-loader]; the MCP servers and precedents of § 5; the
-   [MCP specification][mcp-spec].
+   [585][pr-585] and its [ADR-011][adr-011], its issues [586][aa-586] (the
+   library under 2.9.0) and [588][aa-588] (the upgrade), and PR [587][aa-587];
+   [plfa-playground] at `ae0aa84c`; agda/agda PRs [8205][agda-8205] and
+   [8809][agda-8809] and issue [8756][agda-8756], its [releases][agda-releases]
+   and its WebAssembly runs ([2026-09-06][agda-run-0906],
+   [2026-09-27][agda-run-0927], [2026-10-04][agda-run-1004]);
+   agda/agda-language-server [v8][als-v8], PR [48][als-48],
+   [`package.yaml`][als-package-yaml] and [`app/Reactor.hs`][als-reactor];
+   agda-stdlib [v2.4][stdlib-v24] and [`1b7f26af`][stdlib-1b7f26af]; agda-web's
+   [PLFA fork][agda-web-plfa] and the [ALS WASM Loader][als-loader]; the MCP
+   servers and precedents of § 5; the [MCP specification][mcp-spec].
 
 Every external fact above was read at its source on 2026-10-06 unless it is
 attributed to the brief (2026-10-05).
@@ -749,3 +759,6 @@ attributed to the brief (2026-10-05).
 [mcp-broughjt]: https://github.com/broughjt/agda-mcp
 [mcp-thiemann]: https://github.com/peterthiemann/agda-mcp
 [mcp-spec]: https://modelcontextprotocol.io/specification/2026-07-28/basic/transports
+[aa-586]: https://github.com/ualib/agda-algebras/issues/586
+[aa-587]: https://github.com/ualib/agda-algebras/pull/587
+[aa-588]: https://github.com/ualib/agda-algebras/issues/588

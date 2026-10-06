@@ -59,6 +59,13 @@ place.
    MCP servers are six, not four, two of which run Agda inside their own
    process rather than through `agda --interaction-json`, and two quoted
    phrases had the wrong source (§ "Agents: where the field has settled").
++  **Measured since the brief** ([#61]'s findings, 2026-10-06): under Agda
+   2.9.0 the HSP closure's interfaces are 41,759,612 bytes, which gzip shrinks
+   by only 0.1 % since they come compressed, against the brief's 54.3 MB
+   gzipped under 2.8.0; the warm native check of its `Main` takes 2.09 to 2.11
+   s; and no released standard library checks under 2.9.0, while agda-algebras
+   checks with standard-library 2.3 patched by three upstream commits.  The
+   brief's numbers below are 2.8.0's and stand as measured.
 +  **The matrix**.  The paragraph under the comparison matrix said the reader
    was the browser column's only green cell; the views and privacy are rated
    good there too (§ "Side by side").
@@ -1398,6 +1405,7 @@ a decision: the decision was William's, recorded in the plan (PR [#75]) and in
 [#56]: https://github.com/formalverification/agda-native-ide/issues/56
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59
 [#60]: https://github.com/formalverification/agda-native-ide/issues/60
+[#61]: https://github.com/formalverification/agda-native-ide/issues/61
 [#62]: https://github.com/formalverification/agda-native-ide/issues/62
 [#63]: https://github.com/formalverification/agda-native-ide/issues/63
 [#64]: https://github.com/formalverification/agda-native-ide/issues/64
