@@ -8,11 +8,12 @@ in-memory drive, and the rule that decides between a give and a full check.
 [ADR 0001][adr] records the decisions about it; this note is the explanation
 the ADR links.  Every line reference is to this repository's copy of the
 fork: upstream's `ae0aa84c`, with the changes `docs/provenance.md` lists;
-of those, only the derived `?cache=` tokens, the drive's cache namespace
-and the drive's index touch what this note describes, and each is
-explained where it arises.  The facts come from reading that source, and
-the measurements from the issues that record them (their findings
-sections condense the 2026-10-04 investigation of the fork).
+of those, only the derived `?cache=` tokens, the drive's cache namespace,
+the drive's index and the builtins' archive touch what this note
+describes, and each is explained where it arises.  The facts come from
+reading that source, and the measurements from the issues that record
+them (their findings sections condense the 2026-10-04 investigation of
+the fork).
 
 ## The pieces
 
@@ -105,15 +106,20 @@ blocks on memory another thread writes.
    archives, carries a `?cache=` token that the build derives from the
    file's content (`src/lib/assets.ts`), so a changed file is never served
    from a cache under its old URL.
-2. The drive worker extracts the three archives (`drive.ts:224-261`): the
-   builtins at `/lib/prim`, with their interfaces moved under
-   `/lib/prim/_build/2.8.0/agda/`, where Agda 2.8 looks; the standard
-   library's sources at `/stdlib`; PLFA at the root.  It writes Agda's
+2. The drive worker extracts the three archives (`drive.ts:228-256`): the
+   builtins at `/lib/prim`, whose interfaces the archive already holds
+   under `/lib/prim/_build/<version>/agda/`, where Agda looks (the flake
+   builds it from an Agda's own `lib/prim`, [#49]); the standard library's
+   sources at `/stdlib`; PLFA at the root.  It writes Agda's
    library registry, `/home/root/.config/agda/libraries` and `defaults`,
    naming the standard library and PLFA, and restores what an earlier visit
    persisted (below).
 3. The controller runs `als --setup` once in a throwaway instance (`:489`),
-   then starts the long-lived server with
+   which writes every data file the server embeds over the drive's, the
+   builtins' sources and `agda-builtins.agda-lib` among them (Agda's
+   `dumpDataDir` writes them whether or not they exist), so the builtins'
+   sources Agda reads are always the server's own; it then starts the
+   long-lived server with
    `+RTS -A64m -RTS +AGDA --interaction -AGDA` (`:449`), with
    `HOME=/home/root` and `Agda_datadir=/` (`als.ts:143-146`).
 
@@ -209,18 +215,18 @@ a warm declaration edit at 3.01 s on average across PLFA's 25 chapters
 +  **Protocol**: message type 0 proxies a Runno drive call (reads and stats
    answer in binary, writes send base64); type 1 writes `/Main.agda`, type 3
    any path, type 4 extracts a zip at `/`, type 5 persists dirty files, and
-   type 2 dumps the filesystem to the console (`drive.ts:337-429`).
+   type 2 dumps the filesystem to the console (`drive.ts:332-424`).
 +  **Persistence**: the drive means to keep `/Main.agda`, any source
    written with type 3, and every interface Agda writes in an IndexedDB
-   database named `agda-playground-drive-<namespace>` (`drive.ts:132-222`,
-   `:305-329`), where the namespace is a digest of everything Agda reads
+   database named `agda-playground-drive-<namespace>` (`drive.ts:136-226`,
+   `:300-324`), where the namespace is a digest of everything Agda reads
    (the compiler, the builtins, the standard library and PLFA), which the
    build derives from the files (`scripts/asset-manifest.mjs`, read by
    `src/lib/assets.ts`), so that a cache is never restored against other
    files.  Mounted archives are not persisted; restored records replace
    archive entries at the same path.  But the persisting code reads each
    dirty path from the record the drive was constructed from
-   (`drive.ts:199`), not from the drive's own copy of it, so a file at a
+   (`drive.ts:203`), not from the drive's own copy of it, so a file at a
    path made later is never persisted: measured 2026-10-06, after a cold
    check that rewrote 8 builtin interfaces and wrote `Main`'s and 8 PLFA
    modules' interfaces, the database held `/Main.agda` and the builtins'
@@ -241,9 +247,16 @@ acceptance is counted, never inferred: the running info prints one
 
 +  **Interfaces built by a native Agda 2.8.0 are accepted** by the browser's
    Agda, whose interface version is the same, 202507030 ([#13]).
-+  **The builtin interfaces the fork ships are not**: `agda-data.zip` holds
-   Agda 2.7.0.1's (version 202406290), so a fresh profile's first check of
-   the default `Main.agda` type-checks `Main` and three builtins ([#49]).
++  **The builtin interfaces the fork shipped were not**: its
+   `agda-data.zip` held Agda 2.7.0.1's (version 202406290), so a fresh
+   profile's first check of the default `Main.agda` type-checked `Main` and
+   three builtins.  The flake now builds the archive from the shipped
+   Agda's version ([#49]), and the same check type-checks `Main` alone, as
+   do two `Main`s that between them import all 36 builtins (measured
+   2026-10-06).  Because `--setup` rewrites the sources (above), what must
+   match is the Agda that built the interfaces and the one the server
+   embeds; an archive holding the fork's old sources beside the new
+   interfaces checked only `Main` too.
 +  **Most of a check's time was the drive, not Agda** ([#50]): with
    interfaces accepted, a `Main` importing agda-algebras' `Overture.Basic`
    took 13.6 to 18.5 s per check (2026-10-04).  With the drive indexed, a
