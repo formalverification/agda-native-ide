@@ -36,7 +36,10 @@ const TYPES = {
  * @param {{ root: string, port?: number }} options
  */
 export function serve({ root, port = 0 }) {
-  const base = resolve(root) + sep;
+  // Every file must lie under this prefix; the filesystem root is its own
+  // prefix, already ending in a separator.
+  const resolved = resolve(root);
+  const base = resolved.endsWith(sep) ? resolved : resolved + sep;
   /** @type {{ t: number, method: string, url: string, status: number, bytes: number }[]} */
   const log = [];
   const t0 = performance.now();
