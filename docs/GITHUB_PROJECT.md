@@ -449,7 +449,7 @@ Decide how, in the ADR of [M0-7]: a history merge keeps upstream's commits and m
 
 ---
 
-### Issue M0-3: A reproducible build under Nix (#3)
+### Issue M0-3: A reproducible build under Nix (#3, closed)
 
 **Labels:** `milestone-0-foundations`, `build`
 
@@ -503,7 +503,7 @@ The compiler to pin becomes this project's own build of Agda 2.9.0 and its langu
 
 ---
 
-### Issue M0-5: CI: build, unit tests, type checks, and a real check in headless Chromium (#5)
+### Issue M0-5: CI: build, unit tests, type checks, and a real check in headless Chromium (#5, closed)
 
 **Labels:** `milestone-0-foundations`, `build`, `measurement`
 
@@ -734,6 +734,37 @@ On 2026-10-05 a platform brief ("Where the Agda Workbench Lives") asked whether 
 +  `docs/adr/0002-where-the-workbench-lives.md` exists in the ADR form, with a decision log and every figure cited to a dated run.
 +  The companion note carries the brief, and the README's description matches the decision.
 
+#### Findings, 2026-10-06: the native baselines
+
+The platform brief's native figures were measured on 2026-10-05 and kept beside the repository, outside git (`platform-brief-2026-10-05/native-measure/`).  This section is their archive: the ADR and its companion note cite it, not that directory.  The scripts, Agda's `+RTS -s` summaries and the closure's per-module sizes are in this issue's comment of 2026-10-06.
+
++  **Method**.  William's workstation (20 cores, 64 GB, Linux 7.0.0-31-generic); Agda 2.8.0 native (GHC 9.10.3) from the `nix develop` of agda-algebras worktree `513-m6-21-aschbachers-d-and-signalizer-theorems`, at agda-algebras `570187bc` (2026-09-28), with standard-library 2.3 from nixpkgs and that worktree's `_build` (383 agda-algebras interfaces).  A scratch library (`name: scratch`, `depend: agda-algebras`, `include: .`) held `Main.agda` (`open import Setoid.Varieties.HSP`) and `MainOB.agda` (`open import Overture.Basic`).  The command, from the worktree: `nix develop --command bash -c "S='<dir>' bash '<dir>/run.sh'"`, where `S` is the measurement directory and `AGDA_DIR` comes from the worktree's shell hook.  `run.sh` checks each file three times, deleting the scratch `_build` before each run, as `/usr/bin/time -f "wall=%e s  maxrss=%M KB" agda +RTS -s -RTS -i . <file>.agda`, and counts the `Checking` lines of Agda's output, unanchored.  The machine's load average was not recorded.
++  **Interfaces were accepted on every run**: each run printed one `Checking` line, for `Main` or `MainOB` alone.
++  **The six runs**, as `run.sh` printed them (it wrote each run's wall time and peak RSS to `time.txt`, which the next run overwrote, so these lines are the record).  `maxrss` is GNU time's `%M`, which is in KiB although the script labels it `KB`.
+
+```
+== MainOB run 1: wall=0.69 s  maxrss=149100 KB | Checking lines: 1 |  51,411,256 bytes maximum residency (15 sample(s)); MUT time 0.405s ( 0.418s elapsed); GC time 0.258s ( 0.261s elapsed); Alloc rate 3,171,256,697 bytes per MUT second;
+== MainOB run 2: wall=0.68 s  maxrss=149304 KB | Checking lines: 1 |  51,411,256 bytes maximum residency (15 sample(s)); MUT time 0.409s ( 0.407s elapsed); GC time 0.262s ( 0.263s elapsed); Alloc rate 3,143,478,415 bytes per MUT second;
+== MainOB run 3: wall=0.67 s  maxrss=149048 KB | Checking lines: 1 |  51,411,256 bytes maximum residency (15 sample(s)); MUT time 0.403s ( 0.400s elapsed); GC time 0.260s ( 0.260s elapsed); Alloc rate 3,186,831,778 bytes per MUT second;
+== Main run 1: wall=5.23 s  maxrss=767756 KB | Checking lines: 1 |  432,259,336 bytes maximum residency (27 sample(s)); MUT time 3.191s ( 3.295s elapsed); GC time 1.907s ( 1.908s elapsed); Alloc rate 3,158,881,184 bytes per MUT second;
+== Main run 2: wall=5.10 s  maxrss=767268 KB | Checking lines: 1 |  432,259,464 bytes maximum residency (27 sample(s)); MUT time 3.182s ( 3.157s elapsed); GC time 1.914s ( 1.916s elapsed); Alloc rate 3,167,878,463 bytes per MUT second;
+== Main run 3: wall=5.10 s  maxrss=767516 KB | Checking lines: 1 |  432,259,464 bytes maximum residency (27 sample(s)); MUT time 3.174s ( 3.148s elapsed); GC time 1.917s ( 1.919s elapsed); Alloc rate 3,176,113,187 bytes per MUT second;
+```
+
++  **In sum**.  `MainOB` (`Overture.Basic`): 0.67 to 0.69 s wall; peak RSS 149,048 to 149,304 KiB (about 146 MiB); GHC's elapsed time 0.661 to 0.679 s; maximum residency 51,411,256 bytes on every run; 102 MiB total memory in use.  `Main` (`Setoid.Varieties.HSP`): 5.10 to 5.23 s wall; peak RSS 767,268 to 767,756 KiB (about 750 MiB); elapsed 5.068 to 5.204 s; maximum residency 432,259,336 to 432,259,464 bytes; 705 MiB total memory in use.
++  **Against the browser**.  [#50] measured the same two imports in the fork on 2026-10-04 in headless Chromium 153, interfaces accepted: `Overture.Basic` 13.6 to 18.5 s, and 1.8 to 3.7 s with a prototype index on the drive's lookups; `Setoid.Varieties.HSP` 79 to 104 s, and 11 to 22 s indexed.  With the index, the page takes 2.1 to 4.3 times as long as native Agda on the HSP closure and 2.6 to 5.5 times on `Overture.Basic` (the ratios of the ranges' ends, from runs made a day apart).
++  **The HSP closure**.  `agda --dependency-graph` on `Main` names 314 modules, `Main` included.  Without `Main`'s own interface the totals are 63,715,204 bytes and 54,291,061 gzipped.  For scale, the whole of agda-algebras' `_build` held 383 interfaces, 73,801,540 bytes, and the standard library's 1,153 interfaces, 194,285,589 bytes.  The closure's interfaces by where they live, gzipped with `gzip -c` at its default level, are as follows.
+
+| kind | modules | bytes | gzipped |
+|---|---|---|---|
+| agda-algebras | 92 | 18,115,900 | 15,597,112 |
+| standard library | 212 | 45,520,501 | 38,622,151 |
+| builtins | 9 | 78,803 | 71,798 |
+| `Main` | 1 | 4,071 | 3,759 |
+| total | 314 | 63,719,275 | 54,294,820 |
+
+[#50]: https://github.com/formalverification/agda-native-ide/issues/50
+
 <!-- END GENERATED: milestone-0 -->
 
 ## Milestone 1 — The agda-algebras IDE
@@ -932,7 +963,9 @@ Adapt the fork's PLFA benchmark (every chapter, real edits, warm and cold) to a 
 
 #### Revision, 2026-10-05: three platforms, Agda 2.9.0
 
-Record a native baseline beside every browser figure, from the same Agda version and the same roots, so that the browser's cost is always stated as a ratio.  Measured 2026-10-05 for the platform brief, Agda 2.8.0 native, three runs, interfaces accepted: `Main` importing `Overture.Basic` 0.67 to 0.69 s at a peak RSS of about 146 MiB; `Main` importing `Setoid.Varieties.HSP` 5.10 to 5.23 s at about 750 MiB (432 MB GHC maximum residency).  (Corrected the same day: these first read 149 MB and 767 MB, but GNU time reports peak RSS in KiB: 149,048 to 149,304 and 767,268 to 767,756 KiB.)
+Record a native baseline beside every browser figure, from the same Agda version and the same roots, so that the browser's cost is always stated as a ratio.  Measured 2026-10-05 for the platform brief, Agda 2.8.0 native, three runs, interfaces accepted: `Main` importing `Overture.Basic` 0.67 to 0.69 s at a peak RSS of about 146 MiB; `Main` importing `Setoid.Varieties.HSP` 5.10 to 5.23 s at about 750 MiB (432 MB GHC maximum residency).  (Corrected the same day: these first read 149 MB and 767 MB, but GNU time reports peak RSS in KiB: 149,048 to 149,304 and 767,268 to 767,756 KiB.)  The runs, their method, GHC's runtime statistics and the closure's interface sizes are archived in [#60]'s findings of 2026-10-06, which the documentation cites.
+
+[#60]: https://github.com/formalverification/agda-native-ide/issues/60
 
 ---
 
