@@ -225,6 +225,7 @@ Each change is its own commit, named here by its subject.
 | `src/routes/+page.svelte` | The `?cache=` token of PLFA's interface manifest and archives comes from `src/lib/assets.ts` instead of being maintained by hand ([#3]) | "Derive the cache tokens, the compiler's length and the cache namespace" |
 | `vite.config.js` | Defines `AGDA_ASSETS` for `src/lib/assets.ts`: the cache tokens, the compiler's length and the drive's cache namespace, which `scripts/asset-manifest.mjs` derives from the files in `static/`; a build hook refuses to build without them, while the dev server, vitest and svelte-check run without them ([#3]) | "Derive the cache tokens, the compiler's length and the cache namespace" |
 | `NOTICE.md` | Removed; `NOTICE` names everything the site ships and quotes it in full (its section 1) | "Remove upstream's NOTICE.md, which NOTICE supersedes" |
+| `src/lib/worker/drive.ts` | The drive's root directory answers its lookups from an index of the drive's paths (`src/lib/worker/drive-index.ts`), built once the drive is constructed and kept in step with Agda's calls and with the drive worker's own writes (message types 3 and 4), instead of scanning every key per lookup; Runno's methods still compute every result ([#50]) | "Index the drive's lookups" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
@@ -237,6 +238,7 @@ Each change is its own commit, named here by its subject.
 [#6]: https://github.com/formalverification/agda-native-ide/issues/6
 [#20]: https://github.com/formalverification/agda-native-ide/issues/20
 [#49]: https://github.com/formalverification/agda-native-ide/issues/49
+[#50]: https://github.com/formalverification/agda-native-ide/issues/50
 [agda-web/als-demo]: https://github.com/agda-web/als-demo
 [agda/agda]: https://github.com/agda/agda
 [cormullion/juliamono]: https://github.com/cormullion/juliamono

@@ -1,3 +1,11 @@
+// File: src/lib/worker/drive.ts
+//
+// Changed from upstream: this is SeungheonOh/plfa-playground's
+// src/lib/worker/drive.ts at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
+// (docs/provenance.md).  The drive's lookups are answered from an index of
+// its paths (./drive-index.ts), which follows the drive's own writes
+// (message types 3 and 4) as well as Agda's (issue 50).
+
 import * as Runno from "@runno/wasi";
 import { SPSCReader } from "spsc/reader";
 import { SPSCWriter } from "spsc/writer";
@@ -5,6 +13,7 @@ import JSZip from "jszip";
 import { fread, bufGetUint32LE, writeLenPrefixed, fwrite } from "$lib/stdlib";
 
 import { base64ToUint8Array } from "./util-base64";
+import { indexDrive } from "./drive-index";
 import type { DriveWorkerInitObject } from "./types";
 
 let lastTimestamp = Date.now();
@@ -87,7 +96,7 @@ async function extractZip(
   target?: Record<string, Runno.WASIFile>,
 ) {
   const zip = await JSZip.loadAsync(data);
-  const filePromises: Promise<void>[] = [];
+  const filePromises: Promise<string>[] = [];
 
   if (prefix === "/") prefix = "";
 
@@ -98,6 +107,7 @@ async function extractZip(
     filePromises.push(
       file.async("uint8array").then((content) => {
         fsAssign(`${prefix}/${path}`, content, target);
+        return `${prefix}/${path}`;
       }),
     );
   });
@@ -259,6 +269,7 @@ postMessage("fs-ready");
 
 const wasi = new Runno.WASI({ fs });
 const drive = wasi.drive;
+const driveIndex = indexDrive(drive);
 
 // do the normalization the dirty way
 function removeTrailingDotDots(path: string) {
@@ -351,6 +362,7 @@ async function mainLoop() {
       } else {
         const [, entry] = createFileEntry(path, content);
         drive.fs[path] = entry;
+        driveIndex.sync(path);
         dirtyCachePaths.add(path);
       }
       fwrite(writer, new Uint8Array([0]));
@@ -358,7 +370,8 @@ async function mainLoop() {
     } else if (msgType === 4) {
       const lenBuf = fread(reader, 4);
       const data = fread(reader, bufGetUint32LE(lenBuf));
-      await extractZip(data, "/", undefined, drive.fs);
+      const paths = await extractZip(data, "/", undefined, drive.fs);
+      paths.forEach(driveIndex.sync);
       fwrite(writer, new Uint8Array([0]));
       continue;
     } else if (msgType === 5) {
