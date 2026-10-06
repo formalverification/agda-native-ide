@@ -80,10 +80,11 @@ Three facts make the project cheaper than it sounds.
    shipped compiler, and a review that found the traps.  Its numbers and its
    code seed the second lane and the library archives.
 +  Agda 2.9.0 is the first version whose wasm build needs no patch:
-   agda/agda builds for wasm32-wasi in its own CI since December 2025, and
-   the language server's reactor build (September 2026) needs no shared
-   memory, so the cross-origin isolation the fork is designed around is a
-   transitional cost.  The editor half exists too: agda-mode-vscode (77
+   agda/agda builds for wasm32-wasi in its own CI since December 2025.
+   And the language server's reactor build (September 2026) needs no
+   shared memory for its input and output; with the drive moved into the
+   server's worker, the page needs none at all, so the cross-origin
+   isolation the fork is designed around is a transitional cost.  The editor half exists too: agda-mode-vscode (77
    commands, a server it downloads itself, a web build that type-checks PLFA
    in vscode.dev) and agda2-mode, and `agda-mcp` already serves the agents
    that speak MCP.  Agda 2.9.0 is unreleased as of 2026-10-05 (master and a
@@ -150,15 +151,16 @@ is served with the cross-origin isolation the language server needs.  ADR
 0001 records the runtime decision and the second lane.  Revised 2026-10-05:
 the compiler becomes this project's own build of Agda 2.9.0 and its
 language server from Agda's own wasm flake, with no patched fork ([M0-13]);
-the language server's reactor build removes the isolation requirement
-([M0-14]); and ADR 0002 records the three-platform decision ([M0-15]).
+the language server's reactor build, with the drive moved into its worker,
+removes the isolation requirement ([M0-14]); and ADR 0002 records the
+three-platform decision ([M0-15]).
 
 **Exit criterion**:
 
 A commit on `main` deploys the fork, on the pinned Agda 2.9.0 compiler, to
 the chosen host, where a first visit in a fresh browser profile checks
-`Main.agda` (with `crossOriginIsolated` true until the reactor build makes
-isolation unnecessary); `nix build` reproduces the site and the compiler
+`Main.agda` (with `crossOriginIsolated` true until the reactor build and the
+in-worker drive make isolation unnecessary); `nix build` reproduces the site and the compiler
 from a clean clone; CI builds it, runs the unit tests, and checks
 `Main.agda` in headless Chromium; ADR 0001 and ADR 0002 are accepted.
 
@@ -558,7 +560,7 @@ Measured 2026-10-04: formalverification.io's DNS is on Cloudflare and its site i
 
 #### Revision, 2026-10-05: three platforms, Agda 2.9.0
 
-The language server's reactor build ([M0-14]) removes the shared memory that requires isolation, so the host need not send the headers once it lands; until then the choice stands as written, and the service-worker guard this issue measured remains the fallback.  Decide the host for the long run (a static host of any kind, GitHub Pages included), and record the headers as a transitional requirement in the ADR.
+The language server's reactor build, with the drive moved into its worker ([M0-14]), removes the shared memory that requires isolation, so the host need not send the headers once it lands (corrected the same day: the reactor alone removes only the input and output rings, and the drive's proxy shares memory too); until then the choice stands as written, and the service-worker guard this issue measured remains the fallback.  Decide the host for the long run (any static host; GitHub Pages only once the repository is public, since the organization's free plan serves Pages from public repositories alone, as the comment of 2026-10-04 found), and record the headers as a transitional requirement in the ADR.
 
 ---
 
@@ -656,7 +658,7 @@ The notice [M0-9] ships names every artifact and carries every license text that
 
 ---
 
-### Issue M0-12: Carry the browser IDE proposal into this repository (#56)
+### Issue M0-12: Carry the browser IDE proposal into this repository (#56, closed)
 
 **Labels:** `documentation`, `milestone-0-foundations`, `provenance`
 
@@ -685,15 +687,23 @@ Risk to record: a nightly moves and a pin does not.  Keep the move to the releas
 +  The browser check in CI passes with the new compiler, and `--version` reports 2.9.0.
 +  ADR 0001 records the pins, the recipe, and the plan for the release pin.
 
+#### Findings, 2026-10-05
+
++  **The pin**.  Agda's master declares 2.9.0, and its `nightly` prerelease is commit `da66a8c75f11d10699a6b38b261efdf244b66f2a` (2026-10-05), with a static x86-64 Linux binary, `Agda-da66a8c-linux.tar.xz` (SHA-256 `fd58ff5cc94c910a129d7fe083e0cd9d8e93b277bf89d2155a040ddc3c91ce7d`; flags optimise-heavily, use-xdg-data-home, version-with-git-hash).  It embeds its data files and writes the builtins on first use under `$Agda_datadir/2.9.0/lib/prim`, their interfaces under `_build/2.9.0/agda/`.  The nightly tag moves, so pin the commit; a copy of the binary is kept outside git, beside the repository, in `platform-brief-2026-10-05/agda-nightly-da66a8c/`.
++  **Agda's own wasm build passes; what failed was around it** (corrected the same day: this bullet first said the wasm build had not run since 2026-09-06, from one run read as four).  Its workflow (`.github/workflows/wasm.yml`, weekly and on commits tagged `[wasm]`) built the wasm `agda` successfully in the runs of 2026-09-13, 09-20 and 09-27 (21 to 27 minutes each, the last at `49cafe9973`), and each run then failed in seconds at "Build Agda (native)", the native build its test suites need: `Error: [Cabal-9080] '--exact-configuration' was given, but the following flags were not specified`, agda/agda#8756, open since 2026-09-16.  The run of 2026-10-04 failed earlier, at "Setup Cabal", because the flake did not evaluate (`fs.empty` at `flake.nix:43`); agda/agda#8809, merged 2026-10-05, fixed that, and the nightly is three commits after it.  So a native failure is not a wasm failure; the last commit whose wasm build passed is `49cafe9973f443cd7fcc4ae4dcacf6901c17e0cb`, and the last full pass `28cbf0e697b23411779b72b6f0357dc995a2fcc2` (2026-09-06).
++  **The language server does not support 2.9.0 yet**.  Its `package.yaml` pins Agda exactly per flag (`Agda-2-6-4`, `Agda-2-7-0`, `Agda-2-8-0`), and its wasm build (`BUILDING_WASM.md`; `cabal.project.wasm32`, index-state 2026-02-16, `lsp == 2.7.0.1`; ghc-wasm-meta `c3f44696`, flavour 9.10) takes Agda from the submodule `wasm-submodules/agda`, agda-web/agda's `agda-web/release-v2.8.0`.  No flag, branch, issue or pull request targets 2.9, and its source has 59 `MIN_VERSION_Agda` conditionals in 12 files of `src/` and `app/` (corrected the same day from "12 places"), including both entry points; its `versionString` says "Agda v2.8.0" for every Agda from 2.8.0 on.  Expect patches, and record each one.
++  **The fork's transport reads raw JSON responses** (`ResponseJSONRaw`): its server is agda-web's `wasm-only-raw-responses` branch (`e65419f8`), which removed the response converter.  Upstream's server has a `--raw` option (its PR 40); check the page against it.
++  **Size**.  The server's v8 wasm release assets are 85 to 92 MB, against 29 to 33 MB for the builds the fork and agda-mode-vscode ship (inferred: before `wasm-opt`, which upstream's PR 37 adds, "approx. 1/3").
+
 ---
 
-### Issue M0-14: Adopt the language server's reactor build, which needs no shared memory (#59)
+### Issue M0-14: The reactor build and the drive in its worker: no shared memory, no isolation headers (#59)
 
 **Labels:** `milestone-0-foundations`, `runtime`, `hosting`, `measurement`
 
 The fork blocks the language server on standard input through a SharedArrayBuffer, which is why every route must be served cross-origin isolated, why [M0-6] weighs hosts by their headers, and why [M0-8] exists.  agda/agda-language-server PR 48 (merged 2026-09-13) adds a `reactor` build: the server exports `new_language_server`, `run_language_server`, `send_message`, `recv_message` and `run_setup` through GHC's JavaScript FFI, and the host drives it by message passing, with no blocking read and no shared memory.  Its author's justification is this project's problem statement: the stdio approach "relies on SharedArrayBuffer ... the web page has to be cross-origin isolated.  This is proven to be a very unusual requirement."
 
-Build the reactor variant in [M0-13]'s recipe, drive it from the language-server worker in place of the stdin and stdout rings (the drive worker's file protocol stays until [M1-16] decides otherwise), and measure it against the stdio build on [M1-10]'s roots: startup, a give, a warm reload.  If it holds, the isolation headers, the service-worker fallback and its race leave the hosting decision ([M0-6]), and GitHub Pages becomes an ordinary option.  A reactor cannot run under a standalone wasm runtime, so the browser job stays the only test of the language server ([M0-5]).
+Build the reactor variant in [M0-13]'s recipe, drive it from the language-server worker in place of the stdin and stdout rings, move the drive into that worker with [M1-16]'s index (see the correction below), and measure it against the stdio build on [M1-10]'s roots: startup, a give, a warm reload.  If it holds, the isolation headers, the service-worker fallback and its race leave the hosting decision ([M0-6]), and GitHub Pages becomes an ordinary option.  A reactor cannot run under a standalone wasm runtime, so the browser job stays the only test of the language server ([M0-5]).
 
 #### Acceptance criteria
 
@@ -701,13 +711,23 @@ Build the reactor variant in [M0-13]'s recipe, drive it from the language-server
 +  The comparison with the stdio build is recorded with its run.
 +  `docs/notes/runtime.md` describes the new transport.
 
+#### Correction, 2026-10-05: the drive shares memory too
+
+This issue, as first written, said the reactor build removes the shared memory that requires isolation.  It removes half of it.  The fork shares memory in two places: the language server's standard input and output (two 4 KiB rings, which the reactor's `send_message` and `recv_message` replace), and every WASI file call, which `src/lib/worker/proxy-wasi-drive.ts` proxies to the drive worker through a 4-byte lock and two 1 MiB rings, waiting with `Atomics.wait` (the page allocates them in `src/routes/+page.svelte`, near line 99).  A reactor still makes its file calls through WASI, synchronously, so a drive in another worker still needs shared memory.  To run without isolation, the drive moves into the language server's worker, where a WASI file call is a plain function call on the same thread, and the drive worker's other duties (IndexedDB persistence, archive extraction, the page's writes) become messages handled between calls.  [M1-16]'s index moves with it, and each of the roughly 130 lookups per imported module loses a cross-worker round trip.  The second paragraph, as first written, also kept the drive worker's file protocol until [M1-16] decided otherwise; it was revised to match on 2026-10-06.
+
+The reactor's exports (agda/agda-language-server `app/Reactor.hs`, release v8) are `run_setup`, `new_language_server`, `run_language_server`, `free_language_server`, `send_message` and `recv_message`, through GHC's JavaScript FFI; the build is the package's `reactor` flag (`-optl-mexec-model=reactor`), and it needs the FFI glue that GHC's wasm toolchain generates at link time (`post-link.mjs` in the toolchain's libdir writes it from the linked module).  A reactor reads its argv from WASI once, during `_initialize`, so the host passes the stdio build's arguments there, and its exports are asynchronous.
+
+Added acceptance criterion:
+
++  The drive lives in the language server's worker, and the page allocates no `SharedArrayBuffer`.
+
 ---
 
 ### Issue M0-15: ADR 0002: where the workbench lives: three platforms, one shared core, Agda 2.9.0 (#60)
 
 **Labels:** `documentation`, `milestone-0-foundations`, `adr`
 
-On 2026-10-05 a platform brief ("Where the Agda Workbench Lives") asked whether the browser is the right platform for the IDE the proposal describes, or a VS Code extension, or Emacs, and answered from the infrastructure up; William's decision the same day was to target all three on Agda 2.9.0, sharing one core, and this plan was revised to match.  Record the decision in the ADR form: the question; the evidence (the brief's measurements: native Agda loads the `Setoid.Varieties.HSP` closure in 5.1 s at 767 MB where the fork takes 11 to 22 s with its drive indexed, and that closure's interfaces are 54 MB gzipped per reader; agda-mode-vscode's state; the language server's private `agda` request and its reactor build; agda-web's VS Code for the Web deployment; the convergence of every 2025 to 2026 prover-agent integration on a local MCP process); the decision per platform (browser: the reader's playground and the views' first host; VS Code: the author's workbench, a companion beside agda-mode-vscode; Emacs: the agent half only); the shared core (engine client, tool surface, views, manifest); and Agda 2.9.0 as the compiler ([M0-13]).  Carry the brief's text into `docs/notes/platform-brief-2026-10-05.md` as the companion note the ADR links, with its evidence table and its sources, so the record is self-contained.
+On 2026-10-05 a platform brief ("Where the Agda Workbench Lives") asked whether the browser is the right platform for the IDE the proposal describes, or a VS Code extension, or Emacs, and answered from the infrastructure up; William's decision the same day was to target all three on Agda 2.9.0, sharing one core, and this plan was revised to match.  Record the decision in the ADR form: the question; the evidence (the brief's measurements: native Agda loads the `Setoid.Varieties.HSP` closure in 5.1 s at a peak of about 750 MiB where the fork takes 11 to 22 s with its drive indexed, and that closure's interfaces are 54 MB gzipped per reader; agda-mode-vscode's state; the language server's private `agda` request and its reactor build; agda-web's VS Code for the Web deployment; the convergence of every 2025 to 2026 prover-agent integration on a local MCP process); the decision per platform (browser: the reader's playground and the views' first host; VS Code: the author's workbench, a companion beside agda-mode-vscode; Emacs: the agent half and a corpus picker, beyond the brief, which recommended building nothing for Emacs); the shared core (engine client, tool surface, views, manifest); and Agda 2.9.0 as the compiler ([M0-13]).  Carry the brief's text into `docs/notes/platform-brief-2026-10-05.md` as the companion note the ADR links, with its evidence table and its sources, so the record is self-contained.
 
 #### Acceptance criteria
 
@@ -912,7 +932,7 @@ Adapt the fork's PLFA benchmark (every chapter, real edits, warm and cold) to a 
 
 #### Revision, 2026-10-05: three platforms, Agda 2.9.0
 
-Record a native baseline beside every browser figure, from the same Agda version and the same roots, so that the browser's cost is always stated as a ratio.  Measured 2026-10-05 for the platform brief, Agda 2.8.0 native, three runs, interfaces accepted: `Main` importing `Overture.Basic` 0.67 to 0.69 s at 149 MB RSS; `Main` importing `Setoid.Varieties.HSP` 5.10 to 5.23 s at 767 MB RSS (432 MB GHC maximum residency).
+Record a native baseline beside every browser figure, from the same Agda version and the same roots, so that the browser's cost is always stated as a ratio.  Measured 2026-10-05 for the platform brief, Agda 2.8.0 native, three runs, interfaces accepted: `Main` importing `Overture.Basic` 0.67 to 0.69 s at a peak RSS of about 146 MiB; `Main` importing `Setoid.Varieties.HSP` 5.10 to 5.23 s at about 750 MiB (432 MB GHC maximum residency).  (Corrected the same day: these first read 149 MB and 767 MB, but GNU time reports peak RSS in KiB: 149,048 to 149,304 and 767,268 to 767,756 KiB.)
 
 ---
 
@@ -997,7 +1017,7 @@ Index the drive (maintained on create, unlink, rename and archive extraction), m
 
 #### Revision, 2026-10-05: three platforms, Agda 2.9.0
 
-The reactor build ([M0-14]) replaces the stdin and stdout rings but not the drive's file protocol, so the index this issue asks for stays.  OPFS with synchronous access handles (Chrome 102, Firefox 111, Safari 15.2; no isolation headers needed) is the candidate store for the written interfaces.
+The reactor build ([M0-14]) replaces the stdin and stdout rings but not the drive's file protocol, so the index this issue asks for stays; [M0-14] then moves the drive into the language server's worker, so build the index as a module of its own that moves with it.  OPFS with synchronous access handles (Chrome 102, Firefox 111, Safari 15.2; no isolation headers needed) is the candidate store for the written interfaces.
 
 ---
 
@@ -1011,6 +1031,18 @@ Agda accepts an interface only from the same Agda, so the archives [M1-4] ships 
 
 +  An agda-algebras issue tracks the check, and its outcome (warnings, changes, the standard-library version) is recorded here.
 +  [M1-4]'s pipeline builds the archives from the pinned commit under Agda 2.9.0, and [M1-5]'s gate passes.
+
+#### Findings, 2026-10-05
+
++  **No standard-library release is tested against Agda 2.9.0 yet**.  The standard library's master and its `agda-master` branch (2026-09-11) are `standard-library-3.0`, an unreleased major version, and its CI (`ci-ubuntu.yml`) builds master and `experimental` with Agda `v2.8.0`.  The latest release, v2.4 (2026-06-17), is `standard-library-2.4`, with `--warning=noUnsupportedIndexedMatch`.  agda-algebras' master depends on `standard-library-2.3`, with `-WnoUnsupportedIndexedMatch`, and its flake pins Agda 2.8.0.
++  **An Agda 2.9.0 to check with**: the nightly at `da66a8c` ([M0-13]'s findings), a static binary kept beside the repository in `platform-brief-2026-10-05/agda-nightly-da66a8c/`.  It embeds its data files, so give it a throwaway `Agda_datadir` and `XDG_DATA_HOME`; a first run writes the builtins and their interfaces there (measured: `Agda.Builtin.Nat` checked from the embedded sources, interfaces under `lib/prim/_build/2.9.0/agda/`).
+
+#### Findings, 2026-10-05 (later): the standard library Agda 2.9.0 needs
+
++  **Agda's own CI tests a standard library that no release carries**.  At the pin (`da66a8c`), agda/agda's `std-lib` submodule tracks agda-stdlib's branch `agda-master`, at `1b7f26af` (`standard-library-3.0`), and its `stdlib-test` check passed on that commit.  `agda-master` has three commits not on master (master carries the third one's change as `2ffa8b7d`, corrected the same day), each a fix Agda's master needed: `1896499f` (eta equality is no longer inferred, agda/agda#8533), `39631ce9` (`irrelevant-recompute` now needs `--irrelevant-projections`, agda/agda#8667) and `1b7f26af` (fixity declarations for closed operators).
++  **So standard-library 2.3 and 2.4 will probably not check under 2.9.0 as released.**  v2.3's `Relation.Nullary.Recomputable` defines `irrelevant-recompute` by projecting an irrelevant field (`irrelevant (irrelevant-recompute [ a ]) = a`), the construct `39631ce9` removes; `--irrelevant-projections` is marked inconsistent, so it cannot be used under `--safe`.  The same construct is in v2.4's and master's `Data.Irrelevant`.  Both modules are in the `Setoid.Varieties.HSP` closure.  Not yet run: the matrix of [#61]'s kickoff runs it.
++  **And 3.0 may not serve agda-algebras as it stands**: its first highlight moves modules from `--cubical-compatible` back to `--without-K`, and agda-algebras' modules are `--cubical-compatible`, whose imports must also be (Agda reports `CoInfectiveImport`).  To be verified by the same run.
++  **What this means for the plan**: moving agda-algebras to Agda 2.9.0 needs a standard library that supports 2.9.0 and `--cubical-compatible` together, and none is released.  The likely paths are a scratch copy of 2.3 with the three commits applied (to measure), a standard-library release for 2.9.0 (to wait for), or agda-algebras on `--without-K` with 3.0 (a policy change, William's).
 
 <!-- END GENERATED: milestone-1 -->
 
