@@ -1321,7 +1321,7 @@ Project records first, then the external sources.  The facts re-checked on
     agda/cornelis; haohanyang/agda-zed; Helix's language table.
 12. MCP: the specification's transports (revision 2026-07-28); the WebMCP early
     preview; mcp-proxy.
-13. The following were re-checked on 2026-10-06, each at its source:
+13. Re-checked on 2026-10-06, each at its source, were the following:
     +  Agda's releases ([agda-releases]): the latest is v2.8.0.2 (2026-09-13);
        master's `Agda.cabal` declares 2.9.0; the `nightly` prerelease is
        `835beac` (committed 2026-10-05, published 2026-10-06), after `da66a8c`
