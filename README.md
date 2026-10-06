@@ -2,18 +2,25 @@
 
 # agda-native-ide
 
-An Agda IDE that runs in a browser tab, with no server.  The type-checker
-is loaded by default, and everything else is a plugin: libraries, corpora,
-models and tools.  A reader opens a library in an Explorer, writes in a
-`Main.agda` buffer, and reads Agda's goals and errors in an info pane; a
-model can work in the same tab through the tool contract agda-native-air's
-`agda-mcp` defines, judged by Agda and never by itself.
+An Agda workbench for the browser, VS Code and Emacs, sharing one core, on
+Agda 2.9.0.  In a browser tab, with no server, the type-checker is loaded by
+default and everything else is a plugin: libraries, corpora, models and
+tools.  A reader opens a library in an Explorer, writes in a `Main.agda`
+buffer, and reads Agda's goals and errors in an info pane.  In VS Code, a
+companion extension beside agda-mode-vscode gives an author the same views
+and the same tool contract over a native Agda on their own checkout, where
+the agents already are.  In Emacs, agda2-mode's commands are exposed to
+agents and the corpus is searched from a picker.  Everywhere, a model works
+through the tool contract agda-native-air's `agda-mcp` defines, judged by
+Agda and never by itself.
 
-The IDE forks [plfa-playground], the browser Agda environment behind
+The browser IDE forks [plfa-playground], the browser Agda environment behind
 <https://plfa.isotopy.xyz/> (SvelteKit, CodeMirror 6, and the Agda Language
 Server compiled to WASI).  Its first deliverable is the agda-algebras IDE:
 the "Playground" link on the [agda-algebras] site opens it in a new tab,
-with every module of that library in the Explorer.
+with every module of that library in the Explorer.  The plan was revised on
+2026-10-05 to target all three platforms on Agda 2.9.0; ADR 0002 (issue
+M0-15) records that decision.
 
 ## Status
 
@@ -44,10 +51,10 @@ headless Chromium.  Nothing is deployed.
 +  [`NOTICE`][notice]: every artifact the app ships, with its license; the
    build publishes it as `NOTICE.txt`, with the license texts in
    [`licenses/`][licenses].
-+  [`docs/GITHUB_PROJECT.md`][plan]: the plan, with seven milestones (the
-   foundations, the agda-algebras IDE, plugins, the browser as a tool
-   server, models in the loop, the theory view, and the proof view) and
-   their issues.  The issues on GitHub own their bodies, and many carry the
++  [`docs/GITHUB_PROJECT.md`][plan]: the plan, with nine milestones (the
+   foundations, the agda-algebras IDE, plugins, the tool surface, agents in
+   the browser, the theory view, the proof view, the VS Code companion, and
+   Emacs) and their issues.  The issues on GitHub own their bodies, and many carry the
    measurements that shaped them.
 +  [`docs/notes/browser-ide-proposal.md`][proposal]: the proposal this project
    follows, carried from agda-native-air (its header names the source commit).
