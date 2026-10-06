@@ -142,16 +142,20 @@ guard-gh:
 	}
 
 # ---------------------------------------------------------------------
-# The app: its pinned binaries, and the build
+# The app: its binaries, and the build
 #
 # Run these in the dev shell (`nix develop`), which carries node 22 and
 # GNU coreutils.  The binaries the app ships are never committed.  The
-# flake fetches each one from upstream at the imported commit and checks
-# it against its SHA-256 in $(PINS); `make assets` copies the set into
-# static/, and `make build` refuses to build unless every file there
-# still matches its pin.  docs/provenance.md records them all.  `make
-# build` also publishes NOTICE (as NOTICE.txt) and licenses/ in build/.
-# `nix build .#site` runs the same `make build` in the Nix sandbox.
+# flake fetches each pinned one from upstream at the imported commit and
+# checks it against its SHA-256 in $(PINS), and builds Agda's builtin
+# library, agda-data.zip (`nix build .#agda-data`); `make assets` copies
+# the set into static/, and `make build` refuses to build unless every
+# pinned file there still matches its pin and agda-data.zip is the
+# flake's build.  (Inside the Nix sandbox, where `nix build .#site` runs
+# the same `make build`, there is no nix to ask, and the site's
+# derivation copies the archive in itself.)  docs/provenance.md records
+# them all.  `make build` also publishes NOTICE (as NOTICE.txt) and
+# licenses/ in build/.
 #
 # dev, build, test and check install the locked npm dependencies first
 # (`npm ci`) when package.json or package-lock.json is newer than the
@@ -177,15 +181,24 @@ SITE_REVISION ?= $(shell rev=$$(git rev-parse HEAD 2>/dev/null) && \
 node_modules/.package-lock.json: package.json package-lock.json
 	npm ci
 
-assets: ## Fetch the pinned binaries (nix build .#assets) into static/
+assets: ## Fetch the pinned binaries and build agda-data.zip (nix build .#assets) into static/
 	@out=$$(nix build .#assets --no-link --print-out-paths) && \
 	  cp -R --no-preserve=mode,ownership "$$out"/static/. static/ && \
 	  echo "assets: copied $$out/static into static/"
 	@$(MAKE) --no-print-directory assets-check
 
-assets-check: ## Check every pinned binary in static/ against its SHA-256
+assets-check: ## Check the pinned binaries in static/, and that agda-data.zip is the flake's build
 	@sha256sum --check --strict --quiet $(PINS) && \
 	  echo "assets-check: all $$(grep -c . $(PINS)) pinned files match"
+	@if command -v nix > /dev/null; then \
+	  built=$$(nix build .#agda-data --no-link --print-out-paths) || exit 1; \
+	  if cmp -s "$$built/agda-data.zip" static/agda-data.zip; then \
+	    echo "assets-check: static/agda-data.zip is the flake's build"; \
+	  else \
+	    echo "assets-check: static/agda-data.zip is not the flake's build ($$built); run make assets" >&2; \
+	    exit 1; \
+	  fi; \
+	fi
 
 dev: node_modules/.package-lock.json assets-check ## Serve the app at http://localhost:5173, reloading on change
 	npm run dev

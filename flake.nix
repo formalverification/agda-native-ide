@@ -1,7 +1,7 @@
 # File: flake.nix
 #
 # The project's dev shell, the github-project roadmap engine, and the
-# binaries the app ships, pinned by hash.
+# binaries the app ships: pinned by hash, or built here from pinned inputs.
 #
 # `nix develop` puts the gh-project-* CLIs on PATH (the Makefile stub
 # finds them there), and the re-exported apps allow `nix run .#update`
@@ -11,10 +11,12 @@
 # `nix build .#assets` fetches every binary named in
 # upstream/assets.sha256 from upstream's repository at the commit this
 # repository imported, one fixed-output fetch per file, so a byte that
-# differs from its pin fails the fetch.  `make assets` copies the result
-# into static/, and `make build` checks static/ against the same pins
-# before it builds.  docs/provenance.md records where each file comes
-# from and its license.
+# differs from its pin fails the fetch, and adds Agda's builtin library,
+# agda-data.zip, which `nix build .#agda-data` builds from an Agda's own
+# lib/prim (mkAgdaData, below).  `make assets` copies the result into
+# static/, and `make build` checks the pinned files there against their
+# pins before it builds.  docs/provenance.md records where each file
+# comes from and its license.
 #
 # `nix build .#site` builds the static site: the npm dependencies are
 # one fixed-output fetch of everything package-lock.json names (pinned
@@ -60,6 +62,61 @@
         inherit (pin) sha256;
       };
 
+      # Agda's builtin library as the page ships it, agda-data.zip (issue
+      # 49): the whole of an Agda's own lib/prim (its sources,
+      # agda-builtins.agda-lib, and the interfaces that Agda builds for them
+      # under _build/<its version>/agda/), at the root the page's server
+      # reads lib/prim from, as a zip whose bytes depend on its input
+      # alone: entries sorted, stored, with one fixed time.  Agda accepts
+      # an interface only from the Agda version that wrote it, built from
+      # the same source under the same options, and the server writes its
+      # own copy of the sources before it starts (`--setup`), so `agda`
+      # must be the Agda the server embeds, and nothing here names a
+      # library or an option.
+      #
+      #   agda  that Agda, as a package with bin/agda that runs in the
+      #         sandbox
+      #   root  where lib/prim lies under the server's Agda_datadir, which
+      #         src/lib/worker/als.ts sets to "/": "lib/prim", or
+      #         "<version>/lib/prim" for a server built with Agda's
+      #         use-xdg-data-home flag.  It is the shipped server's, never
+      #         the input Agda's own layout.
+      mkAgdaData = pkgs: { agda, root }:
+        pkgs.runCommand "agda-data" { nativeBuildInputs = [ pkgs.zip ]; } ''
+          agda=${lib.getExe' agda "agda"}
+          # A throwaway home and data directory, both existing: an Agda
+          # built with use-xdg-data-home ignores an Agda_datadir that does
+          # not exist, and falls back to $XDG_DATA_HOME/agda.
+          export HOME=$TMPDIR/home XDG_DATA_HOME=$TMPDIR/share \
+            Agda_datadir=$TMPDIR/data
+          mkdir -p "$HOME" "$XDG_DATA_HOME" "$Agda_datadir"
+          "$agda" --setup > /dev/null
+          prim=$("$agda" --print-agda-data-dir)/lib/prim
+          version=$("$agda" --numeric-version)
+          (cd "$prim" && "$agda" --build-library) > build-library.log \
+            || { cat build-library.log >&2; exit 1; }
+          if [ ! -d "$prim/_build/$version/agda" ]; then
+            echo "Agda $version built no _build/$version/agda in $prim:" >&2
+            find "$prim" -name '*.agdai' >&2
+            exit 1
+          fi
+          echo "agda-data: Agda $version, $(grep -c 'Checking ' build-library.log) modules checked," \
+            "$(find "$prim" -name '*.agdai' | wc -l) interfaces"
+          mkdir -p "stage/${root}" "$out"
+          cp -R "$prim/." "stage/${root}/"
+          cd stage
+          find . -type f -exec chmod 644 {} + -exec touch -d @315532800 {} +
+          find . -type f | sed 's|^\./||' | LC_ALL=C sort \
+            | TZ=UTC zip -X -D -0 -q "$out/agda-data.zip" -@
+        '';
+
+      # The input of agda-data.zip: issue 58's move to another Agda changes
+      # this attribute, and nothing else.
+      agdaDataInput = pkgs: {
+        agda = pkgs.haskellPackages.Agda;
+        root = "lib/prim";
+      };
+
       # The source revision the site is named by (SvelteKit's
       # kit.version.name, and the commit vite.config.js records): the
       # commit, with "-dirty" when the tree differs from it, as `make
@@ -103,12 +160,20 @@
       };
     in
     {
-      packages = forAllSystems (system: pkgs: rec {
-        # Every pinned binary at its path in the tree (static/...).
+      packages = forAllSystems (system: pkgs: let
+        agdaData = mkAgdaData pkgs (agdaDataInput pkgs);
+      in rec {
+        # Agda's builtin library, built (mkAgdaData).
+        agda-data = agdaData;
+
+        # Every binary the app ships at its path in the tree (static/...):
+        # the pinned ones, and agda-data.zip.
         assets = pkgs.runCommand "plfa-playground-assets" { } (
           lib.concatMapStrings (pin: ''
             install -D -m 444 ${fetchPin pkgs pin} "$out/${pin.path}"
-          '') pins);
+          '') pins + ''
+            install -D -m 444 ${agdaData}/agda-data.zip "$out/static/agda-data.zip"
+          '');
 
         # The static site, as `make build` writes it into build/.
         site = pkgs.buildNpmPackage {
@@ -135,6 +200,10 @@
           dontFixup = true;
         };
       });
+
+      # mkAgdaData, for a build of agda-data.zip from another Agda (issue
+      # 58): `(builtins.getFlake ...).lib.mkAgdaData pkgs { agda; root; }`.
+      lib = { inherit mkAgdaData; };
 
       devShells = forAllSystems (system: pkgs: {
         default = pkgs.mkShell {

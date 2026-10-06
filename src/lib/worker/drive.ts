@@ -4,7 +4,11 @@
 // src/lib/worker/drive.ts at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
 // (docs/provenance.md).  The drive's lookups are answered from an index of
 // its paths (./drive-index.ts), which follows the drive's own writes
-// (message types 3 and 4) as well as Agda's (issue 50).
+// (message types 3 and 4) as well as Agda's (issue 50).  Agda's builtin
+// library is extracted as it comes, since the flake builds agda-data.zip
+// with its interfaces already where the shipped Agda looks for them, under
+// _build/<its version>/agda/; the callback that moved them there, to a
+// path that named one Agda version, is gone (issue 49).
 
 import * as Runno from "@runno/wasi";
 import { SPSCReader } from "spsc/reader";
@@ -222,16 +226,7 @@ async function persistCachedFiles(database: IDBDatabase | null) {
 }
 
 if (agdaDataZip) {
-  await extractZip(agdaDataZip, "/", (path) => {
-    // agda-wasm-dist still ships primitive interfaces beside their sources,
-    // but Agda 2.8 removed local interfaces and only looks in _build. Mount
-    // the bundled interfaces where Agda 2.8 expects them so every browser
-    // session does not recompile the primitive library from source.
-    if (path.startsWith("lib/prim/") && path.endsWith(".agdai")) {
-      return path.replace("lib/prim/", "lib/prim/_build/2.8.0/agda/");
-    }
-    return path;
-  });
+  await extractZip(agdaDataZip, "/");
 }
 
 if (agdaStdlibZip) {
