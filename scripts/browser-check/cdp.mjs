@@ -8,8 +8,8 @@
 // investigation's launcher (issue 5).
 //
 // Nothing waits for ever: every command has a time limit, and once the
-// browser exits or its socket closes, every command pending or sent
-// later fails at once.
+// browser exits, its socket closes or the page's renderer crashes, every
+// command pending or sent later fails at once.
 
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -105,10 +105,16 @@ async function attach(chrome, browser, removeProfile) {
     targetId,
     flatten: true,
   });
+  // A crashed renderer never answers the commands it was sent.
+  const page = tab(session, sessionId);
+  page.on("Inspector.targetCrashed", () =>
+    session.fail(new Error("the page's renderer crashed")),
+  );
+  await page.send("Inspector.enable");
 
   return {
     product,
-    page: tab(session, sessionId),
+    page,
     async close() {
       session.close();
       const exited = new Promise((done) => browser.once("exit", done));

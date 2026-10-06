@@ -158,7 +158,6 @@ const results = {
   steps: /** @type {string[]} */ ([]),
 };
 let failure = /** @type {string | null} */ (null);
-let crashed = /** @type {string | null} */ (null);
 const consoleLog = /** @type {object[]} */ ([]);
 /** @type {Awaited<ReturnType<typeof serve>> | undefined} */
 let server;
@@ -179,7 +178,6 @@ async function waitFor(predicate, what, timeoutMs = STEP_TIMEOUT_MS) {
   const start = performance.now();
   let last;
   while (performance.now() - start < timeoutMs) {
-    if (crashed) throw new Error(crashed);
     last = await page.eval(state);
     if (last.banner) throw new Error(`the page says "${last.banner}"`);
     if (last.failedAction)
@@ -263,10 +261,6 @@ try {
       ).slice(0, 500),
     }),
   );
-  page.on("Inspector.targetCrashed", () => {
-    crashed = "the page's renderer crashed";
-  });
-  await page.send("Inspector.enable");
   await page.send("Page.enable");
   await page.send("Runtime.enable");
   await page.send("Emulation.setDeviceMetricsOverride", {
