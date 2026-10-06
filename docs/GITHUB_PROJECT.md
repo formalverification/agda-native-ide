@@ -41,7 +41,7 @@ work in the same tab through the tool contract `agda-mcp` defines, judged by
 Agda and never by itself.  Later, a development can be seen as a diagram,
 generated from the checked source.
 
-The plan follows the proposal in agda-native-air's
+The plan follows the proposal carried from agda-native-air as
 [`docs/notes/browser-ide-proposal.md`][proposal], with one change of order:
 the first deliverable is the library IDE that the agda-algebras site needs
 (its "Playground" link opens this IDE in a new tab), because it is what a
@@ -59,7 +59,7 @@ Two facts make the project cheaper than it sounds.
    shipped compiler, and a review that found the traps.  Its numbers and its
    code seed the second lane and the library archives.
 
-[proposal]: https://github.com/formalverification/agda-native-air/blob/main/docs/notes/browser-ide-proposal.md
+[proposal]: notes/browser-ide-proposal.md
 [plfa-playground]: https://github.com/SeungheonOh/plfa-playground
 [pr-585]: https://github.com/ualib/agda-algebras/pull/585
 
@@ -299,7 +299,7 @@ This repository was created from williamdemeo/github-project and still carries a
 
 ---
 
-### Issue M0-2: Fork plfa-playground into this repository, as a recorded snapshot with its attribution (#2)
+### Issue M0-2: Fork plfa-playground into this repository, as a recorded snapshot with its attribution (#2, closed)
 
 **Labels:** `milestone-0-foundations`, `runtime`, `provenance`
 
@@ -431,7 +431,7 @@ Measured 2026-10-04: formalverification.io's DNS is on Cloudflare and its site i
 
 ---
 
-### Issue M0-7: ADR 0001, the runtime: what is forked, what is kept, and the second lane (#7)
+### Issue M0-7: ADR 0001, the runtime: what is forked, what is kept, and the second lane (#7, closed)
 
 **Labels:** `documentation`, `milestone-0-foundations`, `runtime`, `adr`
 
@@ -465,7 +465,7 @@ Confirmed twice: without the isolation headers, the fork's service-worker fallba
 
 ---
 
-### Issue M0-9: A complete notice for everything the page ships (#48)
+### Issue M0-9: A complete notice for everything the page ships (#48, closed)
 
 **Labels:** `milestone-0-foundations`, `provenance`
 
@@ -514,6 +514,19 @@ The notice [M0-9] ships names every artifact and carries every license text that
 
 +  Each question above is answered in `NOTICE` or ADR 0001, with the decision recorded.
 +  ADR 0001 § 4's status lists no open license question.
+
+---
+
+### Issue M0-12: Carry the browser IDE proposal into this repository (#56)
+
+**Labels:** `documentation`, `milestone-0-foundations`, `provenance`
+
+The design this project follows is agda-native-air's `docs/notes/browser-ide-proposal.md`, and every reference here (the README, `CLAUDE.md`, ADR 0001, this plan's preamble) points at it in the other repository.  A record that lives in another repository's history is not part of this one: a reader of this repository alone cannot read the design, and a later edit there would change what these documents cite.  Carry the proposal into `docs/notes/browser-ide-proposal.md`, verbatim apart from a header naming its source file and commit, with its relative links into agda-native-air rewritten as absolute links, and point every reference at the local copy.  (William, 2026-10-05: "I'm not sure why that document is not already part of the agda-native-ide repository; it should be.")
+
+#### Acceptance criteria
+
++  `docs/notes/browser-ide-proposal.md` exists, byte for byte the source text apart from the header and the rewritten link definitions, and the header names the source file and commit.
++  The README, `CLAUDE.md`, ADR 0001 and this plan's preamble link the local copy.
 
 <!-- END GENERATED: milestone-0 -->
 
