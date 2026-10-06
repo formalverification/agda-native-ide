@@ -72,9 +72,10 @@ place.
 +  **The numbers**.  Two browser figures are plfa-playground's undated claims,
    not archived runs; the native give figure was a lane query, now replaced by
    a measured native give; "two to five times slower" is stated as the measured
-   ratios; the HSP closure is not shown to be agda-algebras' largest; and the
-   native runs are cited to their archive on [#60] (§ "The numbers the argument
-   rests on").
+   ratios; the HSP closure is not shown to be agda-algebras' largest; the
+   native runs are cited to their archive on [#60]; and the table's preamble no
+   longer claims a dated run for every figure, since its byte counts and
+   records are not runs (§ "The numbers the argument rests on").
 +  **The fork's lanes**.  The workbench diagram's caption said both lanes exist
    today; the fork has the interaction lane only, and the batch lane is [#30].
 +  **The fork's seam**.  The brief said the fork's controller "never touches
@@ -1010,17 +1011,18 @@ and CoqPilot's extension, are the exceptions its own survey names.)
 +  **Isabelle**.  isabelle-pide-mcp (2026) is "a customisable Model Context
    Protocol server managing a headless PIDE session" (its preprint's abstract,
    2026-09-12), editor-agnostic, beside jEdit or VS Code, over stdio.
-+  **Agda**.  Besides agda-native-air's `agda-mcp`, five small MCP servers
-   appeared in 2025 and 2026, all local processes in front of Agda.
-   DreamLinuxer's, InvariantHoldings' and peterthiemann's spawn
-   `agda --interaction-json` and speak MCP over stdio (and cliu238's is a copy
-   of InvariantHoldings'); faezs's and broughjt's link Agda as a Haskell
-   library and run its interaction layer in the server's own process, faezs's
-   over HTTP on localhost and broughjt's over stdio.  (Corrected 2026-10-06:
-   the brief named four, "each wrapping `agda --interaction-json`"; broughjt's
-   server, created 2026-07-07, was missed.)  No Agda-specific LLM tooling
-   beyond these was found; Agda's own automation is Mimer (`C-c C-a`), which
-   replaced Agsy in 2.7.0 and does not case split or refine.
++  **Agda**.  Besides agda-native-air's `agda-mcp`, six small MCP servers
+   appeared in 2025 and 2026, one of them a copy of another, all local
+   processes in front of Agda.  DreamLinuxer's, InvariantHoldings' and
+   peterthiemann's spawn `agda --interaction-json` and speak MCP over stdio
+   (and cliu238's is a copy of InvariantHoldings'); faezs's and broughjt's link
+   Agda as a Haskell library and run its interaction layer in the server's own
+   process, faezs's over HTTP on localhost and broughjt's over stdio.
+   (Corrected 2026-10-06: the brief named four, "each wrapping
+   `agda --interaction-json`"; broughjt's server, created 2026-07-07, was
+   missed.)  No Agda-specific LLM tooling beyond these was found; Agda's own
+   automation is Mimer (`C-c C-a`), which replaced Agsy in 2.7.0 and does not
+   case split or refine.
 +  **The IDE vendors**.  Claude Code's VS Code and JetBrains plugins run a
    local MCP server on a random loopback port with a lock file for discovery;
    Cursor, Windsurf, Zed and VS Code's Copilot are MCP clients over stdio and
@@ -1159,14 +1161,19 @@ shared list is where the mathematics is.
 
 ## Depth 4: the numbers the argument rests on
 
-Every figure below is from an archived run, with its date and machine, as the
-project's working rules require, except two that are upstream's own undated
-claims and are marked so (corrected 2026-10-06: the brief listed them as
-archived).  "Browser" means the fork as imported, in headless Chromium 153 on
-William's workstation, unless the row says otherwise.  "Native" means Agda
-2.8.0 from the agda-algebras dev shell on the same machine (20 cores, 64 GB),
-measured for the brief on 2026-10-05, three runs each, interfaces accepted on
-every run (one `Checking` line); those runs are archived in [#60]'s findings.
+Every figure below is cited to the record it comes from, as the project's
+working rules require: each timing and the drive's share of a check to a dated
+run; each byte count to the file it measures ([ADR 0001][adr-0001], [#30],
+[#60], agda-native-air's corpus cards); and the tool contract's figures to
+agda-native-air's own records.  Two browser figures are upstream's undated
+claims and are marked so.  (Corrected 2026-10-06: the brief said every figure
+was from an archived run with its date and machine, which the byte counts and
+the records are not, and listed the two upstream claims as archived.)
+"Browser" means the fork as imported, in headless Chromium 153 on William's
+workstation, unless the row says otherwise.  "Native" means Agda 2.8.0 from the
+agda-algebras dev shell on the same machine (20 cores, 64 GB), measured for the
+brief on 2026-10-05, three runs each, interfaces accepted on every run (one
+`Checking` line); those runs are archived in [#60]'s findings.
 
 | Measurement | Browser | Native | Source |
 |---|---|---|---|
