@@ -47,12 +47,15 @@ committed.
 
 Where it stands: in the dev shell, the imported app builds, its 5 unit tests
 and its type check pass, and it checks `Main.agda` in headless Chromium with
-`crossOriginIsolated` true (§ 3).
+`crossOriginIsolated` true (§ 3).  Since 2026-10-05 the site is also a Nix
+package that builds reproducibly ([#3]), and CI builds it, runs its unit
+tests and type check, and checks `Main.agda` in headless Chromium on every
+pull request ([#5]).
 
-Where it goes: a mirror for the compiler and a rebuild recipe ([#4]), the
-site as a Nix package ([#3]), CI with a browser check ([#5]), hosting
-([#6]), the license review before the repository goes public ([#53]), and
-the second lane, the plain checker as the verdict of record ([#30]).
+Where it goes: a mirror for the compiler and a rebuild recipe ([#4]),
+hosting ([#6]), the license review before the repository goes public
+([#53]), and the second lane, the plain checker as the verdict of record
+([#30]).
 
 ---
 
@@ -95,7 +98,12 @@ is until Milestone 1 changes it deliberately.
    als-demo's), while every upstream commit is Seungheon Oh's ([#48]).
 
 **Status**.  Adopted.  Open: everything Milestone 1 changes, starting with
-the drive's lookups ([#50]) and the builtin interfaces ([#49]).
+the drive's lookups ([#50]) and the builtin interfaces ([#49]).  On
+2026-10-05 [#3] removed `wrangler`, the last Cloudflare package, and
+replaced the hand-maintained cache tokens with values the build derives
+from the files; the rest of upstream's Cloudflare-shaped build, the
+post-step that gzips the compiler (`scripts/prepare-cloudflare-assets.mjs`)
+and `static/_headers`, waits for the host ([#6]).
 
 ---
 
@@ -245,7 +253,14 @@ consumes against the same pins.
 
 **Status**.  Adopted.  Open on [#4]: a mirror this organization controls
 (the compiler has one source, a personal repository), and the rebuild
-recipe as a flake app, with its outcome recorded.
+recipe as a flake app, with its outcome recorded.  On 2026-10-05 [#3]
+decided that the built site does not ship the raw compiler.  The fallback
+could serve only Safari 15.2 to 16.3, since every Firefox without
+`DecompressionStream` (before 113) also lacks the module workers the page
+starts (from 114; MDN's compatibility data), and it would cost 33 MB a
+deploy, over Cloudflare Pages' 25 MiB limit for one file.  The page's
+silence when it cannot fetch or decompress the compiler stays open,
+proposed for [#8].
 
 ---
 
@@ -387,11 +402,11 @@ and are cited here rather than measured again.
 |---|---|---|---|
 | 1 | Fork plfa-playground whole, not als-demo or the plain checker; keep its two workers, transport, give rule, archive format and persistence | Adopted ([#2]) | als-demo sends only `Cmd_load`; the fork builds, tests and checks `Main.agda` here (§ 3) |
 | 2 | Import a snapshot of `ae0aa84c`, 89 files byte for byte, with a per-file SHA-256 record; no history merge | Adopted ([#2]; the plan's wording changed to match, 2026-10-05) | 67 binary blobs, 171,397,049 bytes, in upstream's history; blob ids equal |
-| 3 | Keep upstream's colliding files at new paths (`README.plfa-playground.md`, `LICENSE.plfa-playground`, `app.yml`); merge its `.gitignore`; leave out `wrangler.jsonc` | Adopted ([#2]) | `docs/provenance.md` |
+| 3 | Keep upstream's colliding files at new paths (`README.plfa-playground.md`, `LICENSE.plfa-playground`, `app.yml`); merge its `.gitignore`; leave out `wrangler.jsonc` | Adopted ([#2]); `app.yml` later replaced by `site.yml` ([#5]) | `docs/provenance.md` |
 | 4 | Every change to an imported file is its own commit, with a header comment or a provenance row, and leaves `upstream/unchanged.sha256` | Adopted ([#2]) | `make provenance-check` |
 | 5 | Sync file by file from the record, with `git merge-file` for changed files | Adopted ([#2]) | Rehearsed on a constructed later commit (§ 2) |
 | 6 | Pin the 36 binaries by SHA-256, one fixed-output fetch per file; check `static/` before every build | Adopted (part of [#4]) | A changed pin fails the fetch; a flipped byte fails the build (§ 3) |
-| 7 | Do not pin upstream's compiler gzip | Adopted | The build writes its own; `npm run dev` falls back; the built site's raw fallback is a 404, [#3]'s to decide (§ 3) |
+| 7 | Do not pin upstream's compiler gzip | Adopted | The build writes its own; `npm run dev` falls back; the built site's raw fallback is a 404 (§ 3, and row 15) |
 | 8 | Node 22 in the dev shell | Adopted (part of [#3]) | 22.22.2, inside upstream's engines range |
 | 9 | `NOTICE` plus `licenses/`, published as `NOTICE.txt` and `licenses/`; upstream's `NOTICE.md` removed | Adopted ([#48]) | Every text read at its source (§ 4) |
 | 10 | GMP under LGPL-3.0-or-later, relinking met by the pinned sources and the recipe | Adopted provisionally; the judgment deferred to [#53] | § 4 |
@@ -399,6 +414,7 @@ and are cited here rather than measured again.
 | 12 | The plain checker is the planned verdict of record, not adopted here | Recorded ([#30]) | PR 585: no isolation; JSPI 1.45 s reloads, 45 to 55 ms queries |
 | 13 | Native interfaces are accepted; the drive is the cost; the builtins are stale | Settled | [#13], [#50], [#49] |
 | 14 | The open license questions wait until before the repository goes public; the notice stands as written meanwhile | Adopted (William, 2026-10-05; [#53]) | § 4 |
+| 15 | The built site does not ship the raw compiler; the page's silence without it is proposed for [#8] | Adopted ([#3], 2026-10-05) | Only Safari 15.2 to 16.3 could use it; 33 MB a deploy; Cloudflare Pages' 25 MiB file limit (§ 3) |
 
 ---
 
@@ -414,9 +430,12 @@ and are cited here rather than measured again.
    at `ae0aa84c`.
 +  **Documents**: [`docs/notes/runtime.md`][note] (how the runtime works),
    [`docs/provenance.md`][provenance] (the record), [`NOTICE`][notice].
-+  **Code**: `flake.nix` (`packages.assets`, the pins), `Makefile` (`assets`,
-   `assets-check`, `build`, `provenance-check`), `upstream/` (the records),
-   `scripts/upstream-record.sh`, `.github/workflows/app.yml`.
++  **Code**: `flake.nix` (`packages.assets`, the pins; `packages.site`;
+   `apps.browser-check`), `Makefile` (`assets`, `assets-check`, `dev`,
+   `build`, `test`, `check`, `browser-check`, `provenance-check`),
+   `upstream/` (the records), `scripts/upstream-record.sh`,
+   `scripts/asset-manifest.mjs` and `src/lib/assets.ts` (the derived cache
+   tokens), `scripts/browser-check/`, `.github/workflows/site.yml`.
 
 [#2]: https://github.com/formalverification/agda-native-ide/issues/2
 [#3]: https://github.com/formalverification/agda-native-ide/issues/3

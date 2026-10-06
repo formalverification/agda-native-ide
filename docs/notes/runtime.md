@@ -7,10 +7,12 @@ workers, the transport between the page and the language server, the
 in-memory drive, and the rule that decides between a give and a full check.
 [ADR 0001][adr] records the decisions about it; this note is the explanation
 the ADR links.  Every line reference is to this repository's copy of the
-fork, which is upstream's `ae0aa84c` unchanged in `src/`.  The facts come
-from reading that source, and the measurements from the issues that record
-them (their findings sections condense the 2026-10-04 investigation of the
-fork).
+fork: upstream's `ae0aa84c`, with the changes `docs/provenance.md` lists;
+of those, only the derived `?cache=` tokens and the drive's cache
+namespace touch what this note describes, and each is explained where it
+arises.  The facts come from reading that source, and the measurements
+from the issues that record them (their findings sections condense the
+2026-10-04 investigation of the fork).
 
 ## The pieces
 
@@ -48,7 +50,7 @@ make that work with shared memory.
    worker through two 1 MiB rings, under a 4-byte mutex taken with
    `Atomics.compareExchange` and `Atomics.wait`
    (`src/lib/worker/proxy-wasi-drive.ts:78-98`).  The page allocates all of
-   these when its component is created (`src/routes/+page.svelte:93-104`).
+   these when its component is created (`src/routes/+page.svelte:102-113`).
 
 Browsers expose `SharedArrayBuffer` only to a cross-origin isolated page:
 one served with `Cross-Origin-Opener-Policy: same-origin` and
@@ -64,7 +66,7 @@ requirement three ways:
    reload on a first visit, and with a race that left some measured first
    visits unisolated ([#6]);
 +  **nothing else**: without isolation the page throws when it allocates
-   its buffers, before its own check (`+page.svelte:443`) can explain why
+   its buffers, before its own check (`+page.svelte:452`) can explain why
    ([#8]).
 
 The plain Agda checker of the second lane needs none of this (ADR 0001,
@@ -73,7 +75,7 @@ blocks on memory another thread writes.
 
 ## Startup
 
-`runALSWASM` (`controller.svelte.ts:414-496`) starts the runtime.
+`runALSWASM` (`controller.svelte.ts:424-506`) starts the runtime.
 
 1. It starts the language-server worker and, in parallel, fetches the
    compiler and the data.  The compiler comes as `als-2.8ext.wasm.gz`,
@@ -81,20 +83,28 @@ blocks on memory another thread writes.
    already sent it with `Content-Encoding: gzip`; without
    `DecompressionStream`, or if the `.gz` cannot be fetched, the page
    fetches the raw `als-2.8ext.wasm` instead (`fetchWASMAndData`,
-   `:111-141`).  That fallback is dead in the built site: the build's
+   `:122-152`).  That fallback is dead in the built site: the build's
    post-step deletes the raw file (`scripts/prepare-cloudflare-assets.mjs`),
    so the request is a 404 (on upstream's live site, the page's own HTML
    labelled `application/wasm`); the controller swallows the failure
-   (`:283-290`), so the page says "Agda ready" with no goals and never
+   (`:294-301`), so the page says "Agda ready" with no goals and never
    checks, and shows no error.  Measured 2026-10-05 in headless Chrome 153
    with `DecompressionStream` removed from the page: no check after 60 s;
    with the raw file put back in `build/`, two goals in 1.20 s.  Of the
    build's declared targets (`vite.config.js`: Chrome 89, Edge 89, Firefox
    89, Safari 15), Firefox before 113 and Safari before 16.4 have no
    `DecompressionStream` (MDN's compatibility data, read 2026-10-05).
-   Whether the built site ships the raw file too, or drops the branch and
-   says so, is [#3]'s.  The data are `agda-data.zip` (Agda's builtin
-   library), `agda-stdlib-2.3.zip` and `plfa/project.zip`.
+   [#3] decided that the built site does not ship the raw file: the
+   fallback could serve only Safari 15.2 to 16.3, since a Firefox without
+   `DecompressionStream` also lacks module workers (until 114), which the
+   page starts, and it would cost 33 MB a deploy, over Cloudflare Pages'
+   25 MiB limit for one file.  The page's silence when it cannot fetch or
+   decompress the compiler stays open, proposed for [#8].  The data are
+   `agda-data.zip` (Agda's builtin library), `agda-stdlib-2.3.zip` and
+   `plfa/project.zip`.  Each of these URLs, and those of PLFA's interface
+   archives, carries a `?cache=` token that the build derives from the
+   file's content (`src/lib/assets.ts`), so a changed file is never served
+   from a cache under its old URL.
 2. The drive worker extracts the three archives (`drive.ts:214-251`): the
    builtins at `/lib/prim`, with their interfaces moved under
    `/lib/prim/_build/2.8.0/agda/`, where Agda 2.8 looks; the standard
@@ -102,9 +112,9 @@ blocks on memory another thread writes.
    library registry, `/home/root/.config/agda/libraries` and `defaults`,
    naming the standard library and PLFA, and restores what an earlier visit
    persisted (below).
-3. The controller runs `als --setup` once in a throwaway instance (`:479`),
+3. The controller runs `als --setup` once in a throwaway instance (`:489`),
    then starts the long-lived server with
-   `+RTS -A64m -RTS +AGDA --interaction -AGDA` (`:439`), with
+   `+RTS -A64m -RTS +AGDA --interaction -AGDA` (`:449`), with
    `HOME=/home/root` and `Agda_datadir=/` (`als.ts:143-146`).
 
 The user's buffer is `/Main.agda`, beside `/plfa.agda-lib` (`include: .`),
@@ -122,7 +132,7 @@ method.
    interaction mode reads, as Emacs's agda-mode sends it), carried in a
    request named `agda` whose parameters are
    `{tag: "CmdReq", contents: 'IOTCM "/Main.agda" NonInteractive Direct (<command>)'}`
-   (`controller.svelte.ts:739-748`).  A response `CmdRes` with no contents
+   (`controller.svelte.ts:749-758`).  A response `CmdRes` with no contents
    means the command was accepted.
 +  **Answers**: the server streams Agda's interaction-JSON responses back
    as server-to-client requests, also named `agda` (mostly tagged
@@ -130,7 +140,7 @@ method.
    so the server's next write waits for the page, and routes it to the
    handlers for highlighting, goals, gives and case splits
    (`transport.js:103-153`); `ResponseEnd` ends a command.
-+  **Goal commands** (`controller.svelte.ts:787-860`): `Cmd_goal_type` and
++  **Goal commands** (`controller.svelte.ts:797-870`): `Cmd_goal_type` and
    `Cmd_context` (normalised), `Cmd_give WithoutForce`,
    `Cmd_refine_or_intro False`, `Cmd_make_case`, `Cmd_infer_toplevel`,
    `Cmd_compute DefaultCompute` (or `Cmd_compute_toplevel` with no goal
@@ -139,20 +149,20 @@ method.
 
 ## A check, and the give rule
 
-A check is `loadAgdaFile` (`controller.svelte.ts:545-607`).
+A check is `loadAgdaFile` (`controller.svelte.ts:555-617`).
 
 +  If the buffer is the snapshot last checked and that check had no error,
    nothing is sent.
 +  If the only change since that snapshot lies wholly inside one goal's
    braces, `{! ... !}`, in both the old text and the new, and leaves the
    goal non-empty, the controller sends `Cmd_give WithoutForce` for that
-   goal with its new contents (`getFastGoalCheck`, `:614-668`).  Agda
+   goal with its new contents (`getFastGoalCheck`, `:624-678`).  Agda
    checks the expression against the goal's type, in milliseconds.
 +  Anything else (a declaration, an import, an edit spanning two goals, an
    edit outside every goal) writes the buffer to the drive and sends a full
    `Cmd_load "/Main.agda" []`.  The source says why: "Everything else
    deliberately falls back to Cmd_load, so edits to declarations, imports,
-   or more than one hole always recheck the module" (`:609-613`).
+   or more than one hole always recheck the module" (`:619-623`).
 
 The rule is conservative by construction: the fast path is taken only when
 a give is exactly what the edit means, and a stale result can never stand
@@ -173,10 +183,14 @@ a warm declaration edit at 3.01 s on average across PLFA's 25 chapters
 +  **Persistence**: the drive keeps `/Main.agda`, any source written with
    type 3, and every interface Agda writes in an IndexedDB database named
    `agda-playground-drive-<namespace>` (`drive.ts:122-212`, `:294-318`),
-   where the namespace is a string literal in the controller (`:377`).
+   where the namespace is a digest of everything Agda reads (the compiler,
+   the builtins, the standard library and PLFA), which the build derives
+   from the files (`scripts/asset-manifest.mjs`, read by
+   `src/lib/assets.ts`), so that a cache is never restored against other
+   files.
    Mounted archives are not persisted; restored records replace archive
    entries at the same path.
-+  **More libraries**: `mountDriveArchives(urls)` (`controller.svelte.ts:699-737`)
++  **More libraries**: `mountDriveArchives(urls)` (`controller.svelte.ts:709-747`)
    fetches zips and extracts them at `/`; it does not touch the library
    registry, which the drive writes once at startup.
 

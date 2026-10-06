@@ -1,3 +1,13 @@
+// File: src/lib/controller.svelte.ts
+//
+// Changed from upstream: this is SeungheonOh/plfa-playground's
+// src/lib/controller.svelte.ts at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
+// (docs/provenance.md).  The cache tokens of the compiler's, the standard
+// library's and PLFA's URLs, the compiler's length in bytes, and the
+// drive's cache namespace come from $lib/assets, which the build derives
+// from the files, instead of values maintained by hand; the builtins' URL,
+// which had no token, gains one (issue 3).
+
 import { SPSC } from "spsc";
 import { SPSCReader } from "spsc/reader";
 import { SPSCWriter } from "spsc/writer";
@@ -23,6 +33,7 @@ import type {
   WASMLoadingProgress,
 } from "$lib/worker/types";
 import { asset } from "$app/paths";
+import { cacheTokens, compilerBytes, driveCacheNamespace } from "$lib/assets";
 import {
   ALSMessageRouter,
   makeLSPTransport,
@@ -100,11 +111,11 @@ export const agdaVersionMap: Record<SupportedAgdaVersion, AgdaVersionSpec> = {
     dataPath: asset("/agda-data.zip"),
   },
   "2.8.0": {
-    path: `${asset("/als-2.8ext.wasm")}?cache=stock-agda-o2-20260831`,
-    compressedPath: `${asset("/als-2.8ext.wasm.gz")}?cache=stock-agda-o2-20260831`,
-    byteLength: 32_996_332,
+    path: `${asset("/als-2.8ext.wasm")}?cache=${cacheTokens.compiler}`,
+    compressedPath: `${asset("/als-2.8ext.wasm.gz")}?cache=${cacheTokens.compiler}`,
+    byteLength: compilerBytes,
     stdlibCandidates: ["2.3"],
-    dataPath: asset("/agda-data.zip"),
+    dataPath: `${asset("/agda-data.zip")}?cache=${cacheTokens.builtins}`,
   },
 };
 
@@ -374,8 +385,7 @@ export class AgdaController {
       agdaDataZip: options.builtin ?? null,
       agdaStdlibZip: options.stdlib ?? null,
       plfaProjectZip: options.plfa ?? null,
-      cacheNamespace:
-        "stock-agda-2.8.0-o2-stdlib-2.3-plfa-870f9bb12d61927cdea3311cedcbbc48ac3fc422-browser-adapters-v1",
+      cacheNamespace: driveCacheNamespace,
     });
 
     if (event.data !== "fs-ready") {
@@ -454,11 +464,11 @@ export class AgdaController {
         .getALSVersion()
         .then((ver) => (this.receivedALSVersion = ver)),
       dataFile ? dataFile.arrayBuffer() : Promise.resolve(undefined),
-      fetch(`${asset("/agda-stdlib-2.3.zip")}?cache=stock-agda-20260831`).then(
-        (x) => x.arrayBuffer(),
-      ),
       fetch(
-        `${asset("/plfa/project.zip")}?cache=browser-adapters-v1-20260831`,
+        `${asset("/agda-stdlib-2.3.zip")}?cache=${cacheTokens.stdlib}`,
+      ).then((x) => x.arrayBuffer()),
+      fetch(
+        `${asset("/plfa/project.zip")}?cache=${cacheTokens.plfaProject}`,
       ).then((x) => x.arrayBuffer()),
     ]);
 

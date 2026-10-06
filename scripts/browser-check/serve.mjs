@@ -1,0 +1,123 @@
+// File: scripts/browser-check/serve.mjs
+//
+// A static server for a built site, with the two headers that make a
+// page cross-origin isolated (Cross-Origin-Opener-Policy: same-origin and
+// Cross-Origin-Embedder-Policy: require-corp), which the language
+// server's shared memory needs.  It serves files as they are, a `.gz` as
+// application/gzip with no Content-Encoding (as GitHub Pages does), and
+// logs every request, since a worker's requests are invisible to the
+// page's DevTools session.  Adapted from the 2026-10-04 investigation's
+// harness (issue 5).
+//
+//   node scripts/browser-check/serve.mjs <site> [port]
+
+import { readFile } from "node:fs/promises";
+import { createServer } from "node:http";
+import { extname, resolve, sep } from "node:path";
+import { pathToFileURL } from "node:url";
+
+const TYPES = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".json": "application/json",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".woff2": "font/woff2",
+  ".wasm": "application/wasm",
+  ".gz": "application/gzip",
+  ".zip": "application/zip",
+  ".md": "text/markdown; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
+};
+
+/**
+ * Serve `root` on 127.0.0.1 (a secure context, as isolation requires).
+ * @param {{ root: string, port?: number }} options
+ */
+export function serve({ root, port = 0 }) {
+  // Every file must lie under this prefix; the filesystem root is its own
+  // prefix, already ending in a separator.
+  const resolved = resolve(root);
+  const base = resolved.endsWith(sep) ? resolved : resolved + sep;
+  /** @type {{ t: number, method: string, url: string, status: number, bytes: number }[]} */
+  const log = [];
+  const t0 = performance.now();
+  const server = createServer(async (request, response) => {
+    const entry = {
+      t: Math.round(performance.now() - t0),
+      method: request.method ?? "GET",
+      url: request.url ?? "/",
+      status: 0,
+      bytes: 0,
+    };
+    log.push(entry);
+    let status = 200;
+    /** @type {Buffer} */
+    let body = Buffer.from("");
+    /** @type {string | null} */
+    let file = null;
+    try {
+      const url = new URL(request.url ?? "/", "http://127.0.0.1");
+      let path = decodeURIComponent(url.pathname);
+      if (path.endsWith("/")) path += "index.html";
+      file = resolve(base, "." + path);
+    } catch {
+      // A target no browser sends (a malformed escape, say).
+      status = 400;
+      body = Buffer.from("bad request");
+    }
+    if (file === null) {
+      // Answered above.
+    } else if (!file.startsWith(base)) {
+      status = 403;
+      body = Buffer.from("forbidden");
+    } else {
+      try {
+        body = await readFile(file);
+      } catch {
+        status = 404;
+        body = Buffer.from("not found");
+      }
+    }
+    entry.status = status;
+    entry.bytes = body.length;
+    response.writeHead(status, {
+      "content-type":
+        status === 200
+          ? (TYPES[extname(file ?? "")] ?? "application/octet-stream")
+          : "text/plain; charset=utf-8",
+      "content-length": body.length,
+      "cache-control": "max-age=600",
+      "cross-origin-opener-policy": "same-origin",
+      "cross-origin-embedder-policy": "require-corp",
+    });
+    response.end(request.method === "HEAD" ? undefined : body);
+  });
+  return new Promise((done) => {
+    server.listen(port, "127.0.0.1", () => {
+      const address = server.address();
+      const listening =
+        typeof address === "object" && address ? address.port : port;
+      done({
+        origin: `http://127.0.0.1:${listening}`,
+        log,
+        close: () =>
+          new Promise((closed) => {
+            server.closeAllConnections();
+            server.close(() => closed(undefined));
+          }),
+      });
+    });
+  });
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  const [root, port] = process.argv.slice(2);
+  if (!root) {
+    console.error("usage: node scripts/browser-check/serve.mjs <site> [port]");
+    process.exit(2);
+  }
+  const { origin } = await serve({ root, port: Number(port ?? 8000) });
+  console.log(`serving ${root} at ${origin}/, cross-origin isolated`);
+}
