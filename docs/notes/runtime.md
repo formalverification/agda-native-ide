@@ -8,11 +8,11 @@ in-memory drive, and the rule that decides between a give and a full check.
 [ADR 0001][adr] records the decisions about it; this note is the explanation
 the ADR links.  Every line reference is to this repository's copy of the
 fork: upstream's `ae0aa84c`, with the changes `docs/provenance.md` lists;
-of those, only the derived `?cache=` tokens and the drive's cache
-namespace touch what this note describes, and each is explained where it
-arises.  The facts come from reading that source, and the measurements
-from the issues that record them (their findings sections condense the
-2026-10-04 investigation of the fork).
+of those, only the derived `?cache=` tokens, the drive's cache namespace
+and the drive's index touch what this note describes, and each is
+explained where it arises.  The facts come from reading that source, and
+the measurements from the issues that record them (their findings
+sections condense the 2026-10-04 investigation of the fork).
 
 ## The pieces
 
@@ -105,7 +105,7 @@ blocks on memory another thread writes.
    archives, carries a `?cache=` token that the build derives from the
    file's content (`src/lib/assets.ts`), so a changed file is never served
    from a cache under its old URL.
-2. The drive worker extracts the three archives (`drive.ts:214-251`): the
+2. The drive worker extracts the three archives (`drive.ts:224-261`): the
    builtins at `/lib/prim`, with their interfaces moved under
    `/lib/prim/_build/2.8.0/agda/`, where Agda 2.8 looks; the standard
    library's sources at `/stdlib`; PLFA at the root.  It writes Agda's
@@ -172,24 +172,60 @@ a warm declaration edit at 3.01 s on average across PLFA's 25 chapters
 
 ## The drive
 
-+  **Layout**: Runno's drive is a flat map from path to file.  A lookup
-   scans every key and builds a regular expression for each one
-   (`node_modules/@runno/wasi/dist/main.js:475-499`), so its cost grows with
-   the number of files on the drive, including files Agda never reads.
++  **Layout**: Runno's drive is a flat map from path to file, and its root
+   directory answers each membership test (is this path a file, is it a
+   directory) by scanning every key and building a regular expression for
+   each one (`node_modules/@runno/wasi/dist/main.js:475-499`).  Unaided, a
+   lookup's cost therefore grows with the number of files on the drive,
+   including files Agda never reads.
++  **The index** (`src/lib/worker/drive-index.ts`, [#50]) answers those
+   tests instead, from the drive's keys, counted by the paths and the
+   directories they name.  It is built once the drive is constructed
+   (Runno copies the record it is given), and it follows every call that
+   adds or removes a key (`open` with `O_CREAT`, `pathCreateDir`, `unlink`,
+   `rename`) and the drive worker's own writes (message types 3 and 4).  It
+   also answers a directory's `pathStat` without the filter of the whole
+   drive that Runno builds and its stat never reads.  Runno's own methods
+   still compute every result, so no answer changes:
+   `drive-index.test.ts` runs a plain and an indexed drive side by side
+   over random call sequences and requires the same results, errors and
+   keys.  What stays linear in the drive's size is rare: opening a
+   directory (Runno snapshots its files by filtering every key), listing
+   one, and an unlink or a rename, whose own loops visit every key.
++  **What a call costs**, measured 2026-10-06 in headless Chromium 149 on
+   a warm reload of a `Main` importing PLFA's `part2.Properties` (7,371
+   lookups; [#50]'s pull request has the method and the runs): a lookup
+   answered in the drive worker takes 0.9 to 1.7 µs with 1,361 to 5,361
+   files on the drive, where the scan took 0.75 to 0.97 ms with 1,361 and
+   3.5 to 3.9 ms with 5,361.  The reload took 0.51 to 0.73 s at every size,
+   against 6.7 to 8.9 s with 1,361 files and 28.1 to 31.7 s with 5,361
+   before the index, and the drive's share of it is 34 to 97 ms, most of
+   that the 46 directories Agda opens and lists.  The round trip through
+   the proxy from the language server's worker now costs more than the
+   lookup: 20,000 lookups took 17.1 to 20.1 µs each through the proxy and
+   0.87 to 1.18 µs in the drive worker, so about 0.15 s of that reload is
+   the round trip, which the reactor build's drive in the server's worker
+   removes ([#59]).
 +  **Protocol**: message type 0 proxies a Runno drive call (reads and stats
    answer in binary, writes send base64); type 1 writes `/Main.agda`, type 3
    any path, type 4 extracts a zip at `/`, type 5 persists dirty files, and
-   type 2 dumps the filesystem to the console (`drive.ts:326-416`).
-+  **Persistence**: the drive keeps `/Main.agda`, any source written with
-   type 3, and every interface Agda writes in an IndexedDB database named
-   `agda-playground-drive-<namespace>` (`drive.ts:122-212`, `:294-318`),
-   where the namespace is a digest of everything Agda reads (the compiler,
-   the builtins, the standard library and PLFA), which the build derives
-   from the files (`scripts/asset-manifest.mjs`, read by
+   type 2 dumps the filesystem to the console (`drive.ts:337-429`).
++  **Persistence**: the drive means to keep `/Main.agda`, any source
+   written with type 3, and every interface Agda writes in an IndexedDB
+   database named `agda-playground-drive-<namespace>` (`drive.ts:132-222`,
+   `:305-329`), where the namespace is a digest of everything Agda reads
+   (the compiler, the builtins, the standard library and PLFA), which the
+   build derives from the files (`scripts/asset-manifest.mjs`, read by
    `src/lib/assets.ts`), so that a cache is never restored against other
-   files.
-   Mounted archives are not persisted; restored records replace archive
-   entries at the same path.
+   files.  Mounted archives are not persisted; restored records replace
+   archive entries at the same path.  But the persisting code reads each
+   dirty path from the record the drive was constructed from
+   (`drive.ts:199`), not from the drive's own copy of it, so a file at a
+   path made later is never persisted: measured 2026-10-06, after a cold
+   check that rewrote 8 builtin interfaces and wrote `Main`'s and 8 PLFA
+   modules' interfaces, the database held `/Main.agda` and the builtins'
+   interfaces, whose paths came from `agda-data.zip`, and none of the
+   others ([#59]).
 +  **More libraries**: `mountDriveArchives(urls)` (`controller.svelte.ts:709-747`)
    fetches zips and extracts them at `/`; it does not touch the library
    registry, which the drive writes once at startup.
@@ -208,10 +244,13 @@ acceptance is counted, never inferred: the running info prints one
 +  **The builtin interfaces the fork ships are not**: `agda-data.zip` holds
    Agda 2.7.0.1's (version 202406290), so a fresh profile's first check of
    the default `Main.agda` type-checks `Main` and three builtins ([#49]).
-+  **Most of a check's time is the drive, not Agda**: with interfaces
-   accepted, a `Main` importing agda-algebras' `Overture.Basic` took 13.6 to
-   18.5 s per check, and 1.8 to 3.7 s with an index on the drive's lookups
-   ([#50]).
++  **Most of a check's time was the drive, not Agda** ([#50]): with
+   interfaces accepted, a `Main` importing agda-algebras' `Overture.Basic`
+   took 13.6 to 18.5 s per check (2026-10-04).  With the drive indexed, a
+   warm reload of a `Main` importing `Setoid.Varieties.HSP` (313
+   interfaces, 41,692 lookups a check) takes 1.80 to 1.94 s, against 52.4
+   to 53.5 s before, and native Agda's 0.37 to 0.46 s over the same
+   staging (2026-10-06, the interim figure on [#50]).
 
 [adr]: ../adr/0001-runtime.md
 [#3]: https://github.com/formalverification/agda-native-ide/issues/3
@@ -220,3 +259,4 @@ acceptance is counted, never inferred: the running info prints one
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
 [#49]: https://github.com/formalverification/agda-native-ide/issues/49
 [#50]: https://github.com/formalverification/agda-native-ide/issues/50
+[#59]: https://github.com/formalverification/agda-native-ide/issues/59

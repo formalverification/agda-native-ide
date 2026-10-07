@@ -34,7 +34,6 @@ f894ffb3710cdf8ab0930b10e6e9365d6faf279dbebdef3bb17e57348f0fbf35  src/lib/codemi
 f4e01583e477dba48cab2504c17010d84a25572276f5c8358ad2817b44620808  src/lib/index.js
 ebe943a3256648c1fe46ba346bd8c4aed44ae097fa323c41b8d0af4eb038e29a  src/lib/stdlib.ts
 2b9b86b369f915b2f498ece0003a8766694d8ed103154965c87c5fa76d68e46b  src/lib/worker/als.ts
-7697a37519cac027a5f3f8fc88eda5a43175ce076eb1c0e0f6fafef9b78c3ce6  src/lib/worker/drive.ts
 d241d2c4073c3066759ad809e0ada62cef4b3def01882b777c55491815809f1a  src/lib/worker/patch-wasi.ts
 1eda7d82c1adf6d9b485c27d19ad4941b7195db6f87fab2d95dc99037372ace2  src/lib/worker/proxy-wasi-drive.ts
 e9491cc52292e4a76f2a70c3bca196b715b357070b2816d7601e003cdc63f22a  src/lib/worker/types.d.ts
