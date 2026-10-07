@@ -1,0 +1,53 @@
+# File: compiler/patches/agda-language-server-wasm-project.patch
+#
+# What: the server's wasm project file, cabal.project.wasm32, for the build
+# of issue 58: the Hackage index at the Agda commit's time, the lsp and
+# lsp-types of the server's own submodule (lsp 2.8.0.0, lsp-types 2.4.0.0)
+# in place of the pinned lsp 2.7.0.1 and lsp-types 2.3.0.1, lsp's websocket
+# flag off, and Agda's use-xdg-data-home flag stated off.
+#
+# Why: the reactor module (app/Reactor.hs) needs lsp 2.8's
+# runServerWithConfig, and both variants are built from this one project
+# file, so that they differ only in the reactor flag.  lsp 2.8's websocket
+# support, on by default, brings websockets and through it entropy, whose
+# custom Setup cannot configure for wasm32 ("unable to find library
+# -lHSrts-1.0.2_thr"); the server does not use it.  The index state is
+# the plain agda's, so the two plans differ only where the server's own
+# dependencies require it (lsp caps aeson below 2.3, and Agda's project
+# file, which the plain agda uses, takes splitmix from a fork).  Without
+# use-xdg-data-home the server's data directory is $Agda_datadir itself,
+# where the page puts lib/prim.
+#
+# Against: agda/agda-language-server 0f77a209243185cb8e36a11bfc7b6ab47f5125b4
+# (tag v8).
+#
+diff --git a/cabal.project.wasm32 b/cabal.project.wasm32
+index 4e37f38..41aba3c 100644
+--- a/cabal.project.wasm32
++++ b/cabal.project.wasm32
+@@ -1,13 +1,11 @@
+-index-state: 2026-02-16T23:59:59Z
+-
+-constraints:
+-  lsp == 2.7.0.1,
+-  lsp-types == 2.3.0.1
++index-state: 2026-10-05T16:41:29Z
+ 
+ packages:
+   .
+   wasm-submodules/agda
+   wasm-submodules/network
++  wasm-submodules/lsp/lsp
++  wasm-submodules/lsp/lsp-types
+ 
+ source-repository-package
+   type: git  
+@@ -21,4 +19,7 @@ source-repository-package
+   tag: 2c3ab6e7aa2a86be692c55bf6081161d83d50c34
+ 
+ package Agda
+-  flags: +optimise-heavily
++  flags: +optimise-heavily -use-xdg-data-home
++
++package lsp
++  flags: -websocket

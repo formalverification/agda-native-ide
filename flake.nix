@@ -29,8 +29,15 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
   inputs.github-project.url = "github:williamdemeo/github-project";
+  # The WebAssembly toolchain of the compiler (issue 58): GHC 9.10 for
+  # wasm32-wasi, its cabal, binaryen and wasmtime, at the commit Agda's own
+  # flake pins at the Agda commit the compiler is built from, with that
+  # commit's own nixpkgs, so the store paths are the ones Agda's dev shell
+  # gives (compiler/build-agda-2.9.0.sh).
+  inputs.ghc-wasm-meta.url = "git+https://gitlab.haskell.org/haskell-wasm/ghc-wasm-meta.git?rev=58260711fd5c8ffbb81f4ac56e40323ff509d43b";
 
-  outputs = { self, nixpkgs, github-project }:
+
+  outputs = { self, nixpkgs, github-project, ghc-wasm-meta }:
     let
       lib = nixpkgs.lib;
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
@@ -212,6 +219,28 @@
             pkgs.gh
             pkgs.nodejs_22
             github-project.packages.${system}.gh-project-engine
+          ];
+        };
+      } // lib.optionalAttrs (ghc-wasm-meta.packages ? ${system}) {
+        # `nix develop .#compiler --command compiler/build-agda-2.9.0.sh`:
+        # the toolchain that builds the compiler (issue 58), and the native
+        # tools the build runs (alex and happy generate Agda's lexer and
+        # parser, hpack the server's cabal file, autoreconf its network
+        # submodule's configure, node GHC's post-linker).
+        compiler = pkgs.mkShell {
+          packages = (with ghc-wasm-meta.packages.${system}; [
+            wasm32-wasi-ghc-9_10
+            wasm32-wasi-cabal-9_10
+            binaryen
+            wasmtime
+          ]) ++ [
+            pkgs.git
+            pkgs.alex
+            pkgs.happy
+            pkgs.hpack
+            pkgs.autoconf
+            pkgs.automake
+            pkgs.nodejs_22
           ];
         };
       });
