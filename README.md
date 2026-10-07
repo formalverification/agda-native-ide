@@ -72,10 +72,11 @@ headless Chromium.  Nothing is deployed.
 Everything here runs in the dev shell (`nix develop`), which carries node
 22.22.2, make, gh and the plan file's engine.  The binaries the app ships
 (the compiler, the archives, the fonts and one icon) are not in git: `make
-assets` fetches them by hash into `static/`.
+assets` fetches them by hash into `static/`, with Agda's builtin library,
+which the flake builds from a pinned Agda (`nix build .#agda-data`).
 
 ```sh
-make assets        # fetch the 36 pinned binaries into static/, and check them
+make assets        # fetch the 35 pinned binaries, and build agda-data.zip, into static/
 make check         # svelte-check
 make test          # the unit tests (vitest)
 make build         # check the pins, then npm run build, into build/

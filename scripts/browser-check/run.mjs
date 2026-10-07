@@ -35,16 +35,11 @@ import { launch } from "./cdp.mjs";
 import { serve } from "./serve.mjs";
 
 /** The modules a fresh profile's first check of the default Main.agda
- * type-checks, one `Checking` line each.  Main alone would mean every
- * shipped interface is accepted; the three builtins are here because the
- * fork ships Agda 2.7.0.1's builtin interfaces, which Agda 2.8.0 rejects
- * and checks again (issue 49, whose fix must reduce this to Main). */
-export const EXPECTED_CHECKING = [
-  "Main",
-  "Agda.Builtin.Nat",
-  "Agda.Builtin.Bool",
-  "Agda.Builtin.Equality",
-];
+ * type-checks, one `Checking` line each: Main alone, since every
+ * interface the site ships is accepted.  A builtin here means the shipped
+ * Agda rejected agda-data.zip's interfaces and checked them again (issue
+ * 49), which is a defect. */
+export const EXPECTED_CHECKING = ["Main"];
 
 /** The declaration step 4 appends, and the error Agda must report at
  * `refl`, after the position (Agda prints the naturals as numerals). */

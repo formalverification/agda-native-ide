@@ -42,7 +42,8 @@ upstream commit.
 | `.gitignore` | not imported | Its lines are merged into this repository's `.gitignore`. |
 | `wrangler.jsonc` | not imported | Upstream's Cloudflare account and route; hosting is [#6]. |
 | `NOTICE.md` | imported, then removed | `NOTICE` supersedes it and carries its text verbatim. |
-| 36 binaries under `static/` | not imported; pinned | Fetched by hash ([below](#pinned-binaries)). |
+| 35 binaries under `static/` | not imported; pinned | Fetched by hash ([below](#pinned-binaries)). |
+| `static/agda-data.zip` | not imported; pinned, then replaced | Upstream's held Agda 2.7.0.1's builtin library, which the shipped Agda rejects; the flake builds one instead ([below](#agdas-builtin-library-built-here), [#49]). |
 | `static/als-2.8ext.wasm.gz` | not imported; not pinned | The build makes its own ([below](#the-compilers-gzip)). |
 | every other file (85) | same path, unchanged unless listed below | Listed in `upstream/unchanged.sha256`. |
 
@@ -57,7 +58,7 @@ The flake fetches each file from
 one fixed-output fetch per file, by the SHA-256 in `upstream/assets.sha256`,
 so a fetched file that differs by a byte fails the fetch.  `make assets`
 copies the set into `static/`, and `make build` checks every file there
-against the same SHA-256 before it builds.  The 36 files total 49,234,067
+against the same SHA-256 before it builds.  The 35 files total 48,642,786
 bytes.  Each group below says where upstream got the files (checked
 2026-10-04) and their license.
 
@@ -82,19 +83,6 @@ plan.
 | Path | Bytes | SHA-256 |
 |---|---:|---|
 | `static/als-2.8ext.wasm` | 32,996,332 | `53c62b0ad569a9d123f744b192c13780c494ade0cddef4daaa00db41ecd7f7a1` |
-
-### Agda's builtin library
-
-Agda's `lib/prim`: 37 sources, 37 interfaces and `agda-builtins.agda-lib`.
-Byte-identical to `static/agda-data.zip` of [agda-web/als-demo] (branch
-`public`, last changed in `291b135bec22e976e0e018609fc34dc8e0898267`,
-2025-10-09).  Its sources and interfaces are Agda 2.7.0.1's, which Agda 2.8.0
-rejects and checks again ([#49]).  License: Agda's (MIT), as of
-v2.7.0.1.
-
-| Path | Bytes | SHA-256 |
-|---|---:|---|
-| `static/agda-data.zip` | 591,281 | `27d81d0987fa692e4a811851b23e5cd9e28b01d11f0ea3b30ee35be309259ea3` |
 
 ### The standard library
 
@@ -181,6 +169,48 @@ Removing PLFA is [#20].
 | `static/plfa/interfaces/part3/Denotational.zip` | 704,375 | `c4c8f8ad5ecdedeed6557e8a35b0a84e48be498ea65bd35a1b51be8dc7026987` |
 | `static/plfa/interfaces/part3/Soundness.zip` | 271,470 | `c725f51822615c4f60e52a5948fd4fb692d0cb47ad6e3ecadfb3be610df28f82` |
 
+## Agda's builtin library, built here
+
+`static/agda-data.zip` is Agda's `lib/prim`, whole: the sources of the
+`Agda.Primitive` and `Agda.Builtin` modules, `agda-builtins.agda-lib`, and
+the interfaces of every module under `_build/<version>/agda/`.  The flake
+builds it (`nix build .#agda-data`, `mkAgdaData` in `flake.nix`) from the
+Agda of its pinned nixpkgs, `haskellPackages.Agda` 2.8.0 at nixpkgs
+`b6018f87da91d19d0ab4cf979885689b469cdd41`, as follows:
+
++  that Agda writes its own data files into a throwaway data directory
+   (`agda --setup`), and builds its `lib/prim` in place there (`agda
+   --build-library`), naming no other library and no option;
++  the whole directory goes into the archive at the root the page's server
+   reads it from, `lib/prim` (the server is built without Agda's
+   `use-xdg-data-home` flag, and `src/lib/worker/als.ts` sets
+   `Agda_datadir` to `/`);
++  the zip is stored, its entries sorted, and every entry dated
+   1980-01-01, so its bytes depend on the input alone: `nix build
+   .#agda-data --rebuild` finds no difference, where the same build with
+   the files' own times fails it.
+
+`agdaDataInput` in `flake.nix` names the input, the Agda and the root;
+[#58]'s move to another Agda changes it, and nothing else.  The Agda must
+be the one the page's server embeds, since an interface is accepted only
+by the Agda version that wrote it, and the server writes its own copy of
+the sources before it starts.  On 2026-10-06 the archive held 73 entries:
+36 sources, 36 interfaces (header version 202507030) and the library file.
+License: Agda's (MIT), as of v2.8.0 (`licenses/agda-builtins.txt`, Agda's
+`LICENSE` at that tag).
+
+| Path | Bytes | SHA-256 |
+|---|---:|---|
+| `static/agda-data.zip` | 681,730 | `37063713ccc641ee11f30895ddee4542e24b1529e55f22aa85a8dfddbb875203` |
+
+Upstream's archive, a pin until [#49] replaced it, held Agda 2.7.0.1's
+`lib/prim`: 37 sources, 37 interfaces of header version 202406290, which
+Agda 2.8.0 rejects and checks again, and `agda-builtins.agda-lib`.  It was
+byte-identical to `static/agda-data.zip` of [agda-web/als-demo] (branch
+`public`, last changed in `291b135bec22e976e0e018609fc34dc8e0898267`,
+2025-10-09): 591,281 bytes, SHA-256
+`27d81d0987fa692e4a811851b23e5cd9e28b01d11f0ea3b30ee35be309259ea3`.
+
 ## The compiler's gzip
 
 Upstream commits `static/als-2.8ext.wasm.gz` (10,188,407 bytes, SHA-256
@@ -226,6 +256,8 @@ Each change is its own commit, named here by its subject.
 | `vite.config.js` | Defines `AGDA_ASSETS` for `src/lib/assets.ts`: the cache tokens, the compiler's length and the drive's cache namespace, which `scripts/asset-manifest.mjs` derives from the files in `static/`; a build hook refuses to build without them, while the dev server, vitest and svelte-check run without them ([#3]) | "Derive the cache tokens, the compiler's length and the cache namespace" |
 | `NOTICE.md` | Removed; `NOTICE` names everything the site ships and quotes it in full (its section 1) | "Remove upstream's NOTICE.md, which NOTICE supersedes" |
 | `src/lib/worker/drive.ts` | The drive's root directory answers its lookups from an index of the drive's paths (`src/lib/worker/drive-index.ts`), built once the drive is constructed and kept in step with Agda's calls and with the drive worker's own writes (message types 3 and 4), instead of scanning every key per lookup; Runno's methods still compute every result ([#50]) | "Index the drive's lookups" |
+| `src/lib/controller.svelte.ts` | The map of compiler versions keeps only 2.8.0, the one the site ships.  The 2.6.4.3 and 2.7.0.1 entries named compilers (`als-2.6.wasm`, `als-2.7ext.wasm`) that are in neither the site nor upstream's tree, and shared `agda-data.zip`, which is now built for the shipped Agda ([#49]) | "Keep only the shipped compiler in the version map" |
+| `src/lib/worker/drive.ts` | Agda's builtin library is extracted as it comes: the callback that moved its interfaces under `lib/prim/_build/2.8.0/agda/` is removed, since the flake builds the archive with them already there, under the building Agda's own version ([#49]) | "Build agda-data.zip from an Agda's own lib/prim" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
@@ -239,6 +271,7 @@ Each change is its own commit, named here by its subject.
 [#20]: https://github.com/formalverification/agda-native-ide/issues/20
 [#49]: https://github.com/formalverification/agda-native-ide/issues/49
 [#50]: https://github.com/formalverification/agda-native-ide/issues/50
+[#58]: https://github.com/formalverification/agda-native-ide/issues/58
 [agda-web/als-demo]: https://github.com/agda-web/als-demo
 [agda/agda]: https://github.com/agda/agda
 [cormullion/juliamono]: https://github.com/cormullion/juliamono

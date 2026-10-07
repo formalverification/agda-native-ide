@@ -397,11 +397,13 @@ Contents
 
 4.  Agda's builtin library: agda-data.zip
 
-    Agda's lib/prim (the Agda.Primitive and Agda.Builtin modules, their
-    interfaces and agda-builtins.agda-lib), as of Agda 2.7.0.1;
-    byte-identical to agda-web/als-demo's static/agda-data.zip.
-    MIT, Copyright (c) 2005-2024 remains with the authors:
-    licenses/agda-builtins.txt (Agda's LICENSE at v2.7.0.1).
+    Agda's lib/prim (the sources of the Agda.Primitive and Agda.Builtin
+    modules, agda-builtins.agda-lib, and their interfaces), as Agda 2.8.0
+    writes it and builds it: made by this repository's flake
+    (packages.agda-data, mkAgdaData in flake.nix) from the Agda 2.8.0 of
+    its pinned nixpkgs.
+    MIT, Copyright (c) 2005-2025 remains with the authors:
+    licenses/agda-builtins.txt (Agda's LICENSE at v2.8.0).
 
 
 5.  The Agda standard library 2.3: agda-stdlib-2.3.zip

@@ -35,9 +35,10 @@ that checks one expression against one goal) rather than a full reload.
 
 It comes in as a snapshot, not a history merge: 89 of upstream's 128 files,
 byte for byte, at commit `ae0aa84c`, with a provenance record of every file's
-SHA-256; and the 36 binaries the app needs (the compiler, the archives, the
-fonts and an icon) are pinned by SHA-256 in the flake and fetched, never
-committed.  The build refuses a file that differs from its pin, and `NOTICE`
+SHA-256; and no binary the app needs is committed: 35 of them (the
+compiler, the archives, the fonts and an icon) are pinned by SHA-256 in the
+flake and fetched, and Agda's builtin library is built by the flake from a
+pinned Agda ([#49]).  The build refuses a file that differs from its pin, and `NOTICE`
 names everything the built site ships, with the license texts beside it.
 
 Why this shape: the fork already does what every later milestone builds
@@ -185,19 +186,23 @@ SHA-256 and fetched by the flake, one fixed-output fetch per file, from
 upstream's tree at the imported commit; the build checks the files it
 consumes against the same pins.
 
-+  **The pins**: `upstream/assets.sha256`, 36 files, 49,234,067 bytes: the
-   compiler (`als-2.8ext.wasm`), Agda's builtin library (`agda-data.zip`),
-   the standard library 2.3 (`agda-stdlib-2.3.zip`), six JuliaMono fonts,
-   the favicon's PNG, and PLFA's 26 archives.  The flake reads the file and
-   makes a `fetchurl` per line from
++  **The pins**: `upstream/assets.sha256`, 35 files, 48,642,786 bytes: the
+   compiler (`als-2.8ext.wasm`), the standard library 2.3
+   (`agda-stdlib-2.3.zip`), six JuliaMono fonts, the favicon's PNG, and
+   PLFA's 26 archives.  The flake reads the file and makes a `fetchurl` per
+   line from
    `raw.githubusercontent.com/SeungheonOh/plfa-playground/<commit>/<path>`;
-   `nix build .#assets` is the set.  A fixed-output fetch (one whose output
+   `nix build .#assets` is the set, with Agda's builtin library
+   (`agda-data.zip`), which was a 36th pin (591,281 bytes) until [#49]
+   replaced it with a build (§ 6).  A fixed-output fetch (one whose output
    hash is declared in advance) fails when the bytes differ.
 +  **The checks**: `make assets` copies the set into `static/` and checks
-   it; `make build` checks every file in `static/` against its pin
-   (`sha256sum --check --strict`) before `npm run build`.
+   it; `make build` checks every pinned file in `static/` against its pin
+   (`sha256sum --check --strict`) before `npm run build`, and, since
+   [#49], that `agda-data.zip` is the flake's build.
 +  **Not pinned**: upstream's `als-2.8ext.wasm.gz`, because the build writes
-   its own and the dev server falls back to the raw compiler without it.
+   its own and the dev server falls back to the raw compiler without it;
+   and, since [#49], `agda-data.zip`, which the flake builds (§ 6).
 +  **The dev shell** gains node 22 (22.22.2, `pkgs.nodejs_22`), so that
    `nix develop --command npm ...` works: the dev-shell clause of [#3],
    taken early because [#2]'s acceptance needs npm.
@@ -394,6 +399,22 @@ and are cited here rather than measured again.
 
 **Status**.  Settled; the fixes are [#49] and [#50].
 
+**The builtins' fix** ([#49], 2026-10-06).  `agda-data.zip` is built by
+the flake from the whole of an Agda's own `lib/prim` (sources, library file,
+and the interfaces that Agda builds under `_build/<its version>/agda/`), at
+the root the page's server reads it from, reproducibly; its input is one
+attribute, `agdaDataInput` (today the pinned nixpkgs' Agda 2.8.0 and
+`lib/prim`), which [#58]'s move to another Agda changes.  The input must be
+the Agda the server embeds, to the commit: the page runs `als --setup`
+before every server start, and `--setup` writes every builtin source from
+the server's own copy over the drive's.  Measured 2026-10-06 in headless
+Chromium 149: a fresh profile's first check of the default `Main.agda`
+type-checks `Main` alone (the browser check now asserts it), and so does
+each of two `Main`s that between them import all 36 builtins; an archive
+holding the fork's 2.7.0.1 sources beside the new interfaces gives the
+same in the browser, where native Agda, which reads the archive's sources,
+checks 9 and 4 builtins again.  The pull request has the runs.
+
 ---
 
 ## 7.  Decision log
@@ -405,14 +426,14 @@ and are cited here rather than measured again.
 | 3 | Keep upstream's colliding files at new paths (`README.plfa-playground.md`, `LICENSE.plfa-playground`, `app.yml`); merge its `.gitignore`; leave out `wrangler.jsonc` | Adopted ([#2]); `app.yml` later replaced by `site.yml` ([#5]) | `docs/provenance.md` |
 | 4 | Every change to an imported file is its own commit, with a header comment or a provenance row, and leaves `upstream/unchanged.sha256` | Adopted ([#2]) | `make provenance-check` |
 | 5 | Sync file by file from the record, with `git merge-file` for changed files | Adopted ([#2]) | Rehearsed on a constructed later commit (§ 2) |
-| 6 | Pin the 36 binaries by SHA-256, one fixed-output fetch per file; check `static/` before every build | Adopted (part of [#4]) | A changed pin fails the fetch; a flipped byte fails the build (§ 3) |
+| 6 | Pin upstream's binaries by SHA-256 (36; 35 since [#49] builds the builtins), one fixed-output fetch per file; check the pinned files in `static/` before every build | Adopted (part of [#4]) | A changed pin fails the fetch; a flipped byte fails the build (§ 3) |
 | 7 | Do not pin upstream's compiler gzip | Adopted | The build writes its own; `npm run dev` falls back; the built site's raw fallback is a 404 (§ 3, and row 15) |
 | 8 | Node 22 in the dev shell | Adopted (part of [#3]) | 22.22.2, inside upstream's engines range |
 | 9 | `NOTICE` plus `licenses/`, published as `NOTICE.txt` and `licenses/`; upstream's `NOTICE.md` removed | Adopted ([#48]) | Every text read at its source (§ 4) |
 | 10 | GMP under LGPL-3.0-or-later, relinking met by the pinned sources and the recipe | Adopted provisionally; the judgment deferred to [#53] | § 4 |
 | 11 | The Agda mark stays, under Agda's MIT license | Adopted ([#48]) | `Agda.cabal`'s `extra-doc-files` |
 | 12 | The plain checker is the planned verdict of record, not adopted here | Recorded ([#30]) | PR 585: no isolation; JSPI 1.45 s reloads, 45 to 55 ms queries |
-| 13 | Native interfaces are accepted; the drive is the cost; the builtins are stale | Settled | [#13], [#50], [#49] |
+| 13 | Native interfaces are accepted; the drive is the cost; the builtins were stale, and are built since by the flake, from the Agda the server embeds | Settled; the builtins' fix adopted ([#49], 2026-10-06) | [#13], [#50], [#49]; § 6 |
 | 14 | The open license questions wait until before the repository goes public; the notice stands as written meanwhile | Adopted (William, 2026-10-05; [#53]) | § 4 |
 | 15 | The built site does not ship the raw compiler; the page's silence without it is proposed for [#8] | Adopted ([#3], 2026-10-05) | Only Safari 15.2 to 16.3 could use it; 33 MB a deploy; Cloudflare Pages' 25 MiB file limit (§ 3) |
 
@@ -451,6 +472,7 @@ and are cited here rather than measured again.
 [#49]: https://github.com/formalverification/agda-native-ide/issues/49
 [#50]: https://github.com/formalverification/agda-native-ide/issues/50
 [#53]: https://github.com/formalverification/agda-native-ide/issues/53
+[#58]: https://github.com/formalverification/agda-native-ide/issues/58
 [pr-585]: https://github.com/ualib/agda-algebras/pull/585
 [adr-011]: https://github.com/ualib/agda-algebras/blob/577-an-interactive-agda-proof-environment/docs/adr/011-interactive-playground.md
 [proposal]: ../notes/browser-ide-proposal.md
