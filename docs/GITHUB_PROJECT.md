@@ -695,6 +695,21 @@ Risk to record: a nightly moves and a pin does not.  Keep the move to the releas
 +  **The fork's transport reads raw JSON responses** (`ResponseJSONRaw`): its server is agda-web's `wasm-only-raw-responses` branch (`e65419f8`), which removed the response converter.  Upstream's server has a `--raw` option (its PR 40); check the page against it.
 +  **Size**.  The server's v8 wasm release assets are 85 to 92 MB, against 29 to 33 MB for the builds the fork and agda-mode-vscode ship (inferred: before `wasm-opt`, which upstream's PR 37 adds, "approx. 1/3").
 
+
+#### Findings, 2026-10-06: the builtins' archive and what this issue changes in it
+
+[#49]'s pull request, [#79], builds `static/agda-data.zip` in the flake (`nix build .#agda-data`, `mkAgdaData` in `flake.nix`) from one named input, `agdaDataInput`, which is `{ agda; root; }`: today the pinned nixpkgs' Agda 2.8.0 and `"lib/prim"`.  This issue's move changes that attribute and the texts listed below, and nothing in the derivation:
+
++  **`agda` must be the Agda the language server embeds, to the commit**, built so that it runs in the Nix sandbox (the nightly's static binary runs there as it is).  Agda accepts an interface only from the version that wrote it, and only for the source it was built from; and the server rewrites every builtin source from its own embedded copy before it starts.  The page runs `als --setup` before every server start, and `--setup` writes every embedded data file unconditionally (`dumpDataDir` in `src/setup/Agda/Setup.hs`, the same at `v2.8.0` and at `da66a8c`).  Measured 2026-10-06 in [#79]: an archive holding the fork's 2.7.0.1 sources beside 2.8.0 interfaces type-checked only `Main` in the page, for two `Main`s that between them import all 36 builtins, while native Agda 2.8.0, which reads the archive's own sources, checked 9 and 4 builtins again.
++  **`root` comes from the shipped server's `use-xdg-data-home` flag**, never from the input Agda's own layout.  Today's server is built without it and reads `/lib/prim` (`Agda_datadir` is `/` in `src/lib/worker/als.ts`).  A server built with it reads `/<versionWithCommitInfo>/lib/prim` (`mkDataDir`), so `root` becomes that path; the nightly is built with the flag, so ask the server you ship, not the nightly.
++  **The derivation runs on the nightly** (`da66a8c`, the static binary kept beside the repository, wrapped as a package with `bin/agda`; 2026-10-06): `--numeric-version` says 2.9.0, Agda builds `_build/2.9.0/agda/`, which the derivation checks against that version, and the archive holds 41 interfaces, where 2.8.0's holds 36: 2.9.0 adds `Agda.Builtin.Erased.Box-cong`, `.Erased`, `.Funext`, `.Propext` and `.Quotient`.  At root `lib/prim` it is 601,790 bytes, at `2.9.0/lib/prim` 602,786, and `--rebuild` finds no difference.  `agda --version` says "Agda version 2.9.0" with no commit, although the build carries `version-with-git-hash`.
++  **The interface format changed**: 2.9.0 stores the interface version, 202610030 (`currentInterfaceVersion = 20261003 * 10 + 0` in `src/full/Agda/TypeChecking/Serialise.hs` at `da66a8c`), little-endian in bytes 16 to 23 of the header (`6e 95 13 0c 00 00 00 00`), where 2.8.0 stores 202507030 big-endian (`00 00 00 00 0c 12 03 16`), and the payload after the 24-byte header is zstd (magic `28 b5 2f fd`) where 2.8.0's is gzip (`1f 8b`).  A tool that reads the version from the header must read 2.9.0's byte order, and [#12]'s figure that compressing an interface again saves about 15% was taken on gzip payloads.
++  **Texts to change with the input**: `licenses/agda-builtins.txt` (Agda's `LICENSE` at the new tag; its text changed between v2.7.0.1 and v2.8.0), section 4 of `NOTICE` and the builtins' section of `docs/provenance.md`, which state the version; and the two acceptance `Main`s in [#79]'s description, which import every builtin of 2.8.0 and would need the five `Agda.Builtin.Erased` modules.
+
+[#12]: https://github.com/formalverification/agda-native-ide/issues/12
+[#49]: https://github.com/formalverification/agda-native-ide/issues/49
+[#79]: https://github.com/formalverification/agda-native-ide/pull/79
+
 ---
 
 ### Issue M0-14: The reactor build and the drive in its worker: no shared memory, no isolation headers (#59)
@@ -720,6 +735,19 @@ The reactor's exports (agda/agda-language-server `app/Reactor.hs`, release v8) a
 Added acceptance criterion:
 
 +  The drive lives in the language server's worker, and the page allocates no `SharedArrayBuffer`.
+
+
+
+#### Findings, 2026-10-06: what a drive call costs through the proxy, and what the drive does not persist
+
+Measured for [#50]'s pull request, [#78], which indexes the drive's lookups, so that a lookup answered inside the drive worker no longer scans the drive: headless Chromium 149 (the flake's), this workstation (20 cores, 64 GB, Linux 7.0.0-31-generic), each run started with the 1-minute load average below 2.
+
++  **The round trip**: before Agda starts, the language server's worker made 20,000 `pathStat` calls on the root through `proxy-wasi-drive.ts` (30% hits on files and directories, 70% misses, Agda's proportion on a warm reload), and the drive worker timed the same calls itself.  Through the proxy a call took 17.1 to 20.1 µs, inside the drive worker 0.87 to 1.18 µs (three runs).  So the cross-worker round trip (the lock, the two rings, the JSON request, the binary answer) costs about 16 to 19 µs a call, now most of a lookup's cost.
++  **What that is in a check**: a warm reload of a `Main` importing PLFA's `part2.Properties` makes 8,815 drive calls, so the round trip is about 0.15 to 0.17 s of a reload that takes 0.51 to 0.73 s, while the drive worker's own share is 34 to 97 ms.  A check of a `Main` importing agda-algebras' `Setoid.Varieties.HSP` makes 47,299 to 51,559 drive calls (41,692 lookups), so about 0.8 to 1.0 s of a warm reload that takes 1.80 to 1.94 s.  Before the index the round trip was hidden under the scan: the same burst took 818 to 868 µs a call in the drive worker with 1,293 files on the drive.  A drive in the language server's worker, as this issue's correction plans, makes each call a function call on the same thread; the index (`src/lib/worker/drive-index.ts`) moves with it unchanged, since it knows the drive only through its record of files, its open descriptors and the methods it wraps.
++  **The drive persists only files at paths that existed when it was constructed**, which this issue's move of the persistence should not carry over.  `persistCachedFiles` in `drive.ts` reads each dirty path from `fs`, the record the drive was built from, where Runno's drive keeps its own copy, `drive.fs`; Agda's writes land in the copy.  A file at a path that existed at construction shares its object between the two and is persisted; one at a path made later (`Main`'s interface, an interface from an archive mounted with `mountDriveArchives`) never is, and stays dirty.  Measured with an IndexedDB probe: after a cold check that rewrote 8 builtin interfaces and wrote `Main`'s and 8 PLFA modules' interfaces, the database held `/Main.agda` and the builtins' interfaces only.  Upstream's behavior, unchanged in [#78], which corrects the runtime note's account of it.
+
+[#50]: https://github.com/formalverification/agda-native-ide/issues/50
+[#78]: https://github.com/formalverification/agda-native-ide/pull/78
 
 ---
 
