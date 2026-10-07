@@ -1,9 +1,10 @@
 This file is supplied by agda-native-ide's NOTICE, not by pqueue's author:
-pqueue 1.5.0.0's cabal file declares `license: BSD3`, and the LICENSE file in
-its Hackage tarball and in its repository (https://github.com/lspitzner/pqueue)
-is two lines, "Copyright Louis Wasserman 2010" and "BSD license", with none
-of the license's conditions.  Below is the BSD-3-Clause text as SPDX publishes
-it (https://spdx.org/licenses/BSD-3-Clause.json, its licenseText), with that
+pqueue 1.7.0.0's cabal file declares `license: BSD-3-Clause`, and the LICENSE
+file in its Hackage tarball and in its repository
+(https://github.com/lspitzner/pqueue) is two lines, "Copyright Louis
+Wasserman 2010" and "BSD license", with none of the license's conditions.
+Below is the BSD-3-Clause text as SPDX publishes it
+(https://spdx.org/licenses/BSD-3-Clause.json, its licenseText), with that
 copyright line.
 
 Copyright (c) 2010 Louis Wasserman. 

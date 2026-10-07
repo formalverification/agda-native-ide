@@ -459,6 +459,14 @@ back to `--without-K`, which makes 3.0 importable; once Agda 2.9.0 and
 standard-library 3.0 are released and the library has moved (agda-algebras
 issue [588][aa-588]), the page can ship an unpatched standard library.
 
+**Built, 2026-10-07** ([#58]): the page runs this project's own build of
+Agda 2.9.0 and its language server, with standard-library 2.3 patched as
+above; [ADR 0001][adr-0001] § 7 records the build and its evidence.  One
+finding there bears on this section: Agda 2.9.0 writes an interface's
+integers at the word size of the machine that writes it, so every
+interface the page ships is built by a 32-bit (wasm32) Agda, and the
+closure sizes above, measured with the native nightly, are not the page's.
+
 ---
 
 ## 5.  Agents attach where they already are

@@ -6,12 +6,14 @@ File: `agda-native-ide/docs/adr/0001-runtime.md`
 
 +  **Status**: Accepted when the pull request that adds it merges.  The
    fork, its import, its pins and its notice land with this record; the
-   second lane is recorded and not adopted ([#30]).
-+  **Date**: 2026-10-04.
+   second lane is recorded and not adopted ([#30]).  Since 2026-10-07 the
+   page runs this repository's own build of Agda 2.9.0 (§ 7).
++  **Date**: 2026-10-04; § 7 2026-10-07.
 +  **Tracking**: [#7] (this record); [#2] (the fork), [#48] (the notice),
    [#4] (the pins; its mirror and rebuild stay open), [#3] (its dev-shell
    clause); [#30] (the second lane); [#53] (the license questions deferred
-   until before the repository goes public).
+   until before the repository goes public); [#58] (the 2.9.0 compiler,
+   § 7).
 +  **Ancestry**: agda-native-air's [browser IDE proposal][proposal], § 1
    "Fork the runtime"; agda-algebras PR [585][pr-585] and its
    [ADR-011][adr-011], which built and measured the second lane; the
@@ -21,25 +23,28 @@ File: `agda-native-ide/docs/adr/0001-runtime.md`
 ## Executive summary
 
 The IDE's runtime is [plfa-playground][upstream], forked whole.  It runs the
-Agda Language Server (Agda 2.8.0 with a language-server front end), compiled
-to WASI (the WebAssembly System Interface, the POSIX-like imports through
-which a WebAssembly program reaches files and streams), in a browser
-worker; a second worker owns the in-memory filesystem Agda reads; the two
-share memory, which is why the page must be served cross-origin isolated
-(with the two response headers, `Cross-Origin-Opener-Policy` and
-`Cross-Origin-Embedder-Policy`, without which a browser withholds shared
-memory).  The page drives Agda through its interaction protocol, and an
-edit that stays inside one goal is checked with a give (Agda's command
-that checks one expression against one goal) rather than a full reload.
-[`docs/notes/runtime.md`][note] explains the architecture.
+Agda Language Server (Agda with a language-server front end), compiled to WASI
+(the WebAssembly System Interface, the POSIX-like imports through which a
+WebAssembly program reaches files and streams), in a browser worker; a second
+worker owns the in-memory filesystem Agda reads; the two share memory, which
+is why the page must be served cross-origin isolated (with the two response
+headers, `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`,
+without which a browser withholds shared memory).  The page drives Agda
+through its interaction protocol, and an edit that stays inside one goal is
+checked with a give (Agda's command that checks one expression against one
+goal) rather than a full reload.  [`docs/notes/runtime.md`][note] explains the
+architecture.
 
 It comes in as a snapshot, not a history merge: 89 of upstream's 128 files,
 byte for byte, at commit `ae0aa84c`, with a provenance record of every file's
 SHA-256; and no binary the app needs is committed: 35 of them (the
-compiler, the archives, the fonts and an icon) are pinned by SHA-256 in the
+compiler, the archives, the fonts and an icon) were pinned by SHA-256 in the
 flake and fetched, and Agda's builtin library is built by the flake from a
-pinned Agda ([#49]).  The build refuses a file that differs from its pin, and `NOTICE`
-names everything the built site ships, with the license texts beside it.
+pinned Agda ([#49]).  Since 2026-10-07 the compiler is this repository's
+own build, pinned by its hashes, and the standard library is built here,
+patched (§ 7), so 33 of upstream's pins remain.  The build refuses a file
+that differs from its pin, and `NOTICE` names everything the built site
+ships, with the license texts beside it.
 
 Why this shape: the fork already does what every later milestone builds
 on, under the MIT license; a history merge would put about 171 MB of binary
@@ -53,10 +58,13 @@ package that builds reproducibly ([#3]), and CI builds it, runs its unit
 tests and type check, and checks `Main.agda` in headless Chromium on every
 pull request ([#5]).
 
-Where it goes: a mirror for the compiler and a rebuild recipe ([#4]),
-hosting ([#6]), the license review before the repository goes public
-([#53]), and the second lane, the plain checker as the verdict of record
-([#30]).
+Where it goes: the fork's compiler, agda-web's build of Agda 2.8.0, gave
+way on 2026-10-07 to this repository's own build of Agda 2.9.0 and its
+language server, from a recipe that pins every input, with the standard
+library 2.3 patched to check under it (§ 7); the binaries' public home
+([#58]), hosting ([#6]), the license review before the repository goes
+public ([#53]), and the second lane, the plain checker as the verdict of
+record ([#30]), remain.
 
 ---
 
@@ -256,16 +264,17 @@ consumes against the same pins.
    site; measured 2026-10-05 ([`docs/notes/runtime.md`][note], "Startup"),
    and [#3]'s to decide.
 
-**Status**.  Adopted.  Open on [#4]: a mirror this organization controls
-(the compiler has one source, a personal repository), and the rebuild
-recipe as a flake app, with its outcome recorded.  On 2026-10-05 [#3]
-decided that the built site does not ship the raw compiler.  The fallback
-could serve only Safari 15.2 to 16.3, since every Firefox without
-`DecompressionStream` (before 113) also lacks the module workers the page
-starts (from 114; MDN's compatibility data), and it would cost 33 MB a
-deploy, over Cloudflare Pages' 25 MiB limit for one file.  The page's
-silence when it cannot fetch or decompress the compiler stays open,
-proposed for [#8].
+**Status**.  Adopted.  Open on [#4]: a mirror this organization controls (the
+compiler has one source, a personal repository), and the rebuild recipe as a
+flake app, with its outcome recorded.  On 2026-10-07 [#58] retired two of
+these pins, the compiler and the standard library, which the page no longer
+ships (§ 7); 33 remain, 13,648,557 bytes.  On 2026-10-05 [#3] decided that the
+built site does not ship the raw compiler.  The fallback could serve only
+Safari 15.2 to 16.3, since every Firefox without `DecompressionStream` (before
+113) also lacks the module workers the page starts (from 114; MDN's
+compatibility data), and it would cost 33 MB a deploy, over Cloudflare Pages'
+25 MiB limit for one file.  The page's silence when it cannot fetch or
+decompress the compiler stays open, proposed for [#8].
 
 ---
 
@@ -324,9 +333,14 @@ lineage paragraphs are carried into `NOTICE` verbatim.
    libc++abi), and simdutf (bundled by `text`).
 
 **Status**.  Adopted.  Open: [#53], the license review before the
-repository goes public (the GMP judgment, the 24 packages the binary does
-not confirm, libffi-wasm, and nonempty-vector's supplied text), and the
-notice's upkeep when the dependencies change ([#3] trims them).
+repository goes public (the GMP judgment, the packages the binary does not
+confirm, libffi-wasm, and nonempty-vector's supplied text), and the
+notice's upkeep when the dependencies change ([#3] trims them).  On
+2026-10-07 the notice's section 3 moved to the 2.9.0 compiler (§ 7): its
+140 packages come from that build's own plan rather than a re-solved one,
+the binary names 56 of them exactly, and two texts are new for the
+review, zstd's C library's and the patent grant its Haskell package
+ships.
 
 ---
 
@@ -383,7 +397,8 @@ and are cited here rather than measured again.
    importing agda-algebras' `Overture.Basic` type-checked only `Main` (one
    `Checking` line in Agda's running info), where the sources-only control
    checked all 66 modules.  So the library archives of Milestone 1 can be
-   built natively.
+   built natively.  That holds for Agda 2.8.0 only: Agda 2.9.0's
+   interfaces depend on the word size of the Agda that writes them (§ 7).
 +  **Most of a check's time is the drive's lookups** ([#50]): the in-memory
    filesystem scans every file and builds a regular expression per file on
    each lookup.  With interfaces accepted, a `Main` importing
@@ -417,7 +432,179 @@ checks 9 and 4 builtins again.  The pull request has the runs.
 
 ---
 
-## 7.  Decision log
+## 7.  The 2.9.0 compiler
+
+(See also [#58], [#59], [#61], [#13], [#4],
+[`compiler/build-agda-2.9.0.sh`][recipe], and
+[`docs/notes/runtime.md`][note].)
+
+**Decision**.  The page's compiler is this repository's own build of Agda 2.9.0
+and the Agda Language Server for `wasm32-wasi`, from a recipe that pins every
+input, in place of agda-web's build for Agda 2.8.0 (§ 3).  The page ships it
+with the standard library 2.3 patched to check under 2.9.0, and every
+interface it ships is built by a 32-bit (wasm32) Agda.
+
++  **The sources**: agda/agda `da66a8c7`, the `nightly` of 2026-10-05 (2.9.0
+   is unreleased), built as it is, since Agda builds for WASI unpatched since
+   agda/agda PR 8205; and agda/agda-language-server `v8` (`0f77a209`) against
+   it, with two patches in `compiler/patches/`.  The first adds a flag for
+   Agda 2.9.0 and 21 branches for its API, guarded by Agda's version so that
+   the server still builds against 2.8.0, and fixes the reactor module,
+   which does not compile at `v8`.  The second is the server's wasm project
+   file: the index state, lsp 2.8 from the server's own submodule (the
+   reactor needs it), and lsp's WebSocket support turned off.
++  **Three modules and a glue file**: the server as a command module, which
+   the page runs (`static/als-2.9.0.wasm`); the server as a reactor module,
+   with the JavaScript glue GHC's post-linker writes, for [#59]; and the plain
+   `agda`, which builds the builtins here and is the batch lane's ([#30]).
++  **The toolchain**: ghc-wasm-meta `58260711`, the commit Agda's own flake
+   pins at `da66a8c7` (GHC 9.10.3.20260731), as a flake input with its own
+   nixpkgs, so that its store paths are those of Agda's dev shell; one
+   toolchain for all three modules, where the server's CI uses an older one
+   (`c3f44696`) that nothing has proven with Agda 2.9.0.
++  **The data directory**: both builds are without Agda's
+   `use-xdg-data-home` flag, so the data directory is `Agda_datadir` itself,
+   `/` in the page, and neither the page's layout nor `agda-data.zip`'s root
+   changes.
++  **The recipe is a script in a pinned dev shell, run by an optional CI
+   job**, not a pure derivation.  `nix develop .#compiler --command
+   compiler/build-agda-2.9.0.sh` builds the four files at one fixed path,
+   since the binaries record their build paths;
+   `.github/workflows/compiler.yml` runs it on demand and when the recipe or
+   its pins change, and fails unless the bytes match
+   `compiler/agda-2.9.0.sha256`; `nix build .#compiler` fetches the files by
+   those hashes.  A pure derivation would need every Hackage package as a
+   fixed-output fetch, a second packaging of a plan cabal already pins by
+   its index state, for a build of two Agdas (27 minutes from empty on
+   this workstation) that no cache here spares CI from; [#4]'s findings
+   recommended the same split.
++  **Where the binaries live**: releases of a public repository of this
+   organization, William's decision of 2026-10-07, not yet created.  Until
+   it is, the flake's URL names a place that does not exist, and the fetch
+   succeeds only where the files were added to the Nix store by hand.  The
+   move to Agda's 2.9.0 release is a new Agda commit in the recipe, a
+   rebuild, a new release and a new file of hashes.
++  **Every interface the page ships is built by a wasm32 Agda**, since
+   Agda 2.9.0 writes an interface's integers at the width of the machine
+   that writes it (below): the builtins' archive is built by the compiler's
+   plain `agda` run under wasmtime in the Nix sandbox (`agdaWasm` in
+   `flake.nix`).
++  **The standard library is 2.3, patched** as in [#61]'s row 2b
+   (agda-stdlib's `agda-master` commits `1896499f` and `1b7f26af`, and
+   `39631ce9` ported to 2.3), built by the flake from the `v2.3` tag and
+   `stdlib/patches/` (`packages.stdlib`); William's decision of 2026-10-07.
++  **The 2.8.0 compiler stays pinned, unshipped** (`nix build
+   .#compiler-2_8_0`), with its recipe, until the 2.9.0 compiler passes
+   [#13]'s gate.
+
+**Evidence**.  Measured 2026-10-07 on this workstation (20 cores, 64 GB,
+Linux 7.0.0-31-generic); [#58]'s findings have each phase in full.
+
++  **Agda builds for WASI unpatched at the pin**: in Agda's own dev shell,
+   `wasm32-wasi-cabal build --index-state=2026-10-05T16:41:29Z -O2
+   --enable-split-sections exe:agda` took 19 min 23 s from an empty store,
+   and `wasm-opt -Oz` (binaryen version_131) took the module from
+   107,483,009 to 34,277,999 bytes.  Under wasmtime it reports "Agda
+   version 2.9.0", checks a module of builtins with 4 `Checking` lines and
+   then 1 over its own interfaces, and exits 42 on a type error.
++  **Agda's own suites pass under it**: with the native `agda-tests` built
+   by `cabal build -fdebug` (the workaround agda/agda#8756 suggests for the
+   `make install-bin` its workflow uses, which fails at the pin) and
+   `test/run-agda-wasm.sh`, Succeed passed 2,016 tests of 2,016, Fail 1,853
+   of 1,853, and Common passed; Bugs passed 14 of 15, the one failure
+   (`Issue8182`) a golden value that holds `-v` debugging output, which a
+   build without Agda's `debug` flag does not print.
++  **The server's changes are local**: 10 source files and `package.yaml`,
+   every change in a branch for Agda 2.9.0, and the patched server still
+   builds against Agda 2.8.0 (natively, unoptimized, both).  Built for
+   wasm32, the command module took 20 min 3 s (Agda again, as a package of
+   the server's project) and the reactor then 13 s, since the flag changes
+   only the server's own executable.  The pinned reactor, with its glue,
+   ran `run_setup` (42 ms, 41 builtin sources written) and
+   `new_language_server` under node 22.22.2's WASI.
++  **The recipe reproduces its bytes**: its first run, in `nix develop
+   .#compiler`, built the four pinned files; a second, from an empty work
+   directory at the same path (16:30 to 16:57 MDT, 26 min 49 s: the plain
+   `agda` in 12 min 43 s from an empty cabal store, the command module in
+   12 min 5 s, the reactor in 8 s), built the same four files and the same
+   three build plans, byte for byte.  The pins:
+
+| File | Bytes | SHA-256 |
+|---|---:|---|
+| `agda.wasm` | 34,277,969 | `da2f1efc6b13e0d8b8a69311511c8ed6fbfbc2759bd8ec299004580fcfba1eb1` |
+| `als.wasm` | 35,880,158 | `b1f45936329c529b5677e38bc0e8d22d7a1c9c47277e8f77146f5667c76228e4` |
+| `als-reactor.wasm` | 35,817,413 | `a0c7ae5741dd3f11c6be9e9fac4281889f2861ec2b53b5379452d11a4a23e8c9` |
+| `als-reactor.js` | 5,044 | `c782dbaca349830299055c71ec9c4f72ec543c0d612d08b7c40fbb364e601dce` |
+
++  **The page works on it**: the browser check passes on the built site
+   (headless Chromium 149): the first check of the default `Main.agda`
+   type-checks `Main` alone over the builtins the compiler's `agda` built,
+   the give leaves one goal, the type error comes back in 2.9.0's words, and
+   the status bar shows "Agda v2.9.0 Language Server v8 (WebAssembly
+   build)".  Measured in one sitting against the 2.8.0 page (`main` at
+   `c95f10c`), three fresh profiles each, every run started at a 1-minute
+   load average of 1.48 to 1.69: "Agda ready" at 887 to 984 ms (2.8.0: 830
+   to 862 ms); the first check done at 1,314 to 1,417 ms (1,265 to 1,322),
+   325 to 337 ms by the page's own count (339 to 372); a give 453 to 483 ms
+   (465 to 477); a warm reload checked at 901 to 953 ms (889 to 915).  A
+   first visit fetches 25 files, 16,126,490 bytes against 15,724,238: the
+   compiler's gzip is 964,398 bytes more (11,119,315), the standard library
+   and the builtins 562,580 fewer, the page's own code 434 more.  On two
+   copies of the site whose default `Main` imports every 2.9.0 builtin (the
+   35 plain ones in one, the 6 cubical ones in the other), the same check
+   passes with `Main` alone checked: the server accepts all 41 interfaces
+   the compiler's `agda` built.
++  **Agda 2.9.0's interfaces depend on the word size of the Agda that wrote
+   them**.  agda/agda PR 8065 (2025-08-16) made the serializer write `Int`
+   and `Word` at the machine's width, 8 bytes on x86-64 and 4 on wasm32,
+   where 2.8.0's `Data.Binary` wrote a fixed width (which is why § 6's
+   finding held).  The wasm32 Agda cannot decode a 64-bit Agda's interface
+   and checks the module again, silently, or hangs reading a length it
+   misdecodes; a native Agda reading a wasm32 interface stops with "Heap
+   exhausted".  Measured under wasmtime with the compiler's `agda`: over
+   builtins built by the nightly's static x86-64 binary at the same commit,
+   a module importing three builtins checks four modules; over the same
+   builtins built by the wasm `agda`, one.  A `Main` importing agda-algebras'
+   `Overture.Basic` checks only `Main` over interfaces the wasm `agda` built,
+   and all 66 modules over the same closure built natively.  [#59]'s spike
+   saw the hang in the page, at 3.4 to 3.7 GiB.
++  **The patched standard library checks**: PLFA's `part1/Relations`
+   checks against it under the compiler's `agda` (30 modules from source,
+   exit 0), and the archive's sources are [#61]'s row 2b branch, file for
+   file.
+
+**What 2.9.0 changed, as the page meets it**.
+
++  **The interaction protocol**: an error's text (a type error reads `The
+   terms` / `0` / `and` / `1` / `are not equal at type Nat` where 2.8.0
+   wrote `0 != 1 of type Nat`; the browser check now expects it); a give
+   sent with `noRange` is answered `{"paren": false}` rather than with the
+   expression reprinted, and the page inserts the expression it sent
+   ([#59]'s spike); running info stays a string in the JSON encoding;
+   `Cmd_constraints` takes a normalization level, and `GoalAndHave`,
+   `NormalForm`, `InferredType` and `Mimer` answers carry more (Agda's
+   changelog), none of which the page sends or reads.  The server answers
+   in Agda's own JSON only when started with `--raw` (its PR 40), so the
+   page now passes it.
++  **The interface format**: the version is 202610030, stored
+   little-endian in bytes 16 to 23 of the header (2.8.0's 202507030 was
+   big-endian), the payload is zstd where it was gzip, and its integers have
+   the writer's word size (above).  Interfaces built by 2.8.0, such as
+   PLFA's archives, live under `_build/2.8.0/` and are not read.
++  **The startup**: the controller runs `als --setup` for 2.9.0 as it did
+   for 2.8.0, and the server reads `/lib/prim` as before.
+
+**Status**.  Adopted on 2026-10-07 in [#58]'s pull request: the recipe,
+the patches, the pins, the patched standard library, the builtins built
+by the wasm `agda`, and the page on the new compiler.  Open: the public
+repository for the binaries, without which CI's fetch fails ([#58]); the
+recipe's CI job on GitHub's runners; [#13]'s gate under 2.9.0, on archives
+built by a wasm32 Agda ([#61]'s second criterion, [#12]); the reactor's use
+in the page ([#59]); the move to Agda's 2.9.0 release.
+
+---
+
+## 8.  Decision log
 
 | # | Decision | Status | Evidence |
 |---|---|---|---|
@@ -436,6 +623,13 @@ checks 9 and 4 builtins again.  The pull request has the runs.
 | 13 | Native interfaces are accepted; the drive is the cost; the builtins were stale, and are built since by the flake, from the Agda the server embeds | Settled; the builtins' fix adopted ([#49], 2026-10-06) | [#13], [#50], [#49]; § 6 |
 | 14 | The open license questions wait until before the repository goes public; the notice stands as written meanwhile | Adopted (William, 2026-10-05; [#53]) | § 4 |
 | 15 | The built site does not ship the raw compiler; the page's silence without it is proposed for [#8] | Adopted ([#3], 2026-10-05) | Only Safari 15.2 to 16.3 could use it; 33 MB a deploy; Cloudflare Pages' 25 MiB file limit (§ 3) |
+| 16 | The compiler is this repository's build: Agda 2.9.0 at `da66a8c7` and the language server `v8` with two patches, for wasm32-wasi, with ghc-wasm-meta `58260711` and the Hackage index pinned; no agda-web patch | Adopted ([#58], 2026-10-07) | Agda's suites pass under it; the server needed 21 version-guarded branches; the browser check passes (§ 7) |
+| 17 | The recipe is a script in a pinned dev shell and an optional CI job; `nix build .#compiler` fetches its four files by hash | Adopted ([#58]; its first criterion reworded) | Two Agda builds, 27 minutes from empty on 20 cores; a second run built the same bytes (§ 7) |
+| 18 | Built without `use-xdg-data-home`: the data directory is `Agda_datadir` itself | Adopted ([#58]) | The page's layout and `agda-data.zip`'s root unchanged (§ 7) |
+| 19 | The binaries live in releases of a public repository of this organization | Decided by William, 2026-10-07; not created | Until then the flake's fetch succeeds only from a local store (§ 7) |
+| 20 | Every interface the page ships is built by a wasm32 Agda; the builtins by the compiler's `agda` under wasmtime | Adopted ([#58]) | Agda 2.9.0 writes interfaces at its word size: native interfaces are checked again, or hang (§ 7) |
+| 21 | The page ships the standard library 2.3 patched as in [#61]'s row 2b | Adopted (William, 2026-10-07) | No released version checks under 2.9.0 ([#61]); PLFA's `Relations` checks against it (§ 7) |
+| 22 | The 2.8.0 compiler stays pinned, unshipped, with its recipe, until the 2.9.0 one passes [#13]'s gate | Adopted ([#58]) | `nix build .#compiler-2_8_0` (§ 7) |
 
 ---
 
@@ -445,15 +639,20 @@ checks 9 and 4 builtins again.  The pull request has the runs.
    (CI), [#6] (hosting), [#7] (this record), [#8] (a page that cannot
    isolate itself), [#13] (interface acceptance), [#20] (PLFA's removal),
    [#30] (the second lane), [#48] (the notice), [#49] (the builtins), [#50]
-   (the drive), [#53] (the license review before going public).
+   (the drive), [#53] (the license review before going public), [#58] (the
+   2.9.0 compiler), [#59] (the reactor), [#61] (the library under 2.9.0).
 +  **Elsewhere**: agda-algebras PR [585][pr-585] and its [ADR-011][adr-011];
    agda-native-air's [browser IDE proposal][proposal]; [plfa-playground][upstream]
    at `ae0aa84c`.
 +  **Documents**: [`docs/notes/runtime.md`][note] (how the runtime works),
    [`docs/provenance.md`][provenance] (the record), [`NOTICE`][notice].
 +  **Code**: `flake.nix` (`packages.assets`, the pins; `packages.site`;
-   `apps.browser-check`), `Makefile` (`assets`, `assets-check`, `dev`,
-   `build`, `test`, `check`, `browser-check`, `provenance-check`),
+   `apps.browser-check`; `packages.compiler`, `packages.stdlib`,
+   `packages.compiler-2_8_0`, `devShells.compiler`, `agdaWasm`),
+   `compiler/build-agda-2.9.0.sh` with `compiler/patches/` and
+   `compiler/agda-2.9.0.sha256`, `stdlib/patches/`,
+   `.github/workflows/compiler.yml`, `Makefile` (`assets`, `assets-check`,
+   `dev`, `build`, `test`, `check`, `browser-check`, `provenance-check`),
    `upstream/` (the records), `scripts/upstream-record.sh`,
    `scripts/asset-manifest.mjs` and `src/lib/assets.ts` (the derived cache
    tokens), `scripts/browser-check/`, `.github/workflows/site.yml`.
@@ -465,6 +664,7 @@ checks 9 and 4 builtins again.  The pull request has the runs.
 [#6]: https://github.com/formalverification/agda-native-ide/issues/6
 [#7]: https://github.com/formalverification/agda-native-ide/issues/7
 [#8]: https://github.com/formalverification/agda-native-ide/issues/8
+[#12]: https://github.com/formalverification/agda-native-ide/issues/12
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
 [#20]: https://github.com/formalverification/agda-native-ide/issues/20
 [#30]: https://github.com/formalverification/agda-native-ide/issues/30
@@ -473,10 +673,13 @@ checks 9 and 4 builtins again.  The pull request has the runs.
 [#50]: https://github.com/formalverification/agda-native-ide/issues/50
 [#53]: https://github.com/formalverification/agda-native-ide/issues/53
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
+[#59]: https://github.com/formalverification/agda-native-ide/issues/59
+[#61]: https://github.com/formalverification/agda-native-ide/issues/61
 [pr-585]: https://github.com/ualib/agda-algebras/pull/585
 [adr-011]: https://github.com/ualib/agda-algebras/blob/577-an-interactive-agda-proof-environment/docs/adr/011-interactive-playground.md
 [proposal]: ../notes/browser-ide-proposal.md
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [note]: ../notes/runtime.md
+[recipe]: ../../compiler/build-agda-2.9.0.sh
 [provenance]: ../provenance.md
 [notice]: ../../NOTICE
