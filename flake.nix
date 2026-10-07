@@ -69,6 +69,33 @@
         inherit (pin) sha256;
       };
 
+      # The compiler of issue 58, which compiler/build-agda-2.9.0.sh builds
+      # from pinned sources: Agda 2.9.0 for wasm32-wasi, and the language
+      # server against it as a command module and as a reactor module with
+      # its JavaScript glue.  One pin per line of compiler/agda-2.9.0.sha256
+      # (sha256sum's format, with a file name), fetched by hash from the
+      # release that holds the files.  Where that release lives is not
+      # decided yet (issue 58), so the URL below names a place that does
+      # not exist: until it does, `nix build .#compiler` succeeds only
+      # where the files are in the store already, added by hand from a
+      # build of the recipe with `nix-store --add-fixed sha256 <file>`.
+      compilerRelease = "https://github.com/formalverification/agda-wasm-builds/releases/download/agda-2.9.0-da66a8c-als-8";
+      compilerPins = map (line:
+          let m = builtins.match "([0-9a-f]{64})  ([^ /]+)" line;
+          in if m == null
+             then throw "compiler/agda-2.9.0.sha256: not a pin: \"${line}\""
+             else { sha256 = builtins.elemAt m 0; name = builtins.elemAt m 1; })
+        (builtins.filter (line: line != "")
+          (lib.splitString "\n" (builtins.readFile ./compiler/agda-2.9.0.sha256)));
+      mkCompiler = pkgs: pkgs.runCommand "agda-2.9.0-compiler" { } (''
+          mkdir -p "$out"
+        '' + lib.concatMapStrings (pin: ''
+          install -m 444 ${pkgs.fetchurl {
+            url = "${compilerRelease}/${pin.name}";
+            inherit (pin) sha256;
+          }} "$out/${pin.name}"
+        '') compilerPins);
+
       # Agda's builtin library as the page ships it, agda-data.zip (issue
       # 49): the whole of an Agda's own lib/prim (its sources,
       # agda-builtins.agda-lib, and the interfaces that Agda builds for them
@@ -168,10 +195,14 @@
     in
     {
       packages = forAllSystems (system: pkgs: let
+        compiler = mkCompiler pkgs;
         agdaData = mkAgdaData pkgs (agdaDataInput pkgs);
       in rec {
         # Agda's builtin library, built (mkAgdaData).
         agda-data = agdaData;
+
+        # The 2.9.0 compiler, fetched by its pins (mkCompiler).
+        inherit compiler;
 
         # Every binary the app ships at its path in the tree (static/...):
         # the pinned ones, and agda-data.zip.

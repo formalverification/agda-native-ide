@@ -1,0 +1,60 @@
+# File: .github/workflows/compiler.yml
+#
+# The compiler's rebuild (issue 58): compiler/build-agda-2.9.0.sh, in the
+# dev shell that pins its toolchain (`nix develop .#compiler`), from the
+# sources it pins, and then a check that it built the bytes the flake
+# pins (compiler/agda-2.9.0.sha256).  It fetches from GitHub, from
+# gitlab.haskell.org (the toolchain) and from Hackage, and builds Agda
+# twice (Agda's own wasm workflow took 21 to 27 minutes for one build on
+# GitHub's runners), so it runs on demand and on pull requests that
+# change the recipe, its patches, its pins or this file, not on every
+# pull request; the site's checks are site.yml's.  A newer push to the
+# same pull request cancels a run in progress.
+
+name: compiler
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - compiler/build-agda-2.9.0.sh
+      - compiler/agda-2.9.0.sha256
+      - compiler/patches/agda-language-server-*.patch
+      - .github/workflows/compiler.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v5
+      - name: Free disk space for the build
+        run: |
+          df -h / || true
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /usr/local/.ghcup \
+            /opt/ghc /opt/hostedtoolcache/CodeQL /usr/share/swift
+          df -h / || true
+      - uses: cachix/install-nix-action@v27
+      - name: Build the compiler from its pins
+        run: nix develop .#compiler --command compiler/build-agda-2.9.0.sh "$RUNNER_TEMP/compiler-out"
+      - name: Check the bytes against the pins
+        run: |
+          cd "$RUNNER_TEMP/compiler-out"
+          ls -l
+          sha256sum --check --strict "$GITHUB_WORKSPACE/compiler/agda-2.9.0.sha256"
+      - name: Disk usage after the build
+        if: always()
+        run: df -h / || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compiler
+          path: ${{ runner.temp }}/compiler-out
+          if-no-files-found: warn
