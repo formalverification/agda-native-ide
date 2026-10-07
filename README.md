@@ -19,8 +19,8 @@ The browser IDE forks [plfa-playground], the browser Agda environment behind
 Server compiled to WASI).  Its first deliverable is the agda-algebras IDE:
 the "Playground" link on the [agda-algebras] site opens it in a new tab,
 with every module of that library in the Explorer.  The plan was revised on
-2026-10-05 to target all three platforms on Agda 2.9.0; ADR 0002 (issue
-M0-15) records that decision.
+2026-10-05 to target all three platforms on Agda 2.9.0; [ADR
+0002][adr-0002] records that decision.
 
 ## Status
 
@@ -46,6 +46,13 @@ headless Chromium.  Nothing is deployed.
    fork, how it is imported and pinned, and the second lane.  Its
    companion, [`docs/notes/runtime.md`][runtime-note], explains how the
    runtime works.
++  [`docs/adr/0002-where-the-workbench-lives.md`][adr-0002]: ADR 0002, where
+   the workbench lives: three platforms with different jobs, one shared
+   core, and Agda 2.9.0, with the measurements behind them and the risks.
+   Its companion,
+   [`docs/notes/platform-brief-2026-10-05.md`][platform-note], is the
+   platform brief of 2026-10-05 that argued for it, corrected where it has
+   since changed or proved wrong.
 +  [`docs/provenance.md`][provenance]: where every imported file and every
    pinned binary comes from, with its SHA-256 and its license.  The machine
    records are in [`upstream/`][records].
@@ -208,6 +215,8 @@ every artifact the app ships, with its license.
 [upstream-license]: LICENSE.plfa-playground
 [adr-0001]: docs/adr/0001-runtime.md
 [runtime-note]: docs/notes/runtime.md
+[adr-0002]: docs/adr/0002-where-the-workbench-lives.md
+[platform-note]: docs/notes/platform-brief-2026-10-05.md
 [provenance]: docs/provenance.md
 [site-ci]: .github/workflows/site.yml
 [records]: upstream/

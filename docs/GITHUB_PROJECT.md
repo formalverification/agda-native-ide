@@ -449,7 +449,7 @@ Decide how, in the ADR of [M0-7]: a history merge keeps upstream's commits and m
 
 ---
 
-### Issue M0-3: A reproducible build under Nix (#3)
+### Issue M0-3: A reproducible build under Nix (#3, closed)
 
 **Labels:** `milestone-0-foundations`, `build`
 
@@ -503,7 +503,7 @@ The compiler to pin becomes this project's own build of Agda 2.9.0 and its langu
 
 ---
 
-### Issue M0-5: CI: build, unit tests, type checks, and a real check in headless Chromium (#5)
+### Issue M0-5: CI: build, unit tests, type checks, and a real check in headless Chromium (#5, closed)
 
 **Labels:** `milestone-0-foundations`, `build`, `measurement`
 
@@ -734,6 +734,37 @@ On 2026-10-05 a platform brief ("Where the Agda Workbench Lives") asked whether 
 +  `docs/adr/0002-where-the-workbench-lives.md` exists in the ADR form, with a decision log and every figure cited to a dated run.
 +  The companion note carries the brief, and the README's description matches the decision.
 
+#### Findings, 2026-10-06: the native baselines
+
+The platform brief's native figures were measured on 2026-10-05 and kept beside the repository, outside git (`platform-brief-2026-10-05/native-measure/`).  This section is their archive: the ADR and its companion note cite it, not that directory.  The scripts, Agda's `+RTS -s` summaries and the closure's per-module sizes are in this issue's comment of 2026-10-06.
+
++  **Method**.  William's workstation (20 cores, 64 GB, Linux 7.0.0-31-generic); Agda 2.8.0 native (GHC 9.10.3) from the `nix develop` of agda-algebras worktree `513-m6-21-aschbachers-d-and-signalizer-theorems`, at agda-algebras `570187bc` (2026-09-28), with standard-library 2.3 from nixpkgs and that worktree's `_build` (383 agda-algebras interfaces).  A scratch library (`name: scratch`, `depend: agda-algebras`, `include: .`) held `Main.agda` (`open import Setoid.Varieties.HSP`) and `MainOB.agda` (`open import Overture.Basic`).  The command, from the worktree: `nix develop --command bash -c "S='<dir>' bash '<dir>/run.sh'"`, where `S` is the measurement directory and `AGDA_DIR` comes from the worktree's shell hook.  `run.sh` checks each file three times, deleting the scratch `_build` before each run, as `/usr/bin/time -f "wall=%e s  maxrss=%M KB" agda +RTS -s -RTS -i . <file>.agda`, and counts the `Checking` lines of Agda's output, unanchored.  The machine's load average was not recorded.
++  **Interfaces were accepted on every run**: each run printed one `Checking` line, for `Main` or `MainOB` alone.
++  **The six runs**, as `run.sh` printed them (it wrote each run's wall time and peak RSS to `time.txt`, which the next run overwrote, so these lines are the record).  `maxrss` is GNU time's `%M`, which is in KiB although the script labels it `KB`.
+
+```
+== MainOB run 1: wall=0.69 s  maxrss=149100 KB | Checking lines: 1 |  51,411,256 bytes maximum residency (15 sample(s)); MUT time 0.405s ( 0.418s elapsed); GC time 0.258s ( 0.261s elapsed); Alloc rate 3,171,256,697 bytes per MUT second;
+== MainOB run 2: wall=0.68 s  maxrss=149304 KB | Checking lines: 1 |  51,411,256 bytes maximum residency (15 sample(s)); MUT time 0.409s ( 0.407s elapsed); GC time 0.262s ( 0.263s elapsed); Alloc rate 3,143,478,415 bytes per MUT second;
+== MainOB run 3: wall=0.67 s  maxrss=149048 KB | Checking lines: 1 |  51,411,256 bytes maximum residency (15 sample(s)); MUT time 0.403s ( 0.400s elapsed); GC time 0.260s ( 0.260s elapsed); Alloc rate 3,186,831,778 bytes per MUT second;
+== Main run 1: wall=5.23 s  maxrss=767756 KB | Checking lines: 1 |  432,259,336 bytes maximum residency (27 sample(s)); MUT time 3.191s ( 3.295s elapsed); GC time 1.907s ( 1.908s elapsed); Alloc rate 3,158,881,184 bytes per MUT second;
+== Main run 2: wall=5.10 s  maxrss=767268 KB | Checking lines: 1 |  432,259,464 bytes maximum residency (27 sample(s)); MUT time 3.182s ( 3.157s elapsed); GC time 1.914s ( 1.916s elapsed); Alloc rate 3,167,878,463 bytes per MUT second;
+== Main run 3: wall=5.10 s  maxrss=767516 KB | Checking lines: 1 |  432,259,464 bytes maximum residency (27 sample(s)); MUT time 3.174s ( 3.148s elapsed); GC time 1.917s ( 1.919s elapsed); Alloc rate 3,176,113,187 bytes per MUT second;
+```
+
++  **In sum**.  `MainOB` (`Overture.Basic`): 0.67 to 0.69 s wall; peak RSS 149,048 to 149,304 KiB (about 146 MiB); GHC's elapsed time 0.661 to 0.679 s; maximum residency 51,411,256 bytes on every run; 102 MiB total memory in use.  `Main` (`Setoid.Varieties.HSP`): 5.10 to 5.23 s wall; peak RSS 767,268 to 767,756 KiB (about 750 MiB); elapsed 5.068 to 5.204 s; maximum residency 432,259,336 to 432,259,464 bytes; 705 MiB total memory in use.
++  **Against the browser**.  [#50] measured the same two imports in the fork on 2026-10-04 in headless Chromium 153, interfaces accepted: `Overture.Basic` 13.6 to 18.5 s, and 1.8 to 3.7 s with a prototype index on the drive's lookups; `Setoid.Varieties.HSP` 79 to 104 s, and 11 to 22 s indexed.  With the index, the page takes 2.1 to 4.3 times as long as native Agda on the HSP closure and 2.6 to 5.5 times on `Overture.Basic` (the ratios of the ranges' ends, from runs made a day apart).
++  **The HSP closure**.  `agda --dependency-graph` on `Main` names 314 modules, `Main` included.  Without `Main`'s own interface the totals are 63,715,204 bytes and 54,291,061 gzipped.  For scale, the whole of agda-algebras' `_build` held 383 interfaces, 73,801,540 bytes, and the standard library's 1,153 interfaces, 194,285,589 bytes.  The closure's interfaces by where they live, gzipped with `gzip -c` at its default level, are as follows.
+
+| kind | modules | bytes | gzipped |
+|---|---|---|---|
+| agda-algebras | 92 | 18,115,900 | 15,597,112 |
+| standard library | 212 | 45,520,501 | 38,622,151 |
+| builtins | 9 | 78,803 | 71,798 |
+| `Main` | 1 | 4,071 | 3,759 |
+| total | 314 | 63,719,275 | 54,294,820 |
+
+[#50]: https://github.com/formalverification/agda-native-ide/issues/50
+
 <!-- END GENERATED: milestone-0 -->
 
 ## Milestone 1 — The agda-algebras IDE
@@ -932,7 +963,9 @@ Adapt the fork's PLFA benchmark (every chapter, real edits, warm and cold) to a 
 
 #### Revision, 2026-10-05: three platforms, Agda 2.9.0
 
-Record a native baseline beside every browser figure, from the same Agda version and the same roots, so that the browser's cost is always stated as a ratio.  Measured 2026-10-05 for the platform brief, Agda 2.8.0 native, three runs, interfaces accepted: `Main` importing `Overture.Basic` 0.67 to 0.69 s at a peak RSS of about 146 MiB; `Main` importing `Setoid.Varieties.HSP` 5.10 to 5.23 s at about 750 MiB (432 MB GHC maximum residency).  (Corrected the same day: these first read 149 MB and 767 MB, but GNU time reports peak RSS in KiB: 149,048 to 149,304 and 767,268 to 767,756 KiB.)
+Record a native baseline beside every browser figure, from the same Agda version and the same roots, so that the browser's cost is always stated as a ratio.  Measured 2026-10-05 for the platform brief, Agda 2.8.0 native, three runs, interfaces accepted: `Main` importing `Overture.Basic` 0.67 to 0.69 s at a peak RSS of about 146 MiB; `Main` importing `Setoid.Varieties.HSP` 5.10 to 5.23 s at about 750 MiB (432 MB GHC maximum residency).  (Corrected the same day: these first read 149 MB and 767 MB, but GNU time reports peak RSS in KiB: 149,048 to 149,304 and 767,268 to 767,756 KiB.)  The runs, their method, GHC's runtime statistics and the closure's interface sizes are archived in [#60]'s findings of 2026-10-06, which the documentation cites.
+
+[#60]: https://github.com/formalverification/agda-native-ide/issues/60
 
 ---
 
@@ -1043,6 +1076,64 @@ Agda accepts an interface only from the same Agda, so the archives [M1-4] ships 
 +  **So standard-library 2.3 and 2.4 will probably not check under 2.9.0 as released.**  v2.3's `Relation.Nullary.Recomputable` defines `irrelevant-recompute` by projecting an irrelevant field (`irrelevant (irrelevant-recompute [ a ]) = a`), the construct `39631ce9` removes; `--irrelevant-projections` is marked inconsistent, so it cannot be used under `--safe`.  The same construct is in v2.4's and master's `Data.Irrelevant`.  Both modules are in the `Setoid.Varieties.HSP` closure.  Not yet run: the matrix of [#61]'s kickoff runs it.
 +  **And 3.0 may not serve agda-algebras as it stands**: its first highlight moves modules from `--cubical-compatible` back to `--without-K`, and agda-algebras' modules are `--cubical-compatible`, whose imports must also be (Agda reports `CoInfectiveImport`).  To be verified by the same run.
 +  **What this means for the plan**: moving agda-algebras to Agda 2.9.0 needs a standard library that supports 2.9.0 and `--cubical-compatible` together, and none is released.  The likely paths are a scratch copy of 2.3 with the three commits applied (to measure), a standard-library release for 2.9.0 (to wait for), or agda-algebras on `--without-K` with 3.0 (a policy change, William's).
+
+#### Findings, 2026-10-06: agda-algebras under 2.9.0
+
++  **The answer**: agda-algebras checks under Agda 2.9.0 at [M0-13]'s pin (`da66a8c`, unchanged since the kickoff) once its standard library is patched; no released standard library checks under 2.9.0.  The check is tracked in ualib/agda-algebras [issue 586][aa-586], whose [findings comment][aa-586-findings] has the matrix and every command; agda-algebras' only change, two fixity declarations for closed operators that 2.9.0 warns about, is its [pull request 587][aa-587] (open).  The upgrade itself is now its [issue 588][aa-588].
++  **The runs**: 2026-10-06, 15:34 to 16:22 (UTC−6), on this workstation (20 cores, 64 GB, Linux 7.0.0-31-generic); other sessions kept the 1-minute load average at 1.7 to 2.1 before each run, and the two runs that started higher (3.43, 3.17) are a repeat and a run whose time nothing compares.  Every run deleted each `_build` it uses and the nightly's data directory first, so each checked every module from source.  Logs, wrappers and scripts are beside the repository in `agda-2.9.0-matrix-2026-10-06/` (not in git): `logs/<run>.meta` has the command, exit, time, load and counts of each run, and the paths in the table are relative to that directory.  One line per run:
+
+| run | start | Agda | libraries file | agda-algebras | exit | wall | peak RSS (KiB) | load before | checked: agda-algebras / stdlib / builtins |
+|---|---|---|---|---|---|---|---|---|---|
+| `row1-v2.3-agda2.9.0` | 15:34 | 2.9.0 | `rows/r1/libraries` | `d683c79b` | 2 (Agda 42) | 0.54 s | 205,772 | 1.88 | 3 / 23 / 5 |
+| `row2b-v2.3-2b-agda2.9.0` | 15:34 | 2.9.0 | `rows/r2b/libraries` | `d683c79b` | 0 | 75.68 s | 2,049,188 | 1.82 | 344 / 251 / 11 |
+| `row5-v2.3-agda2.8.0-control` | 15:36 | 2.8.0 | `rows/r1/libraries` | `d683c79b` | 0 | 176.05 s | 2,818,152 | 1.74 | 344 / 251 / 0 |
+| `row5-v2.3-agda2.8.0-control-rep2` | 15:40 | 2.8.0 | `rows/r1/libraries` | `d683c79b` | 0 | 186.45 s | 2,818,224 | 1.85 | 344 / 251 / 0 |
+| `row2b-v2.3-2b-agda2.9.0-rep2` | 15:43 | 2.9.0 | `rows/r2b/libraries` | `d683c79b` | 0 | 89.38 s | 1,917,752 | 3.43 | 344 / 251 / 11 |
+| `row2b-v2.3-2b-agda2.9.0-fix` | 15:48 | 2.9.0 | `rows/r2b/libraries` | `22f67aa5` | 0 | 86.06 s | 1,954,968 | 1.80 | 344 / 251 / 11 |
+| `row5-v2.3-agda2.8.0-control-fix` | 15:53 | 2.8.0 | `rows/r1/libraries` | `22f67aa5` | 0 | 196.22 s | 2,854,800 | 2.02 | 344 / 251 / 0 |
+| `row2-v2.4-closure-agda2.9.0` | 16:03 | 2.9.0 | `rows/r2-v2.4/libraries` | none | 42 | 0.27 s | 201,272 | 2.01 | 0 / 14 / 3 |
+| `row2-v2.4-fix3-closure-agda2.9.0` | 16:03 | 2.9.0 | `rows/r2-fix3-closure/libraries` | none | 0 | 39.12 s | 1,033,364 | 2.01 | 0 / 252 / 11 |
+| `row2-v2.4-fix3-agda-algebras-agda2.9.0` | 16:04 | 2.9.0 | `rows/r2-fix3/libraries` | `4e7a0a08` | 0 | 90.36 s | 2,479,776 | 2.04 | 344 / 251 / 11 |
+| `row4-3.0-Overture.Basic-agda2.9.0` | 16:06 | 2.9.0 | `rows/r4/libraries` | `4eb44e2d` | 42 | 4.07 s | 310,984 | 3.17 | 1 / 39 / 5 |
+| `sitting-2.9.0-build-a` | 16:09 | 2.9.0 | `rows/r2b/libraries` | `22f67aa5` | 0 | 88.79 s | 1,999,008 | 1.87 | 344 / 251 / 11 |
+| `sitting-2.9.0-build-b` | 16:11 | 2.9.0 | `measure/repro-b/rows/2.9.0/libraries` | `22f67aa5` (exported) | 0 | 89.90 s | 2,128,244 | 1.92 | 344 / 251 / 11 |
+| `sitting-2.8.0-build-a` | 16:13 | 2.8.0 | `rows/r1/libraries` | `22f67aa5` | 0 | 197.90 s | 2,818,144 | 1.93 | 344 / 251 / 0 |
+| `sitting-2.8.0-build-b` | 16:16 | 2.8.0 | `measure/repro-b/rows/2.8.0/libraries` | `22f67aa5` (exported) | 0 | 178.77 s | 2,815,736 | 1.99 | 344 / 251 / 0 |
+| `row4-3.0-Overture.Basic-agda2.8.0` | 16:21 | 2.8.0 | `rows/r4/libraries` | `4eb44e2d` | 42 | 4.93 s | 293,452 | 1.89 | 1 / 39 / 0 |
+
++  **The matrix**, as follows:
+   +  **Row 1**, 2.9.0 with standard-library 2.3, agda-algebras master: fails in the standard library, at `Relation.Nullary.Recomputable:35` (`VariableIsIrrelevant`, the clause `irrelevant (irrelevant-recompute [ a ]) = a`), after 23 of its modules.  No agda-algebras module failed.
+   +  **Row 2**, 2.9.0 with 2.4: the standard-library closure agda-algebras needs fails at `Data.Irrelevant:48`, the same construct moved.  With agda-stdlib's three `agda-master` commits (`1896499f`, `39631ce9`, `1b7f26af`, all of which apply cleanly to v2.4) the closure checks, and agda-algebras checks against it after changing only `depend:`, with 80 new deprecation warnings (five names in 16 modules).
+   +  **Row 2b**, 2.9.0 with 2.3, `1896499f` and `1b7f26af` cherry-picked (cleanly) and `39631ce9` ported by hand (`irrelevant-recompute` moves to a new `Relation.Nullary.Recomputable.Unsafe` under `--cubical-compatible --irrelevant-projections`; `⊥-recompute` becomes an absurd clause): checks the same 344 agda-algebras and 251 standard-library modules as the control, the same set, plus 11 builtins.  The only new warnings are three `FixityDeclarationForNonOperator`, all agda-algebras' own; [pull request 587][aa-587] removes two, and the third is in its frozen `Legacy/`.
+   +  **Row 4**, 3.0 (`1b7f26af`): checks under 2.9.0 (Agda's `stdlib-test` job on `da66a8c`, [run 37342770332][stdlib-test], checks its whole `Everything.agda` from source), but agda-algebras cannot import it: `CoInfectiveImport` at the first `open import Data.Product`, since 3.0 is `--without-K` again and agda-algebras is `--cubical-compatible`.  The same under 2.8.0.
+   +  **Row 5**, the control, the flake's 2.8.0 with row 1's libraries file: 344 and 251 modules, the builtins prebuilt in the Nix store.
++  **The standard library that works**: 2.3 patched as in row 2b, or 2.4 with the three commits (row 2).  The patched 2.3 is the version agda-algebras' master depends on, so it needs no change to the library, not even `depend:`.  The 3.2 measurements below are on row 2b.
++  **The closure of `Setoid.Varieties.HSP`**, measured on row 2b and on row 5 at agda-algebras `22f67aa5` (pull request 587's head), in one sitting (`measure/sitting.sh`): 314 modules under both Agdas, the same set, `Main` included, and no `MISSING` line in either `sizes.txt`.
+
+| | modules | 2.9.0 raw | 2.9.0 gzipped | 2.8.0 raw | 2.8.0 gzipped |
+|---|---:|---:|---:|---:|---:|
+| agda-algebras | 92 | 12,469,807 | 12,466,101 | 18,110,993 | 15,592,745 |
+| standard library | 212 | 29,217,465 | 29,186,587 | 45,520,501 | 38,622,151 |
+| builtins | 9 | 69,044 | 69,360 | 78,803 | 71,798 |
+| `Main` | 1 | 3,296 | 3,330 | 4,071 | 3,736 |
+| total | 314 | 41,759,612 | 41,725,378 | 63,714,368 | 54,290,430 |
+
++  **What the sizes say**: 2.9.0's interfaces are 34% smaller than 2.8.0's raw and 23% smaller than 2.8.0's gzipped, and gzip saves 0.1% on them, since they come compressed.  For [M1-4]: under 2.9.0 the HSP closure is 41.7 MB, against 54.3 MB gzipped under 2.8.0 (the brief's figure too), and packing no longer shrinks anything; a `.gz` or `.zip` name still matters for Cloudflare's edge cache, but it buys no bytes.  The whole `_build`: agda-algebras' 346 interfaces are 40,563,630 bytes under 2.9.0 (60,581,757 under 2.8.0), the standard library's 251 are 34,840,148 (54,329,748).
++  **The warm check** of that `Main` (`measure/run.sh`: `<wrapper> +RTS -s -RTS -i . Main.agda`, `Main`'s interface deleted before each run; one `Checking` line in every run, so every other interface was accepted): under 2.9.0, 2.09, 2.11 and 2.11 s at a peak RSS of 701,284 to 702,216 KiB (about 685 MiB; GHC maximum residency 505 to 507 MB); under 2.8.0, 6.22, 5.90 and 6.06 s at 758,600 to 831,580 KiB.  Load average 1.93 to 1.94 before each run.  [M1-10]'s native baseline under 2.9.0 is therefore about 2.1 s, not the brief's 5.1 s.
++  **Reproducibility**: each Agda built everything twice, in the worktrees and in copies exported by `git archive` to `measure/repro-b/` (the nightly with a second data directory).  Under 2.9.0, 281 of agda-algebras' 346 interfaces are byte-identical and 65 differ, and all 251 standard-library and all 13 builtin interfaces are identical; under 2.8.0, the same 281 and 65, and all 251 standard-library interfaces.  The 65 are the same modules under both (58 in `Legacy.Base`, 3 in `Examples.Structures`, and `Examples`, `agda-algebras`, `Everything`, `EverythingLegacy`), [M1-4]'s 65; none is in the HSP closure.  Under 2.9.0 a pair differs by about the two directories' path-length difference (`Legacy.Base.Terms`: 72,898 against 72,879 bytes), consistent with [M1-4]'s diagnosis.  [M1-4]'s rule, one fixed build procedure in CI, still holds.
++  **On the times**: a whole from-source check took 76 to 90 s and 1.9 to 2.5 GB under the nightly, against 176 to 198 s and 2.8 GB under the flake's 2.8.0.  The two binaries differ in cabal flags (the flake's 2.8.0 carries `debug`), so this is the binaries' ratio, not the versions'.
++  **What it means for the plan**:
+   +  **The IDE can ship agda-algebras on 2.9.0 now**, at its pinned commit, with standard-library 2.3 patched as in row 2b: three upstream `agda-master` commits, one of them ported by hand.  [M1-4]'s pipeline would build the archives from v2.3 plus those patches, pinned by hash, and [M0-9]'s NOTICE would name the standard library as modified.
+   +  **agda-algebras' own pin need not move for this, and no branch is needed**: the library checks under 2.9.0 as it stands (with warnings; pull request 587 removes two of them), and only the standard library is patched.
+   +  **That changes with William's plan of 2026-10-06** to move agda-algebras from `--cubical-compatible` back to `--without-K`, which makes 3.0 importable.  Once Agda 2.9.0 and standard-library 3.0 are released and agda-algebras has moved to them ([issue 588][aa-588]), the IDE can ship an unpatched standard library; until then, the patched 2.3.
+   +  This issue's first criterion is met.  Its second ([M1-4]'s pipeline under 2.9.0, and [M1-5]'s gate) is open, so the issue stays open.
+
+[#61]: https://github.com/formalverification/agda-native-ide/issues/61
+[aa-586]: https://github.com/ualib/agda-algebras/issues/586
+[aa-586-findings]: https://github.com/ualib/agda-algebras/issues/586#issuecomment-6026539346
+[aa-587]: https://github.com/ualib/agda-algebras/pull/587
+[aa-588]: https://github.com/ualib/agda-algebras/issues/588
+[stdlib-test]: https://github.com/agda/agda/actions/runs/37342770332/job/111883066837
 
 <!-- END GENERATED: milestone-1 -->
 
