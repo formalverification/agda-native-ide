@@ -29,9 +29,9 @@ function write(path, content) {
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "asset-manifest-"));
-  write("als-2.8ext.wasm", "compiler v1");
+  write("als-2.9.0.wasm", "compiler v1");
   write("agda-data.zip", "builtins v1");
-  write("agda-stdlib-2.3.zip", "stdlib v1");
+  write("agda-stdlib-2.3-patched.zip", "stdlib v1");
   write("plfa/project.zip", "plfa v1");
   write(
     "plfa/interfaces/manifest.json",
@@ -95,8 +95,8 @@ describe("the asset manifest", () => {
   });
 
   it("refuses a missing asset, unless it is not building", () => {
-    rmSync(join(dir, "agda-stdlib-2.3.zip"));
-    expect(() => assetManifest(dir)).toThrow(/agda-stdlib-2\.3\.zip/);
+    rmSync(join(dir, "agda-stdlib-2.3-patched.zip"));
+    expect(() => assetManifest(dir)).toThrow(/agda-stdlib-2\.3-patched\.zip/);
     const manifest = assetManifest(dir, { strict: false });
     expect(manifest.tokens.stdlib).toBe("missing");
     expect(manifest.tokens.compiler).toBe(sha256("compiler v1").slice(0, 16));

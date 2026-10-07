@@ -147,15 +147,18 @@ guard-gh:
 # Run these in the dev shell (`nix develop`), which carries node 22 and
 # GNU coreutils.  The binaries the app ships are never committed.  The
 # flake fetches each pinned one from upstream at the imported commit and
-# checks it against its SHA-256 in $(PINS), and builds Agda's builtin
-# library, agda-data.zip (`nix build .#agda-data`); `make assets` copies
-# the set into static/, and `make build` refuses to build unless every
-# pinned file there still matches its pin and agda-data.zip is the
-# flake's build.  (Inside the Nix sandbox, where `nix build .#site` runs
-# the same `make build`, there is no nix to ask, and the site's
-# derivation copies the archive in itself.)  docs/provenance.md records
-# them all.  `make build` also publishes NOTICE (as NOTICE.txt) and
-# licenses/ in build/.
+# checks it against its SHA-256 in $(PINS), and adds the files that are
+# not upstream's: Agda's builtin library, agda-data.zip (`nix build
+# .#agda-data`), the compiler's language server, als-2.9.0.wasm (`nix
+# build .#compiler`, fetched by its pins in compiler/agda-2.9.0.sha256),
+# and the standard library, agda-stdlib-2.3-patched.zip (`nix build
+# .#stdlib`).  `make assets` copies the set into static/, and `make build`
+# refuses to build unless every pinned file there still matches its pin
+# and those three are the flake's.  (Inside the Nix sandbox, where `nix
+# build .#site` runs the same `make build`, there is no nix to ask, and
+# the site's derivation copies them in itself.)  docs/provenance.md
+# records them all.  `make build` also publishes NOTICE (as NOTICE.txt)
+# and licenses/ in build/.
 #
 # dev, build, test and check install the locked npm dependencies first
 # (`npm ci`) when package.json or package-lock.json is newer than the
@@ -172,6 +175,9 @@ guard-gh:
 #                  flake passes its own, since its sandbox has no .git)
 
 PINS      ?= upstream/assets.sha256
+# The files in static/ that are the flake's own (built, or pinned by
+# compiler/agda-2.9.0.sha256) rather than upstream's.
+OWN_ASSETS := agda-data.zip als-2.9.0.wasm agda-stdlib-2.3-patched.zip
 UNCHANGED ?= upstream/unchanged.sha256
 SITE_REVISION ?= $(shell rev=$$(git rev-parse HEAD 2>/dev/null) && \
   if [ -n "$$(git status --porcelain 2>/dev/null)" ]; then echo $$rev-dirty; else echo $$rev; fi)
@@ -181,23 +187,30 @@ SITE_REVISION ?= $(shell rev=$$(git rev-parse HEAD 2>/dev/null) && \
 node_modules/.package-lock.json: package.json package-lock.json
 	npm ci
 
-assets: ## Fetch the pinned binaries and build agda-data.zip (nix build .#assets) into static/
+assets: ## Fetch the pinned binaries, build the flake's own (nix build .#assets) into static/
 	@out=$$(nix build .#assets --no-link --print-out-paths) && \
+	  for f in static/*.wasm static/*.wasm.gz static/*.zip; do \
+	    if [ -e "$$f" ] && [ ! -e "$$out/$$f" ]; then \
+	      rm "$$f" && echo "assets: removed $$f, which the set no longer has"; \
+	    fi; \
+	  done && \
 	  cp -R --no-preserve=mode,ownership "$$out"/static/. static/ && \
 	  echo "assets: copied $$out/static into static/"
 	@$(MAKE) --no-print-directory assets-check
 
-assets-check: ## Check the pinned binaries in static/, and that agda-data.zip is the flake's build
+assets-check: ## Check the pinned binaries in static/, and that the flake's own files there are its
 	@sha256sum --check --strict --quiet $(PINS) && \
 	  echo "assets-check: all $$(grep -c . $(PINS)) pinned files match"
 	@if command -v nix > /dev/null; then \
-	  built=$$(nix build .#agda-data --no-link --print-out-paths) || exit 1; \
-	  if cmp -s "$$built/agda-data.zip" static/agda-data.zip; then \
-	    echo "assets-check: static/agda-data.zip is the flake's build"; \
-	  else \
-	    echo "assets-check: static/agda-data.zip is not the flake's build ($$built); run make assets" >&2; \
-	    exit 1; \
-	  fi; \
+	  built=$$(nix build .#assets --no-link --print-out-paths) || exit 1; \
+	  for f in $(OWN_ASSETS); do \
+	    if cmp -s "$$built/static/$$f" "static/$$f"; then \
+	      echo "assets-check: static/$$f is the flake's"; \
+	    else \
+	      echo "assets-check: static/$$f is not the flake's ($$built); run make assets" >&2; \
+	      exit 1; \
+	    fi; \
+	  done; \
 	fi
 
 dev: node_modules/.package-lock.json assets-check ## Serve the app at http://localhost:5173, reloading on change

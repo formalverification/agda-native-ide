@@ -23,9 +23,9 @@ import { join } from "node:path";
  * (scripts/prepare-cloudflare-assets.mjs), shares the compiler's token,
  * since it changes exactly when the compiler does. */
 export const ASSETS = {
-  compiler: "als-2.8ext.wasm",
+  compiler: "als-2.9.0.wasm",
   builtins: "agda-data.zip",
-  stdlib: "agda-stdlib-2.3.zip",
+  stdlib: "agda-stdlib-2.3-patched.zip",
   plfaProject: "plfa/project.zip",
   plfaInterfaces: "plfa/interfaces",
 };
