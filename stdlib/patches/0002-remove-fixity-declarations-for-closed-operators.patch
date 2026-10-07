@@ -1,0 +1,185 @@
+# File: stdlib/patches/0002-remove-fixity-declarations-for-closed-operators.patch
+#
+# What: agda/agda-stdlib commit 1b7f26af455caa57e9372cef50b4f4118a92bf81
+# (branch agda-master, Andreas Abel, 2026-09-08), cherry-picked onto v2.3
+# without change: fixity declarations for closed operators removed, which
+# Agda 2.9.0 warns about.
+#
+# Why: the standard library 2.3, which agda-algebras depends on, checks
+# under Agda 2.9.0 with these three patches and with no released version
+# (issue 61, row 2b); the page ships it so patched (issue 58).
+#
+# Against: agda/agda-stdlib v2.3 (8326c7475af1fa456ca04a0203c168d5d7ff842b),
+# applied in order by the flake (packages.stdlib).
+#
+From 1d7e2dae49e88e32f24b6ff9f714028dc26c63e0 Mon Sep 17 00:00:00 2001
+From: Andreas Abel <andreas.abel@ifi.lmu.de>
+Date: Tue, 8 Sep 2026 15:11:26 +0200
+Subject: [PATCH 2/3] Remove fixity declarations for closed operators
+
+Addresses these two issues:
+1. A non-operator `Agda.Builtin.Int.pos` is imported as prefix operator `+_` without giving it an explicit fixity declaration.
+2. Some non-operators are given a fixity where it does not make sense.
+
+Both issues are just of cosmetic nature atm, but may change to become issues in the future, see agda/agda#1438 .
+
+It seems best to address these issues now.
+Note that the syntax addressing issue 1 has been available since Agda 2.6.1 already.
+
+Closes #3114.
+---
+ src/Data/Integer/Base.agda                      |  5 ++---
+ src/Data/Refinement/Base.agda                   |  1 -
+ src/Data/Vec/Relation/Binary/Equality/Cast.agda |  2 +-
+ src/Relation/Binary/Reasoning/Syntax.agda       | 11 +++++------
+ src/Relation/Nary.agda                          |  2 --
+ src/Relation/Unary.agda                         |  2 --
+ src/Text/Regex/Base.agda                        |  3 +--
+ 7 files changed, 9 insertions(+), 17 deletions(-)
+
+diff --git a/src/Data/Integer/Base.agda b/src/Data/Integer/Base.agda
+index 9d7e689db..15d2cdfb2 100644
+--- a/src/Data/Integer/Base.agda
++++ b/src/Data/Integer/Base.agda
+@@ -37,8 +37,8 @@ open import Agda.Builtin.Int public
+   using ()
+   renaming
+   ( Int    to ℤ
+-  ; pos    to +_      -- "+ n"      stands for "n"
+-  ; negsuc to -[1+_]  -- "-[1+ n ]" stands for "- (1 + n)"
++  ; pos    to infix 8 +_  -- "+ n"      stands for "n"
++  ; negsuc to -[1+_]      -- "-[1+ n ]" stands for "- (1 + n)"
+   )
+ 
+ -- Some additional patterns that provide symmetry around 0
+@@ -345,4 +345,3 @@ i % j = i %ℕ ∣ j ∣
+   ; 0# = 0ℤ
+   ; 1# = 1ℤ
+   }
+-
+diff --git a/src/Data/Refinement/Base.agda b/src/Data/Refinement/Base.agda
+index d69dfb07d..8a531b6cb 100644
+--- a/src/Data/Refinement/Base.agda
++++ b/src/Data/Refinement/Base.agda
+@@ -35,7 +35,6 @@ open Refinement public
+ -- It is attached to Refinement-syntax, to make it easy to import
+ -- Data.Refinement without the special syntax.
+ 
+-infix 2 Refinement-syntax
+ Refinement-syntax = Refinement
+ syntax Refinement-syntax A (λ x → P) = [ x ∈ A ∣ P ]
+ 
+diff --git a/src/Data/Vec/Relation/Binary/Equality/Cast.agda b/src/Data/Vec/Relation/Binary/Equality/Cast.agda
+index b8d4637bc..4825eead0 100644
+--- a/src/Data/Vec/Relation/Binary/Equality/Cast.agda
++++ b/src/Data/Vec/Relation/Binary/Equality/Cast.agda
+@@ -128,7 +128,7 @@ module CastReasoning where
+   -- convenient syntax for ‘equational’ reasoning
+ 
+   infix 1 begin_
+-  infixr 2 step-≃-⟩ step-≃-⟨ step-≂-⟩ step-≂-⟨ step-≈-⟩ step-≈-⟨ _≈⟨⟩_ ≈-cong
++  infixr 2 step-≃-⟩ step-≃-⟨ step-≂-⟩ step-≂-⟨ step-≈-⟩ step-≈-⟨ _≈⟨⟩_
+   infix 3 _∎
+ 
+   syntax step-≃-⟩ xs ys≡zs xs≈ys  = xs ≃⟨ xs≈ys ⟩ ys≡zs
+diff --git a/src/Relation/Binary/Reasoning/Syntax.agda b/src/Relation/Binary/Reasoning/Syntax.agda
+index 780ae8d89..5b3ad39d2 100644
+--- a/src/Relation/Binary/Reasoning/Syntax.agda
++++ b/src/Relation/Binary/Reasoning/Syntax.agda
+@@ -266,7 +266,7 @@ module _
+       syntax step-≈-⟨ x yRz y≈x = x ≈⟨ y≈x ⟨ yRz
+ 
+       -- Deprecated
+-      infixr 2 step-≈ step-≈˘
++      infixr 2 step-≈˘
+       step-≈ = step-≈-⟩
+       {-# WARNING_ON_USAGE step-≈
+       "Warning: step-≈ was deprecated in v2.0.
+@@ -290,7 +290,7 @@ module _
+ 
+ 
+       -- Don't remove until https://github.com/agda/agda/issues/5617 fixed.
+-      infixr 2 step-≋ step-≋˘
++      infixr 2 step-≋˘
+       step-≋ = step-≋-⟩
+       {-# WARNING_ON_USAGE step-≋
+       "Warning: step-≋ was deprecated in v2.0.
+@@ -322,7 +322,7 @@ module _
+       syntax step-#-⟨ x yRz y#x = x #⟨ y#x ⟨ yRz
+ 
+       -- Don't remove until https://github.com/agda/agda/issues/5617 fixed.
+-      infixr 2 step-# step-#˘
++      infixr 2 step-#˘
+       step-# = step-#-⟩
+       {-# WARNING_ON_USAGE step-#
+       "Warning: step-# was deprecated in v2.0.
+@@ -364,7 +364,7 @@ module _
+ 
+ 
+       -- Don't remove until https://github.com/agda/agda/issues/5617 fixed.
+-      infixr 2 step-↭ step-↭˘
++      infixr 2 step-↭˘
+       step-↭ = forward
+       {-# WARNING_ON_USAGE step-↭
+       "Warning: step-↭ was deprecated in v2.0.
+@@ -404,7 +404,7 @@ module ≡-syntax
+ 
+ 
+   -- Don't remove until https://github.com/agda/agda/issues/5617 fixed.
+-  infixr 2 step-≡ step-≡˘
++  infixr 2 step-≡˘
+   step-≡ = step-≡-⟩
+   {-# WARNING_ON_USAGE step-≡
+   "Warning: step-≡ was deprecated in v2.0.
+@@ -442,4 +442,3 @@ module end-syntax
+ 
+   _∎ : ∀ x → R x x
+   x ∎ = reflexive
+-
+diff --git a/src/Relation/Nary.agda b/src/Relation/Nary.agda
+index 54adb5369..4c3a18699 100644
+--- a/src/Relation/Nary.agda
++++ b/src/Relation/Nary.agda
+@@ -60,8 +60,6 @@ quantₙ : (∀ {i l} {I : Set i} → (I → Set l) → Set (i ⊔ l)) →
+ quantₙ Q zero     f = f
+ quantₙ Q (suc n)  f = Q (λ x → quantₙ Q n (f x))
+ 
+-infix 5 ∃⟨_⟩ Π[_] ∀[_]
+-
+ -- existential quantifier
+ 
+ ∃⟨_⟩ : ∀ {n ls r} {as : Sets n ls} → as ⇉ Set r → Set (r ⊔ (⨆ n ls))
+diff --git a/src/Relation/Unary.agda b/src/Relation/Unary.agda
+index 86bb80f1b..fc03ebac2 100644
+--- a/src/Relation/Unary.agda
++++ b/src/Relation/Unary.agda
+@@ -136,8 +136,6 @@ P ≐′ Q = (P ⊆′ Q) × (Q ⊆′ P)
+ ------------------------------------------------------------------------
+ -- Properties of sets
+ 
+-infix 10 Satisfiable Universal IUniversal
+-
+ -- Emptiness - no element satisfies P.
+ 
+ Empty : Pred A ℓ → Set _
+diff --git a/src/Text/Regex/Base.agda b/src/Text/Regex/Base.agda
+index e5cc2c24a..516d09f5c 100644
+--- a/src/Text/Regex/Base.agda
++++ b/src/Text/Regex/Base.agda
+@@ -26,7 +26,7 @@ open import Data.List.Relation.Ternary.Appending.Propositional {A = A}
+ ------------------------------------------------------------------------
+ -- Regular expressions on the alphabet A
+ 
+-infix 10 [_] _─_
++infix 10 _─_
+ data Range : Set a where
+   [_] : (a : A)     → Range
+   _─_ : (lb ub : A) → Range
+@@ -34,7 +34,6 @@ data Range : Set a where
+ infixr 5 _∣_
+ infixr 6 _∙_
+ infixl 7 _⋆
+-infix 10 [^_]
+ 
+ data Exp : Set a where
+   ε    : Exp

@@ -144,6 +144,37 @@
             | TZ=UTC zip -X -D -0 -q "$out/agda-data.zip" -@
         '';
 
+      # The standard library the page ships under Agda 2.9.0 (issue 58):
+      # agda-stdlib v2.3, which agda-algebras depends on, with the three
+      # patches in stdlib/patches/ (two commits of its agda-master branch,
+      # and a third ported by hand), without which no released version
+      # checks under 2.9.0 (issue 61, row 2b).  The archive holds what the
+      # page's drive takes from it (src/, standard-library.agda-lib) and the
+      # library's LICENCE, under agda-stdlib-2.3/, as a zip whose bytes
+      # depend on its input alone: entries sorted, one fixed time.
+      stdlibSource = pkgs: pkgs.fetchFromGitHub {
+        owner = "agda";
+        repo = "agda-stdlib";
+        rev = "8326c7475af1fa456ca04a0203c168d5d7ff842b"; # v2.3
+        hash = "sha256-JOeoek6OfyIk9vwTj5QUJU6LnRzwfiG0e0ysW6zbhZ8=";
+      };
+      mkStdlib = pkgs: pkgs.runCommand "agda-stdlib-2.3-patched" {
+          nativeBuildInputs = [ pkgs.zip pkgs.patch ];
+        } ''
+          cp -R --no-preserve=mode ${stdlibSource pkgs} agda-stdlib-2.3
+          for p in ${./stdlib/patches}/*.patch; do
+            patch --quiet -p1 -d agda-stdlib-2.3 < "$p"
+          done
+          find agda-stdlib-2.3 -name '*.orig' -delete
+          mkdir -p "$out"
+          find agda-stdlib-2.3/src agda-stdlib-2.3/standard-library.agda-lib \
+              agda-stdlib-2.3/LICENCE -type f \
+            -exec chmod 644 {} + -exec touch -d @315532800 {} +
+          find agda-stdlib-2.3/src agda-stdlib-2.3/standard-library.agda-lib \
+              agda-stdlib-2.3/LICENCE -type f | LC_ALL=C sort \
+            | TZ=UTC zip -X -D -9 -q "$out/agda-stdlib-2.3-patched.zip" -@
+        '';
+
       # The input of agda-data.zip: issue 58's move to another Agda changes
       # this attribute, and nothing else.
       agdaDataInput = pkgs: {
@@ -196,6 +227,7 @@
     {
       packages = forAllSystems (system: pkgs: let
         compiler = mkCompiler pkgs;
+        stdlib = mkStdlib pkgs;
         agdaData = mkAgdaData pkgs (agdaDataInput pkgs);
       in rec {
         # Agda's builtin library, built (mkAgdaData).
@@ -203,6 +235,9 @@
 
         # The 2.9.0 compiler, fetched by its pins (mkCompiler).
         inherit compiler;
+
+        # The standard library the page ships, patched (mkStdlib).
+        inherit stdlib;
 
         # Every binary the app ships at its path in the tree (static/...):
         # the pinned ones, and agda-data.zip.
