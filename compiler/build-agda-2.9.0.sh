@@ -18,7 +18,8 @@
 # store, dist-newstyle) goes to $WORK, by default one fixed path,
 # /tmp/agda-native-ide-compiler, because the binaries record the paths
 # they were built at (a package's data directory, for one), so two builds
-# give the same bytes only from the same path.  What is pinned, and where:
+# give the same bytes only from the same path.  What is pinned, and where,
+# is as follows:
 #
 #   +  Agda: agda/agda at AGDA_COMMIT, built with Agda's default flags
 #      (optimise-heavily on, use-xdg-data-home off, so that the data

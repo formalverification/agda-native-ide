@@ -287,7 +287,7 @@ byte-identical to `static/agda-data.zip` of [agda-web/als-demo] (branch
 ## The compiler's gzip
 
 The page fetches the compiler gzipped, and no gzip is pinned, because the
-build writes its own:
+build writes its own, as follows:
 
 +  `npm run build` gzips the raw compiler in `build/` (node's zlib at level
    9) and deletes the raw copy (`scripts/prepare-cloudflare-assets.mjs`,
