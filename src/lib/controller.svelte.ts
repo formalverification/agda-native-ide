@@ -6,7 +6,9 @@
 // library's and PLFA's URLs, the compiler's length in bytes, and the
 // drive's cache namespace come from $lib/assets, which the build derives
 // from the files, instead of values maintained by hand; the builtins' URL,
-// which had no token, gains one (issue 3).
+// which had no token, gains one (issue 3).  The map of compiler versions
+// keeps only the one the site ships: agda-data.zip is built for that Agda,
+// and the others named compilers the site has never carried (issue 49).
 
 import { SPSC } from "spsc";
 import { SPSCReader } from "spsc/reader";
@@ -62,7 +64,7 @@ type ALSWorkerStatus =
   | "terminated"
   | "exited";
 
-const supportedAgdaVersion = ["2.6.4.3", "2.7.0.1", "2.8.0"] as const;
+const supportedAgdaVersion = ["2.8.0"] as const;
 export type SupportedAgdaVersion = (typeof supportedAgdaVersion)[number];
 
 export interface DriveHandle {
@@ -100,16 +102,6 @@ interface AgdaVersionSpec {
 
 export const agdaVersionMap: Record<SupportedAgdaVersion, AgdaVersionSpec> = {
   ["__proto__" as any]: null,
-  "2.6.4.3": {
-    path: asset("/als-2.6.wasm"),
-    stdlibCandidates: ["2.0", "2.1"],
-    dataPath: asset("/agda-data.zip"),
-  },
-  "2.7.0.1": {
-    path: asset("/als-2.7ext.wasm"),
-    stdlibCandidates: ["2.1.1", "2.2", "2.3"],
-    dataPath: asset("/agda-data.zip"),
-  },
   "2.8.0": {
     path: `${asset("/als-2.8ext.wasm")}?cache=${cacheTokens.compiler}`,
     compressedPath: `${asset("/als-2.8ext.wasm.gz")}?cache=${cacheTokens.compiler}`,
