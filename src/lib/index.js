@@ -1,188 +1,68 @@
-/** @import { SPSCReader } from 'spsc/reader' */
-/** @import { SPSCWriter } from 'spsc/writer' */
+// File: src/lib/index.js
+//
+// Changed from upstream: this is SeungheonOh/plfa-playground's
+// src/lib/index.js at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
+// (docs/provenance.md).  The page speaks to the language server's worker
+// through a message port, one JSON-RPC message per event, where it read
+// and wrote the server's standard input and output through two rings in
+// shared memory; the drive worker, and the functions that wrote to it
+// through a third ring under a lock, are gone, since the drive is the
+// server's worker's own (issue 59).
+
 /** @import { ALSWorkerInitObject, ALSWorkerInitResultProxied } from '$lib/worker/types' */
-import { SPSCError } from "spsc";
 import * as Comlink from "comlink";
-import {
-  freadAsync,
-  fwriteAsync,
-  makeBufUint32LE,
-  writeLenPrefixedAsync,
-} from "./stdlib";
-
-// feature detection, unfortunately async
-let browserSupportBYOBReadable = false;
-queueMicrotask(() => {
-  (async () => {
-    const rs = new ReadableStream({
-      type: "bytes",
-      // when this is defined, byobRequest should always be available
-      // https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream/ReadableStream#autoallocatechunksize
-      autoAllocateChunkSize: 8,
-      async pull(controller) {
-        const breq = controller.byobRequest;
-        if (breq?.view == null) {
-          throw new Error("byobRequest support is borked");
-        }
-        const view = new Uint8Array(
-          breq.view.buffer,
-          breq.view.byteOffset,
-          breq.view.byteLength,
-        );
-        view[0] = 1;
-        breq.respond(1);
-        controller.close();
-      },
-    });
-    const ws = new WritableStream();
-    await rs.pipeTo(ws);
-    return true;
-  })()
-    .catch(() => false)
-    .then((ok) => (browserSupportBYOBReadable = ok));
-});
 
 /**
- * @param {SPSCReader} reader
- * @param {MessagePort} waker
- * @returns {ReadableStream<Uint8Array<ArrayBuffer>>}
+ * The language server's messages over a MessagePort, as the byte streams
+ * the router reads and writes (src/lib/agda/transport.js): each message
+ * from the worker is framed with its Content-Length, and each framed
+ * message to it is unframed, since the server's reactor build takes and
+ * gives one message per call, with no framing.
+ * @param {MessagePort} port
  */
-export function createReadableByteStream(reader, waker) {
-  /** @type {((data?: unknown) => void) | undefined} */
-  let pendingRead;
-  waker.onmessage = () => {
-    if (pendingRead) {
-      pendingRead();
-      pendingRead = undefined;
-    }
-  };
-
-  if (!browserSupportBYOBReadable) {
-    console.warn(
-      "Browser not support byob readable streams; using the fallback impl.",
-    );
-
-    return new ReadableStream({
-      async pull(controller) {
-        while (true) {
-          const rr = reader.read(controller.desiredSize ?? 4096, {
-            nonblock: true,
-          });
-          if (!rr.ok) {
-            if (rr.error === SPSCError.Again) {
-              await new Promise((resolve) => (pendingRead = resolve));
-              continue;
-            }
-            throw new Error("read failed");
-          }
-
-          if (rr.bytesRead) {
-            controller.enqueue(
-              /** @type {Uint8Array<ArrayBuffer>} */ (rr.data),
-            );
-          } else {
-            console.log("process ends");
-            controller.close();
-          }
-          break;
-        }
-      },
-    });
-  }
-
-  // "autoAllocateChunkSize" assumes forcing byob
-  return new ReadableStream({
-    type: "bytes",
-    async pull(controller) {
-      while (true) {
-        if (controller.byobRequest == null)
-          throw new Error("there should be a byobRequest");
-        const view = /** @type {Uint8Array<ArrayBuffer>} */ (
-          controller.byobRequest.view
+export function createPortByteStreams(port) {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  /** @type {ReadableStream<Uint8Array>} */
+  const readable = new ReadableStream({
+    start(controller) {
+      port.onmessage = (/** @type {MessageEvent<string>} */ event) => {
+        const body = encoder.encode(event.data);
+        controller.enqueue(
+          encoder.encode(`Content-Length: ${body.byteLength}\r\n\r\n`),
         );
-        const rr = reader.read(view.byteLength, { nonblock: true, into: view });
-        if (!rr.ok) {
-          if (rr.error === SPSCError.Again) {
-            await new Promise((resolve) => (pendingRead = resolve));
-            continue;
-          }
-          throw new Error("read failed");
-        }
-        if (rr.bytesRead) {
-          controller.byobRequest.respond(rr.bytesRead);
-        } else {
-          console.log("process ends");
-          controller.close();
-        }
-        break;
-      }
+        controller.enqueue(body);
+      };
     },
-    autoAllocateChunkSize: reader.capacity,
   });
-}
-
-/**
- * @param {SPSCWriter} writer
- * @returns {WritableStream<Uint8Array<ArrayBuffer>>}
- *
- * TODO: waker; I think setTimeout is acceptable
- */
-export function createWritableByteStream(writer) {
-  return new WritableStream({
-    async write(chunk) {
-      let nwritten = 0;
-      while (nwritten < chunk.byteLength) {
-        const wr = writer.write(chunk.subarray(nwritten), { nonblock: true });
-        if (!wr.ok) {
-          if (wr.error === SPSCError.Again) {
-            await new Promise((r) => setTimeout(r, 50));
-            continue;
-          }
-          throw new Error(
-            `write failed at ${nwritten}/${chunk.byteLength}: ${wr.error}`,
-          );
-        }
-        nwritten += wr.bytesWritten;
+  let pending = new Uint8Array(0);
+  /** @type {WritableStream<Uint8Array>} */
+  const writable = new WritableStream({
+    write(chunk) {
+      const joined = new Uint8Array(pending.byteLength + chunk.byteLength);
+      joined.set(pending);
+      joined.set(chunk, pending.byteLength);
+      pending = joined;
+      for (;;) {
+        // The header is ASCII, so its characters are its bytes.
+        const head = decoder.decode(
+          pending.subarray(0, Math.min(pending.byteLength, 64)),
+        );
+        const end = head.indexOf("\r\n\r\n");
+        if (end < 0) return;
+        const length = Number(
+          head.slice(0, end).match(/Content-Length: (\d+)/i)?.[1],
+        );
+        if (!Number.isInteger(length))
+          throw new Error(`no Content-Length in ${JSON.stringify(head)}`);
+        const start = end + 4;
+        if (pending.byteLength < start + length) return;
+        port.postMessage(decoder.decode(pending.subarray(start, start + length)));
+        pending = pending.slice(start + length);
       }
     },
   });
-}
-
-/**
- * @param {any} initialMessage
- * @returns {Promise<{ worker: Worker, event: MessageEvent }>} */
-export function makeDriveHostWorker(initialMessage) {
-  const worker = new Worker(
-    new URL("$lib/worker/drive.js?worker&inline", import.meta.url),
-    {
-      name: "Runno drive host",
-      type: "module",
-    },
-  );
-
-  return new Promise((_res, _rej) => {
-    let done = false;
-    const res = (/** @type {MessageEvent} */ evt) =>
-      !done && (cleanup(), _res({ worker, event: evt }));
-    const rej = (/** @type {unknown} */ err) => !done && (cleanup(), _rej(err));
-    function cleanup() {
-      done = true;
-      worker.removeEventListener("message", res);
-      worker.removeEventListener("error", rej);
-    }
-    worker.addEventListener("message", res);
-    worker.addEventListener("error", rej);
-
-    // FIXME
-    /** @type {Transferable[]} */
-    const transferables = [
-      initialMessage.agdaDataZip,
-      initialMessage.agdaStdlibZip,
-      initialMessage.plfaProjectZip,
-    ].filter(Boolean);
-
-    worker.postMessage(initialMessage, transferables);
-  });
+  return { readable, writable };
 }
 
 /**
@@ -202,12 +82,12 @@ export function makeLspWorker(initObject, workerPreCallback) {
   const endpoint = Comlink.wrap(worker);
   workerPreCallback?.(worker);
 
-  const { wasmSource, stdinWaker } = initObject;
+  const { wasmSource, port } = initObject;
 
   const initPromise = endpoint.init(
     Comlink.transfer(initObject, [
       ...(wasmSource.type === "stream" ? [wasmSource.stream] : []),
-      stdinWaker,
+      port,
     ]),
   );
 
@@ -279,67 +159,4 @@ export function traceFetchProgress(resp, callback) {
       cancelled = true;
     },
   };
-}
-
-/**
- * @param {Int32Array<SharedArrayBuffer>} lock
- * @param {() => Promise<unknown>} callback */
-export async function withDriveLock(lock, callback) {
-  while (Atomics.compareExchange(lock, 0, 0, 1) !== 0) {
-    console.warn("drive is busy, retrying later...");
-    await new Promise((r) => setTimeout(r, 100));
-  }
-
-  await callback();
-
-  if (Atomics.compareExchange(lock, 0, 1, 0) !== 1) {
-    throw new Error("mutex content corrupted");
-  }
-
-  Atomics.notify(lock, 0, 1);
-}
-
-const encoder = new TextEncoder();
-
-/**
- * @param {import('./controller.svelte').DriveHandle} _
- * @param {string} filePath
- * @param {string} doc */
-export function writeSourceFileToDrive(
-  { lock, stdinWriter, stdoutReader },
-  filePath,
-  doc,
-) {
-  return withDriveLock(lock, async () => {
-    await fwriteAsync(stdinWriter, makeBufUint32LE(3));
-    await writeLenPrefixedAsync(stdinWriter, encoder.encode(filePath));
-    await writeLenPrefixedAsync(stdinWriter, encoder.encode(doc));
-    await freadAsync(stdoutReader, 1);
-  });
-}
-
-/**
- * Mounts a ZIP at the virtual filesystem root. Archives may contain sources,
- * Agda's versioned _build directory, or both.
- * @param {import('./controller.svelte').DriveHandle} _
- * @param {ArrayBuffer} archive */
-export function mountArchiveOnDrive(
-  { lock, stdinWriter, stdoutReader },
-  archive,
-) {
-  return withDriveLock(lock, async () => {
-    await fwriteAsync(stdinWriter, makeBufUint32LE(4), 0);
-    await writeLenPrefixedAsync(stdinWriter, new Uint8Array(archive), 0);
-    await freadAsync(stdoutReader, 1, 0);
-  });
-}
-
-/** Persist source files and interfaces produced by this browser session. The
- * drive namespace and normal Agda timestamp validation prevent stale reuse.
- * @param {import('./controller.svelte').DriveHandle} _ */
-export function persistDriveCache({ lock, stdinWriter, stdoutReader }) {
-  return withDriveLock(lock, async () => {
-    await fwriteAsync(stdinWriter, makeBufUint32LE(5), 0);
-    await freadAsync(stdoutReader, 1, 0);
-  });
 }

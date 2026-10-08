@@ -7,10 +7,12 @@
   // and archives comes from $lib/assets, which the build derives from the
   // files, instead of a value maintained by hand (issue 3).  The page runs
   // Agda 2.9.0, and its status bar shows the version the language server
-  // reports, in place of a literal "Agda 2.8" (issue 58).
+  // reports, in place of a literal "Agda 2.8" (issue 58): since the page
+  // runs the server's reactor build, the version Agda gives when the
+  // controller asks for it.  The page allocates no SharedArrayBuffer, since
+  // the server and the drive share one worker (issue 59).
 
   import { onDestroy, onMount } from "svelte";
-  import { SPSC } from "spsc";
   import { basicSetup } from "codemirror";
   import { startCompletion } from "@codemirror/autocomplete";
   import { Compartment, Prec } from "@codemirror/state";
@@ -102,15 +104,6 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   }
 
   const controller = new AgdaController({
-    agdaBuffers: {
-      stdin: SPSC.allocateArrayBuffer(4096),
-      stdout: SPSC.allocateArrayBuffer(4096),
-    },
-    driveBuffers: {
-      lock: new SharedArrayBuffer(4),
-      stdin: SPSC.allocateArrayBuffer(1024 * 1024),
-      stdout: SPSC.allocateArrayBuffer(1024 * 1024),
-    },
     agdaVersion: "2.9.0",
   });
   const sourceLanguageCompartment = new Compartment();
@@ -1121,7 +1114,9 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
               ? ""
               : "s"}</span
           ><span class="status-spacer"></span><span class="status-version"
-            >{controller.receivedALSVersion?.trim() ?? "Agda"}</span
+            >{controller.reportedAgdaVersion
+              ? `Agda ${controller.reportedAgdaVersion}`
+              : "Agda"}</span
           ><span
             >WASI · local</span
           ><span>UTF-8</span>

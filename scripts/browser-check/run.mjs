@@ -7,8 +7,8 @@
 //   1.  waits for "Agda ready", then for the automatic first check of the
 //       default Main.agda, and asserts crossOriginIsolated (by the
 //       headers, not by the page's service-worker fallback), two open
-//       goals, and the language server's version in the status bar, which
-//       the page's description must name too;
+//       goals, and the version Agda reports in the status bar, which the
+//       page's description must name too;
 //   2.  runs Infer on plus-zero from the command strip, and asserts the
 //       modules that first check type-checked: the `Checking` lines of
 //       Agda's running info, which the page shows only in the inspector's
@@ -55,9 +55,11 @@ const TYPE_ERROR = {
     "when checking that the expression refl has type zero ≡ 1",
 };
 
-/** What the language server says when asked for its version: the page
- * shows it in the status bar (issue 58). */
-export const SERVER_VERSION = "Agda v2.9.0 Language Server v8 (WebAssembly build)";
+/** The version Agda reports when the page asks for it (Cmd_show_version,
+ * through the language server, which reports no version of its own since
+ * the page runs its reactor build): the page shows it in the status bar,
+ * after "Agda " (issues 58 and 59). */
+export const AGDA_VERSION = "2.9.0";
 
 const STEP_TIMEOUT_MS = 180_000;
 
@@ -320,13 +322,12 @@ try {
       `the status bar says "${first.bar}"`,
     );
     assert(
-      first.bar.split(" | ").includes(SERVER_VERSION),
-      `the status bar says "${first.bar}", not the server's version`,
+      first.bar.split(" | ").includes(`Agda ${AGDA_VERSION}`),
+      `the status bar says "${first.bar}", not the version Agda reports`,
     );
-    const version = SERVER_VERSION.match(/Agda v(\S+)/)?.[1] ?? "";
     assert(
-      first.description.includes(`Agda ${version}`),
-      `the page's description, "${first.description}", does not name Agda ${version}`,
+      first.description.includes(`Agda ${AGDA_VERSION}`),
+      `the page's description, "${first.description}", does not name Agda ${AGDA_VERSION}`,
     );
   });
 

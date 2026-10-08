@@ -48,7 +48,8 @@ upstream commit.
 | `static/agda-data.zip` | not imported; pinned, then replaced | Upstream's held Agda 2.7.0.1's builtin library, which the shipped Agda rejects; the flake builds one instead ([below](#agdas-builtin-library-built-here), [#49]). |
 | `static/als-2.8ext.wasm.gz` | not imported; not pinned | The build makes its own ([below](#the-compilers-gzip)). |
 | `src/lib/worker/proxy-wasi-drive.ts`, `src/lib/worker/patch-wasi.ts`, `src/lib/worker/wrap-poll-oneoff.ts`, `src/lib/worker/util-base64.js` | imported, then removed | They proxied the drive's calls to the drive worker through shared memory, and read the language server's standard input from it; the server's reactor build, with the drive in its worker, needs neither ([#59]). |
-| every other file (81) | same path, unchanged unless listed below | Listed in `upstream/unchanged.sha256`. |
+| `src/lib/stdlib.ts` | imported, then removed | Its blocking reads and writes served only the rings in shared memory, which the page no longer has ([#59]). |
+| every other file (80) | same path, unchanged unless listed below | Listed in `upstream/unchanged.sha256`. |
 
 Every change made here to an imported file is listed under [Changes to
 upstream files](#changes-to-upstream-files), and a file that can carry a
@@ -348,6 +349,11 @@ Each change is its own commit, named here by its subject.
 | `src/lib/worker/drive.ts` | No longer a worker: a module of the language server's worker, whose WASI drive it lays out and indexes.  The message loop over shared rings is gone, and the page's writes, archive extraction and the IndexedDB cache are functions that worker exposes; the cache reads each dirty file from the drive's own record, so files at paths made after startup are persisted too ([#59]) | "Host the reactor and the drive in the language server's worker" |
 | `src/lib/worker/types.d.ts` | The worker takes a message port and the glue's URL in place of shared buffers, and the drive worker's types are removed ([#59]) | "Host the reactor and the drive in the language server's worker" |
 | `src/lib/worker/proxy-wasi-drive.ts`, `src/lib/worker/patch-wasi.ts`, `src/lib/worker/wrap-poll-oneoff.ts`, `src/lib/worker/util-base64.js` | Removed ([#59]) | "Host the reactor and the drive in the language server's worker" |
+| `src/lib/index.js` | The page reaches the language server's worker through a message port, framing and unframing each message for the router, where it read and wrote the server's standard input and output in shared memory; the drive worker, and the functions that wrote to it under a lock, are removed ([#59]) | "Talk to the language server through a message port" |
+| `src/lib/controller.svelte.ts` | The controller starts the server's reactor build, and reaches the drive through the worker's functions; it asks Agda for its version with `Cmd_show_version` when the server is first ready, since the reactor has no `--version`, and lets the page see the server ready once Agda has answered ([#59]) | "Talk to the language server through a message port" |
+| `src/routes/+page.svelte` | The page allocates no `SharedArrayBuffer`, and its status bar shows the version Agda reports ([#59]) | "Talk to the language server through a message port" |
+| `src/lib/stdlib.ts` | Removed ([#59]) | "Talk to the language server through a message port" |
+| `package.json`, `package-lock.json` | `spsc`, which only the rings in shared memory used, removed; the lockfile is upstream's with its one entry deleted, nothing else re-resolved ([#59]).  JSON carries no comment, so this row is the record. | "Talk to the language server through a message port" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
