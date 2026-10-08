@@ -372,6 +372,7 @@ Each change is its own commit, named here by its subject.
 | `src/lib/controller.svelte.ts` | A failure to start Agda (to fetch the compiler or an archive, to decompress or compile the compiler, to lay out the drive, to run the setup) rejects the start with a message saying which step failed, where it was swallowed or left the page saying "Agda ready"; the fallback to the raw compiler, dead in the built site since [#3], is removed ([#8]) | "Say so when the page cannot run, or Agda cannot start" |
 | `src/routes/+page.svelte` | Before it starts Agda, the page checks what the browser needs (`src/lib/support.ts`) and, when something is missing, says what and names the browsers it is tested in; when Agda cannot start, the banner, the inspector's heading and the status bar say so, never "Agda ready" ([#8]) | "Say so when the page cannot run, or Agda cannot start" |
 | `vite.config.js` | The dev server serves the compiler's gzip, compressing the raw compiler in `static/`, since the page no longer falls back to the raw file ([#8]) | "Say so when the page cannot run, or Agda cannot start" |
+| `src/lib/controller.svelte.ts` | The server starts without the fork's `+RTS -A64m -RTS`, which the reactor's runtime takes and which made no check faster while it grew the heap by 70 to 90 MiB ([#59]) | "Start the language server without +RTS -A64m -RTS" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground

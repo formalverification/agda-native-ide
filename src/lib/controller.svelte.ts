@@ -44,6 +44,10 @@
 // fell outside the text (a RangeError that stopped the transport), seen
 // in Firefox.  Writes to the drive are messages to the server's worker,
 // handled in order, so they need no lock.
+//
+// The server starts without the fork's +RTS -A64m -RTS: the reactor's
+// runtime takes the option from its argv, and measured on the page it
+// added 70 to 90 MiB to the heap and made no check faster (issue 59).
 
 import * as Comlink from "comlink";
 
@@ -431,8 +435,10 @@ export class AgdaController {
         // cache by default. Pass the matching Agda option explicitly so repeat
         // checks can reuse declarations that have not changed.
         // --raw: the server answers in Agda's own JSON (ResponseJSONRaw),
-        // which the transport reads.
-        args: ["--raw", "+RTS", "-A64m", "-RTS", "+AGDA", "--interaction", "-AGDA"],
+        // which the transport reads.  The fork's +RTS -A64m -RTS (a 64 MB
+        // nursery) is gone: the reactor's runtime takes it, and it made no
+        // check faster while it grew the heap by 70 to 90 MiB (issue 59).
+        args: ["--raw", "+AGDA", "--interaction", "-AGDA"],
       },
       (worker) => {
         this._lspWorker = worker;
