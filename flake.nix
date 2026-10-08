@@ -352,19 +352,26 @@
       # `nix run .#browser-check -- <site> [--out DIR]` checks Main.agda
       # in a built site (build/, or `nix build .#site`'s result) in
       # headless Chromium, with node and Chromium both pinned here
-      # (scripts/browser-check/run.mjs).  Linux only: nixpkgs builds
-      # Chromium for Linux alone.
-      apps = forAllSystems (system: pkgs:
+      # (scripts/browser-check/run.mjs); `nix run .#browser-check-notices`
+      # checks what the page says when it cannot run in a browser, or Agda
+      # cannot start (scripts/browser-check/notices.mjs, issue 8).  Linux
+      # only: nixpkgs builds Chromium for Linux alone.
+      apps = forAllSystems (system: pkgs: let
+        checkApp = name: script: description: {
+          type = "app";
+          program = toString (pkgs.writeShellScript name ''
+            export CHROME=${lib.getExe pkgs.chromium}
+            exec ${lib.getExe pkgs.nodejs_22} ${./scripts/browser-check}/${script} "$@"
+          '');
+          meta.description = description;
+        };
+      in
         github-project.apps.${system}
         // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
-          browser-check = {
-            type = "app";
-            program = toString (pkgs.writeShellScript "browser-check" ''
-              export CHROME=${lib.getExe pkgs.chromium}
-              exec ${lib.getExe pkgs.nodejs_22} ${./scripts/browser-check}/run.mjs "$@"
-            '');
-            meta.description = "Check Main.agda in a built site, in headless Chromium";
-          };
+          browser-check = checkApp "browser-check" "run.mjs"
+            "Check Main.agda in a built site, in headless Chromium";
+          browser-check-notices = checkApp "browser-check-notices" "notices.mjs"
+            "Check a built site's notices for a browser it cannot run in, and for a compiler that fails, in headless Chromium";
         });
     };
 }

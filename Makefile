@@ -59,7 +59,7 @@ endif
 .PHONY: help populate-dry populate update update-check lint init \
         guard-gh guard-engine engine-mode \
         assets assets-check dev build test check browser-check \
-        provenance-check
+        browser-check-notices provenance-check
 .DEFAULT_GOAL := help
 
 # In `path` mode the resolved CLI is (typically) a Nix wrapper carrying
@@ -237,6 +237,9 @@ SITE ?= build
 browser-check: ## Check Main.agda in $(SITE) in headless Chromium (ISOLATED=1: with the isolation headers)
 	nix run .#browser-check -- $(SITE) \
 	  $(if $(ISOLATED),--isolated --out browser-check/isolated,--out browser-check)
+
+browser-check-notices: ## Check $(SITE)'s notices: a browser it cannot run in, a compiler that fails
+	nix run .#browser-check-notices -- $(SITE) --out browser-check/notices
 
 provenance-check: ## Check the unchanged files, and that docs/provenance.md lists every pin
 	@sha256sum --check --strict --quiet $(UNCHANGED) && \

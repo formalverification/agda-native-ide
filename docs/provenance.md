@@ -305,11 +305,15 @@ build writes its own, as follows:
    to the pinned `als-reactor.wasm`'s SHA-256; on 2026-10-07 the command
    module's, `als-2.9.0.wasm.gz`, was 11,119,315 bytes, and on 2026-10-04
    the fork's compiler's 10,154,917 bytes.
-+  `npm run dev` falls back to the raw compiler.  With no `.gz` in `static/`,
-   the dev server answered the `.gz` with a 404, the page fetched the raw
-   compiler instead, and Agda started and checked `Main.agda` (two open
-   goals, cross-origin isolated; headless Chrome 153, 2026-10-04, with
-   `als-2.8ext.wasm`).
++  `npm run dev` serves the gzip itself: `vite.config.js` answers its URL
+   with the raw compiler in `static/` compressed (node's zlib at level 1,
+   once per version of the file), since the page fetches only the gzip
+   ([#8]).  On 2026-10-08 the dev server's gzip, 12,931,645 bytes,
+   inflated to the pinned `als-reactor.wasm`'s SHA-256, and the page
+   checked `Main.agda` (two open goals, not cross-origin isolated;
+   headless Chromium 149).  Until then the page fell back to the raw
+   compiler when the `.gz` was missing, which only the dev server could
+   serve.
 +  Upstream committed `static/als-2.8ext.wasm.gz` (10,188,407 bytes, SHA-256
    `ea79dbb12144db68ef7aeb56bdebc10c143d76d3a3af89056276d4015cb2b32f`), and
    it was never pinned here.
@@ -365,6 +369,9 @@ Each change is its own commit, named here by its subject.
 | `vite.config.js` | The dev and preview servers no longer send the isolation headers (the `coi-plugin` is removed) ([#59]) | "Serve the page without cross-origin isolation" |
 | `static/coi-serviceworker.js` | Removed, with its license text, `licenses/coi-serviceworker.txt` ([#59]) | "Serve the page without cross-origin isolation" |
 | `src/lib/controller.svelte.ts` | The editor takes its text as the one Agda's positions refer to only when the page sends `Cmd_load`, not after every write to the drive, since after a give Agda's ranges stay those of the text it loaded; the lock on the drive's writes goes, since they are messages handled in order ([#59]) | "Take the editor's text as Agda's only when Agda loads it" |
+| `src/lib/controller.svelte.ts` | A failure to start Agda (to fetch the compiler or an archive, to decompress or compile the compiler, to lay out the drive, to run the setup) rejects the start with a message saying which step failed, where it was swallowed or left the page saying "Agda ready"; the fallback to the raw compiler, dead in the built site since [#3], is removed ([#8]) | "Say so when the page cannot run, or Agda cannot start" |
+| `src/routes/+page.svelte` | Before it starts Agda, the page checks what the browser needs (`src/lib/support.ts`) and, when something is missing, says what and names the browsers it is tested in; when Agda cannot start, the banner, the inspector's heading and the status bar say so, never "Agda ready" ([#8]) | "Say so when the page cannot run, or Agda cannot start" |
+| `vite.config.js` | The dev server serves the compiler's gzip, compressing the raw compiler in `static/`, since the page no longer falls back to the raw file ([#8]) | "Say so when the page cannot run, or Agda cannot start" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
@@ -375,6 +382,7 @@ Each change is its own commit, named here by its subject.
 [#4]: https://github.com/formalverification/agda-native-ide/issues/4
 [#5]: https://github.com/formalverification/agda-native-ide/issues/5
 [#6]: https://github.com/formalverification/agda-native-ide/issues/6
+[#8]: https://github.com/formalverification/agda-native-ide/issues/8
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
 [#20]: https://github.com/formalverification/agda-native-ide/issues/20
 [#49]: https://github.com/formalverification/agda-native-ide/issues/49

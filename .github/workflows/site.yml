@@ -13,7 +13,10 @@
 #            the page no longer needs (issue 59), and again with them: Agda
 #            ready, the first check of Main.agda and the modules it
 #            type-checked, a give, and a type error at its position, with
-#            crossOriginIsolated as the server made it; its timings,
+#            crossOriginIsolated as the server made it; then the page's
+#            notices (`nix run .#browser-check-notices`): a browser without
+#            DecompressionStream, a compiler request that fails, and a
+#            compiler that does not decompress (issue 8).  The timings,
 #            records and screenshots are uploaded.
 #
 # It replaces upstream's workflow (imported as app.yml), whose npm steps
@@ -104,6 +107,9 @@ jobs:
       - name: Check Main.agda in headless Chromium, served with the isolation headers
         if: ${{ !cancelled() }}
         run: nix run .#browser-check -- site --isolated --out browser-check/isolated
+      - name: Check the page's notices in headless Chromium
+        if: ${{ !cancelled() }}
+        run: nix run .#browser-check-notices -- site --out browser-check/notices
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -26,6 +26,14 @@
 // Cmd_show_version once the server is ready, and the page shows Agda's
 // answer.
 //
+// When Agda cannot start, the controller says why (issue 8): a failure to
+// fetch the compiler, to decompress or compile it, to fetch an archive,
+// to lay out the drive or to run the setup rejects the start with a
+// message the page shows, where it used to leave the page saying "Agda
+// ready" with nothing checked.  The fallback to the raw compiler is gone:
+// the built site has not shipped it since issue 3, and a browser without
+// DecompressionStream is not supported (src/lib/support.ts).
+//
 // The editor takes its text as the one Agda's positions refer to (the
 // offsets' commit) when the page sends Cmd_load, and only then: after a
 // give or a case split, Agda goes on giving the remaining goals' ranges in
@@ -105,8 +113,8 @@ export interface AgdaResult {
 }
 
 interface AgdaVersionSpec {
-  path: string;
-  compressedPath?: string;
+  // The compiler, gzipped.
+  compressedPath: string;
   byteLength?: number;
   // The JavaScript glue GHC's post-linker wrote for the server's reactor
   // build, which the worker imports.
@@ -120,7 +128,6 @@ interface AgdaVersionSpec {
 export const agdaVersionMap: Record<SupportedAgdaVersion, AgdaVersionSpec> = {
   ["__proto__" as any]: null,
   "2.9.0": {
-    path: `${asset("/als-reactor-2.9.0.wasm")}?cache=${cacheTokens.compiler}`,
     compressedPath: `${asset("/als-reactor-2.9.0.wasm.gz")}?cache=${cacheTokens.compiler}`,
     byteLength: compilerBytes,
     gluePath: `${asset("/als-reactor-2.9.0.js")}?cache=${cacheTokens.glue}`,
@@ -136,45 +143,56 @@ export async function fetchWASMAndData(agdaVersion: SupportedAgdaVersion) {
     );
   }
 
-  const { path, compressedPath, byteLength, dataPath } =
-    agdaVersionMap[agdaVersion];
+  const { compressedPath, byteLength, dataPath } = agdaVersionMap[agdaVersion];
 
-  let wasm: Response;
-  if (compressedPath && typeof DecompressionStream !== "undefined") {
-    const compressed = await fetch(compressedPath);
-    if (compressed.ok && compressed.body) {
-      const headers = new Headers({ "Content-Type": "application/wasm" });
-      if (byteLength) headers.set("Content-Length", String(byteLength));
-      // Some static servers attach Content-Encoding to .gz files, so fetch
-      // has already decoded the response body. Others serve the gzip bytes as
-      // an opaque file and need an explicit DecompressionStream.
-      const body = compressed.headers
-        .get("Content-Encoding")
-        ?.toLowerCase()
-        .includes("gzip")
-        ? compressed.body
-        : compressed.body.pipeThrough(new DecompressionStream("gzip"));
-      wasm = new Response(body, { headers });
-    } else {
-      wasm = await fetch(path);
-    }
-  } else {
-    wasm = await fetch(path);
-  }
+  const compressed = await fetchOrFail(compressedPath, "the compiler");
+  if (!compressed.body)
+    throw new Error("the compiler could not be downloaded (an empty response)");
+  const headers = new Headers({ "Content-Type": "application/wasm" });
+  if (byteLength) headers.set("Content-Length", String(byteLength));
+  // Some static servers attach Content-Encoding to .gz files, so fetch
+  // has already decoded the response body. Others serve the gzip bytes as
+  // an opaque file and need an explicit DecompressionStream.
+  const body = compressed.headers
+    .get("Content-Encoding")
+    ?.toLowerCase()
+    .includes("gzip")
+    ? compressed.body
+    : compressed.body.pipeThrough(new DecompressionStream("gzip"));
+  const wasm = new Response(body, { headers });
 
-  if (!wasm.ok || wasm.status >= 400) {
-    throw new Error(`failed to fetch ALS WASM: ${wasm.statusText}`);
-  }
-
-  let dataFile = null;
-  if (dataPath) {
-    dataFile = await fetch(dataPath);
-    if (!dataFile.ok || dataFile.status >= 400) {
-      throw new Error(`failed to fetch data file: ${dataFile.statusText}`);
-    }
-  }
+  const dataFile = dataPath
+    ? await fetchOrFail(dataPath, "Agda's builtin library")
+    : null;
 
   return { wasm, dataFile };
+}
+
+/** An error in its own words, with its kind when it names one, and
+ * without a closing period, since the page's sentence adds one. */
+function describeError(error: unknown) {
+  if (!(error instanceof Error)) return String(error).trim().replace(/\.$/, "");
+  const message = error.message.trim().replace(/\.$/, "");
+  return error.name && error.name !== "Error"
+    ? `${error.name}: ${message}`
+    : message;
+}
+
+/** Fetch a file Agda needs, or fail saying which file and why. */
+async function fetchOrFail(url: string, what: string) {
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch (error) {
+    throw new Error(`${what} could not be downloaded (${describeError(error)})`, {
+      cause: error,
+    });
+  }
+  if (!response.ok)
+    throw new Error(
+      `${what} could not be downloaded (HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ""})`,
+    );
+  return response;
 }
 
 export const LS_DOC_KEY = "agda-web-ide-beta:doc";
@@ -283,13 +301,11 @@ export class AgdaController {
     }
 
     this.alsWorkerStatus = "loading";
-    const wasmAndData = await fetchWASMAndData(this.config.agdaVersion).catch(
-      () => null,
-    );
-
-    if (wasmAndData == null) {
-      this.alsWorkerStatus = "errored";
-      return;
+    let wasmAndData: Awaited<ReturnType<typeof fetchWASMAndData>>;
+    try {
+      wasmAndData = await fetchWASMAndData(this.config.agdaVersion);
+    } catch (error) {
+      throw this.startupFailure(error);
     }
 
     const progressCtx = traceFetchProgress(wasmAndData.wasm, (loaded) => {
@@ -308,7 +324,13 @@ export class AgdaController {
       const resp = new Response(progressCtx.source.stream, {
         headers: { "Content-Type": "application/wasm" },
       });
-      const blob = await resp.blob();
+      const blob = await resp.blob().catch((error) => {
+        throw this.startupFailure(
+          new Error(
+            `the compiler could not be loaded (${describeError(error)})`,
+          ),
+        );
+      });
       this.wasmLoadingProgress = {
         source: { type: "url", url: URL.createObjectURL(blob) },
         bytesLoaded: blob.size,
@@ -324,6 +346,18 @@ export class AgdaController {
     );
 
     return this.runALSWASM(wasmAndData.dataFile);
+  }
+
+  /** What a failure to start Agda raises, for the page to show; the
+   * worker, if any, is stopped. */
+  private startupFailure(error: unknown) {
+    if (this.alsWorkerStatus !== "terminated") {
+      this.alsWorkerStatus = "errored";
+      this._lspWorker?.terminate();
+    }
+    return new Error(`Agda could not start: ${describeError(error)}.`, {
+      cause: error,
+    });
   }
 
   async restartALSWASM() {
@@ -409,48 +443,52 @@ export class AgdaController {
       },
     );
 
-    // The worker compiles the compiler while the page fetches the archives.
-    const [workerInitData, dataFileData, stdlibData, plfaData] =
-      await Promise.all([
-        initPromise,
-        dataFile ? dataFile.arrayBuffer() : Promise.resolve(null),
-        fetch(
-          `${asset("/agda-stdlib-2.3-patched.zip")}?cache=${cacheTokens.stdlib}`,
-        ).then((x) => x.arrayBuffer()),
-        fetch(
-          `${asset("/plfa/project.zip")}?cache=${cacheTokens.plfaProject}`,
-        ).then((x) => x.arrayBuffer()),
-      ]);
-    this.workerInitData = workerInitData;
+    // Each step names itself when it fails.
+    const step = <T>(what: string, promise: Promise<T>) =>
+      promise.catch((error) => {
+        throw new Error(`${what} (${describeError(error)})`, { cause: error });
+      });
 
     try {
+      // The worker compiles the compiler while the page fetches the
+      // archives.
+      const [workerInitData, dataFileData, stdlibData, plfaData] =
+        await Promise.all([
+          step("the compiler could not be loaded", initPromise),
+          dataFile ? dataFile.arrayBuffer() : Promise.resolve(null),
+          fetchOrFail(
+            `${asset("/agda-stdlib-2.3-patched.zip")}?cache=${cacheTokens.stdlib}`,
+            "the standard library",
+          ).then((x) => x.arrayBuffer()),
+          fetchOrFail(
+            `${asset("/plfa/project.zip")}?cache=${cacheTokens.plfaProject}`,
+            "PLFA",
+          ).then((x) => x.arrayBuffer()),
+        ]);
+      this.workerInitData = workerInitData;
+
       const archives = [dataFileData, stdlibData, plfaData].filter(
         (x): x is ArrayBuffer => x != null,
       );
-      await this.workerInitData.mount(
-        Comlink.transfer(
-          {
-            builtin: dataFileData,
-            stdlib: stdlibData,
-            plfa: plfaData,
-            cacheNamespace: driveCacheNamespace,
-          },
-          archives,
+      await step(
+        "the drive could not be set up",
+        this.workerInitData.mount(
+          Comlink.transfer(
+            {
+              builtin: dataFileData,
+              stdlib: stdlibData,
+              plfa: plfaData,
+              cacheNamespace: driveCacheNamespace,
+            },
+            archives,
+          ),
         ),
       );
-    } catch (err) {
-      return Promise.reject(
-        new Error("Failed to set up the drive", { cause: err }),
-      );
-    }
-    this.driveIsCreated = true;
+      this.driveIsCreated = true;
 
-    try {
-      await this.workerInitData.setup();
-    } catch (err) {
-      console.warn("failed to complete the setup stage of agda", err);
-      this.alsWorkerStatus = "errored";
-      return -1;
+      await step("Agda's setup failed", this.workerInitData.setup());
+    } catch (error) {
+      throw this.startupFailure(error);
     }
 
     // revoke object url after it is consumed
@@ -461,7 +499,7 @@ export class AgdaController {
       URL.revokeObjectURL(this.wasmLoadingProgress.source.url);
     }
 
-    return this._startALSWASM(this.workerInitData);
+    return this._startALSWASM(this.workerInitData!);
   }
 
   async stopALSWASM() {

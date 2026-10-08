@@ -11,7 +11,11 @@
   // runs the server's reactor build, the version Agda gives when the
   // controller asks for it.  The page allocates no SharedArrayBuffer, since
   // the server and the drive share one worker, and so no longer requires
-  // cross-origin isolation, or checks for it (issue 59).
+  // cross-origin isolation, or checks for it (issue 59).  Before it starts
+  // Agda, the page checks that the browser has what it needs
+  // ($lib/support), and says so when it does not; when Agda cannot start,
+  // the page says why, in the banner, the inspector's heading and the
+  // status bar, rather than "Agda ready" (issue 8).
 
   import { onDestroy, onMount } from "svelte";
   import { basicSetup } from "codemirror";
@@ -45,6 +49,7 @@
   } from "@lucide/svelte";
 
   import { AgdaController, LS_DOC_KEY } from "$lib/controller.svelte";
+  import { missingFeatures, unsupportedBrowserNotice } from "$lib/support";
   import { cacheTokens } from "$lib/assets";
   import { myCodeMirrorTheme } from "$lib/codemirror/theme";
   import { agdaCompletions } from "$lib/codemirror/completion";
@@ -178,10 +183,14 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     controller.alsWorkerStatus === "active" &&
       controller.iotcmStatus === "ready",
   );
+  // Agda did not start: this browser lacks what the page needs, or a step
+  // of the startup failed.  The banner says which.
+  const agdaFailed = $derived(startupError !== "");
   const compilerStarting = $derived(
-    controller.alsWorkerStatus === "initial" ||
-      controller.alsWorkerStatus === "loading" ||
-      controller.alsWorkerStatus === "loaded",
+    !agdaFailed &&
+      (controller.alsWorkerStatus === "initial" ||
+        controller.alsWorkerStatus === "loading" ||
+        controller.alsWorkerStatus === "loaded"),
   );
   const progress = $derived.by(() => {
     const loaded = controller.wasmLoadingProgress?.bytesLoaded ?? 0;
@@ -214,20 +223,23 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     return "goals";
   });
   const inspectorHeading = $derived(
-    compilerStarting
-      ? `${compilerLoadingLabel} ${progress}%`
-      : isBusy
-        ? controller.lastAction
-        : inspectorMode === "problems"
-          ? `${controller.problems.length} problem${controller.problems.length === 1 ? "" : "s"}${checkDurationLabel ? ` · ${checkDurationLabel}` : ""}`
-          : inspectorMode === "result"
-            ? (controller.lastResult?.title ?? "Result")
-            : currentGoals.length
-              ? `${currentGoals.length} open goal${currentGoals.length === 1 ? "" : "s"}${checkDurationLabel ? ` · ${checkDurationLabel}` : ""}`
-              : controller.checked
-                ? `Module checked${checkDurationLabel ? ` · ${checkDurationLabel}` : ""}`
-                : "Waiting for check",
+    agdaFailed
+      ? "Agda did not start"
+      : compilerStarting
+        ? `${compilerLoadingLabel} ${progress}%`
+        : isBusy
+          ? controller.lastAction
+          : inspectorMode === "problems"
+            ? `${controller.problems.length} problem${controller.problems.length === 1 ? "" : "s"}${checkDurationLabel ? ` · ${checkDurationLabel}` : ""}`
+            : inspectorMode === "result"
+              ? (controller.lastResult?.title ?? "Result")
+              : currentGoals.length
+                ? `${currentGoals.length} open goal${currentGoals.length === 1 ? "" : "s"}${checkDurationLabel ? ` · ${checkDurationLabel}` : ""}`
+                : controller.checked
+                  ? `Module checked${checkDurationLabel ? ` · ${checkDurationLabel}` : ""}`
+                  : "Waiting for check",
   );
+
 
   function formatDuration(milliseconds: number) {
     if (milliseconds < 1000) return `${Math.round(milliseconds)} ms`;
@@ -445,6 +457,11 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
 
     void loadPlfaInterfaceManifest();
 
+    const missing = missingFeatures();
+    if (missing.length) {
+      startupError = unsupportedBrowserNotice(missing);
+      return;
+    }
     void controller.startALSWASM().catch((error) => {
       if (controller.alsWorkerStatus !== "terminated")
         startupError = readableError(error);
@@ -1096,7 +1113,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
               class:success={controller.checked &&
                 !controller.problems.some((p) => p.severity === "error")}
             >
-              {#if isBusy}<LoaderCircle
+              {#if agdaFailed}<CircleAlert size={13} />Agda did not start{:else if isBusy}<LoaderCircle
                   size={13}
                   class="spin"
                 />{controller.lastAction}{:else if controller.problems.some((p) => p.severity === "error")}<CircleAlert

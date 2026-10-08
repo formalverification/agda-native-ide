@@ -7,8 +7,9 @@
 // show that it works with them and without.  It serves files as they are,
 // a `.gz` as application/gzip with no Content-Encoding (as GitHub Pages
 // does), and logs every request, since a worker's requests are invisible
-// to the page's DevTools session.  Adapted from the 2026-10-04
-// investigation's harness (issue 5).
+// to the page's DevTools session.  A test can answer chosen paths itself,
+// to see what the page does when a request fails (issue 8).  Adapted from
+// the 2026-10-04 investigation's harness (issue 5).
 //
 //   node scripts/browser-check/serve.mjs <site> [port] [--isolated]
 
@@ -34,10 +35,13 @@ const TYPES = {
 
 /**
  * Serve `root` on 127.0.0.1 (a secure context, as isolation requires),
- * with the isolation headers when `isolated`.
- * @param {{ root: string, port?: number, isolated?: boolean }} options
+ * with the isolation headers when `isolated`.  `answer`, when given, is
+ * asked first for each request's path, and its answer, if any, is sent in
+ * place of the file.
+ * @param {{ root: string, port?: number, isolated?: boolean,
+ *   answer?: (path: string) => { status: number, body: Buffer } | undefined }} options
  */
-export function serve({ root, port = 0, isolated = false }) {
+export function serve({ root, port = 0, isolated = false, answer }) {
   // Every file must lie under this prefix; the filesystem root is its own
   // prefix, already ending in a separator.
   const resolved = resolve(root);
@@ -69,8 +73,15 @@ export function serve({ root, port = 0, isolated = false }) {
       status = 400;
       body = Buffer.from("bad request");
     }
+    const answered =
+      file === null
+        ? undefined
+        : answer?.(new URL(request.url ?? "/", "http://127.0.0.1").pathname);
     if (file === null) {
       // Answered above.
+    } else if (answered) {
+      status = answered.status;
+      body = answered.body;
     } else if (!file.startsWith(base)) {
       status = 403;
       body = Buffer.from("forbidden");

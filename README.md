@@ -91,6 +91,7 @@ make check         # svelte-check
 make test          # the unit tests (vitest)
 make build         # check the pins, then npm run build, into build/
 make browser-check # check Main.agda in build/ in headless Chromium
+make browser-check-notices # check what build/ says when it cannot run
 make dev           # serve the app at http://localhost:5173
 ```
 
@@ -130,12 +131,39 @@ from JavaScript.  With `--browser firefox`, and `FIREFOX` naming a Firefox,
 `scripts/browser-check/run.mjs` drives Firefox through WebDriver BiDi
 instead (`scripts/browser-check/bidi.mjs`); CI does not.
 
+`make browser-check-notices` (`nix run .#browser-check-notices -- <site>`)
+checks what the page says when it cannot run: in a browser without
+`DecompressionStream`, it names what is missing and the browsers it is
+tested in, and when the compiler's request fails, or the compiler does not
+decompress, it says so; in each case the status bar says that Agda did not
+start, never "Agda ready".  CI runs it too.
+
 `make provenance-check` verifies that every imported file recorded as
 unchanged still is, and that `docs/provenance.md` lists every pin.  To
 change an imported file, say so in a header comment naming the upstream file
 and commit (for JSON, which carries no comment, in `docs/provenance.md`
 alone), remove its line from `upstream/unchanged.sha256`, and add a row to
 the "Changes to upstream files" table in `docs/provenance.md`.
+
+## Browsers
+
+The page is tested in the browsers below, and other browsers are not
+supported: in a browser that lacks what the page needs, the page says what
+is missing and where it is tested, and works around nothing ([#8]).
+
+| Browser | Version | How | Last passed |
+|---|---|---|---|
+| Chromium, headless | 149.0.7827.200, the flake's | `make browser-check`, without the isolation headers and with them, and `make browser-check-notices`; CI, on every pull request | 2026-10-08 |
+| Firefox, headless (Ubuntu's snap) | 157.0 | `run.mjs` and `notices.mjs` in `scripts/browser-check/`, with `--browser firefox`, without the headers and with them, by hand | 2026-10-08 |
+
+WebKit (Safari) is untested: none was at hand.  Before it starts Agda,
+the page checks for module workers, `DecompressionStream`, and the five
+WebAssembly features the compiler uses (SIMD, reference types, bulk
+memory, sign extension, and non-trapping float-to-int conversions;
+`src/lib/support.ts`).  By MDN's compatibility data and WebAssembly's
+feature table, a browser has them all from Chrome 96, Firefox 114 and
+Safari 16.4; those are floors, not a promise.  IndexedDB is optional:
+without it the page runs, uncached.
 
 ## Syncing with upstream
 
@@ -240,5 +268,6 @@ every artifact the app ships, with its license.
 [plan]: docs/GITHUB_PROJECT.md
 [proposal]: docs/notes/browser-ide-proposal.md
 [williamdemeo/github-project]: https://github.com/williamdemeo/github-project
+[#8]: https://github.com/formalverification/agda-native-ide/issues/8
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59
