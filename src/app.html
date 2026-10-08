@@ -5,7 +5,9 @@
   Changed from upstream: this is SeungheonOh/plfa-playground's
   src/app.html at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
   (docs/provenance.md).  The description names the Agda the page runs,
-  2.9.0, the version src/routes/+page.svelte configures (issue 58).
+  2.9.0, the version src/routes/+page.svelte configures (issue 58).  The
+  script tag of coi-serviceworker.js is gone: the page shares no memory
+  between threads, so it needs no cross-origin isolation (issue 59).
 -->
 <html lang="en">
   <head>
@@ -16,7 +18,6 @@
     <link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="%sveltekit.assets%/favicon.png" type="image/png" sizes="128x128" />
     <link rel="stylesheet" href="%sveltekit.assets%/julia-mono.css" />
-    <script src="%sveltekit.assets%/coi-serviceworker.js"></script>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">

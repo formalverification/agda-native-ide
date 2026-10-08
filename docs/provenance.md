@@ -49,7 +49,8 @@ upstream commit.
 | `static/als-2.8ext.wasm.gz` | not imported; not pinned | The build makes its own ([below](#the-compilers-gzip)). |
 | `src/lib/worker/proxy-wasi-drive.ts`, `src/lib/worker/patch-wasi.ts`, `src/lib/worker/wrap-poll-oneoff.ts`, `src/lib/worker/util-base64.js` | imported, then removed | They proxied the drive's calls to the drive worker through shared memory, and read the language server's standard input from it; the server's reactor build, with the drive in its worker, needs neither ([#59]). |
 | `src/lib/stdlib.ts` | imported, then removed | Its blocking reads and writes served only the rings in shared memory, which the page no longer has ([#59]). |
-| every other file (80) | same path, unchanged unless listed below | Listed in `upstream/unchanged.sha256`. |
+| `static/coi-serviceworker.js` | imported, then removed | The service worker that isolated the page on a host that cannot send headers; the page shares no memory between threads, so it needs no isolation ([#59]). |
+| every other file (79) | same path, unchanged unless listed below | Listed in `upstream/unchanged.sha256`. |
 
 Every change made here to an imported file is listed under [Changes to
 upstream files](#changes-to-upstream-files), and a file that can carry a
@@ -319,7 +320,7 @@ These came in with the import; they are text, so they are in git, unchanged.
 
 | Path | Origin | License |
 |---|---|---|
-| `static/coi-serviceworker.js` | Byte-identical to [gzuidhof/coi-serviceworker] at `509a799daa6583b83b2a70b4dd1898c7e5a902dd` (2023-12-05), the sixth commit to the file after the v0.1.7 release, whose version its header still names | MIT, Copyright (c) 2021 Guido Zuidhof |
+| `static/coi-serviceworker.js` (removed by [#59]) | Byte-identical to [gzuidhof/coi-serviceworker] at `509a799daa6583b83b2a70b4dd1898c7e5a902dd` (2023-12-05), the sixth commit to the file after the v0.1.7 release, whose version its header still names | MIT, Copyright (c) 2021 Guido Zuidhof |
 | `static/plfa/content/**/*.lagda.md` | PLFA's chapters at `870f9bb1` (`scripts/sync-plfa.mjs`) | CC BY 4.0 |
 | `static/plfa/LICENSE` | Byte-identical to plfa/plfa.github.io's `LICENSE` at `870f9bb1` | The CC BY 4.0 text |
 | `static/favicon.svg` | Upstream's adaptation of agda/agda's `doc/user-manual/agda.svg` (its own comment says so) | MIT |
@@ -358,6 +359,11 @@ Each change is its own commit, named here by its subject.
 | `src/routes/+page.svelte` | The page allocates no `SharedArrayBuffer`, and its status bar shows the version Agda reports ([#59]) | "Talk to the language server through a message port" |
 | `src/lib/stdlib.ts` | Removed ([#59]) | "Talk to the language server through a message port" |
 | `package.json`, `package-lock.json` | `spsc`, which only the rings in shared memory used, removed; the lockfile is upstream's with its one entry deleted, nothing else re-resolved ([#59]).  JSON carries no comment, so this row is the record. | "Talk to the language server through a message port" |
+| `src/lib/worker/als.ts`, `src/routes/+page.svelte` | Their checks that the page is cross-origin isolated are removed ([#59]) | "Serve the page without cross-origin isolation" |
+| `src/app.html` | The script tag of `coi-serviceworker.js` is removed ([#59]) | "Serve the page without cross-origin isolation" |
+| `static/_headers` | The three headers that isolated every route (`Cross-Origin-Opener-Policy`, `Cross-Origin-Embedder-Policy`, `Cross-Origin-Resource-Policy`) are removed; the cache rules stay ([#59]) | "Serve the page without cross-origin isolation" |
+| `vite.config.js` | The dev and preview servers no longer send the isolation headers (the `coi-plugin` is removed) ([#59]) | "Serve the page without cross-origin isolation" |
+| `static/coi-serviceworker.js` | Removed, with its license text, `licenses/coi-serviceworker.txt` ([#59]) | "Serve the page without cross-origin isolation" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground

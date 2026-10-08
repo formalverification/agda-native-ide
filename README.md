@@ -98,10 +98,9 @@ make dev           # serve the app at http://localhost:5173
 locked npm dependencies (`npm ci`) whenever `package.json` or
 `package-lock.json` is newer than the last install.  `make build` refuses
 to build when a file in `static/` differs from its pin; `make assets` puts
-it back.  The dev server sends the two headers the language server's shared
-memory needs (`Cross-Origin-Opener-Policy: same-origin` and
-`Cross-Origin-Embedder-Policy: require-corp`), and so must any server of
-`build/`.
+it back.  `build/` is a static site that any static server can serve: the
+page shares no memory between threads, so it needs no cross-origin
+isolation and no particular headers ([#59]).
 
 `nix build .#site` builds the same site in the Nix sandbox, from a clean
 clone: it runs `make build` with the pinned binaries and the npm
@@ -237,3 +236,4 @@ every artifact the app ships, with its license.
 [proposal]: docs/notes/browser-ide-proposal.md
 [williamdemeo/github-project]: https://github.com/williamdemeo/github-project
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
+[#59]: https://github.com/formalverification/agda-native-ide/issues/59

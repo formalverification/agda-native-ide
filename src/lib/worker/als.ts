@@ -12,9 +12,10 @@
 // the worker calls with messages (agda-language-server's app/Reactor.hs),
 // so nothing blocks on standard input; the drive is this worker's own WASI
 // drive (./drive.ts), so a file call is a function call on this thread.
-// No memory is shared.  The throwaway instances that ran `--version` and
-// `--setup` are gone: a reactor cannot run as a command, and its run_setup
-// export is `--setup`.  The WASI debug hook is upstream's.
+// No memory is shared, so the worker no longer requires cross-origin
+// isolation.  The throwaway instances that ran `--version` and `--setup`
+// are gone: a reactor cannot run as a command, and its run_setup export is
+// `--setup`.  The WASI debug hook is upstream's.
 
 import * as Comlink from "comlink";
 import * as Runno from "@runno/wasi";
@@ -33,10 +34,6 @@ import type {
 } from "./types";
 
 export {};
-
-if (!crossOriginIsolated) {
-  throw new Error("The worker should be run in a COI context.");
-}
 
 /** What the reactor exports (agda-language-server's app/Reactor.hs, at
  * v8), each through GHC's JavaScript FFI, so each returns a promise. */

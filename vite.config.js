@@ -7,7 +7,9 @@
 // back to `git describe` without it; in the Nix sandbox, which has no
 // .git, the fallback recorded "WORKTREE" for every commit.  It also
 // defines AGDA_ASSETS, what the page needs to know about the files it
-// fetches, derived from them by scripts/asset-manifest.mjs (issue 3).
+// fetches, derived from them by scripts/asset-manifest.mjs (issue 3).  The
+// dev and preview servers no longer send the two headers that made the
+// page cross-origin isolated, which it no longer needs (issue 59).
 
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vitest/config";
@@ -27,25 +29,6 @@ const requireAssets = () => ({
   apply: "build",
   buildStart() {
     assetManifest(staticDir);
-  },
-});
-
-/** @returns {import('vite').Plugin<unknown>} */
-const coiPlugin = () => ({
-  name: "coi-plugin",
-  configureServer(server) {
-    server.middlewares.use((_req, res, next) => {
-      res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-      res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
-      next();
-    });
-  },
-  configurePreviewServer(server) {
-    server.middlewares.use((_req, res, next) => {
-      res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-      res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
-      next();
-    });
   },
 });
 
@@ -95,7 +78,7 @@ export default defineConfig(async ({ command }) => {
       include: ["@runno/wasi", "jszip"],
     },
     clearScreen: false,
-    plugins: [requireAssets(), sveltekit(), coiPlugin()],
+    plugins: [requireAssets(), sveltekit()],
     build: {
       // bumped for TLA
       target: ["es2022", "edge89", "firefox89", "chrome89", "safari15"],

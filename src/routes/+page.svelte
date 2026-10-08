@@ -10,7 +10,8 @@
   // reports, in place of a literal "Agda 2.8" (issue 58): since the page
   // runs the server's reactor build, the version Agda gives when the
   // controller asks for it.  The page allocates no SharedArrayBuffer, since
-  // the server and the drive share one worker (issue 59).
+  // the server and the drive share one worker, and so no longer requires
+  // cross-origin isolation, or checks for it (issue 59).
 
   import { onDestroy, onMount } from "svelte";
   import { basicSetup } from "codemirror";
@@ -444,11 +445,6 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
 
     void loadPlfaInterfaceManifest();
 
-    if (!crossOriginIsolated) {
-      startupError =
-        "This page needs COOP/COEP headers so its Agda worker can use SharedArrayBuffer.";
-      return;
-    }
     void controller.startALSWASM().catch((error) => {
       if (controller.alsWorkerStatus !== "terminated")
         startupError = readableError(error);

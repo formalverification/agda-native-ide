@@ -21,8 +21,7 @@ Contents
   5.  The Agda standard library 2.3, patched: agda-stdlib-2.3-patched.zip
   6.  PLFA: plfa/
   7.  JuliaMono: JuliaMono-*.woff2
-  8.  coi-serviceworker: coi-serviceworker.js
-  9.  The Agda mark: favicon.svg and favicon.png
+  8.  The Agda mark: favicon.svg and favicon.png
 
 
 1.  The app: plfa-playground
@@ -483,15 +482,7 @@ Contents
     Font License 1.1: licenses/juliamono.txt.
 
 
-8.  coi-serviceworker: coi-serviceworker.js
-
-    https://github.com/gzuidhof/coi-serviceworker at
-    509a799daa6583b83b2a70b4dd1898c7e5a902dd (its header says v0.1.7),
-    unchanged.  MIT, Copyright (c) 2021 Guido Zuidhof:
-    licenses/coi-serviceworker.txt.
-
-
-9.  The Agda mark: favicon.svg and favicon.png
+8.  The Agda mark: favicon.svg and favicon.png
 
     plfa-playground's adaptation of Agda's official mark,
     doc/user-manual/agda.svg in https://github.com/agda/agda, designed by
