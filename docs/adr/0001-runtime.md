@@ -504,12 +504,15 @@ interface it ships is built by a 32-bit (wasm32) Agda.
 Linux 7.0.0-31-generic); [#58]'s findings have each phase in full.
 
 +  **Agda builds for WASI unpatched at the pin**: in Agda's own dev shell,
-   `wasm32-wasi-cabal build --index-state=2026-10-05T16:41:29Z -O2
-   --enable-split-sections exe:agda` took 19 min 23 s from an empty store,
-   and `wasm-opt -Oz` (binaryen version_131) took the module from
-   107,483,009 to 34,277,999 bytes.  Under wasmtime it reports "Agda
-   version 2.9.0", checks a module of builtins with 4 `Checking` lines and
-   then 1 over its own interfaces, and exits 42 on a type error.
+   an exploratory `wasm32-wasi-cabal build
+   --index-state=2026-10-05T16:41:29Z -O2 --enable-split-sections
+   exe:agda` took 19 min 23 s from an empty store, and `wasm-opt -Oz`
+   (binaryen version_131) took its module from 107,483,009 to 34,277,999
+   bytes.  The recipe's build, at its fixed path, is the pinned 34,277,969
+   bytes (below): the module records the path it was built at.  Under
+   wasmtime it reports "Agda version 2.9.0", checks a module of builtins
+   with 4 `Checking` lines and then 1 over its own interfaces, and exits 42
+   on a type error.
 +  **Agda's own suites pass under it**: with the native `agda-tests` built
    by `cabal build -fdebug` (the workaround agda/agda#8756 suggests for the
    `make install-bin` its workflow uses, which fails at the pin) and
