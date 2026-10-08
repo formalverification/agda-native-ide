@@ -6,8 +6,9 @@ File: `agda-native-ide/docs/adr/0002-where-the-workbench-lives.md`
 
 +  **Status**: Accepted when the pull request that adds it merges.  The
    decisions are William's of 2026-10-05, adopted in the plan by merging PR
-   [#75] (2026-10-06); none is built yet.  Isolation (§ 6) is proposed, pending
-   [#59], and § 7 records what is deliberately left open.
+   [#75] (2026-10-06); none is built yet.  Isolation (§ 6) was proposed
+   pending [#59], and adopted on 2026-10-08 ([ADR 0001][adr-0001] § 8);
+   § 7 records what is deliberately left open.
 +  **Date**: 2026-10-06 (the decision 2026-10-05).
 +  **Tracking**: [#60] (this record); [#58] (Agda 2.9.0), [#59] (the reactor
    and the drive), [#61] (the library under 2.9.0), [#62] (the shared core);
@@ -549,14 +550,14 @@ built.  Open: all six.
 
 ## 6.  Isolation: the reactor build, and the drive in its worker
 
-(See also [#59], [#6], [#50], [ADR 0001][adr-0001] § 5, and
-[`docs/notes/runtime.md`][runtime], "Shared memory, and why the page must be
-isolated".)
+(See also [#59], [#6], [#50], [ADR 0001][adr-0001] § 5 and § 8, and
+[`docs/notes/runtime.md`][runtime], "No shared memory, and no isolation".)
 
-**Decision** (proposed).  The page stops needing cross-origin isolation once
-the language server is built as a reactor and the in-memory filesystem (the
-drive) moves into the server's worker, so that the page allocates no
-`SharedArrayBuffer` ([#59]); until then the host sends the two headers ([#6]).
+**Decision** (proposed 2026-10-05, adopted 2026-10-08).  The page stops
+needing cross-origin isolation once the language server is built as a
+reactor and the in-memory filesystem (the drive) moves into the server's
+worker, so that the page allocates no `SharedArrayBuffer` ([#59]); until
+then the host sends the two headers ([#6]).
 
 **Evidence**.
 
@@ -596,15 +597,21 @@ drive) moves into the server's worker, so that the page allocates no
    static host.  That is why isolation belongs in this record: it is the
    browser's one hosting constraint in the brief's matrix, and the reason
    Milestone 0 weighs hosts by their headers.
-+  **Not measured**: no reactor has been built or run here.  A reactor cannot
-   run under a standalone WebAssembly runtime, so the browser check is its only
-   test.
++  **Not measured** when this record was written: no reactor had been built
+   or run here.  A reactor cannot run under a standalone WebAssembly runtime,
+   so the browser check is its only test.  [#58] built it, and [#59] measured
+   it on 2026-10-08 ([ADR 0001][adr-0001] § 8): the page checks `Main.agda`
+   served without the headers, with `crossOriginIsolated` false, in Chromium
+   149 and Firefox 157, "Agda ready" came 257 ms sooner than the stdio
+   build's (medians 650 and 907 ms), and warm reloads were 9 to 22% faster.
 
-**Status**.  Proposed.  [#59] is open; its acceptance (`Main.agda` checks with
-`crossOriginIsolated` false in a fresh profile, on a host that sends no
-isolation headers; the page allocates no `SharedArrayBuffer`; the comparison
-with the stdio build recorded) sets this area's status.  Milestone 0's exit
-criterion requires `crossOriginIsolated` true until then.
+**Status**.  Adopted 2026-10-08 in [#59]'s pull request, which meets its
+acceptance: `Main.agda` checks with `crossOriginIsolated` false in a fresh
+profile, on a host that sends no isolation headers; the page allocates no
+`SharedArrayBuffer`; the comparison with the stdio build is recorded
+([ADR 0001][adr-0001] § 8).  Milestone 0's exit criterion required
+`crossOriginIsolated` true until then; the browser check now asserts it
+false served without the headers, and true served with them.
 
 ---
 
@@ -661,7 +668,7 @@ will answer it.
 | 5 | Keep the 2.8.0 compiler buildable until the 2.9.0 one passes [#13]'s gate | Adopted ([#58]) | The risks of row 4 |
 | 6 | Agents attach through local processes: `agda-mcp` and the companion's registrations in VS Code and Emacs; in the browser a bridge first and the in-page model last | Adopted (PR [#75]; [#38], [#35], [#36], [#65], [#71], [#72]) | Every agent-facing prover integration found is a local MCP server; MCP's transports are a subprocess's stdio and Streamable HTTP; no agents in vscode.dev |
 | 7 | The tool contract is agda-native-air ADR 0002's on every platform | Adopted | Lane and batch agreed on all 80 committed candidate pairs (agda-native-air issue 163) |
-| 8 | No isolation: the reactor build, with the drive in the server's worker | Proposed ([#59]) | Two shared-memory channels; the reactor replaces one (ALS PR 48); nothing built or measured yet |
+| 8 | No isolation: the reactor build, with the drive in the server's worker | Proposed ([#59]); adopted 2026-10-08 | Two shared-memory channels; the reactor replaces one (ALS PR 48); built and measured in [#59] ([ADR 0001][adr-0001] § 8) |
 | 9 | The VS Code web build is verified, not promised | Open ([#68]) | No agents on the web; CORS on every fetch under `require-corp` |
 | 10 | The Emacs view is an experiment, kept only if useful | Open ([#74]) | One image per SVG; the WebKit widget uneven |
 | 11 | Where the 2.9.0 binaries are served from | Open ([#58], [#4]) | A private repository's releases are not public; today's compiler has one source |

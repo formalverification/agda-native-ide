@@ -34,17 +34,16 @@ headless Chromium.  Nothing is deployed.
 ## Where things are
 
 +  **The app**, as imported from plfa-playground: `src/` (the page, the
-   controller, and the two workers), `static/` (the files served as they
-   are), `scripts/*.mjs` (the build's post-step and the PLFA tooling),
-   `compiler/` (the recipe that builds the compiler, Agda 2.9.0 and its
-   language server, `build-agda-2.9.0.sh`, with its patches and pins, and
-   upstream's recipe for the fork's 2.8.0 compiler), `stdlib/patches/`
-   (the standard library 2.3's patches for Agda 2.9.0), and the build's
+   controller, and the language server's worker), `static/` (the files served
+   as they are), `scripts/*.mjs` (the build's post-step and the PLFA
+   tooling), `compiler/` (the recipe that builds the compiler, Agda 2.9.0 and
+   its language server, `build-agda-2.9.0.sh`, with its patches and pins, and
+   upstream's recipe for the fork's 2.8.0 compiler), `stdlib/patches/` (the
+   standard library 2.3's patches for Agda 2.9.0), and the build's
    configuration (`package.json`, `svelte.config.js`, `vite.config.js`,
    `tsconfig.json`, `tsconfigs/`).  Upstream's own guide is
-   [`README.plfa-playground.md`][upstream-readme]; its "Run locally"
-   assumes the binaries are committed, so follow "Working on the app"
-   below instead.
+   [`README.plfa-playground.md`][upstream-readme]; its "Run locally" assumes
+   the binaries are committed, so follow "Working on the app" below instead.
 +  [`docs/adr/0001-runtime.md`][adr-0001]: ADR 0001, the runtime: why this
    fork, how it is imported and pinned, and the second lane.  Its
    companion, [`docs/notes/runtime.md`][runtime-note], explains how the
@@ -78,21 +77,21 @@ Everything here runs in the dev shell (`nix develop`), which carries node
 assets` fetches them by hash into `static/`, with Agda's builtin library and
 the patched standard library, which the flake builds (`nix build
 .#agda-data`, `nix build .#stdlib`).  The compiler is fetched by the hashes
-in `compiler/agda-2.9.0.sha256` (`nix build .#compiler`) from a release
-that does not exist yet ([#58]), so until it does, `make assets` works only
-where the four files are in the Nix store already, from a run of the
-recipe: `nix develop .#compiler --command compiler/build-agda-2.9.0.sh
-OUT`, then `nix-store --add-fixed sha256 OUT/<file>` for each of the four
-(a run took 27 minutes on a 20-core workstation).
+in `compiler/agda-2.9.0.sha256` (`nix build .#compiler`) from the release
+`agda-2.9.0-da66a8c-als-8` of [formalverification/agda-wasm-builds]
+([#58]); the site ships its reactor build and that build's JavaScript glue
+([#59]).  `nix develop .#compiler --command compiler/build-agda-2.9.0.sh
+OUT` rebuilds the four files from their sources (a run took 27 minutes on
+a 20-core workstation).
 
 ```sh
-make assets        # fetch the pins and the compiler, build the rest, into static/
-make check         # svelte-check
-make test          # the unit tests (vitest)
-make build         # check the pins, then npm run build, into build/
-make browser-check # check Main.agda in build/ in headless Chromium
-make browser-check-notices # check what build/ says when it cannot run
-make dev           # serve the app at http://localhost:5173
+make assets                 # fetch the pins and the compiler, build the rest, into static/
+make check                  # svelte-check
+make test                   # the unit tests (vitest)
+make build                  # check the pins, then npm run build, into build/
+make browser-check          # check Main.agda in build/ in headless Chromium
+make browser-check-notices  # check what build/ says when it cannot run
+make dev                    # serve the app at http://localhost:5173
 ```
 
 `make check`, `make test`, `make build` and `make dev` first install the
@@ -268,6 +267,7 @@ every artifact the app ships, with its license.
 [plan]: docs/GITHUB_PROJECT.md
 [proposal]: docs/notes/browser-ide-proposal.md
 [williamdemeo/github-project]: https://github.com/williamdemeo/github-project
+[formalverification/agda-wasm-builds]: https://github.com/formalverification/agda-wasm-builds
 [#8]: https://github.com/formalverification/agda-native-ide/issues/8
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59

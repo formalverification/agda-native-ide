@@ -7,13 +7,17 @@ File: `agda-native-ide/docs/adr/0001-runtime.md`
 +  **Status**: Accepted when the pull request that adds it merges.  The
    fork, its import, its pins and its notice land with this record; the
    second lane is recorded and not adopted ([#30]).  Since 2026-10-07 the
-   page runs this repository's own build of Agda 2.9.0 (§ 7).
-+  **Date**: 2026-10-04; § 7 2026-10-07.
+   page runs this repository's own build of Agda 2.9.0 (§ 7), and since
+   2026-10-08 the server's reactor build, with the drive in its worker, so
+   that the page needs no cross-origin isolation (§ 8), and it says so when
+   a browser cannot run it (§ 9).
++  **Date**: 2026-10-04; § 7 2026-10-07; § 8 and § 9 2026-10-08.
 +  **Tracking**: [#7] (this record); [#2] (the fork), [#48] (the notice),
    [#4] (the pins; its mirror and rebuild stay open), [#3] (its dev-shell
    clause); [#30] (the second lane); [#53] (the license questions deferred
    until before the repository goes public); [#58] (the 2.9.0 compiler,
-   § 7).
+   § 7); [#59] (the reactor and the drive in one worker, § 8); [#8] (the
+   page's notices, § 9).
 +  **Ancestry**: agda-native-air's [browser IDE proposal][proposal], § 1
    "Fork the runtime"; agda-algebras PR [585][pr-585] and its
    [ADR-011][adr-011], which built and measured the second lane; the
@@ -25,15 +29,18 @@ File: `agda-native-ide/docs/adr/0001-runtime.md`
 The IDE's runtime is [plfa-playground][upstream], forked whole.  It runs the
 Agda Language Server (Agda with a language-server front end), compiled to WASI
 (the WebAssembly System Interface, the POSIX-like imports through which a
-WebAssembly program reaches files and streams), in a browser worker; a second
-worker owns the in-memory filesystem Agda reads; the two share memory, which
-is why the page must be served cross-origin isolated (with the two response
-headers, `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`,
-without which a browser withholds shared memory).  The page drives Agda
-through its interaction protocol, and an edit that stays inside one goal is
-checked with a give (Agda's command that checks one expression against one
-goal) rather than a full reload.  [`docs/notes/runtime.md`][note] explains the
-architecture.
+WebAssembly program reaches files and streams), in a browser worker.  As
+forked, a second worker owned the in-memory filesystem Agda reads, and the two
+shared memory, which is why the page had to be served cross-origin isolated
+(with the two response headers, `Cross-Origin-Opener-Policy` and
+`Cross-Origin-Embedder-Policy`, without which a browser withholds shared
+memory).  Since 2026-10-08 the server is its *reactor* build, which exports
+functions JavaScript calls with messages, in one worker with the filesystem,
+so nothing is shared and any static host serves the page (§ 8).  The page
+drives Agda through its interaction protocol, and an edit that stays inside
+one goal is checked with a give (Agda's command that checks one expression
+against one goal) rather than a full reload.  [`docs/notes/runtime.md`][note]
+explains the architecture.
 
 It comes in as a snapshot, not a history merge: 89 of upstream's 128 files,
 byte for byte, at commit `ae0aa84c`, with a provenance record of every file's
@@ -56,15 +63,20 @@ and its type check pass, and it checks `Main.agda` in headless Chromium with
 `crossOriginIsolated` true (§ 3).  Since 2026-10-05 the site is also a Nix
 package that builds reproducibly ([#3]), and CI builds it, runs its unit
 tests and type check, and checks `Main.agda` in headless Chromium on every
-pull request ([#5]).
+pull request ([#5]); since 2026-10-08 it checks the page served without the
+isolation headers and with them, and the page's notices for a browser it
+cannot run in (§ 8, § 9).
 
 Where it goes: the fork's compiler, agda-web's build of Agda 2.8.0, gave
 way on 2026-10-07 to this repository's own build of Agda 2.9.0 and its
 language server, from a recipe that pins every input, with the standard
-library 2.3 patched to check under it (§ 7); the binaries' public home
-([#58]), hosting ([#6]), the license review before the repository goes
-public ([#53]), and the second lane, the plain checker as the verdict of
-record ([#30]), remain.
+library 2.3 patched to check under it, and binaries released from a public
+repository of this organization (§ 7); on 2026-10-08 the page moved to the
+server's reactor build and stopped needing isolation (§ 8), and it now
+names the browsers it is tested in and says so where it cannot run (§ 9).
+Hosting ([#6]), the license review before the repository goes public
+([#53]), and the second lane, the plain checker as the verdict of record
+([#30]), remain.
 
 ---
 
@@ -112,7 +124,9 @@ the drive's lookups ([#50]) and the builtin interfaces ([#49]).  On
 replaced the hand-maintained cache tokens with values the build derives
 from the files; the rest of upstream's Cloudflare-shaped build, the
 post-step that gzips the compiler (`scripts/prepare-cloudflare-assets.mjs`)
-and `static/_headers`, waits for the host ([#6]).
+and `static/_headers`, waits for the host ([#6]).  On 2026-10-08 [#59]
+replaced the two workers joined by shared memory with one worker that holds
+the server's reactor build and the drive (§ 8).
 
 ---
 
@@ -274,7 +288,9 @@ Safari 15.2 to 16.3, since every Firefox without `DecompressionStream` (before
 113) also lacks the module workers the page starts (from 114; MDN's
 compatibility data), and it would cost 33 MB a deploy, over Cloudflare Pages'
 25 MiB limit for one file.  The page's silence when it cannot fetch or
-decompress the compiler stays open, proposed for [#8].
+decompress the compiler was answered on 2026-10-08 by [#8]: the page says
+why Agda could not start, and the dev server, which the fallback served,
+serves the gzip itself (§ 9).
 
 ---
 
@@ -298,8 +314,12 @@ lineage paragraphs are carried into `NOTICE` verbatim.
    distributor responsible for those sources staying available, so the GMP
    tarball belongs in [#4]'s mirror beside the compiler.  On 2026-10-05
    William deferred this and every other open license question to [#53],
-   to be settled before the repository goes public; the notice stands as
-   written meanwhile.
+   to be settled before the repository goes public; the notice stood as
+   written meanwhile.  On 2026-10-07 William confirmed it ([#53]'s comment
+   of that day): GMP is distributed under the LGPL, and each public release
+   of the compiler carries GMP's source tarball and GHC's two patches to it,
+   with the build plans (the first, `agda-2.9.0-da66a8c-als-8` of
+   formalverification/agda-wasm-builds), so decision 10 is adopted.
 +  **The favicon** is Agda's official mark, adapted; agda/agda ships the
    mark in its package as an `extra-doc-files` entry under its MIT license
    and states no other terms, so the notice credits it under Agda's license
@@ -333,14 +353,19 @@ lineage paragraphs are carried into `NOTICE` verbatim.
    libc++abi), and simdutf (bundled by `text`).
 
 **Status**.  Adopted.  Open: [#53], the license review before the
-repository goes public (the GMP judgment, the packages the binary does not
-confirm, libffi-wasm, and nonempty-vector's supplied text), and the
-notice's upkeep when the dependencies change ([#3] trims them).  On
+repository goes public (the packages the binary does not confirm,
+libffi-wasm, and nonempty-vector's supplied text; GMP was settled on
+2026-10-07, above), and the notice's upkeep when the dependencies change
+([#3] trims them).  On
 2026-10-07 the notice's section 3 moved to the 2.9.0 compiler (§ 7): its
 140 packages come from that build's own plan rather than a re-solved one,
 the binary names 56 of them exactly, and two texts are new for the
 review, zstd's C library's and the patent grant its Haskell package
-ships.
+ships.  On 2026-10-08 it moved to the reactor build that the page ships
+(§ 8): 141 packages from the reactor's own plan (the command module's and
+`ghc-experimental`), and the reactor's JavaScript glue, GHC's code under
+GHC's license; the page bundles 34 npm packages, `spsc` gone with the
+rings it served; and `coi-serviceworker.js` is no longer shipped.
 
 ---
 
@@ -379,7 +404,8 @@ A page that cannot isolate itself can still check a file, slower, through
 the batch lane, and JSPI would make that lane interactive where it exists;
 where JSPI is missing, PR 585's shipped path (one process per command,
 about ten seconds each on that image) still works.  So the isolation
-requirement is the interactive lane's, not the IDE's.
+requirement is the interactive lane's, not the IDE's.  Since 2026-10-08
+the interactive lane needs no isolation either (§ 8).
 
 **Status**.  Recorded, not adopted.  Open: [#30].
 
@@ -480,11 +506,13 @@ interface it ships is built by a 32-bit (wasm32) Agda.
    this workstation) that no cache here spares CI from; [#4]'s findings
    recommended the same split.
 +  **Where the binaries live**: releases of a public repository of this
-   organization, William's decision of 2026-10-07, not yet created.  Until
-   it is, the flake's URL names a place that does not exist, and the fetch
-   succeeds only where the files were added to the Nix store by hand.  The
-   move to Agda's 2.9.0 release is a new Agda commit in the recipe, a
-   rebuild, a new release and a new file of hashes.
+   organization, William's decision of 2026-10-07, created the same day:
+   formalverification/agda-wasm-builds, whose release
+   `agda-2.9.0-da66a8c-als-8` holds the four pinned files, the three build
+   plans, and GMP's source with GHC's patches; the flake fetches the files
+   from it by their hashes.  The move to Agda's 2.9.0 release is a new
+   Agda commit in the recipe, a rebuild, a new release and a new file of
+   hashes.
 +  **Every interface the page ships is built by a wasm32 Agda**, since
    Agda 2.9.0 writes an interface's integers at the width of the machine
    that writes it (below): the builtins' archive is built by the compiler's
@@ -613,57 +641,233 @@ Linux 7.0.0-31-generic); [#58]'s findings have each phase in full.
    big-endian), the payload is zstd where it was gzip, and its integers have
    the writer's word size (above).  Interfaces built by 2.8.0, such as
    PLFA's archives, live under `_build/2.8.0/` and are not read.
-+  **The startup**: the controller runs `als --setup` for 2.9.0 as it did
-   for 2.8.0, and the server reads `/lib/prim` as before.
++  **The startup**: the controller ran `als --setup` for 2.9.0 as it did
+   for 2.8.0, and the server reads `/lib/prim` as before; since 2026-10-08
+   the reactor's `run_setup` does the same (§ 8).
 
 **Status**.  Adopted on 2026-10-07 in [#58]'s pull request: the recipe,
 the patches, the pins, the patched standard library, the builtins built
 by the wasm `agda`, the page on the new compiler, and the CI job, which
-built the pinned bytes on GitHub's runner.  Open: the public repository
-for the binaries, without which CI's fetch fails ([#58]); [#13]'s gate
-under 2.9.0, on archives built by a wasm32 Agda ([#61]'s second criterion,
-[#12]); the reactor's use in the page ([#59]); the move to Agda's 2.9.0
-release.
+built the pinned bytes on GitHub's runner.  The public repository for
+the binaries exists since 2026-10-07, and CI fetches from it; the page has
+run the reactor since 2026-10-08 (§ 8).  Open: [#13]'s gate under 2.9.0,
+on archives built by a wasm32 Agda ([#61]'s second criterion, [#12]); the
+move to Agda's 2.9.0 release.
 
 ---
 
-## 8.  Decision log
+## 8.  The reactor and the drive in one worker
+
+(See also [#59], [#58], [#50], [#6], and [`docs/notes/runtime.md`][note].)
+
+**Decision**.  The page runs the language server's reactor build in one
+worker with the drive, so that no memory is shared between threads and the
+page needs no cross-origin isolation.
+
++  **The reactor**: the server built with its `reactor` flag (§ 7), which
+   exports functions that JavaScript calls with one message each, through
+   GHC's JavaScript FFI, where the command module blocked on standard
+   input.  The worker drives it as [#59]'s spike found: the whole argv,
+   the program's name first, given through WASI before `_initialize`
+   (Runno's `initialize`), then `run_setup` (Agda's `--setup`),
+   `new_language_server`, and `run_language_server` never awaited, with
+   one `recv_message` always pending and each `send_message` chained on
+   the last.
++  **The drive in the server's worker**: a file call is a function call
+   on the same thread; the page's writes, the archives it mounts and the
+   IndexedDB cache are functions of that worker, which run between the
+   server's steps.  [#50]'s index moves unchanged.  The cache reads each
+   dirty file from the drive's own record, so files at paths made after
+   startup are persisted too, which the drive worker never did.
++  **No isolation**: the page allocates no `SharedArrayBuffer`; the
+   isolation headers in `static/_headers` (its cache rules stay), the
+   service worker `coi-serviceworker.js` with its script tag, the dev
+   server's headers, and the checks of `crossOriginIsolated` in the page
+   and the worker are removed.  So any static host serves the page ([#6]).
++  **What ships**: `als-reactor-2.9.0.wasm`, gzipped by the build, and its
+   JavaScript glue, `als-reactor-2.9.0.js`, which the worker imports by
+   its URL with a cache token rather than letting Vite bundle it, so that
+   the file the page runs is the pinned file byte for byte and changes
+   only with the module it was generated from.  The command module,
+   `als.wasm`, stays pinned for the compiler's records and is not shipped.
++  **The version**: a reactor has no `--version`, and the server reports
+   no version of its own, so the controller asks Agda with
+   `Cmd_show_version` when the server is first ready, and the status bar
+   shows Agda's answer, "Agda 2.9.0".
++  **No RTS options**: the fork's `+RTS -A64m -RTS` is removed (below).
++  **Agda's positions are read against the text it loaded**: the editor
+   takes its text as Agda's only when the page sends `Cmd_load`, where it
+   did so after every write to the drive (below).
+
+**Evidence**.  Measured 2026-10-08 on this workstation (20 cores, 64 GB,
+Linux 7.0.0-31-generic) in headless Chromium 149.0.7827.200 (the flake's),
+a fresh profile per run, five per cell, the arms alternating, every run
+starting below a 1-minute load average of 2 (0.66 to 1.97).  The stdio
+arm is `main` at `5b9a5d6`, served with the isolation headers; the reactor
+arm is this change at `e6be0a6`, served without them.  Both carry only the
+controller's measuring hooks, both start the server with the fork's argv
+(`--raw +RTS -A64m -RTS +AGDA --interaction -AGDA`), and both read the same
+builtins, standard library and PLFA archives, so only the transport and
+the startup differ.  Each command is timed from its send to Agda's
+`ResponseEnd`; "Agda ready" is the status bar's, since navigation.  The
+second root is a `Main` that imports 32 of the builtins.  Ranges, in ms,
+with medians:
+
+| root | arm | Agda ready | first check | give | warm reload |
+|---|---|---:|---:|---:|---:|
+| default | stdio, isolated | 901 to 916 (907) | 269 to 287 (279) | 14.4 to 23.2 (18.1) | 77 to 91 (77) |
+| default | reactor, not isolated | 641 to 666 (650) | 242 to 259 (254) | 13.7 to 22.4 (19.7) | 70 to 72 (70) |
+| 32 builtins | stdio, isolated | 906 to 931 (913) | 514 to 547 (520) | 16.8 to 22.8 (18.7) | 141 to 185 (154) |
+| 32 builtins | reactor, not isolated | 646 to 684 (666) | 414 to 452 (416) | 17.9 to 25.6 (24.4) | 122 to 124 (124) |
+
++  **Every check type-checked what it should**: every first check and every
+   warm reload, in both arms, printed one `Checking` line, `Main`.
++  **Startup**: "Agda ready" came about 257 ms sooner (medians 650 and 907
+   ms).  The stdio build compiled its module once and instantiated and ran
+   it three times (`--version`, `--setup`, the server) beside a second
+   worker; the reactor is instantiated once.
++  **Warm reloads** were 9% faster on the default root and 19% on the
+   larger (medians); [#59]'s spike measured 27% on its prototype.  A PLFA
+   chapter, `Naturals`, five runs a cell: its first check, from source in
+   both arms (PLFA's archives hold 2.8.0's interfaces, which 2.9.0 does
+   not read; 31 modules), took 9,874 to 11,591 ms (10,410) against 9,295
+   to 10,596 (9,514), and its warm reload, the chapter alone, 397 to 431 ms
+   (412) against 301 to 350 (320), 22% faster, each by the page's own count.
+   `scripts/benchmark-plfa.mjs`'s wall time from the key press was 931 to
+   970 ms against 433 to 464, but most of that difference is the harness's
+   own waiting: a trace of one run each saw "Checked" 446 and 391 ms after
+   the key press.
++  **The give** is the same within the runs' spread.
++  **A drive call**: 20,000 `pathStat` calls on the root ([#50]'s paths,
+   30% hits) took 0.19 to 0.21 µs each in four runs and 0.47 µs in a fifth,
+   in the page's worker, against 17.1 to 20.1 µs through the proxy ([#50],
+   2026-10-06) and 11.4 to 12.8 µs through it on [#59]'s spike.
++  **No isolation, in two browsers**: the browser check passes served
+   without the headers (`crossOriginIsolated` false) and with them (true):
+   in Chromium 149, in CI and here, and in Firefox 157 (Ubuntu's snap,
+   headless, through WebDriver BiDi), 6 runs each way.  A control that
+   serves the opposite of what the check expects fails both ways.
++  **The RTS options**: `-A64m` takes effect (the reactor's heap after a
+   warm reload was 94 MiB with it and 24 MiB without on the default root,
+   121 and 31 MiB on the larger), and made no check faster: warm reloads 68
+   to 75 ms (70) with it and 64 to 74 (72) without, 118 to 127 (124) and
+   113 to 116 (114) on the larger root, and PLFA's `Naturals` from source
+   9,295 to 10,596 ms (9,514) and 9,400 to 10,335 (9,721).
++  **The commit point**: asked with the compiler's own `agda`, the default
+   `Main.agda`'s goal 1 keeps its range, 303 to 320, after goal 0 is given
+   and the text above it shrinks.  Upstream's controller took the buffer
+   as Agda's after every write to the drive, the one that follows a give
+   included; when that write completed before the give's interaction
+   points arrived, their ranges fell past the end of the text, the mapping
+   threw, the router's stream stopped, and the page hung.  In Firefox 157
+   the browser check hung so 3 times in 8 runs, with the headers and
+   without; with the commit at `Cmd_load` only, 0 times in 12, and 0 in 6
+   in Chromium.
++  **The runs**: [#59]'s findings of 2026-10-08 carry the tables, the
+   method and the load average of every run.
+
+**Status**.  Adopted 2026-10-08 in [#59]'s pull request.  Open: archive
+extraction runs on the server's thread and delays its next step (not
+measured); the host is still [#6]'s to choose, now from any static host;
+[#62]'s shared core takes this worker as its WebAssembly engine.
+
+---
+
+## 9.  Browsers
+
+(See also [#8], [#59], and the README's "Browsers".)
+
+**Decision**.  A browser that is hard to support is not supported: the page
+says so when it cannot run there, and the documentation names the browsers
+it is tested in, with no polyfill, shim or fallback (William, 2026-10-07).
+
++  **What the page checks**, before it starts Agda: module workers,
+   `DecompressionStream`, and the five WebAssembly features the compiler
+   uses, SIMD, reference types, bulk memory, sign extension and
+   non-trapping float-to-int conversions (`src/lib/support.ts`).  IndexedDB
+   is optional: without it the page runs, uncached.
++  **What it says**: a browser without one of them gets a notice naming
+   what is missing and the browsers the page is tested in.  When a step of
+   the startup fails (a request, the compiler's decompression or
+   compilation, the drive, the setup), the page shows "Agda could not
+   start:" and the step, and its heading and status bar say "Agda did not
+   start", where the status bar said "Agda ready" with nothing checked.
++  **No fallback**: the page's fallback to the raw compiler, dead in the
+   built site since decision 15, is removed; the dev server, which it
+   served, serves the gzip itself.
++  **Tested**: Chromium 149, in CI and here, and Firefox 157, here, both
+   on 2026-10-08, served with the isolation headers and without.  WebKit
+   (Safari) is untested: none was at hand.
+
+**Evidence**.
+
++  **The compiler's needs**: the reactor's `target_features` section names
+   ten WebAssembly features; validated with each left out in turn
+   (binaryen 132), it needs the five above and none of the others.  By
+   WebAssembly's feature table and MDN's compatibility data (read
+   2026-10-08 and 2026-10-05), the page's needs first coincide in Chrome
+   96, Firefox 114 and Safari 16.4.  So the browsers decision 15 weighed,
+   Safari 15.2 to 16.3, which lack `DecompressionStream`, lack SIMD too:
+   the raw compiler could not have run there either.
++  **The notices are tested**: `scripts/browser-check/notices.mjs`, in CI,
+   checks a browser without `DecompressionStream` (removed before the page
+   loads), a compiler request answered 404, and a compiler that is not a
+   gzip; all three pass in Chromium 149 and Firefox 157.  Against a build of
+   the commit before this change, all three fail, the first two showing
+   "Agda ready | 0 goals" after 60 s, the silence [#8]'s comment of
+   2026-10-05 found.
++  **IndexedDB is optional**: with `indexedDB` removed from the worker's
+   global before it ran, the page checked and reloaded `Main.agda`, and no
+   cache database was made; with it, the database was made.
+
+**Status**.  Adopted 2026-10-08 ([#8]).  Open: WebKit.
+
+---
+
+## 10.  Decision log
 
 | # | Decision | Status | Evidence |
 |---|---|---|---|
-| 1 | Fork plfa-playground whole, not als-demo or the plain checker; keep its two workers, transport, give rule, archive format and persistence | Adopted ([#2]) | als-demo sends only `Cmd_load`; the fork builds, tests and checks `Main.agda` here (§ 3) |
+| 1 | Fork plfa-playground whole, not als-demo or the plain checker; keep its two workers, transport, give rule, archive format and persistence | Adopted ([#2]); its two workers and their shared memory superseded by row 23 | als-demo sends only `Cmd_load`; the fork builds, tests and checks `Main.agda` here (§ 3) |
 | 2 | Import a snapshot of `ae0aa84c`, 89 files byte for byte, with a per-file SHA-256 record; no history merge | Adopted ([#2]; the plan's wording changed to match, 2026-10-05) | 67 binary blobs, 171,397,049 bytes, in upstream's history; blob ids equal |
 | 3 | Keep upstream's colliding files at new paths (`README.plfa-playground.md`, `LICENSE.plfa-playground`, `app.yml`); merge its `.gitignore`; leave out `wrangler.jsonc` | Adopted ([#2]); `app.yml` later replaced by `site.yml` ([#5]) | `docs/provenance.md` |
 | 4 | Every change to an imported file is its own commit, with a header comment or a provenance row, and leaves `upstream/unchanged.sha256` | Adopted ([#2]) | `make provenance-check` |
 | 5 | Sync file by file from the record, with `git merge-file` for changed files | Adopted ([#2]) | Rehearsed on a constructed later commit (§ 2) |
 | 6 | Pin upstream's binaries by SHA-256 (36; 35 since [#49] builds the builtins), one fixed-output fetch per file; check the pinned files in `static/` before every build | Adopted (part of [#4]) | A changed pin fails the fetch; a flipped byte fails the build (§ 3) |
-| 7 | Do not pin upstream's compiler gzip | Adopted | The build writes its own; `npm run dev` falls back; the built site's raw fallback is a 404 (§ 3, and row 15) |
+| 7 | Do not pin upstream's compiler gzip | Adopted | The build writes its own, and since [#8] the dev server serves one; the raw fallback is removed (§ 3, rows 15 and 27) |
 | 8 | Node 22 in the dev shell | Adopted (part of [#3]) | 22.22.2, inside upstream's engines range |
 | 9 | `NOTICE` plus `licenses/`, published as `NOTICE.txt` and `licenses/`; upstream's `NOTICE.md` removed | Adopted ([#48]) | Every text read at its source (§ 4) |
-| 10 | GMP under LGPL-3.0-or-later, relinking met by the pinned sources and the recipe | Adopted provisionally; the judgment deferred to [#53] | § 4 |
+| 10 | GMP under LGPL-3.0-or-later, relinking met by the pinned sources and the recipe | Adopted (William, 2026-10-07, [#53]'s comment) | Each public release of the compiler carries GMP's source and GHC's patches (§ 4) |
 | 11 | The Agda mark stays, under Agda's MIT license | Adopted ([#48]) | `Agda.cabal`'s `extra-doc-files` |
 | 12 | The plain checker is the planned verdict of record, not adopted here | Recorded ([#30]) | PR 585: no isolation; JSPI 1.45 s reloads, 45 to 55 ms queries |
 | 13 | Native interfaces are accepted; the drive is the cost; the builtins were stale, and are built since by the flake, from the Agda the server embeds | Settled; the builtins' fix adopted ([#49], 2026-10-06) | [#13], [#50], [#49]; § 6 |
 | 14 | The open license questions wait until before the repository goes public; the notice stands as written meanwhile | Adopted (William, 2026-10-05; [#53]) | § 4 |
-| 15 | The built site does not ship the raw compiler; the page's silence without it is proposed for [#8] | Adopted ([#3], 2026-10-05) | Only Safari 15.2 to 16.3 could use it; 33 MB a deploy; Cloudflare Pages' 25 MiB file limit (§ 3) |
+| 15 | The built site does not ship the raw compiler; the page's silence without it is proposed for [#8] | Adopted ([#3], 2026-10-05); the silence answered by row 27 | Only Safari 15.2 to 16.3 could use it; 33 MB a deploy; Cloudflare Pages' 25 MiB file limit (§ 3) |
 | 16 | The compiler is this repository's build: Agda 2.9.0 at `da66a8c7` and the language server `v8` with two patches, for wasm32-wasi, with ghc-wasm-meta `58260711` and the Hackage index pinned; no agda-web patch | Adopted ([#58], 2026-10-07) | Agda's suites pass under it; the server needed 21 version-guarded branches; the browser check passes (§ 7) |
 | 17 | The recipe is a script in a pinned dev shell and an optional CI job; `nix build .#compiler` fetches its four files by hash | Adopted ([#58]; its first criterion reworded) | Two Agda builds, 27 minutes from empty on 20 cores and 78 on GitHub's 2-core runner, which needs swap; a second run here and the runner built the same bytes (§ 7) |
 | 18 | Built without `use-xdg-data-home`: the data directory is `Agda_datadir` itself | Adopted ([#58]) | The page's layout and `agda-data.zip`'s root unchanged (§ 7) |
-| 19 | The binaries live in releases of a public repository of this organization | Decided by William, 2026-10-07; not created | Until then the flake's fetch succeeds only from a local store (§ 7) |
+| 19 | The binaries live in releases of a public repository of this organization | Decided by William, 2026-10-07; created the same day, formalverification/agda-wasm-builds | Its release `agda-2.9.0-da66a8c-als-8` holds the four pins, and CI fetches from it (§ 7) |
 | 20 | Every interface the page ships is built by a wasm32 Agda; the builtins by the compiler's `agda` under wasmtime | Adopted ([#58]) | Agda 2.9.0 writes interfaces at its word size: native interfaces are checked again, or hang (§ 7) |
 | 21 | The page ships the standard library 2.3 patched as in [#61]'s row 2b, with two later fixes from agda-stdlib's `master` | Adopted (William, 2026-10-07; the two fixes the same day) | No released version checks under 2.9.0 ([#61]); with the five patches the whole library checks (§ 7) |
 | 22 | The 2.8.0 compiler stays pinned, unshipped, with its recipe, until the 2.9.0 one passes [#13]'s gate | Adopted ([#58]) | `nix build .#compiler-2_8_0` (§ 7) |
+| 23 | The runtime needs no cross-origin isolation: the page runs the server's reactor build in one worker with the drive, sharing no memory; the headers, the service worker and both checks are removed | Adopted ([#59], 2026-10-08) | The browser check passes with the headers and without, in Chromium 149 and Firefox 157; "Agda ready" 650 against 907 ms, warm reloads 9 to 22% faster, a drive call 0.2 µs against 11 to 20 µs (medians; § 8) |
+| 24 | The site ships the reactor and its glue, the glue imported by its URL, not bundled; the command module stays pinned, unshipped | Adopted ([#59]) | The shipped glue is the pinned file (`make assets-check`); NOTICE § 3 from the reactor's own plan, 141 packages (§ 8) |
+| 25 | The status bar shows Agda's own version, asked with `Cmd_show_version` when the server is first ready | Adopted ([#59]) | The reactor has no `--version`, and the server sets no `serverInfo`; the browser check asserts "Agda 2.9.0" (§ 8) |
+| 26 | The server starts with no RTS options: the fork's `+RTS -A64m -RTS` is removed | Adopted ([#59]) | It takes effect (a heap of 94 against 24 MiB) and made no check faster (§ 8) |
+| 27 | A browser that is hard to support is not supported: the page checks what it needs, names what is missing and the browsers it is tested in, and shows a failure to start; no polyfill, shim or fallback | Adopted (William, 2026-10-07; [#8], 2026-10-08) | Three notices tested in CI, failing against the page before; the needs first coincide in Chrome 96, Firefox 114 and Safari 16.4 (§ 9) |
+| 28 | The editor takes its text as the one Agda's positions refer to only when the page sends `Cmd_load` | Adopted ([#59]) | Agda keeps a goal's loaded range after a give; the old commit point hung 3 of 8 runs in Firefox, the new none of 18 (§ 8) |
 
 ---
 
 ## References
 
 +  **Issues**: [#2] (the fork), [#3] (the Nix build), [#4] (the pins), [#5]
-   (CI), [#6] (hosting), [#7] (this record), [#8] (a page that cannot
-   isolate itself), [#13] (interface acceptance), [#20] (PLFA's removal),
-   [#30] (the second lane), [#48] (the notice), [#49] (the builtins), [#50]
-   (the drive), [#53] (the license review before going public), [#58] (the
-   2.9.0 compiler), [#59] (the reactor), [#61] (the library under 2.9.0).
+   (CI), [#6] (hosting), [#7] (this record), [#8] (the page's notices, once
+   a page that could not isolate itself), [#13] (interface acceptance),
+   [#20] (PLFA's removal), [#30] (the second lane), [#48] (the notice),
+   [#49] (the builtins), [#50] (the drive), [#53] (the license review
+   before going public), [#58] (the 2.9.0 compiler), [#59] (the reactor),
+   [#61] (the library under 2.9.0), [#62] (the shared core).
 +  **Elsewhere**: agda-algebras PR [585][pr-585] and its [ADR-011][adr-011];
    agda-native-air's [browser IDE proposal][proposal]; [plfa-playground][upstream]
    at `ae0aa84c`.
@@ -675,10 +879,14 @@ release.
    `compiler/build-agda-2.9.0.sh` with `compiler/patches/` and
    `compiler/agda-2.9.0.sha256`, `stdlib/patches/`,
    `.github/workflows/compiler.yml`, `Makefile` (`assets`, `assets-check`,
-   `dev`, `build`, `test`, `check`, `browser-check`, `provenance-check`),
-   `upstream/` (the records), `scripts/upstream-record.sh`,
-   `scripts/asset-manifest.mjs` and `src/lib/assets.ts` (the derived cache
-   tokens), `scripts/browser-check/`, `.github/workflows/site.yml`.
+   `dev`, `build`, `test`, `check`, `browser-check`,
+   `browser-check-notices`, `provenance-check`), `upstream/` (the records),
+   `scripts/upstream-record.sh`, `scripts/asset-manifest.mjs` and
+   `src/lib/assets.ts` (the derived cache tokens), `src/lib/worker/als.ts`
+   and `src/lib/worker/drive.ts` (the reactor and the drive),
+   `src/lib/support.ts` (what the page needs), `scripts/browser-check/`
+   (`run.mjs`, `notices.mjs`, `cdp.mjs`, `bidi.mjs`),
+   `.github/workflows/site.yml`.
 
 [#2]: https://github.com/formalverification/agda-native-ide/issues/2
 [#3]: https://github.com/formalverification/agda-native-ide/issues/3
@@ -698,6 +906,7 @@ release.
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59
 [#61]: https://github.com/formalverification/agda-native-ide/issues/61
+[#62]: https://github.com/formalverification/agda-native-ide/issues/62
 [pr-585]: https://github.com/ualib/agda-algebras/pull/585
 [adr-011]: https://github.com/ualib/agda-algebras/blob/577-an-interactive-agda-proof-environment/docs/adr/011-interactive-playground.md
 [proposal]: ../notes/browser-ide-proposal.md
