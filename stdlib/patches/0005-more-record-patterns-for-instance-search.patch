@@ -1,0 +1,56 @@
+# File: stdlib/patches/0005-more-record-patterns-for-instance-search.patch
+#
+# What: agda/agda-stdlib commit b0d29e132f3dfce67c87288d05abb07ccbd39168
+# (master, Amélia Liao, 2026-02-07; agda/agda-stdlib PR 2935, further
+# eta-expansions for its issue 2931), cherry-picked onto v2.3 without
+# change: prime⇒nonTrivial in Data.Nat.Primality and step in
+# Data.Nat.PseudoRandom.LCG match a record pattern, for the same change
+# in Agda's instance search (agda/agda PR 8367).
+#
+# Why: the standard library 2.3, which agda-algebras depends on, checks
+# whole under Agda 2.9.0 (all 1,154 modules) with these five patches and
+# with no released version (issue 61: row 2b, and two later fixes); the
+# page ships it so patched (issue 58).
+#
+# Against: agda/agda-stdlib v2.3 (8326c7475af1fa456ca04a0203c168d5d7ff842b)
+# with patches 0001 to 0004, applied in order by the flake (packages.stdlib).
+#
+From b0d29e132f3dfce67c87288d05abb07ccbd39168 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Am=C3=A9lia=20Liao?= <me@amelia.how>
+Date: Sat, 7 Feb 2026 13:12:46 -0300
+Subject: [PATCH] fixup: further eta-expansions for #2931 (#2935)
+
+---
+ src/Data/Nat/Primality.agda        | 2 +-
+ src/Data/Nat/PseudoRandom/LCG.agda | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/Data/Nat/Primality.agda b/src/Data/Nat/Primality.agda
+index 67d410b..88c36f0 100644
+--- a/src/Data/Nat/Primality.agda
++++ b/src/Data/Nat/Primality.agda
+@@ -214,7 +214,7 @@ prime⇒nonZero : Prime p → NonZero p
+ prime⇒nonZero record{} = nonTrivial⇒nonZero _
+ 
+ prime⇒nonTrivial : Prime p → NonTrivial p
+-prime⇒nonTrivial _ = recompute-nonTrivial
++prime⇒nonTrivial record{} = recompute-nonTrivial
+ 
+ prime? : Decidable Prime
+ prime? 0        = no ¬prime[0]
+diff --git a/src/Data/Nat/PseudoRandom/LCG.agda b/src/Data/Nat/PseudoRandom/LCG.agda
+index 32e55c7..52d8b83 100644
+--- a/src/Data/Nat/PseudoRandom/LCG.agda
++++ b/src/Data/Nat/PseudoRandom/LCG.agda
+@@ -23,7 +23,7 @@ record Generator : Set where
+         .{{modulus≢0}} : NonZero modulus
+ 
+ step : Generator → ℕ → ℕ
+-step gen x =
++step gen@record{} x =
+   let open Generator gen in
+   ((multiplier * x + increment) % modulus)
+ 
+-- 
+2.43.0
+

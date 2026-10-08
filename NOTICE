@@ -427,11 +427,12 @@ Contents
 5.  The Agda standard library 2.3, patched: agda-stdlib-2.3-patched.zip
 
     The sources of https://github.com/agda/agda-stdlib at v2.3, modified:
-    this repository's three patches, stdlib/patches/*.patch, change ten
-    modules and add one (Relation.Nullary.Recomputable.Unsafe), so that
-    the library checks under Agda 2.9.0.  Two of them are agda-stdlib's
-    own commits 1896499f and 1b7f26af (its agda-master branch), applied
-    unchanged; the third ports its commit 39631ce9 to v2.3.  Made by this
+    this repository's five patches, stdlib/patches/*.patch, change
+    twelve modules and add one (Relation.Nullary.Recomputable.Unsafe), so
+    that the library checks under Agda 2.9.0.  Four of them are
+    agda-stdlib's own commits, applied unchanged: 1896499f and 1b7f26af
+    (its agda-master branch), and fbf6ce16 and b0d29e13 (its master
+    branch); the third ports its commit 39631ce9 to v2.3.  Made by this
     repository's flake (packages.stdlib).
     MIT, Copyright (c) 2007-2025 Nils Anders Danielsson, Ulf Norell, and
     the others its LICENCE names; the patches are under the same license.

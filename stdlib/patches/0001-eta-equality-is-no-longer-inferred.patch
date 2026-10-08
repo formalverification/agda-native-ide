@@ -7,8 +7,9 @@
 # longer infers (agda/agda#8533).
 #
 # Why: the standard library 2.3, which agda-algebras depends on, checks
-# under Agda 2.9.0 with these three patches and with no released version
-# (issue 61, row 2b); the page ships it so patched (issue 58).
+# whole under Agda 2.9.0 (all 1,154 modules) with these five patches and
+# with no released version (issue 61: row 2b, and two later fixes); the
+# page ships it so patched (issue 58).
 #
 # Against: agda/agda-stdlib v2.3 (8326c7475af1fa456ca04a0203c168d5d7ff842b),
 # applied in order by the flake (packages.stdlib).

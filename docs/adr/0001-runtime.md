@@ -492,8 +492,10 @@ interface it ships is built by a 32-bit (wasm32) Agda.
    `flake.nix`).
 +  **The standard library is 2.3, patched** as in [#61]'s row 2b
    (agda-stdlib's `agda-master` commits `1896499f` and `1b7f26af`, and
-   `39631ce9` ported to 2.3), built by the flake from the `v2.3` tag and
-   `stdlib/patches/` (`packages.stdlib`); William's decision of 2026-10-07.
+   `39631ce9` ported to 2.3), William's decision of 2026-10-07, and with
+   two commits of its `master` branch, `fbf6ce16` and `b0d29e13`, without
+   which `Data.Nat.Primality` does not check; built by the flake from the
+   `v2.3` tag and `stdlib/patches/` (`packages.stdlib`).
 +  **The 2.8.0 compiler stays pinned, unshipped** (`nix build
    .#compiler-2_8_0`), with its recipe, until the 2.9.0 compiler passes
    [#13]'s gate.
@@ -558,11 +560,12 @@ Linux 7.0.0-31-generic); [#58]'s findings have each phase in full.
    (465 to 477); a warm reload checked at 901 to 953 ms (889 to 915).  A
    first visit fetches 25 files, 16,126,490 bytes against 15,724,238: the
    compiler's gzip is 964,398 bytes more (11,119,315), the standard library
-   and the builtins 562,580 fewer, the page's own code 434 more.  On two
-   copies of the site whose default `Main` imports every 2.9.0 builtin (the
-   35 plain ones in one, the 6 cubical ones in the other), the same check
-   passes with `Main` alone checked: the server accepts all 41 interfaces
-   the compiler's `agda` built.
+   and the builtins 562,580 fewer, the page's own code 434 more (measured
+   before the standard library's last two patches, which add 11 bytes to
+   its archive).  On two copies of the site whose default `Main` imports
+   every 2.9.0 builtin (the 35 plain ones in one, the 6 cubical ones in the
+   other), the same check passes with `Main` alone checked: the server
+   accepts all 41 interfaces the compiler's `agda` built.
 +  **Agda 2.9.0's interfaces depend on the word size of the Agda that wrote
    them**.  agda/agda PR 8065 (2025-08-16) made the serializer write `Int`
    and `Word` at the machine's width, 8 bytes on x86-64 and 4 on wasm32,
@@ -577,10 +580,17 @@ Linux 7.0.0-31-generic); [#58]'s findings have each phase in full.
    `Overture.Basic` checks only `Main` over interfaces the wasm `agda` built,
    and all 66 modules over the same closure built natively.  [#59]'s spike
    saw the hang in the page, at 3.4 to 3.7 GiB.
-+  **The patched standard library checks**: PLFA's `part1/Relations`
-   checks against it under the compiler's `agda` (30 modules from source,
-   exit 0), and the archive's sources are [#61]'s row 2b branch, file for
-   file.
++  **The patched standard library checks whole**: all of its 1,154
+   modules check from source under the nightly at the pin (`agda
+   --build-library`, exit 0, 108 s, the library's own 50 deprecation
+   warnings); with row 2b's three patches alone the check stops 651
+   modules in, at `Data/Nat/Primality.agda:214` (`InstanceNoCandidate`),
+   since Agda 2.9.0's instance search no longer eta-expands a variable of
+   a record type (agda/agda PR 8367), which the last two patches answer.
+   Under the compiler's `agda`, `Data.Nat.Primality` checks from source
+   (198 modules) and PLFA's `part1/Relations` too (30 modules).  The
+   archive's sources are formalverification/agda-stdlib's tag
+   `v2.3-agda-2.9.0` (`fb5d1840`), file for file.
 
 **What 2.9.0 changed, as the page meets it**.
 
@@ -638,7 +648,7 @@ release.
 | 18 | Built without `use-xdg-data-home`: the data directory is `Agda_datadir` itself | Adopted ([#58]) | The page's layout and `agda-data.zip`'s root unchanged (§ 7) |
 | 19 | The binaries live in releases of a public repository of this organization | Decided by William, 2026-10-07; not created | Until then the flake's fetch succeeds only from a local store (§ 7) |
 | 20 | Every interface the page ships is built by a wasm32 Agda; the builtins by the compiler's `agda` under wasmtime | Adopted ([#58]) | Agda 2.9.0 writes interfaces at its word size: native interfaces are checked again, or hang (§ 7) |
-| 21 | The page ships the standard library 2.3 patched as in [#61]'s row 2b | Adopted (William, 2026-10-07) | No released version checks under 2.9.0 ([#61]); PLFA's `Relations` checks against it (§ 7) |
+| 21 | The page ships the standard library 2.3 patched as in [#61]'s row 2b, with two later fixes from agda-stdlib's `master` | Adopted (William, 2026-10-07; the two fixes the same day) | No released version checks under 2.9.0 ([#61]); with the five patches the whole library checks (§ 7) |
 | 22 | The 2.8.0 compiler stays pinned, unshipped, with its recipe, until the 2.9.0 one passes [#13]'s gate | Adopted ([#58]) | `nix build .#compiler-2_8_0` (§ 7) |
 
 ---

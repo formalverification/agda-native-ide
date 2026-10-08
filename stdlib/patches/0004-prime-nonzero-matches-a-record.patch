@@ -1,0 +1,44 @@
+# File: stdlib/patches/0004-prime-nonzero-matches-a-record.patch
+#
+# What: agda/agda-stdlib commit fbf6ce16b14c8c484d9e7f67d85f46f8e8147ebc
+# (master, jamesmckinna, 2026-02-05; agda/agda-stdlib PR 2932, for its
+# issue 2931), cherry-picked onto v2.3 without change: prime⇒nonZero in
+# Data.Nat.Primality matches its argument with record{}.  Agda 2.9.0's
+# instance search no longer eta-expands a variable of a record type to
+# find the record's instance fields (agda/agda PR 8367), so without it
+# the module stops at line 214 (InstanceNoCandidate: NonTrivial p), 651
+# modules into a check of the whole library.
+#
+# Why: the standard library 2.3, which agda-algebras depends on, checks
+# whole under Agda 2.9.0 (all 1,154 modules) with these five patches and
+# with no released version (issue 61: row 2b, and two later fixes); the
+# page ships it so patched (issue 58).
+#
+# Against: agda/agda-stdlib v2.3 (8326c7475af1fa456ca04a0203c168d5d7ff842b)
+# with patches 0001 to 0003, applied in order by the flake (packages.stdlib).
+#
+From fbf6ce16b14c8c484d9e7f67d85f46f8e8147ebc Mon Sep 17 00:00:00 2001
+From: jamesmckinna <31931406+jamesmckinna@users.noreply.github.com>
+Date: Thu, 5 Feb 2026 23:01:59 +0000
+Subject: [PATCH] fix: issue #2931 (#2932)
+
+---
+ src/Data/Nat/Primality.agda | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/Data/Nat/Primality.agda b/src/Data/Nat/Primality.agda
+index cde58dc..67d410b 100644
+--- a/src/Data/Nat/Primality.agda
++++ b/src/Data/Nat/Primality.agda
+@@ -211,7 +211,7 @@ prime[2] : Prime 2
+ prime[2] = prime 2-rough
+ 
+ prime⇒nonZero : Prime p → NonZero p
+-prime⇒nonZero _ = nonTrivial⇒nonZero _
++prime⇒nonZero record{} = nonTrivial⇒nonZero _
+ 
+ prime⇒nonTrivial : Prime p → NonTrivial p
+ prime⇒nonTrivial _ = recompute-nonTrivial
+-- 
+2.43.0
+

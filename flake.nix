@@ -148,10 +148,11 @@
         '';
 
       # The standard library the page ships under Agda 2.9.0 (issue 58):
-      # agda-stdlib v2.3, which agda-algebras depends on, with the three
-      # patches in stdlib/patches/ (two commits of its agda-master branch,
-      # and a third ported by hand), without which no released version
-      # checks under 2.9.0 (issue 61, row 2b).  The archive holds what the
+      # agda-stdlib v2.3, which agda-algebras depends on, with the five
+      # patches in stdlib/patches/ (two commits of its agda-master branch, a
+      # third ported by hand, and two of its master branch), with which the
+      # whole library checks under 2.9.0 and no released version does
+      # (issue 61: row 2b, and two later fixes).  The archive holds what the
       # page's drive takes from it (src/, standard-library.agda-lib) and the
       # library's LICENCE, under agda-stdlib-2.3/, as a zip whose bytes
       # depend on its input alone: entries sorted, one fixed time.

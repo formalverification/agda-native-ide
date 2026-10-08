@@ -105,7 +105,7 @@ blocks on memory another thread writes.
    limit for one file.  The page's silence when it cannot fetch or decompress
    the compiler stays open, proposed for [#8].  The data are `agda-data.zip`
    (Agda's builtin library), `agda-stdlib-2.3-patched.zip` (the standard
-   library 2.3 with the three patches that make it check under Agda 2.9.0,
+   library 2.3 with the five patches that make it check under Agda 2.9.0,
    `stdlib/patches/`, [#61]) and `plfa/project.zip`.  Each of these URLs, and
    those of PLFA's interface archives, carries a `?cache=` token that the
    build derives from the file's content (`src/lib/assets.ts`), so a changed

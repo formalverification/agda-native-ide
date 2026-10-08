@@ -177,23 +177,25 @@ license of each.
 ## The standard library, patched here
 
 `static/agda-stdlib-2.3-patched.zip` is the Agda standard library 2.3 with
-three patches that make it check under Agda 2.9.0 ([#61], row 2b), which no
-released version does.  The flake builds it (`nix build .#stdlib`,
-`mkStdlib` in `flake.nix`) from agda/agda-stdlib at `v2.3`
-(`8326c7475af1fa456ca04a0203c168d5d7ff842b`, fetched by its NAR hash) and
-`stdlib/patches/*.patch`: agda-stdlib's own `1896499f` and `1b7f26af` from
-its `agda-master` branch, unchanged, and its `39631ce9` ported to v2.3 by
-[#61]'s session.  The archive holds what the page's drive takes, `src/` and
-`standard-library.agda-lib`, and the library's `LICENCE`, under
-`agda-stdlib-2.3/`: 1,156 files, the same as [#61]'s patched branch (`git
-archive` of it compared file by file), stored with one fixed time and in a
-fixed order, so `nix build .#stdlib --rebuild` finds no difference.
+five patches that make the whole library check under Agda 2.9.0 ([#61]: row
+2b, and two later fixes), which no released version does.  The flake builds
+it (`nix build .#stdlib`, `mkStdlib` in `flake.nix`) from agda/agda-stdlib
+at `v2.3` (`8326c7475af1fa456ca04a0203c168d5d7ff842b`, fetched by its NAR
+hash) and `stdlib/patches/*.patch`: agda-stdlib's own `1896499f` and
+`1b7f26af` from its `agda-master` branch, unchanged; its `39631ce9` ported
+to v2.3 by [#61]'s session; and its `fbf6ce16` and `b0d29e13` from its
+`master` branch, unchanged.  The archive holds what the page's drive takes,
+`src/` and `standard-library.agda-lib`, and the library's `LICENCE`, under
+`agda-stdlib-2.3/`: 1,156 files, the same as the tag `v2.3-agda-2.9.0` of
+formalverification/agda-stdlib (`fb5d1840d26909038b5ae1459733b0db425a7488`,
+compared file by file), stored with one fixed time and in a fixed order, so
+`nix build .#stdlib --rebuild` finds no difference.
 License: MIT, the library's (`LICENCE`, unchanged by the patches, which are
 under the same license).
 
 | Path | Bytes | SHA-256 |
 |---|---:|---|
-| `static/agda-stdlib-2.3-patched.zip` | 1,536,410 | `b65ab8c353ac993b72b61c31a8f30e16e4f428ecee75d5333a9405c28b653f0f` |
+| `static/agda-stdlib-2.3-patched.zip` | 1,536,421 | `773c59515bf4cd2ebf6d86aed6d57ec4493333538b28c1ace55509ece7e7aacd` |
 
 ## Retired pins
 
