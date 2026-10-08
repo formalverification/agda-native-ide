@@ -152,7 +152,8 @@ ghc-wasm-meta `58260711fd5c8ffbb81f4ac56e40323ff509d43b` (GHC
 fetches them by those hashes (`nix build .#compiler`, `mkCompiler`) from a
 release whose home [#58] decides; until it exists, the fetch succeeds only
 where the files are already in the Nix store.  `.github/workflows/compiler.yml`
-rebuilds them with the recipe and checks the bytes against the pins.
+rebuilds them with the recipe and checks the bytes against the pins; its
+run of 2026-10-07 on GitHub's runner built the pinned bytes.
 
 +  `als.wasm`, the language server as a command module, is the compiler the
    page runs: `packages.assets` installs it as `static/als-2.9.0.wasm`, and

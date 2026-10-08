@@ -470,8 +470,9 @@ interface it ships is built by a 32-bit (wasm32) Agda.
    job**, not a pure derivation.  `nix develop .#compiler --command
    compiler/build-agda-2.9.0.sh` builds the four files at one fixed path,
    since the binaries record their build paths;
-   `.github/workflows/compiler.yml` runs it on demand and when the recipe or
-   its pins change, and fails unless the bytes match
+   `.github/workflows/compiler.yml` runs it on demand and when a pull
+   request that changes the recipe or its pins opens or is ready for
+   review, and fails unless the bytes match
    `compiler/agda-2.9.0.sha256`; `nix build .#compiler` fetches the files by
    those hashes.  A pure derivation would need every Hackage package as a
    fixed-output fetch, a second packaging of a plan cabal already pins by
@@ -536,6 +537,14 @@ Linux 7.0.0-31-generic); [#58]'s findings have each phase in full.
 | `als-reactor.wasm` | 35,817,413 | `a0c7ae5741dd3f11c6be9e9fac4281889f2861ec2b53b5379452d11a4a23e8c9` |
 | `als-reactor.js` | 5,044 | `c782dbaca349830299055c71ec9c4f72ec543c0d612d08b7c40fbb364e601dce` |
 
++  **And on GitHub's runner**: the CI job, on a runner with 2 cores and
+   7.8 GiB of memory, built the same four files from the pins in 78
+   minutes (the plain `agda` in 32 min 49 s, the command module in 34 min
+   26 s), and its `sha256sum --check` passed (run 37708498495).  It needs
+   swap: GHC's resident memory peaks at 8.95 GiB compiling Agda's library
+   (measured here with GNU time), the run before was shut down in that
+   build, and this one, with the 16 GiB swap file the job now adds, used up
+   to 5.3 GiB of it.
 +  **The page works on it**: the browser check passes on the built site
    (headless Chromium 149): the first check of the default `Main.agda`
    type-checks `Main` alone over the builtins the compiler's `agda` built,
@@ -596,11 +605,12 @@ Linux 7.0.0-31-generic); [#58]'s findings have each phase in full.
 
 **Status**.  Adopted on 2026-10-07 in [#58]'s pull request: the recipe,
 the patches, the pins, the patched standard library, the builtins built
-by the wasm `agda`, and the page on the new compiler.  Open: the public
-repository for the binaries, without which CI's fetch fails ([#58]); the
-recipe's CI job on GitHub's runners; [#13]'s gate under 2.9.0, on archives
-built by a wasm32 Agda ([#61]'s second criterion, [#12]); the reactor's use
-in the page ([#59]); the move to Agda's 2.9.0 release.
+by the wasm `agda`, the page on the new compiler, and the CI job, which
+built the pinned bytes on GitHub's runner.  Open: the public repository
+for the binaries, without which CI's fetch fails ([#58]); [#13]'s gate
+under 2.9.0, on archives built by a wasm32 Agda ([#61]'s second criterion,
+[#12]); the reactor's use in the page ([#59]); the move to Agda's 2.9.0
+release.
 
 ---
 
@@ -624,7 +634,7 @@ in the page ([#59]); the move to Agda's 2.9.0 release.
 | 14 | The open license questions wait until before the repository goes public; the notice stands as written meanwhile | Adopted (William, 2026-10-05; [#53]) | § 4 |
 | 15 | The built site does not ship the raw compiler; the page's silence without it is proposed for [#8] | Adopted ([#3], 2026-10-05) | Only Safari 15.2 to 16.3 could use it; 33 MB a deploy; Cloudflare Pages' 25 MiB file limit (§ 3) |
 | 16 | The compiler is this repository's build: Agda 2.9.0 at `da66a8c7` and the language server `v8` with two patches, for wasm32-wasi, with ghc-wasm-meta `58260711` and the Hackage index pinned; no agda-web patch | Adopted ([#58], 2026-10-07) | Agda's suites pass under it; the server needed 21 version-guarded branches; the browser check passes (§ 7) |
-| 17 | The recipe is a script in a pinned dev shell and an optional CI job; `nix build .#compiler` fetches its four files by hash | Adopted ([#58]; its first criterion reworded) | Two Agda builds, 27 minutes from empty on 20 cores; a second run built the same bytes (§ 7) |
+| 17 | The recipe is a script in a pinned dev shell and an optional CI job; `nix build .#compiler` fetches its four files by hash | Adopted ([#58]; its first criterion reworded) | Two Agda builds, 27 minutes from empty on 20 cores and 78 on GitHub's 2-core runner, which needs swap; a second run here and the runner built the same bytes (§ 7) |
 | 18 | Built without `use-xdg-data-home`: the data directory is `Agda_datadir` itself | Adopted ([#58]) | The page's layout and `agda-data.zip`'s root unchanged (§ 7) |
 | 19 | The binaries live in releases of a public repository of this organization | Decided by William, 2026-10-07; not created | Until then the flake's fetch succeeds only from a local store (§ 7) |
 | 20 | Every interface the page ships is built by a wasm32 Agda; the builtins by the compiler's `agda` under wasmtime | Adopted ([#58]) | Agda 2.9.0 writes interfaces at its word size: native interfaces are checked again, or hang (§ 7) |
