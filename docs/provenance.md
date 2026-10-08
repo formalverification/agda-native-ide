@@ -364,6 +364,7 @@ Each change is its own commit, named here by its subject.
 | `static/_headers` | The three headers that isolated every route (`Cross-Origin-Opener-Policy`, `Cross-Origin-Embedder-Policy`, `Cross-Origin-Resource-Policy`) are removed; the cache rules stay ([#59]) | "Serve the page without cross-origin isolation" |
 | `vite.config.js` | The dev and preview servers no longer send the isolation headers (the `coi-plugin` is removed) ([#59]) | "Serve the page without cross-origin isolation" |
 | `static/coi-serviceworker.js` | Removed, with its license text, `licenses/coi-serviceworker.txt` ([#59]) | "Serve the page without cross-origin isolation" |
+| `src/lib/controller.svelte.ts` | The editor takes its text as the one Agda's positions refer to only when the page sends `Cmd_load`, not after every write to the drive, since after a give Agda's ranges stay those of the text it loaded; the lock on the drive's writes goes, since they are messages handled in order ([#59]) | "Take the editor's text as Agda's only when Agda loads it" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground

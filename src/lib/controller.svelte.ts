@@ -25,6 +25,17 @@
 // its own, so the controller asks Agda for its version with
 // Cmd_show_version once the server is ready, and the page shows Agda's
 // answer.
+//
+// The editor takes its text as the one Agda's positions refer to (the
+// offsets' commit) when the page sends Cmd_load, and only then: after a
+// give or a case split, Agda goes on giving the remaining goals' ranges in
+// the text it loaded, which the editor maps through the edits made since
+// (issue 59).  The controller committed after every write to the drive,
+// so a give's edit, written while Agda was still answering the give,
+// could be committed before Agda's interaction points arrived, which then
+// fell outside the text (a RangeError that stopped the transport), seen
+// in Firefox.  Writes to the drive are messages to the server's worker,
+// handled in order, so they need no lock.
 
 import * as Comlink from "comlink";
 
@@ -189,7 +200,6 @@ export class AgdaController {
   agdaDataZip?: Promise<Uint8Array>;
 
   lspClientCompartment = new Compartment();
-  driveIsLocked = false;
 
   alsWorkerStatus = $state<ALSWorkerStatus>("initial");
   wasmLoadingProgress = $state<WASMLoadingProgress | null>(null);
@@ -547,7 +557,7 @@ export class AgdaController {
     this.interactionPoints = [];
     this.activeGoalId = undefined;
 
-    await this.syncEditorToDrive();
+    await this.syncEditorToDrive({ forLoad: true });
 
     const encodedFilePath = JSON.stringify(this.currentFilePath);
     this.pendingLoadSnapshot = {
@@ -624,26 +634,20 @@ export class AgdaController {
     return undefined;
   }
 
-  async syncEditorToDrive() {
-    if (this.driveIsLocked) {
-      return;
-    }
+  /** Write the buffer to the drive.  For a load (`forLoad`), the text
+   * written becomes the one Agda's positions refer to, until the next
+   * load. */
+  async syncEditorToDrive({ forLoad = false } = {}) {
     if (!this.editorView || !this.driveIsCreated) return;
 
     const doc = this.editorView!.state.doc.toString();
     this.persistDocument(doc);
+    if (forLoad) this.editorView!.dispatch({ effects: commit.of() });
 
-    try {
-      this.driveIsLocked = true;
-      await this.workerInitData!.writeFile(
-        this.currentFilePath,
-        browserAgdaSource(this.currentFilePath, doc),
-      );
-    } finally {
-      this.driveIsLocked = false;
-    }
-
-    this.editorView!.dispatch({ effects: commit.of() });
+    await this.workerInitData!.writeFile(
+      this.currentFilePath,
+      browserAgdaSource(this.currentFilePath, doc),
+    );
 
     this.lspClient!.notification("textDocument/didSave", {
       textDocument: {
