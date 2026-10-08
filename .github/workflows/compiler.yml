@@ -5,22 +5,25 @@
 # sources it pins, and then a check that it built the bytes the flake
 # pins (compiler/agda-2.9.0.sha256).  It fetches from GitHub, from
 # gitlab.haskell.org (the toolchain) and from Hackage, and builds Agda
-# twice (Agda's own wasm workflow took 21 to 27 minutes for one build on
-# GitHub's runners), so it runs on demand and on pull requests that
-# change the recipe, its patches, its pins or this file, not on every
-# pull request; the site's checks are site.yml's.  A newer push to the
-# same pull request cancels a run in progress.
+# twice: 78 minutes on GitHub's 2-core runner (2026-10-07).  So it runs on
+# demand, and when a pull request that changes the recipe, its patches,
+# its pins or this file is opened, reopened or marked ready for review,
+# not on every push to it; the site's checks are site.yml's.  A newer run
+# for the same ref cancels one in progress.
 #
 # GHC needs 9 GiB to compile Agda's library (its peak resident memory,
-# measured 2026-10-07), and the first run on GitHub's runner was shut down
-# in that build, at the module where GHC passes 8.5 GiB.  So the job adds
-# 16 GiB of swap first, and logs the runner's memory every two minutes.
+# measured 2026-10-07), more than the runner's 7.8 GiB: the first run was
+# shut down in that build, at the module where GHC passes 8.5 GiB.  So the
+# job adds 16 GiB of swap first, and logs the runner's memory every two
+# minutes; the run that followed used up to 5.3 GiB of swap and built the
+# pinned bytes.
 
 name: compiler
 
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, reopened, ready_for_review]
     paths:
       - compiler/build-agda-2.9.0.sh
       - compiler/agda-2.9.0.sha256
