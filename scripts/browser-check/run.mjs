@@ -6,8 +6,9 @@
 //
 //   1.  waits for "Agda ready", then for the automatic first check of the
 //       default Main.agda, and asserts crossOriginIsolated (by the
-//       headers, not by the page's service-worker fallback) and two open
-//       goals;
+//       headers, not by the page's service-worker fallback), two open
+//       goals, and the language server's version in the status bar, which
+//       the page's description must name too;
 //   2.  runs Infer on plus-zero from the command strip, and asserts the
 //       modules that first check type-checked: the `Checking` lines of
 //       Agda's running info, which the page shows only in the inspector's
@@ -42,15 +43,21 @@ import { serve } from "./serve.mjs";
 export const EXPECTED_CHECKING = ["Main"];
 
 /** The declaration step 4 appends, and the error Agda must report at
- * `refl`, after the position (Agda prints the naturals as numerals). */
+ * `refl`, after the position (Agda prints the naturals as numerals).
+ * Agda 2.9.0 words it so; 2.8.0 wrote `0 != 1 of type Nat` in place of
+ * the first five lines (issue 58). */
 const TYPE_ERROR = {
   source: "\nwrong : zero ≡ suc zero\nwrong = refl\n",
   line: "wrong = refl",
   columns: "9-13",
   message:
-    ": error: [UnequalTerms]\n0 != 1 of type Nat\n" +
+    ": error: [UnequalTerms]\nThe terms\n  0\nand\n  1\nare not equal at type Nat\n" +
     "when checking that the expression refl has type zero ≡ 1",
 };
+
+/** What the language server says when asked for its version: the page
+ * shows it in the status bar (issue 58). */
+export const SERVER_VERSION = "Agda v2.9.0 Language Server v8 (WebAssembly build)";
 
 const STEP_TIMEOUT_MS = 180_000;
 
@@ -121,6 +128,9 @@ const state = () => ({
   result: document.querySelector(".result-card pre")?.textContent ?? null,
   log: document.querySelector(".compiler-log pre")?.textContent ?? null,
   minibuffer: document.querySelector("#command-input") !== null,
+  description:
+    document.querySelector('meta[name="description"]')?.getAttribute("content") ??
+    "",
   editor: [...document.querySelectorAll(".cm-content .cm-line")].map(
     (line) => line.textContent,
   ),
@@ -308,6 +318,15 @@ try {
     assert(
       first.bar.split(" | ").includes("2 goals"),
       `the status bar says "${first.bar}"`,
+    );
+    assert(
+      first.bar.split(" | ").includes(SERVER_VERSION),
+      `the status bar says "${first.bar}", not the server's version`,
+    );
+    const version = SERVER_VERSION.match(/Agda v(\S+)/)?.[1] ?? "";
+    assert(
+      first.description.includes(`Agda ${version}`),
+      `the page's description, "${first.description}", does not name Agda ${version}`,
     );
   });
 

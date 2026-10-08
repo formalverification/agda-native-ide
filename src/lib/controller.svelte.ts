@@ -9,6 +9,10 @@
 // which had no token, gains one (issue 3).  The map of compiler versions
 // keeps only the one the site ships: agda-data.zip is built for that Agda,
 // and the others named compilers the site has never carried (issue 49).
+// That compiler is this repository's build of Agda 2.9.0 and its language
+// server (compiler/build-agda-2.9.0.sh), which answers in the raw format
+// the transport reads only when started with --raw; the standard library
+// is 2.3 patched to check under 2.9.0 (stdlib/patches/; issue 58).
 
 import { SPSC } from "spsc";
 import { SPSCReader } from "spsc/reader";
@@ -64,7 +68,7 @@ type ALSWorkerStatus =
   | "terminated"
   | "exited";
 
-const supportedAgdaVersion = ["2.8.0"] as const;
+const supportedAgdaVersion = ["2.9.0"] as const;
 export type SupportedAgdaVersion = (typeof supportedAgdaVersion)[number];
 
 export interface DriveHandle {
@@ -95,16 +99,16 @@ interface AgdaVersionSpec {
   compressedPath?: string;
   byteLength?: number;
   stdlibCandidates: string[];
-  // Zip archive to unpack to the initial drive. Agda 2.8 still runs
+  // Zip archive to unpack to the initial drive. Agda still runs
   // `--setup`, but this archive also carries primitive interfaces.
   dataPath?: string;
 }
 
 export const agdaVersionMap: Record<SupportedAgdaVersion, AgdaVersionSpec> = {
   ["__proto__" as any]: null,
-  "2.8.0": {
-    path: `${asset("/als-2.8ext.wasm")}?cache=${cacheTokens.compiler}`,
-    compressedPath: `${asset("/als-2.8ext.wasm.gz")}?cache=${cacheTokens.compiler}`,
+  "2.9.0": {
+    path: `${asset("/als-2.9.0.wasm")}?cache=${cacheTokens.compiler}`,
+    compressedPath: `${asset("/als-2.9.0.wasm.gz")}?cache=${cacheTokens.compiler}`,
     byteLength: compilerBytes,
     stdlibCandidates: ["2.3"],
     dataPath: `${asset("/agda-data.zip")}?cache=${cacheTokens.builtins}`,
@@ -438,7 +442,9 @@ export class AgdaController {
         // `agda --interaction` executable it does not enable Agda's loaded-file
         // cache by default. Pass the matching Agda option explicitly so repeat
         // checks can reuse declarations that have not changed.
-        args: ["+RTS", "-A64m", "-RTS", "+AGDA", "--interaction", "-AGDA"],
+        // --raw: the server answers in Agda's own JSON (ResponseJSONRaw),
+        // which the transport reads.
+        args: ["--raw", "+RTS", "-A64m", "-RTS", "+AGDA", "--interaction", "-AGDA"],
       },
       (worker) => {
         this._lspWorker = worker;
@@ -457,7 +463,7 @@ export class AgdaController {
         .then((ver) => (this.receivedALSVersion = ver)),
       dataFile ? dataFile.arrayBuffer() : Promise.resolve(undefined),
       fetch(
-        `${asset("/agda-stdlib-2.3.zip")}?cache=${cacheTokens.stdlib}`,
+        `${asset("/agda-stdlib-2.3-patched.zip")}?cache=${cacheTokens.stdlib}`,
       ).then((x) => x.arrayBuffer()),
       fetch(
         `${asset("/plfa/project.zip")}?cache=${cacheTokens.plfaProject}`,
@@ -476,7 +482,7 @@ export class AgdaController {
       );
     }
 
-    if (this.config.agdaVersion === "2.8.0") {
+    if (this.config.agdaVersion === "2.9.0") {
       try {
         await this.workerInitData.spawn(["--setup"]);
       } catch (err) {

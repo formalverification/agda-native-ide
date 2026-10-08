@@ -1,0 +1,86 @@
+# File: .github/workflows/compiler.yml
+#
+# The compiler's rebuild (issue 58): compiler/build-agda-2.9.0.sh, in the
+# dev shell that pins its toolchain (`nix develop .#compiler`), from the
+# sources it pins, and then a check that it built the bytes the flake
+# pins (compiler/agda-2.9.0.sha256).  It fetches from GitHub, from
+# gitlab.haskell.org (the toolchain) and from Hackage, and builds Agda
+# twice: 78 minutes on GitHub's 2-core runner (2026-10-07).  So it runs on
+# demand, and when a pull request that changes the recipe, its patches,
+# its pins, its toolchain (flake.nix's compiler dev shell, or flake.lock)
+# or this file is opened, reopened or marked ready for review, not on
+# every push to it; the site's checks are site.yml's.  A newer run
+# for the same ref cancels one in progress.
+#
+# GHC needs 9 GiB to compile Agda's library (its peak resident memory,
+# measured 2026-10-07), more than the runner's 7.8 GiB: the first run was
+# shut down in that build, at the module where GHC passes 8.5 GiB.  So the
+# job adds 16 GiB of swap first, and logs the runner's memory every two
+# minutes; the run that followed used up to 5.3 GiB of swap and built the
+# pinned bytes.
+
+name: compiler
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+    paths:
+      - compiler/build-agda-2.9.0.sh
+      - compiler/agda-2.9.0.sha256
+      - compiler/patches/agda-language-server-*.patch
+      - flake.nix
+      - flake.lock
+      - .github/workflows/compiler.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v5
+      - name: Free disk space for the build
+        run: |
+          df -h / || true
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /usr/local/.ghcup \
+            /opt/ghc /opt/hostedtoolcache/CodeQL /usr/share/swift
+          df -h / || true
+      - uses: cachix/install-nix-action@v27
+      - name: Add swap, and say what the runner has
+        run: |
+          nproc
+          free -h
+          sudo fallocate -l 16G /swapfile-compiler
+          sudo chmod 600 /swapfile-compiler
+          sudo mkswap /swapfile-compiler
+          sudo swapon /swapfile-compiler
+          free -h
+          df -h / || true
+      - name: Build the compiler from its pins
+        run: |
+          (while sleep 120; do
+            free -m | awk 'NR == 2 { m = $3 " of " $2 } NR == 3 { print "== memory: " m " MiB used, swap " $3 " of " $2 " MiB" }'
+          done) &
+          trap 'kill $! 2> /dev/null || true' EXIT
+          nix develop .#compiler --command compiler/build-agda-2.9.0.sh "$RUNNER_TEMP/compiler-out"
+      - name: Check the bytes against the pins
+        run: |
+          cd "$RUNNER_TEMP/compiler-out"
+          ls -l
+          sha256sum --check --strict "$GITHUB_WORKSPACE/compiler/agda-2.9.0.sha256"
+      - name: Disk usage after the build
+        if: always()
+        run: df -h / || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compiler
+          path: ${{ runner.temp }}/compiler-out
+          if-no-files-found: warn

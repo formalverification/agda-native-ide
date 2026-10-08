@@ -36,7 +36,10 @@ headless Chromium.  Nothing is deployed.
 +  **The app**, as imported from plfa-playground: `src/` (the page, the
    controller, and the two workers), `static/` (the files served as they
    are), `scripts/*.mjs` (the build's post-step and the PLFA tooling),
-   `compiler/` (the recipe that built the compiler), and the build's
+   `compiler/` (the recipe that builds the compiler, Agda 2.9.0 and its
+   language server, `build-agda-2.9.0.sh`, with its patches and pins, and
+   upstream's recipe for the fork's 2.8.0 compiler), `stdlib/patches/`
+   (the standard library 2.3's patches for Agda 2.9.0), and the build's
    configuration (`package.json`, `svelte.config.js`, `vite.config.js`,
    `tsconfig.json`, `tsconfigs/`).  Upstream's own guide is
    [`README.plfa-playground.md`][upstream-readme]; its "Run locally"
@@ -72,11 +75,18 @@ headless Chromium.  Nothing is deployed.
 Everything here runs in the dev shell (`nix develop`), which carries node
 22.22.2, make, gh and the plan file's engine.  The binaries the app ships
 (the compiler, the archives, the fonts and one icon) are not in git: `make
-assets` fetches them by hash into `static/`, with Agda's builtin library,
-which the flake builds from a pinned Agda (`nix build .#agda-data`).
+assets` fetches them by hash into `static/`, with Agda's builtin library and
+the patched standard library, which the flake builds (`nix build
+.#agda-data`, `nix build .#stdlib`).  The compiler is fetched by the hashes
+in `compiler/agda-2.9.0.sha256` (`nix build .#compiler`) from a release
+that does not exist yet ([#58]), so until it does, `make assets` works only
+where the four files are in the Nix store already, from a run of the
+recipe: `nix develop .#compiler --command compiler/build-agda-2.9.0.sh
+OUT`, then `nix-store --add-fixed sha256 OUT/<file>` for each of the four
+(a run took 27 minutes on a 20-core workstation).
 
 ```sh
-make assets        # fetch the 35 pinned binaries, and build agda-data.zip, into static/
+make assets        # fetch the pins and the compiler, build the rest, into static/
 make check         # svelte-check
 make test          # the unit tests (vitest)
 make build         # check the pins, then npm run build, into build/
@@ -226,3 +236,4 @@ every artifact the app ships, with its license.
 [plan]: docs/GITHUB_PROJECT.md
 [proposal]: docs/notes/browser-ide-proposal.md
 [williamdemeo/github-project]: https://github.com/williamdemeo/github-project
+[#58]: https://github.com/formalverification/agda-native-ide/issues/58

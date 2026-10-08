@@ -1,0 +1,100 @@
+# File: stdlib/patches/0003-irrelevant-recompute-moves-to-an-unsafe-module.patch
+#
+# What: agda/agda-stdlib commit 39631ce944ada37956f3bfba7c03f462856fb304
+# (branch agda-master; agda/agda#8667: irrelevant-recompute now needs
+# --irrelevant-projections), ported to v2.3 by hand by issue 61's session:
+# irrelevant-recompute moves to a new Relation.Nullary.Recomputable.Unsafe
+# under --cubical-compatible --irrelevant-projections (the commit's own
+# module is --without-K, which v2.3's are not), and ⊥-recompute becomes an
+# absurd clause.  Without it, Relation.Nullary.Recomputable (imported by
+# 1,071 of v2.3's 1,153 modules) does not check under Agda 2.9.0.
+#
+# Why: the standard library 2.3, which agda-algebras depends on, checks
+# whole under Agda 2.9.0 (all 1,154 modules) with these five patches and
+# with no released version (issue 61: row 2b, and two later fixes); the
+# page ships it so patched (issue 58).
+#
+# Against: agda/agda-stdlib v2.3 (8326c7475af1fa456ca04a0203c168d5d7ff842b),
+# applied in order by the flake (packages.stdlib).
+#
+From f69293c111b8bbc189c27f2e8555482350186584 Mon Sep 17 00:00:00 2001
+From: William DeMeo <williamdemeo@gmail.com>
+Date: Tue, 6 Oct 2026 15:33:44 -0600
+Subject: [PATCH 3/3] Port 39631ce9 to v2.3: irrelevant-recompute moves to an
+ Unsafe module
+
+---
+ src/Relation/Nullary/Recomputable.agda        | 10 +-----
+ src/Relation/Nullary/Recomputable/Unsafe.agda | 34 +++++++++++++++++++
+ 2 files changed, 35 insertions(+), 9 deletions(-)
+ create mode 100644 src/Relation/Nullary/Recomputable/Unsafe.agda
+
+diff --git a/src/Relation/Nullary/Recomputable.agda b/src/Relation/Nullary/Recomputable.agda
+index a7671b339..d9b6f4845 100644
+--- a/src/Relation/Nullary/Recomputable.agda
++++ b/src/Relation/Nullary/Recomputable.agda
+@@ -9,7 +9,6 @@
+ module Relation.Nullary.Recomputable where
+ 
+ open import Data.Empty using (⊥)
+-open import Data.Irrelevant using (Irrelevant; irrelevant; [_])
+ open import Data.Product.Base using (_×_; _,_; proj₁; proj₂)
+ open import Level using (Level)
+ open import Relation.Nullary.Negation.Core using (¬_)
+@@ -29,15 +28,8 @@ open import Relation.Nullary.Recomputable.Core public
+ ------------------------------------------------------------------------
+ -- Constructions
+ 
+--- Irrelevant types are Recomputable
+-
+-irrelevant-recompute : Recomputable (Irrelevant A)
+-irrelevant (irrelevant-recompute [ a ]) = a
+-
+--- Corollary: so too is ⊥
+-
+ ⊥-recompute : Recomputable ⊥
+-⊥-recompute = irrelevant-recompute
++⊥-recompute ()
+ 
+ _×-recompute_ : Recomputable A → Recomputable B → Recomputable (A × B)
+ (rA ×-recompute rB) p = rA (p .proj₁) , rB (p .proj₂)
+diff --git a/src/Relation/Nullary/Recomputable/Unsafe.agda b/src/Relation/Nullary/Recomputable/Unsafe.agda
+new file mode 100644
+index 000000000..3e6fb5597
+--- /dev/null
++++ b/src/Relation/Nullary/Recomputable/Unsafe.agda
+@@ -0,0 +1,34 @@
++------------------------------------------------------------------------
++-- The Agda standard library
++--
++-- Recomputable types and their algebra as Harrop formulas
++------------------------------------------------------------------------
++
++-- Ported to v2.3 from agda-stdlib commit 39631ce9 (branch agda-master),
++-- with v2.3's --cubical-compatible in place of that commit's --without-K.
++
++{-# OPTIONS --cubical-compatible --irrelevant-projections #-}
++
++module Relation.Nullary.Recomputable.Unsafe where
++
++open import Data.Irrelevant using (Irrelevant; irrelevant; [_])
++open import Level using (Level)
++
++private
++  variable
++    a b : Level
++    A : Set a
++    B : Set b
++
++------------------------------------------------------------------------
++-- Re-export
++
++open import Relation.Nullary.Recomputable public
++
++------------------------------------------------------------------------
++-- Constructions
++
++-- Irrelevant types are Recomputable
++
++irrelevant-recompute : Recomputable (Irrelevant A)
++irrelevant (irrelevant-recompute a) = irrelevant a

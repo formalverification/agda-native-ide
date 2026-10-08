@@ -42,7 +42,9 @@ upstream commit.
 | `.gitignore` | not imported | Its lines are merged into this repository's `.gitignore`. |
 | `wrangler.jsonc` | not imported | Upstream's Cloudflare account and route; hosting is [#6]. |
 | `NOTICE.md` | imported, then removed | `NOTICE` supersedes it and carries its text verbatim. |
-| 35 binaries under `static/` | not imported; pinned | Fetched by hash ([below](#pinned-binaries)). |
+| 35 binaries under `static/` | not imported; pinned | Fetched by hash ([below](#pinned-binaries)); 33 of them still ship. |
+| `static/als-2.8ext.wasm` | not imported; pinned, then retired | The fork's compiler, for Agda 2.8.0.  The page runs this repository's build of Agda 2.9.0 instead ([below](#the-compiler-built-here), [#58]); the pin stays in the flake, unshipped, until that compiler passes [#13]'s gate ([below](#retired-pins)). |
+| `static/agda-stdlib-2.3.zip` | not imported; pinned, then retired | The standard library 2.3, which does not check under Agda 2.9.0; the page ships it patched instead ([below](#the-standard-library-patched-here), [#58]). |
 | `static/agda-data.zip` | not imported; pinned, then replaced | Upstream's held Agda 2.7.0.1's builtin library, which the shipped Agda rejects; the flake builds one instead ([below](#agdas-builtin-library-built-here), [#49]). |
 | `static/als-2.8ext.wasm.gz` | not imported; not pinned | The build makes its own ([below](#the-compilers-gzip)). |
 | every other file (85) | same path, unchanged unless listed below | Listed in `upstream/unchanged.sha256`. |
@@ -58,43 +60,10 @@ The flake fetches each file from
 one fixed-output fetch per file, by the SHA-256 in `upstream/assets.sha256`,
 so a fetched file that differs by a byte fails the fetch.  `make assets`
 copies the set into `static/`, and `make build` checks every file there
-against the same SHA-256 before it builds.  The 35 files total 48,642,786
+against the same SHA-256 before it builds.  The 33 files total 13,648,557
 bytes.  Each group below says where upstream got the files (checked
-2026-10-04) and their license.
-
-### The compiler
-
-The Agda Language Server compiled to WASI, with Agda's JSON interaction mode.
-Upstream built it from pinned sources with `compiler/build-agda-wasm.sh`
-(agda-web/agda-language-server `e65419f89e3152c2922e948b3e4d24580172bc6a`,
-agda-web/agda `e2f8c69414fa115328280ecc4de1d2b7a23be7fa`, ghc-wasm-meta
-`c3f44696d29aaeadd755d69c51735954bfcd59db` with the 9.10 flavour, which is
-GHC 9.10.3.20250924), and `compiler/README.md` records the same SHA-256.
-These bytes were committed in upstream's `8a03ddaf` (2026-08-31) and are
-unchanged at `ae0aa84c`.  They are not a release asset of any repository
-([#4]), so upstream's git tree is the one source; a mirror and a rebuild
-are [#4]'s open half.
-
-The binary statically links the language server (MIT), Agda (MIT), GHC's
-runtime and boot libraries (the Glasgow Haskell Compiler License), GMP 6.3.0
-(LGPL-3.0-or-later or GPL-2.0-or-later), and the Hackage packages of its build
-plan.
-
-| Path | Bytes | SHA-256 |
-|---|---:|---|
-| `static/als-2.8ext.wasm` | 32,996,332 | `53c62b0ad569a9d123f744b192c13780c494ade0cddef4daaa00db41ecd7f7a1` |
-
-### The standard library
-
-The Agda standard library 2.3, sources only.  Its 1,391 files are agda/agda-stdlib
-`v2.3`'s, entry for entry (equal CRC-32s against GitHub's archive of the
-tag); upstream repacked them with 642 directory entries, an empty
-`_build/2.8.0/agda/src/` tree among them.  License: MIT, carried in the
-archive as `agda-stdlib-2.3/LICENCE`, identical to the tag's.
-
-| Path | Bytes | SHA-256 |
-|---|---:|---|
-| `static/agda-stdlib-2.3.zip` | 1,997,897 | `7468c113272425ce3223a33b233a31c7e90ae0758cdb1538584be6560bc86cf0` |
+2026-10-04) and their license.  Two more were pinned until [#58] replaced
+them ([below](#retired-pins)).
 
 ### JuliaMono
 
@@ -169,14 +138,115 @@ Removing PLFA is [#20].
 | `static/plfa/interfaces/part3/Denotational.zip` | 704,375 | `c4c8f8ad5ecdedeed6557e8a35b0a84e48be498ea65bd35a1b51be8dc7026987` |
 | `static/plfa/interfaces/part3/Soundness.zip` | 271,470 | `c725f51822615c4f60e52a5948fd4fb692d0cb47ad6e3ecadfb3be610df28f82` |
 
+## The compiler, built here
+
+The Agda Language Server for Agda 2.9.0, and Agda 2.9.0 itself, compiled to
+WASI by this repository's recipe, `compiler/build-agda-2.9.0.sh`, in the dev
+shell that pins its toolchain (`nix develop .#compiler`): agda/agda
+`da66a8c75f11d10699a6b38b261efdf244b66f2a`; agda/agda-language-server
+`0f77a209243185cb8e36a11bfc7b6ab47f5125b4` (tag `v8`), its submodules at the
+commits that tag records, and the two patches in `compiler/patches/`;
+ghc-wasm-meta `58260711fd5c8ffbb81f4ac56e40323ff509d43b` (GHC
+9.10.3.20260731); the Hackage index at 2026-10-05T16:41:29Z ([#58]).
+`compiler/agda-2.9.0.sha256` pins the four files it writes, and the flake
+fetches them by those hashes (`nix build .#compiler`, `mkCompiler`) from a
+release whose home [#58] decides; until it exists, the fetch succeeds only
+where the files are already in the Nix store.  `.github/workflows/compiler.yml`
+rebuilds them with the recipe and checks the bytes against the pins; its
+run of 2026-10-07 on GitHub's runner built the pinned bytes.
+
++  `als.wasm`, the language server as a command module, is the compiler the
+   page runs: `packages.assets` installs it as `static/als-2.9.0.wasm`, and
+   the build ships it gzipped ([below](#the-compilers-gzip)).
++  `agda.wasm`, the plain `agda`, is not shipped: the flake runs it under
+   wasmtime to build Agda's builtin library
+   ([below](#agdas-builtin-library-built-here)).
++  `als-reactor.wasm` and its glue, `als-reactor.js`, the reactor build of
+   the same server, are not shipped yet ([#59]).
+
+License: NOTICE section 3 names everything the server links and the
+license of each.
+
+| File | Bytes | SHA-256 |
+|---|---:|---|
+| `agda.wasm` | 34,277,969 | `da2f1efc6b13e0d8b8a69311511c8ed6fbfbc2759bd8ec299004580fcfba1eb1` |
+| `als.wasm` | 35,880,158 | `b1f45936329c529b5677e38bc0e8d22d7a1c9c47277e8f77146f5667c76228e4` |
+| `als-reactor.wasm` | 35,817,413 | `a0c7ae5741dd3f11c6be9e9fac4281889f2861ec2b53b5379452d11a4a23e8c9` |
+| `als-reactor.js` | 5,044 | `c782dbaca349830299055c71ec9c4f72ec543c0d612d08b7c40fbb364e601dce` |
+
+## The standard library, patched here
+
+`static/agda-stdlib-2.3-patched.zip` is the Agda standard library 2.3 with
+five patches that make the whole library check under Agda 2.9.0 ([#61]: row
+2b, and two later fixes), which no released version does.  The flake builds
+it (`nix build .#stdlib`, `mkStdlib` in `flake.nix`) from agda/agda-stdlib
+at `v2.3` (`8326c7475af1fa456ca04a0203c168d5d7ff842b`, fetched by its NAR
+hash) and `stdlib/patches/*.patch`: agda-stdlib's own `1896499f` and
+`1b7f26af` from its `agda-master` branch, unchanged; its `39631ce9` ported
+to v2.3 by [#61]'s session; and its `fbf6ce16` and `b0d29e13` from its
+`master` branch, unchanged.  The archive holds what the page's drive takes,
+`src/` and `standard-library.agda-lib`, and the library's `LICENCE`, under
+`agda-stdlib-2.3/`: 1,156 files, the same as the tag `v2.3-agda-2.9.0` of
+formalverification/agda-stdlib (`fb5d1840d26909038b5ae1459733b0db425a7488`,
+compared file by file), stored with one fixed time and in a fixed order, so
+`nix build .#stdlib --rebuild` finds no difference.
+License: MIT, the library's (`LICENCE`, unchanged by the patches, which are
+under the same license).
+
+| Path | Bytes | SHA-256 |
+|---|---:|---|
+| `static/agda-stdlib-2.3-patched.zip` | 1,536,421 | `773c59515bf4cd2ebf6d86aed6d57ec4493333538b28c1ace55509ece7e7aacd` |
+
+## Retired pins
+
+Pinned from upstream until [#58] replaced them; no longer shipped.  The
+compiler's pin stays in the flake (`nix build .#compiler-2_8_0`, fetched as
+before) with its recipe, `compiler/build-agda-wasm.sh`, until the 2.9.0
+compiler passes [#13]'s gate; the standard library's is gone from the flake.
+
+### The 2.8.0 compiler
+
+The Agda Language Server compiled to WASI, with Agda's JSON interaction mode.
+Upstream built it from pinned sources with `compiler/build-agda-wasm.sh`
+(agda-web/agda-language-server `e65419f89e3152c2922e948b3e4d24580172bc6a`,
+agda-web/agda `e2f8c69414fa115328280ecc4de1d2b7a23be7fa`, ghc-wasm-meta
+`c3f44696d29aaeadd755d69c51735954bfcd59db` with the 9.10 flavour, which is
+GHC 9.10.3.20250924), and `compiler/README.md` records the same SHA-256.
+These bytes were committed in upstream's `8a03ddaf` (2026-08-31) and are
+unchanged at `ae0aa84c`.  They are not a release asset of any repository
+([#4]), so upstream's git tree is the one source; a mirror and a rebuild
+are [#4]'s open half.
+
+The binary statically links the language server (MIT), Agda (MIT), GHC's
+runtime and boot libraries (the Glasgow Haskell Compiler License), GMP 6.3.0
+(LGPL-3.0-or-later or GPL-2.0-or-later), and the Hackage packages of its build
+plan.
+
+| Path | Bytes | SHA-256 |
+|---|---:|---|
+| `static/als-2.8ext.wasm` | 32,996,332 | `53c62b0ad569a9d123f744b192c13780c494ade0cddef4daaa00db41ecd7f7a1` |
+
+### The standard library 2.3
+
+The Agda standard library 2.3, sources only.  Its 1,391 files are agda/agda-stdlib
+`v2.3`'s, entry for entry (equal CRC-32s against GitHub's archive of the
+tag); upstream repacked them with 642 directory entries, an empty
+`_build/2.8.0/agda/src/` tree among them.  License: MIT, carried in the
+archive as `agda-stdlib-2.3/LICENCE`, identical to the tag's.
+
+| Path | Bytes | SHA-256 |
+|---|---:|---|
+| `static/agda-stdlib-2.3.zip` | 1,997,897 | `7468c113272425ce3223a33b233a31c7e90ae0758cdb1538584be6560bc86cf0` |
+
 ## Agda's builtin library, built here
 
 `static/agda-data.zip` is Agda's `lib/prim`, whole: the sources of the
 `Agda.Primitive` and `Agda.Builtin` modules, `agda-builtins.agda-lib`, and
 the interfaces of every module under `_build/<version>/agda/`.  The flake
 builds it (`nix build .#agda-data`, `mkAgdaData` in `flake.nix`) from the
-Agda of its pinned nixpkgs, `haskellPackages.Agda` 2.8.0 at nixpkgs
-`b6018f87da91d19d0ab4cf979885689b469cdd41`, as follows:
+compiler's plain `agda` ([above](#the-compiler-built-here)), Agda 2.9.0 at
+agda/agda `da66a8c7`, run under nixpkgs' wasmtime with the build's root as
+its own (`agdaWasm` in `flake.nix`), as follows:
 
 +  that Agda writes its own data files into a throwaway data directory
    (`agda --setup`), and builds its `lib/prim` in place there (`agda
@@ -190,18 +260,24 @@ Agda of its pinned nixpkgs, `haskellPackages.Agda` 2.8.0 at nixpkgs
    .#agda-data --rebuild` finds no difference, where the same build with
    the files' own times fails it.
 
-`agdaDataInput` in `flake.nix` names the input, the Agda and the root;
-[#58]'s move to another Agda changes it, and nothing else.  The Agda must
-be the one the page's server embeds, since an interface is accepted only
-by the Agda version that wrote it, and the server writes its own copy of
-the sources before it starts.  On 2026-10-06 the archive held 73 entries:
-36 sources, 36 interfaces (header version 202507030) and the library file.
-License: Agda's (MIT), as of v2.8.0 (`licenses/agda-builtins.txt`, Agda's
-`LICENSE` at that tag).
+`agdaDataInput` in `flake.nix` names the input, the Agda and the root.
+The Agda must be the one the page's server embeds, since an interface is
+accepted only by the Agda version that wrote it, and the server writes its
+own copy of the sources before it starts; and under Agda 2.9.0 it must be
+a wasm32 Agda, since 2.9.0 writes an interface at its machine's word size
+and the wasm32 server cannot read a 64-bit Agda's ([#58]).  Until
+2026-10-07 the input was the nixpkgs Agda 2.8.0 at nixpkgs
+`b6018f87da91d19d0ab4cf979885689b469cdd41` (an archive of 681,730 bytes,
+SHA-256 `37063713ccc641ee11f30895ddee4542e24b1529e55f22aa85a8dfddbb875203`:
+36 sources, 36 interfaces of header version 202507030, and the library
+file).  Since then the archive holds 83 entries: 41 sources, 41
+interfaces (header version 202610030, little-endian, with a zstd payload)
+and the library file.  License: Agda's (MIT), as of agda/agda `da66a8c7`
+(`licenses/agda-builtins.txt`, Agda's `LICENSE` at that commit).
 
 | Path | Bytes | SHA-256 |
 |---|---:|---|
-| `static/agda-data.zip` | 681,730 | `37063713ccc641ee11f30895ddee4542e24b1529e55f22aa85a8dfddbb875203` |
+| `static/agda-data.zip` | 580,637 | `b250cb2154c15efb882139c6698b5b4c3514a3fb1e361bbde58f58a2eed943c0` |
 
 Upstream's archive, a pin until [#49] replaced it, held Agda 2.7.0.1's
 `lib/prim`: 37 sources, 37 interfaces of header version 202406290, which
@@ -213,18 +289,23 @@ byte-identical to `static/agda-data.zip` of [agda-web/als-demo] (branch
 
 ## The compiler's gzip
 
-Upstream commits `static/als-2.8ext.wasm.gz` (10,188,407 bytes, SHA-256
-`ea79dbb12144db68ef7aeb56bdebc10c143d76d3a3af89056276d4015cb2b32f`), and it
-is not pinned here, because nothing needs it:
+The page fetches the compiler gzipped, and no gzip is pinned, because the
+build writes its own, as follows:
 
-+  `npm run build` writes its own: `scripts/prepare-cloudflare-assets.mjs`
-   gzips the raw compiler in `build/` (node's zlib at level 9) and deletes the
-   raw copy.  On 2026-10-04 that gzip was 10,154,917 bytes and inflated to
-   the pinned compiler's SHA-256.
++  `npm run build` gzips the raw compiler in `build/` (node's zlib at level
+   9) and deletes the raw copy (`scripts/prepare-cloudflare-assets.mjs`,
+   which takes the compiler's name from `scripts/asset-manifest.mjs`).  On
+   2026-10-07 `als-2.9.0.wasm.gz` was 11,119,315 bytes and inflated to the
+   pinned `als.wasm`'s SHA-256; on 2026-10-04 the fork's compiler's was
+   10,154,917 bytes.
 +  `npm run dev` falls back to the raw compiler.  With no `.gz` in `static/`,
-   the dev server answered the `.gz` with a 404, the page fetched
-   `als-2.8ext.wasm` instead, and Agda started and checked `Main.agda` (two
-   open goals, cross-origin isolated; headless Chrome 153, 2026-10-04).
+   the dev server answered the `.gz` with a 404, the page fetched the raw
+   compiler instead, and Agda started and checked `Main.agda` (two open
+   goals, cross-origin isolated; headless Chrome 153, 2026-10-04, with
+   `als-2.8ext.wasm`).
++  Upstream committed `static/als-2.8ext.wasm.gz` (10,188,407 bytes, SHA-256
+   `ea79dbb12144db68ef7aeb56bdebc10c143d76d3a3af89056276d4015cb2b32f`), and
+   it was never pinned here.
 
 ## Third-party files among the imported text
 
@@ -258,6 +339,10 @@ Each change is its own commit, named here by its subject.
 | `src/lib/worker/drive.ts` | The drive's root directory answers its lookups from an index of the drive's paths (`src/lib/worker/drive-index.ts`), built once the drive is constructed and kept in step with Agda's calls and with the drive worker's own writes (message types 3 and 4), instead of scanning every key per lookup; Runno's methods still compute every result ([#50]) | "Index the drive's lookups" |
 | `src/lib/controller.svelte.ts` | The map of compiler versions keeps only 2.8.0, the one the site ships.  The 2.6.4.3 and 2.7.0.1 entries named compilers (`als-2.6.wasm`, `als-2.7ext.wasm`) that are in neither the site nor upstream's tree, and shared `agda-data.zip`, which is now built for the shipped Agda ([#49]) | "Keep only the shipped compiler in the version map" |
 | `src/lib/worker/drive.ts` | Agda's builtin library is extracted as it comes: the callback that moved its interfaces under `lib/prim/_build/2.8.0/agda/` is removed, since the flake builds the archive with them already there, under the building Agda's own version ([#49]) | "Build agda-data.zip from an Agda's own lib/prim" |
+| `src/lib/controller.svelte.ts` | The one compiler in the version map is this repository's build of Agda 2.9.0, `als-2.9.0.wasm`; the server starts with `--raw`, without which it does not answer in the raw format the transport reads; `--setup` runs for 2.9.0; and the standard library's URL is the patched archive's ([#58]) | "Run the page on the 2.9.0 compiler" |
+| `src/routes/+page.svelte` | The page runs Agda 2.9.0, and its status bar shows the version the language server reports in place of a literal "Agda 2.8" ([#58]) | "Run the page on the 2.9.0 compiler" |
+| `src/app.html` | The description names Agda 2.9.0, the version the page runs ([#58]) | "Run the page on the 2.9.0 compiler" |
+| `scripts/prepare-cloudflare-assets.mjs` | The compiler's name comes from `scripts/asset-manifest.mjs`, which names the file the page fetches, instead of a literal ([#58]) | "Run the page on the 2.9.0 compiler" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
@@ -268,10 +353,13 @@ Each change is its own commit, named here by its subject.
 [#4]: https://github.com/formalverification/agda-native-ide/issues/4
 [#5]: https://github.com/formalverification/agda-native-ide/issues/5
 [#6]: https://github.com/formalverification/agda-native-ide/issues/6
+[#13]: https://github.com/formalverification/agda-native-ide/issues/13
 [#20]: https://github.com/formalverification/agda-native-ide/issues/20
 [#49]: https://github.com/formalverification/agda-native-ide/issues/49
 [#50]: https://github.com/formalverification/agda-native-ide/issues/50
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
+[#61]: https://github.com/formalverification/agda-native-ide/issues/61
+[#59]: https://github.com/formalverification/agda-native-ide/issues/59
 [agda-web/als-demo]: https://github.com/agda-web/als-demo
 [agda/agda]: https://github.com/agda/agda
 [cormullion/juliamono]: https://github.com/cormullion/juliamono

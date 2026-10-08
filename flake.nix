@@ -11,12 +11,16 @@
 # `nix build .#assets` fetches every binary named in
 # upstream/assets.sha256 from upstream's repository at the commit this
 # repository imported, one fixed-output fetch per file, so a byte that
-# differs from its pin fails the fetch, and adds Agda's builtin library,
-# agda-data.zip, which `nix build .#agda-data` builds from an Agda's own
-# lib/prim (mkAgdaData, below).  `make assets` copies the result into
-# static/, and `make build` checks the pinned files there against their
-# pins before it builds.  docs/provenance.md records where each file
-# comes from and its license.
+# differs from its pin fails the fetch, and adds this repository's own:
+# the compiler, which `nix build .#compiler` fetches by the hashes in
+# compiler/agda-2.9.0.sha256 (`nix develop .#compiler` is the dev shell
+# that builds it, compiler/build-agda-2.9.0.sh); Agda's builtin library,
+# agda-data.zip, which `nix build .#agda-data` builds from the compiler's
+# own lib/prim (mkAgdaData, below); and the standard library, which `nix
+# build .#stdlib` builds patched.  `make assets` copies the result into
+# static/, and `make build` checks the files there against their pins
+# before it builds.  docs/provenance.md records where each file comes
+# from and its license.
 #
 # `nix build .#site` builds the static site: the npm dependencies are
 # one fixed-output fetch of everything package-lock.json names (pinned
@@ -29,8 +33,14 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
   inputs.github-project.url = "github:williamdemeo/github-project";
+  # The WebAssembly toolchain of the compiler (issue 58): GHC 9.10 for
+  # wasm32-wasi, its cabal, binaryen and wasmtime, at the commit Agda's own
+  # flake pins at the Agda commit the compiler is built from, with that
+  # commit's own nixpkgs, so the store paths are the ones Agda's dev shell
+  # gives (compiler/build-agda-2.9.0.sh).
+  inputs.ghc-wasm-meta.url = "git+https://gitlab.haskell.org/haskell-wasm/ghc-wasm-meta.git?rev=58260711fd5c8ffbb81f4ac56e40323ff509d43b";
 
-  outputs = { self, nixpkgs, github-project }:
+  outputs = { self, nixpkgs, github-project, ghc-wasm-meta }:
     let
       lib = nixpkgs.lib;
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
@@ -61,6 +71,33 @@
         url = "https://raw.githubusercontent.com/${upstream.owner}/${upstream.repo}/${upstream.rev}/${pin.path}";
         inherit (pin) sha256;
       };
+
+      # The compiler of issue 58, which compiler/build-agda-2.9.0.sh builds
+      # from pinned sources: Agda 2.9.0 for wasm32-wasi, and the language
+      # server against it as a command module and as a reactor module with
+      # its JavaScript glue.  One pin per line of compiler/agda-2.9.0.sha256
+      # (sha256sum's format, with a file name), fetched by hash from the
+      # release that holds the files.  Where that release lives is not
+      # decided yet (issue 58), so the URL below names a place that does
+      # not exist: until it does, `nix build .#compiler` succeeds only
+      # where the files are in the store already, added by hand from a
+      # build of the recipe with `nix-store --add-fixed sha256 <file>`.
+      compilerRelease = "https://github.com/formalverification/agda-wasm-builds/releases/download/agda-2.9.0-da66a8c-als-8";
+      compilerPins = map (line:
+          let m = builtins.match "([0-9a-f]{64})  ([^ /]+)" line;
+          in if m == null
+             then throw "compiler/agda-2.9.0.sha256: not a pin: \"${line}\""
+             else { sha256 = builtins.elemAt m 0; name = builtins.elemAt m 1; })
+        (builtins.filter (line: line != "")
+          (lib.splitString "\n" (builtins.readFile ./compiler/agda-2.9.0.sha256)));
+      mkCompiler = pkgs: pkgs.runCommand "agda-2.9.0-compiler" { } (''
+          mkdir -p "$out"
+        '' + lib.concatMapStrings (pin: ''
+          install -m 444 ${pkgs.fetchurl {
+            url = "${compilerRelease}/${pin.name}";
+            inherit (pin) sha256;
+          }} "$out/${pin.name}"
+        '') compilerPins);
 
       # Agda's builtin library as the page ships it, agda-data.zip (issue
       # 49): the whole of an Agda's own lib/prim (its sources,
@@ -110,11 +147,67 @@
             | TZ=UTC zip -X -D -0 -q "$out/agda-data.zip" -@
         '';
 
-      # The input of agda-data.zip: issue 58's move to another Agda changes
-      # this attribute, and nothing else.
-      agdaDataInput = pkgs: {
-        agda = pkgs.haskellPackages.Agda;
+      # The standard library the page ships under Agda 2.9.0 (issue 58):
+      # agda-stdlib v2.3, which agda-algebras depends on, with the five
+      # patches in stdlib/patches/ (two commits of its agda-master branch, a
+      # third ported by hand, and two of its master branch), with which the
+      # whole library checks under 2.9.0 and no released version does
+      # (issue 61: row 2b, and two later fixes).  The archive holds what the
+      # page's drive takes from it (src/, standard-library.agda-lib) and the
+      # library's LICENCE, under agda-stdlib-2.3/, as a zip whose bytes
+      # depend on its input alone: entries sorted, one fixed time.
+      stdlibSource = pkgs: pkgs.fetchFromGitHub {
+        owner = "agda";
+        repo = "agda-stdlib";
+        rev = "8326c7475af1fa456ca04a0203c168d5d7ff842b"; # v2.3
+        hash = "sha256-JOeoek6OfyIk9vwTj5QUJU6LnRzwfiG0e0ysW6zbhZ8=";
+      };
+      mkStdlib = pkgs: pkgs.runCommand "agda-stdlib-2.3-patched" {
+          nativeBuildInputs = [ pkgs.zip pkgs.patch ];
+        } ''
+          cp -R --no-preserve=mode ${stdlibSource pkgs} agda-stdlib-2.3
+          for p in ${./stdlib/patches}/*.patch; do
+            patch --quiet -p1 -d agda-stdlib-2.3 < "$p"
+          done
+          find agda-stdlib-2.3 -name '*.orig' -delete
+          mkdir -p "$out"
+          find agda-stdlib-2.3/src agda-stdlib-2.3/standard-library.agda-lib \
+              agda-stdlib-2.3/LICENCE -type f \
+            -exec chmod 644 {} + -exec touch -d @315532800 {} +
+          find agda-stdlib-2.3/src agda-stdlib-2.3/standard-library.agda-lib \
+              agda-stdlib-2.3/LICENCE -type f | LC_ALL=C sort \
+            | TZ=UTC zip -X -D -9 -q "$out/agda-stdlib-2.3-patched.zip" -@
+        '';
+
+      # The plain agda of the 2.9.0 compiler, run under wasmtime with the
+      # host's root as the guest's (so paths are the same on both sides), as
+      # a package with bin/agda that runs in the sandbox.  The builtins'
+      # interfaces must come from a wasm32 Agda: Agda 2.9.0 writes an
+      # interface at its machine's word size, so the wasm32 server cannot
+      # read what a native 64-bit Agda writes, and checks every such module
+      # again, or hangs (issue 58).
+      agdaWasm = pkgs: compiler: pkgs.writeShellScriptBin "agda" ''
+        exec ${pkgs.wasmtime}/bin/wasmtime run --dir /::/ \
+          --env HOME="$HOME" --env PWD="$(pwd)" --env Agda_datadir="$Agda_datadir" \
+          ${compiler}/agda.wasm "$@"
+      '';
+
+      # The input of agda-data.zip: the Agda the page's server embeds, as
+      # the compiler's plain agda (the same commit and flags, and the same
+      # word size), and the root lib/prim, since the server is built
+      # without use-xdg-data-home (issue 58).
+      agdaDataInput = pkgs: compiler: {
+        agda = agdaWasm pkgs compiler;
         root = "lib/prim";
+      };
+
+      # The 2.8.0 compiler the page ran until issue 58, upstream's
+      # als-2.8ext.wasm: no longer shipped, and kept pinned, with its recipe
+      # (compiler/build-agda-wasm.sh), until the 2.9.0 compiler passes
+      # issue 13's gate.
+      compiler-2_8_0 = {
+        path = "static/als-2.8ext.wasm";
+        sha256 = "53c62b0ad569a9d123f744b192c13780c494ade0cddef4daaa00db41ecd7f7a1";
       };
 
       # The source revision the site is named by (SvelteKit's
@@ -161,18 +254,32 @@
     in
     {
       packages = forAllSystems (system: pkgs: let
-        agdaData = mkAgdaData pkgs (agdaDataInput pkgs);
+        compiler = mkCompiler pkgs;
+        stdlib = mkStdlib pkgs;
+        agdaData = mkAgdaData pkgs (agdaDataInput pkgs compiler);
       in rec {
         # Agda's builtin library, built (mkAgdaData).
         agda-data = agdaData;
 
+        # The 2.9.0 compiler, fetched by its pins (mkCompiler).
+        inherit compiler;
+
+        # The 2.8.0 compiler, kept pinned and not shipped.
+        compiler-2_8_0 = fetchPin pkgs compiler-2_8_0;
+
+        # The standard library the page ships, patched (mkStdlib).
+        inherit stdlib;
+
         # Every binary the app ships at its path in the tree (static/...):
-        # the pinned ones, and agda-data.zip.
+        # upstream's pinned ones, agda-data.zip, the compiler's language
+        # server (as als-2.9.0.wasm) and the standard library.
         assets = pkgs.runCommand "plfa-playground-assets" { } (
           lib.concatMapStrings (pin: ''
             install -D -m 444 ${fetchPin pkgs pin} "$out/${pin.path}"
           '') pins + ''
             install -D -m 444 ${agdaData}/agda-data.zip "$out/static/agda-data.zip"
+            install -D -m 444 ${compiler}/als.wasm "$out/static/als-2.9.0.wasm"
+            install -D -m 444 ${stdlib}/agda-stdlib-2.3-patched.zip "$out/static/agda-stdlib-2.3-patched.zip"
           '');
 
         # The static site, as `make build` writes it into build/.
@@ -212,6 +319,28 @@
             pkgs.gh
             pkgs.nodejs_22
             github-project.packages.${system}.gh-project-engine
+          ];
+        };
+      } // lib.optionalAttrs (ghc-wasm-meta.packages ? ${system}) {
+        # `nix develop .#compiler --command compiler/build-agda-2.9.0.sh`:
+        # the toolchain that builds the compiler (issue 58), and the native
+        # tools the build runs (alex and happy generate Agda's lexer and
+        # parser, hpack the server's cabal file, autoreconf its network
+        # submodule's configure, node GHC's post-linker).
+        compiler = pkgs.mkShell {
+          packages = (with ghc-wasm-meta.packages.${system}; [
+            wasm32-wasi-ghc-9_10
+            wasm32-wasi-cabal-9_10
+            binaryen
+            wasmtime
+          ]) ++ [
+            pkgs.git
+            pkgs.alex
+            pkgs.happy
+            pkgs.hpack
+            pkgs.autoconf
+            pkgs.automake
+            pkgs.nodejs_22
           ];
         };
       });

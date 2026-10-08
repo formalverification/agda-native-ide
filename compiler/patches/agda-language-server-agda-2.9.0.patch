@@ -1,0 +1,430 @@
+# File: compiler/patches/agda-language-server-agda-2.9.0.patch
+#
+# What: support for Agda 2.9.0 in the Agda Language Server, as a flag,
+# Agda-2-9-0, beside upstream's Agda-2-8-0, and a branch under
+# MIN_VERSION_Agda(2,9,0) wherever Agda 2.9.0's API differs from 2.8.0's;
+# 2.8.0's code is kept, so the server still builds against 2.8.0.
+#
+# Why: no release of the server supports Agda 2.9.0 (issue 58).  At the
+# Agda commit compiler/build-agda-2.9.0.sh pins, the API changes the
+# server meets are these: ranges store packed intervals (PackIWF); Cohesion
+# gains Sharp; ProblemId wraps a Word64; the concrete syntax changes
+# IdiomBrackets, DoBlock, Annotation (a rewrite annotation), FunClause (a
+# modality), DoOpen, DotP, KnownOpApp, Import, and adds Highlighted and
+# EtaEqualityPragma, each rendered here as Agda's own pretty-printer does;
+# Dummy terms carry a DummyTermKind; Lisp moved to
+# Agda.Interaction.Emacs.Lisp; running info is a document tree, sent as its
+# text without annotations, as Agda's JSON frontend sends it; and
+# parseFile takes a flag for literate Markdown (False, Agda's default).
+# versionString gains a 2.9.0 branch ("Agda v2.9.0 Language Server v8").
+# The reactor module used Agda.Setup's setup without importing it, at v8
+# and for every Agda from 2.8.0 on; the import is added.
+#
+# Against: agda/agda-language-server 0f77a209243185cb8e36a11bfc7b6ab47f5125b4
+# (tag v8), with Agda da66a8c75f11d10699a6b38b261efdf244b66f2a.  Apply with
+# `git apply` in the server's checkout, then run hpack.
+#
+diff --git a/app/Reactor.hs b/app/Reactor.hs
+index ad26f84..90f6dba 100644
+--- a/app/Reactor.hs
++++ b/app/Reactor.hs
+@@ -17,6 +17,10 @@ import Data.ByteString.Lazy (LazyByteString)
+ import Language.LSP.Server (ServerConfig(..), runServerWithConfig)
+ import qualified Data.Attoparsec.ByteString as Attoparsec
+ 
++#if MIN_VERSION_Agda(2,8,0)
++import Agda.Setup (setup)
++#endif
++
+ data ReactorEnv = ReactorEnv
+   { options :: Options
+   , incomingMessage :: MVar B.StrictByteString
+diff --git a/package.yaml b/package.yaml
+index 4b3fcc7..45010ee 100644
+--- a/package.yaml
++++ b/package.yaml
+@@ -37,6 +37,10 @@ flags:
+     description: Embed Agda-2.8.0
+     manual: true
+     default: false
++  Agda-2-9-0:
++    description: Embed Agda-2.9.0
++    manual: true
++    default: false
+   reactor:
+     description: Build as a WASI reactor module
+     manual: true
+@@ -51,6 +55,9 @@ when:
+ - condition: "flag(Agda-2-8-0)"
+   dependencies:
+     - Agda == 2.8.0
++- condition: "flag(Agda-2-9-0)"
++  dependencies:
++    - Agda == 2.9.0
+ - condition: "arch(wasm32)"
+   then:
+     dependencies:
+diff --git a/src/Agda/Convert.hs b/src/Agda/Convert.hs
+index 4e8f9bc..faa8864 100644
+--- a/src/Agda/Convert.hs
++++ b/src/Agda/Convert.hs
+@@ -6,7 +6,13 @@ import Agda.IR (FromAgda (..))
+ import qualified Agda.IR as IR
+ import Agda.Interaction.Base
+ import Agda.Interaction.BasicOps as B
++#if MIN_VERSION_Agda(2,9,0)
++import Agda.Interaction.Emacs.Lisp (Lisp)
++import qualified Agda.Utils.DocTree as DocTree
++import qualified Data.Text as Text
++#else
+ import Agda.Interaction.EmacsCommand (Lisp)
++#endif
+ import Agda.Interaction.EmacsTop (showInfoError)
+ import Agda.Interaction.Highlighting.Common (chooseHighlightingMethod, toAtoms)
+ import Agda.Interaction.Highlighting.Precise (Aspects (..), DefinitionSite (..), HighlightingInfo, TokenBased (..))
+@@ -91,7 +97,13 @@ fromResponse (Resp_ClearHighlighting NotOnlyTokenBased) = return IR.ResponseClea
+ fromResponse Resp_DoneAborting = return IR.ResponseDoneAborting
+ fromResponse Resp_DoneExiting = return IR.ResponseDoneExiting
+ fromResponse Resp_ClearRunningInfo = return IR.ResponseClearRunningInfo
++#if MIN_VERSION_Agda(2,9,0)
++-- Agda 2.9.0's running info is a document tree; its JSON frontend sends
++-- the text without annotations, and so does this.
++fromResponse (Resp_RunningInfo n s) = return $ IR.ResponseRunningInfo n (Text.unpack (DocTree.treeToTextNoAnn s))
++#else
+ fromResponse (Resp_RunningInfo n s) = return $ IR.ResponseRunningInfo n s
++#endif
+ fromResponse (Resp_Status s) = return $ IR.ResponseStatus (sChecked s) (sShowImplicitArguments s)
+ fromResponse (Resp_JumpToError f p) = return $ IR.ResponseJumpToError f (fromIntegral p)
+ fromResponse (Resp_InteractionPoints is) =
+diff --git a/src/Agda/Parser.hs b/src/Agda/Parser.hs
+index 6e52b91..1c207b7 100644
+--- a/src/Agda/Parser.hs
++++ b/src/Agda/Parser.hs
+@@ -28,7 +28,13 @@ tokenAt uri source position = case LSP.uriToFilePath uri of
+     (result, _warnings) <- liftIO $
+       runPMIO $ do
+         -- parse the file and get all tokens
++#if MIN_VERSION_Agda(2,9,0)
++        -- False: Agda's default, every Markdown code block is Agda code
++        -- (--literate-markdown-only-agda-blocks is off).
++        (r, _fileType) <- parseFile False tokensParser file (unpack source)
++#else
+         (r, _fileType) <- parseFile tokensParser file (unpack source)
++#endif
+         let tokens = fst r
+         -- find the token at the position
+         return $ find (pointedBy position) tokens
+diff --git a/src/Agda/Position.hs b/src/Agda/Position.hs
+index 3e65b88..071a946 100644
+--- a/src/Agda/Position.hs
++++ b/src/Agda/Position.hs
+@@ -37,7 +37,11 @@ toAgdaRange :: ToOffset -> Text -> LSP.Range -> Range
+ toAgdaRange table path (LSP.Range start end) =
+   Range
+     (Strict.Just $ mkRangeFile $ AbsolutePath path)
++#if MIN_VERSION_Agda(2,9,0)
++    (Seq.singleton (PackIWF interval))
++#else
+     (Seq.singleton interval)
++#endif
+   where
+     interval :: IntervalWithoutFile
+     interval =
+diff --git a/src/Options.hs b/src/Options.hs
+index c5a2f56..fc4997a 100644
+--- a/src/Options.hs
++++ b/src/Options.hs
+@@ -95,7 +95,9 @@ versionNumber = fromMaybe 0 (listToMaybe (versionBranch Paths.version))
+ 
+ versionString :: String
+ versionString =
+-#if MIN_VERSION_Agda(2,8,0)
++#if MIN_VERSION_Agda(2,9,0)
++  "Agda v2.9.0 Language Server v" <> show versionNumber <> suffix
++#elif MIN_VERSION_Agda(2,8,0)
+   "Agda v2.8.0 Language Server v" <> show versionNumber <> suffix
+ #elif MIN_VERSION_Agda(2,7,0)
+   "Agda v2.7.0.1 Language Server v" <> show versionNumber <> suffix
+diff --git a/src/Render/Class.hs b/src/Render/Class.hs
+index 1485eee..08eb691 100644
+--- a/src/Render/Class.hs
++++ b/src/Render/Class.hs
+@@ -22,7 +22,7 @@ import qualified Agda.Syntax.Common.Pretty as Doc
+ 
+ import Data.Int (Int32)
+ import Data.Text (Text)
+-import Data.Word (Word32)
++import Data.Word (Word32, Word64)
+ import GHC.Exts (IsList (toList))
+ import Render.RichText
+ 
+@@ -68,6 +68,9 @@ instance Render Int32 where
+ instance Render Word32 where
+   render = text . show
+ 
++instance Render Word64 where
++  render = text . show
++
+ instance Render Integer where
+   render = text . show
+ 
+diff --git a/src/Render/Common.hs b/src/Render/Common.hs
+index 85eb735..aefe2d0 100644
+--- a/src/Render/Common.hs
++++ b/src/Render/Common.hs
+@@ -33,6 +33,9 @@ import Agda.Syntax.Common
+     OriginShapeIrrelevant (..), 
+     PolarityModality (..),
+     ModalPolarity (..),
++#endif
++#if MIN_VERSION_Agda(2,9,0)
++    RewriteAnn (..),
+ #endif
+   )
+ import Agda.Utils.Functor ((<&>))
+@@ -112,6 +115,9 @@ instance Render QωOrigin where
+ instance Render Cohesion where
+   render Flat = "@♭"
+   render Continuous = mempty
++#if MIN_VERSION_Agda(2,9,0)
++  render Sharp = "@♯"
++#endif
+   render Squash = "@⊤"
+ 
+ -- | Polarity
+@@ -169,6 +175,13 @@ instance Render Lock where
+     IsLock LockOTick -> "@tick"
+     IsNotLock -> mempty
+ 
++#if MIN_VERSION_Agda(2,9,0)
++instance Render RewriteAnn where
++  render = \case
++    IsRewrite _ -> "@rewrite"
++    IsNotRewrite -> mempty
++#endif
++
+ #if MIN_VERSION_Agda(2,7,0)
+ renderErased :: Erased -> Inlines -> Inlines
+ renderErased = renderQuantity . asQuantity
+diff --git a/src/Render/Concrete.hs b/src/Render/Concrete.hs
+index 347e2f4..71d9176 100644
+--- a/src/Render/Concrete.hs
++++ b/src/Render/Concrete.hs
+@@ -16,7 +16,7 @@ import Agda.Utils.List1 as List1 (fromList, toList, List1)
+ import qualified Agda.Utils.List1 as List1
+ import qualified Agda.Utils.List2 as List2
+ import Agda.Utils.Null
+-import Data.Maybe (isNothing, maybeToList)
++import Data.Maybe (fromMaybe, isNothing, maybeToList)
+ import qualified Data.Strict.Maybe as Strict
+ import qualified Data.Text as T
+ import Render.Class
+@@ -85,11 +85,18 @@ instance Render Expr where
+ #if MIN_VERSION_Agda(2,8,0)
+     OpApp _ q _ es -> fsep $ renderOpApp280 (Asp.Name Nothing True) q es
+     WithApp _ e es -> fsep $ render e : fmap (("|" <+>) . render) (toList es)
++#if MIN_VERSION_Agda(2,9,0)
++    KnownOpApp asp _ q _ es -> fsep $ renderOpApp280 (fromMaybe (Asp.Name Nothing True) (Asp.aspect asp)) q es
++#else
+     KnownOpApp nk _ q _ es -> fsep $ renderOpApp280 (Asp.Name (Just nk) True) q es
++#endif
+ #else
+     OpApp _ q _ es -> fsep $ renderOpApp q es
+     WithApp _ e es -> fsep $ render e : fmap ((text' ["delimiter"] "|" <+>) . render) es
+     KnownOpApp _ _ q _ es -> fsep $ renderOpApp q es
++#endif
++#if MIN_VERSION_Agda(2,9,0)
++    Highlighted _ e -> render e
+ #endif
+     HiddenArg _ e -> braces' $ render e
+     InstanceArg _ e -> dbraces $ render e
+@@ -113,12 +120,21 @@ instance Render Expr where
+           maybe mempty (\e -> "in" <+> render e) me
+         ]
+     Paren _ e -> parens $ render e
++#if MIN_VERSION_Agda(2,9,0)
++    IdiomBrackets _ q exprs ->
++      renderQualifier q $ case exprs of
++        [] -> emptyIdiomBrkt
++        [e] -> leftIdiomBrkt <+> render e <+> rightIdiomBrkt
++        e : es -> leftIdiomBrkt <+> render e <+> fsep (fmap (("|" <+>) . render) es) <+> rightIdiomBrkt
++    DoBlock _ q ss -> renderQualifier q $ "do" <+> vcat (fmap render (toList ss))
++#else
+     IdiomBrackets _ exprs ->
+       case exprs of
+         [] -> emptyIdiomBrkt
+         [e] -> leftIdiomBrkt <+> render e <+> rightIdiomBrkt
+         e : es -> leftIdiomBrkt <+> render e <+> fsep (fmap (("|" <+>) . render) es) <+> rightIdiomBrkt
+     DoBlock _ ss -> "do" <+> vcat (fmap render (toList ss))
++#endif
+     As _ x e -> render x <> "@" <> render e
+     Dot _ e -> "." <> render e
+     DoubleDot _ e -> ".." <> render e
+@@ -188,9 +204,40 @@ instance (Render a) => Render (Binder' a) where
+ 
+ --------------------------------------------------------------------------------
+ 
++#if MIN_VERSION_Agda(2,9,0)
++-- | A qualified idiom bracket or do block, @M.(| e |)@ or @M.do@, as
++-- Agda's own @qualifier@ prints it.
++renderQualifier :: Maybe QName -> Inlines -> Inlines
++renderQualifier (Just x) k = render x <> "." <> k
++renderQualifier Nothing k = k
++
++#endif
+ -- | NamedBinding
+ instance Render NamedBinding where
+-#if MIN_VERSION_Agda(2,8,0)
++#if MIN_VERSION_Agda(2,9,0)
++  render (NamedBinding withH
++           x@(Arg (ArgInfo h (Modality r q c p) _o _fv (Annotation lock rew))
++               (Named _mn xb@(Binder _mp _ (BName _y _fix t _fin))))) =
++    applyWhen withH prH $
++    applyWhenJust (isLabeled x) (\ l -> (text l <+>) . ("=" <+>)) (render xb)
++    where
++    prH = renderRelevance r
++        . renderHiding h mparens
++        . (coh <+>)
++        . (qnt <+>)
++        . (pol <+>)
++        . (lck <+>)
++        . (tac <+>)
++        . (rw  <+>)
++    coh = render c
++    qnt = render q
++    pol = render p
++    tac = render t
++    lck = render lock
++    rw  = render rew
++    -- Parentheses are needed when an attribute @... is printed
++    mparens = applyUnless (null coh && null qnt && null lck && null tac && null pol) parens
++#elif MIN_VERSION_Agda(2,8,0)
+   render (NamedBinding withH
+            x@(Arg (ArgInfo h (Modality r q c p) _o _fv (Annotation lock))
+                (Named _mn xb@(Binder _mp _ (BName _y _fix t _fin))))) =
+@@ -451,12 +498,22 @@ instance Render Declaration where
+           [ "field",
+             vcat (fmap render fs)
+           ]
++#if MIN_VERSION_Agda(2,9,0)
++      FunClause ai lhs rhs wh _ ->
++        sep
++          [ render (getModality ai),
++            render lhs,
++            render rhs,
++            render wh
++          ]
++#else
+       FunClause lhs rhs wh _ ->
+         sep
+           [ render lhs,
+             render rhs,
+             render wh
+           ]
++#endif
+       DataSig _ _er x tel e ->
+         fsep
+           [ hsep
+@@ -547,9 +604,15 @@ instance Render Declaration where
+             vcat $ fmap render ds
+           ]
+ #if MIN_VERSION_Agda(2,8,0)
++#if MIN_VERSION_Agda(2,9,0)
++      ModuleMacro _ NotErased{} x (SectionApp _ [] y es) doOpen@DoOpen{} i
++        | isNoName x ->
++        sep [ render doOpen
++#else
+       ModuleMacro _ NotErased{} x (SectionApp _ [] y es) DoOpen i
+         | isNoName x ->
+         sep [ render DoOpen
++#endif
+             , fsep $ render y : map render es
+             , render i
+             ]
+@@ -584,11 +647,19 @@ instance Render Declaration where
+             ]
+ #endif
+       Open _ x i -> hsep ["open", render x, render i]
++#if MIN_VERSION_Agda(2,9,0)
++      Import open _ x rn i ->
++        hsep [render open, "import", render x, as rn, render i]
++        where
++          as (Left y) = "as" <+> render (asName y)
++          as (Right args) = fsep (fmap render args)
++#else
+       Import _ x rn open i ->
+         hsep [render open, "import", render x, as rn, render i]
+         where
+           as Nothing = mempty
+           as (Just y) = "as" <+> render (asName y)
++#endif
+       UnquoteDecl _ xs t ->
+         fsep ["unquoteDecl" <+> fsep (fmap render xs) <+> "=", render t]
+       UnquoteDef _ xs t ->
+@@ -705,7 +776,11 @@ pRecord x (RecordDirectives ind eta pat con) tel me cs =
+ #endif
+ 
+ instance Render OpenShortHand where
++#if MIN_VERSION_Agda(2,9,0)
++  render DoOpen {} = "open"
++#else
+   render DoOpen = "open"
++#endif
+   render DontOpen = mempty
+ 
+ instance Render Pragma where
+@@ -752,6 +827,9 @@ instance Render Pragma where
+   render (PolarityPragma _ q occs) =
+     hsep ("POLARITY" : render q : fmap render occs)
+   render (NoUniverseCheckPragma _) = "NO_UNIVERSE_CHECK"
++#if MIN_VERSION_Agda(2,9,0)
++  render (EtaEqualityPragma _) = "ETA_EQUALITY"
++#endif
+   render (NotProjectionLikePragma _ q) =
+     hsep ["NOT_PROJECTION_LIKE", render q]
+ #if MIN_VERSION_Agda(2,7,0)
+@@ -809,7 +887,9 @@ instance Render Pattern where
+     ParenP _ p -> parens $ render p
+     WildP _ -> "_"
+     AsP _ x p -> render x <> "@" <> render p
+-#if MIN_VERSION_Agda(2,8,0)
++#if MIN_VERSION_Agda(2,9,0)
++    DotP _ _ _ p    -> "." <> render p
++#elif MIN_VERSION_Agda(2,8,0)
+     DotP _ _ p      -> "." <> render p
+ #else
+     DotP _ p -> "." <> render p
+diff --git a/src/Render/Internal.hs b/src/Render/Internal.hs
+index b4fe15b..7e01fba 100644
+--- a/src/Render/Internal.hs
++++ b/src/Render/Internal.hs
+@@ -57,7 +57,13 @@ instance Render Term where
+       Level l -> renderPrec p l
+       MetaV x els -> render x `pApp` els
+       DontCare v -> renderPrec p v
++#if MIN_VERSION_Agda(2,9,0)
++      Dummy kind es -> case kind of
++        DummyNamed s -> parens (text s) `pApp` es
++        DummyBrave hd -> render hd `pApp` es
++#else
+       Dummy s es -> parens (text s) `pApp` es
++#endif
+     where
+       pApp d els =
+         mparens (not (null els) && p > 9) $
+diff --git a/src/Render/RichText.hs b/src/Render/RichText.hs
+index 02fe480..3ca2233 100644
+--- a/src/Render/RichText.hs
++++ b/src/Render/RichText.hs
+@@ -200,6 +200,11 @@ instance Show Inline where
+ -- | ToJSON instances for A.types
+ instance {-# OVERLAPS #-} ToJSON Agda.Range
+ 
++#if MIN_VERSION_Agda(2,9,0)
++instance ToJSON Agda.IntervalWithoutFile' where
++  toJSON = toJSON . Agda.unpackIWF
++
++#endif
+ instance ToJSON (Agda.Interval' ()) where
+ #if MIN_VERSION_Agda(2,8,0)
+   toJSON (Agda.Interval () start end) = toJSON (start, end)

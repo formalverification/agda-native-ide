@@ -5,7 +5,9 @@
   // src/routes/+page.svelte at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
   // (docs/provenance.md).  The cache token of PLFA's interface manifest
   // and archives comes from $lib/assets, which the build derives from the
-  // files, instead of a value maintained by hand (issue 3).
+  // files, instead of a value maintained by hand (issue 3).  The page runs
+  // Agda 2.9.0, and its status bar shows the version the language server
+  // reports, in place of a literal "Agda 2.8" (issue 58).
 
   import { onDestroy, onMount } from "svelte";
   import { SPSC } from "spsc";
@@ -109,7 +111,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
       stdin: SPSC.allocateArrayBuffer(1024 * 1024),
       stdout: SPSC.allocateArrayBuffer(1024 * 1024),
     },
-    agdaVersion: "2.8.0",
+    agdaVersion: "2.9.0",
   });
   const sourceLanguageCompartment = new Compartment();
 
@@ -1118,7 +1120,9 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
             >{currentGoals.length} goal{currentGoals.length === 1
               ? ""
               : "s"}</span
-          ><span class="status-spacer"></span><span>Agda 2.8</span><span
+          ><span class="status-spacer"></span><span class="status-version"
+            >{controller.receivedALSVersion?.trim() ?? "Agda"}</span
+          ><span
             >WASI · local</span
           ><span>UTF-8</span>
         </footer>
