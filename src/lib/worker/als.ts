@@ -3,25 +3,34 @@
 /// <reference lib="esnext" />
 /// <reference lib="webworker" />
 
+// File: src/lib/worker/als.ts
+//
+// Changed from upstream: this is SeungheonOh/plfa-playground's
+// src/lib/worker/als.ts at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
+// (docs/provenance.md).  The worker hosts the language server's reactor
+// build and the drive together (issue 59).  The reactor exports functions
+// the worker calls with messages (agda-language-server's app/Reactor.hs),
+// so nothing blocks on standard input; the drive is this worker's own WASI
+// drive (./drive.ts), so a file call is a function call on this thread.
+// No memory is shared.  The throwaway instances that ran `--version` and
+// `--setup` are gone: a reactor cannot run as a command, and its run_setup
+// export is `--setup`.  The WASI debug hook is upstream's.
+
 import * as Comlink from "comlink";
 import * as Runno from "@runno/wasi";
 
-import { SPSCError } from "spsc";
-import { SPSCReader } from "spsc/reader";
-import { SPSCWriter } from "spsc/writer";
-import { patchImportObject } from "./patch-wasi";
-import { proxyWASIDrive } from "./proxy-wasi-drive";
-import type { ALSWorkerInitObject, WASISpawnOptions } from "./types";
-
-type MyStdioDef = {
-  stdin: (len: number) => Uint8Array | null;
-  stdout: (out: Uint8Array) => void;
-  stderr: (err: Uint8Array) => void;
-};
-
-type PatchedRunnoWASIContextOptions = Partial<
-  Omit<Runno.WASIContextOptions, "stdin" | "stdout" | "stderr"> & MyStdioDef
->;
+import {
+  attachDrive,
+  layOutDrive,
+  openCacheDatabase,
+  restoreCachedFiles,
+} from "./drive";
+import type {
+  ALSWorkerInitObject,
+  ALSWorkerInitResultProxied,
+  DriveMount,
+  WASMSource,
+} from "./types";
 
 export {};
 
@@ -29,9 +38,17 @@ if (!crossOriginIsolated) {
   throw new Error("The worker should be run in a COI context.");
 }
 
-const { WASI } = Runno;
+/** What the reactor exports (agda-language-server's app/Reactor.hs, at
+ * v8), each through GHC's JavaScript FFI, so each returns a promise. */
+interface Reactor {
+  run_setup(): Promise<void>;
+  new_language_server(): Promise<number>;
+  run_language_server(server: number): Promise<number>;
+  send_message(server: number, message: string): Promise<void>;
+  recv_message(server: number): Promise<string>;
+}
 
-async function compileWasm(wasmSource: ALSWorkerInitObject["wasmSource"]) {
+async function compileWasm(wasmSource: WASMSource) {
   if (wasmSource.type === "url") {
     return WebAssembly.compile(
       await fetch(wasmSource.url).then((x) => x.arrayBuffer()),
@@ -44,8 +61,6 @@ async function compileWasm(wasmSource: ALSWorkerInitObject["wasmSource"]) {
   );
 }
 
-type RunnoDebugFnExt = Runno.DebugFn & { wasi: Runno.WASI };
-
 const runnoInterceptor: Runno.DebugFn = (name, args_, ret, _data) => {
   const args = args_ as unknown as number[];
 
@@ -55,7 +70,6 @@ const runnoInterceptor: Runno.DebugFn = (name, args_, ret, _data) => {
   }
   // fake that readlink always finds something that is not a symlink
   if (name === "path_readlink") {
-    // const path = memReadString((runnoInterceptor as RunnoDebugFnExt).wasi.memory, args[1], args[2])
     return 28; // EINVAL
   }
 
@@ -70,151 +84,102 @@ const runnoInterceptor: Runno.DebugFn = (name, args_, ret, _data) => {
   return ret;
 };
 
-/** spin up a one-off instance and collect its output. */
-async function wasiSpawn(
-  module: WebAssembly.Module,
-  args: string[] = [],
-  options: WASISpawnOptions = {},
-) {
-  const stdout: string[] = [];
-  const stderr: string[] = [];
-
-  const wasi = new WASI({
-    args: ["als", ...args],
-    env: options.env,
-    debug: runnoInterceptor,
-    stdout: (str) => stdout.push(str),
-    stderr: (str) => stderr.push(str),
-  });
-  (runnoInterceptor as RunnoDebugFnExt).wasi = wasi;
-
-  if (options.drive) {
-    const {
-      lock: driveLock,
-      stdin: driveStdin,
-      stdout: driveStdout,
-    } = options.drive;
-    proxyWASIDrive(wasi.drive, driveLock, driveStdin, driveStdout);
-  }
-
-  const instance = await WebAssembly.instantiate(
-    module,
-    wasi.getImportObject(),
-  );
-  const { exitCode } = wasi.start({ module, instance });
-
-  if (!options.ignoreExitCode && exitCode !== 0) {
-    throw new Error(`Program exited with non-zero status ${exitCode}`);
-  }
-
-  return {
-    exitCode,
-    stdout: stdout.join(""),
-    stderr: stderr.join(""),
-  };
-}
-
 let stderrBuf = "";
-const stderrDecoder = new TextDecoder();
 
-/**
- * @param {PatchedRunnoWASIContextOptions} opt
- * @returns {Runno.WASIContextOptions} */
-function definePatchedRunnoWASIContextOptions(
-  opt: PatchedRunnoWASIContextOptions,
-): Runno.WASIContextOptions {
-  return opt as any;
+function stderr(str: string) {
+  // FIXME: the output will not be consumed by the main thread
+  let nl;
+  while (((nl = str.indexOf("\n")), nl >= 0)) {
+    console.warn(">>> " + stderrBuf + str.slice(0, nl));
+    stderrBuf = "";
+    str = str.slice(nl + 1);
+  }
+  stderrBuf += str;
 }
 
 async function init({
   wasmSource,
-  stdinWaker,
-  stdin,
-  stdout,
+  glueUrl,
   args = [],
-  driveBuffers,
-}: ALSWorkerInitObject) {
-  const stdinReader = new SPSCReader(stdin);
-  const stdoutWriter = new SPSCWriter(stdout, stdinWaker);
-
-  const module = await compileWasm(wasmSource);
-  let alsVersion: string | null = null;
+  port,
+}: ALSWorkerInitObject): Promise<ALSWorkerInitResultProxied> {
+  const [module, glue] = await Promise.all([
+    compileWasm(wasmSource),
+    import(/* @vite-ignore */ glueUrl),
+  ]);
+  // The reactor's exports, filled in once it is instantiated: the glue's
+  // imports call back into them.
+  const exports: Record<string, unknown> = {};
+  const reactor = exports as unknown as Reactor;
+  let drive: ReturnType<typeof attachDrive> | undefined;
 
   const env = {
     HOME: "/home/root",
     Agda_datadir: "/",
   };
 
-  async function start() {
-    const wasi = new WASI(
-      definePatchedRunnoWASIContextOptions({
-        args: ["als", ...args],
-        env,
-        debug: runnoInterceptor,
-        stdin(len) {
-          const result = stdinReader.read(len, { nonblock: true });
-          if (!result.ok) {
-            if (result.error == SPSCError.Again) {
-              return null;
-            }
-            throw new Error(`WASM failed to read from stdin: ${result.error}`);
-          }
-          return result.data;
-        },
-        stdout(buf) {
-          const result = stdoutWriter.write(buf);
-          if (!result.ok) {
-            throw new Error(`WASM failed to write to stdout: ${result.error}`);
-          }
-          if (result.bytesWritten !== buf.byteLength) {
-            throw new Error(
-              `WASM did not write exact number of bytes to stdout: ${result.bytesWritten} != ${buf.byteLength}`,
-            );
-          }
-        },
-        stderr(buf) {
-          // FIXME: the output will not be consumed by the main thread
-          let str = stderrDecoder.decode(buf, { stream: true });
-          let nl;
-          while (((nl = str.indexOf("\n")), nl >= 0)) {
-            console.warn(">>> " + stderrBuf + str.slice(0, nl));
-            stderrBuf = "";
-            str = str.slice(nl + 1);
-          }
-          stderrBuf += str;
-        },
-      }),
-    );
-    (runnoInterceptor as RunnoDebugFnExt).wasi = wasi;
-
-    const importObject = patchImportObject(wasi, {
-      pollStdin(timeout) {
-        let waitDuration =
-          timeout < 0 ? Infinity : Math.max(timeout - Date.now(), 0);
-        return stdinReader.pollRead(waitDuration);
-      },
+  /** Lay out the drive, then instantiate the reactor over it; its
+   * _initialize starts GHC's runtime, which reads the argv (the program's
+   * name first, then any +RTS ... -RTS) and the environment. */
+  async function mount({ cacheNamespace, ...archives }: DriveMount) {
+    const fs = await layOutDrive(archives);
+    const database = await openCacheDatabase(cacheNamespace);
+    await restoreCachedFiles(database, fs).catch((error) => {
+      console.warn("Could not restore the persistent Agda cache", error);
     });
 
-    const instance = await WebAssembly.instantiate(module, importObject);
-    const {
-      lock: driveLock,
-      stdin: driveStdin,
-      stdout: driveStdout,
-    } = driveBuffers;
-    proxyWASIDrive(wasi.drive, driveLock, driveStdin, driveStdout);
-    return wasi.start({ module, instance }).exitCode;
+    const wasi = new Runno.WASI({
+      args: ["als", ...args],
+      env,
+      fs,
+      debug: runnoInterceptor,
+      stderr,
+    });
+    drive = attachDrive(wasi.drive, database);
+
+    const instance = await WebAssembly.instantiate(module, {
+      ...wasi.getImportObject(),
+      ghc_wasm_jsffi: glue.default(exports),
+    });
+    Object.assign(exports, instance.exports);
+    wasi.initialize({ module, instance });
+  }
+
+  /** Start a server; the promise settles with its exit code when it exits.
+   * Each message is one JSON-RPC message, with no Content-Length framing:
+   * the reactor's prepareOutwards is the identity, and its parseInwards
+   * takes the whole message. */
+  async function start() {
+    const server = await reactor.new_language_server();
+    const exited = reactor.run_language_server(server);
+
+    // One message at a time, in order: send_message settles once the
+    // server has taken the message.
+    let sending: Promise<unknown> = Promise.resolve();
+    port.onmessage = (event: MessageEvent<string>) => {
+      sending = sending.then(() => reactor.send_message(server, event.data));
+    };
+    // Keep one recv_message pending until the server exits.
+    let running = true;
+    void exited.finally(() => (running = false)).catch(() => {});
+    void (async () => {
+      try {
+        while (running) port.postMessage(await reactor.recv_message(server));
+      } catch (error) {
+        if (running) console.error("The language server stopped answering", error);
+      }
+    })();
+    return exited;
   }
 
   return Comlink.proxy({
-    getALSVersion: async () =>
-      alsVersion ??
-      (alsVersion = await wasiSpawn(module, ["--version"]).then(
-        (x) => x.stdout,
-      )),
+    mount,
+    setup: () => reactor.run_setup(),
     start,
-    spawn: (args: string[], options: WASISpawnOptions) =>
-      wasiSpawn(module, args, { drive: driveBuffers, env, ...options }),
-    // TODO: make a specialized spawn to run "--setup" but strips unnecessary files
+    writeFile: async (path: string, content: string) =>
+      drive!.writeFile(path, new TextEncoder().encode(content)),
+    mountArchive: (data: ArrayBuffer) => drive!.mountArchive(data),
+    persist: () => drive!.persist(),
   });
 }
 

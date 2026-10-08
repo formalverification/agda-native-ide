@@ -1,3 +1,13 @@
+// File: src/lib/worker/types.d.ts
+//
+// Changed from upstream: this is SeungheonOh/plfa-playground's
+// src/lib/worker/types.d.ts at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
+// (docs/provenance.md).  The language server's worker hosts the server's
+// reactor build and the drive (issue 59): it takes a message port and the
+// reactor's JavaScript glue where it took shared buffers for standard
+// input, standard output and the drive, and the drive worker's own types
+// are gone with it.
+
 export type WASMSource =
   | { type: "stream"; stream: ReadableStream<Uint8Array> }
   | { type: "url"; url: string };
@@ -12,42 +22,36 @@ export interface WASMLoadingProgress {
 
 export interface ALSWorkerInitObject {
   wasmSource: WASMSource;
+  /** The URL of the JavaScript glue GHC's post-linker wrote for the
+   * reactor, absolute, since the worker resolves URLs against itself. */
+  glueUrl: string;
+  /** The server's argv after the program's name. */
   args?: string[];
-  stdinWaker: MessagePort;
-  stdin: SharedArrayBuffer;
-  stdout: SharedArrayBuffer;
-
-  driveBuffers: DriveBuffers;
+  /** The worker's end of the language server's messages: one JSON-RPC
+   * message per event, as a string, with no Content-Length framing. */
+  port: MessagePort;
 }
 
-export interface DriveBuffers {
-  lock: SharedArrayBuffer;
-  stdin: SharedArrayBuffer;
-  stdout: SharedArrayBuffer;
+/** The archives the drive is laid out from (./drive.ts, layOutDrive). */
+export interface DriveArchives {
+  builtin: ArrayBuffer | null;
+  stdlib: ArrayBuffer | null;
+  plfa: ArrayBuffer | null;
 }
 
-interface _WASISpawnOptions {
-  ignoreExitCode?: boolean;
-  drive?: DriveBuffers;
-  env: Record<string, string>;
+export interface DriveMount extends DriveArchives {
+  /** The namespace of the drive's IndexedDB cache (src/lib/assets.ts). */
+  cacheNamespace: string;
 }
-
-export interface WASISpawnOptions extends Partial<_WASISpawnOptions> {}
 
 export interface ALSWorkerInitResultProxied {
-  getALSVersion: () => Promise<string>;
+  /** Lay out the drive and instantiate the reactor over it. */
+  mount: (archives: DriveMount) => Promise<void>;
+  /** Agda's --setup: write the data files the server embeds. */
+  setup: () => Promise<void>;
+  /** Start the server; settles with its exit code when it exits. */
   start: () => Promise<number>;
-  spawn: (
-    args: string[],
-    options?: WASISpawnOptions,
-  ) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
-}
-
-export interface DriveWorkerInitObject {
-  stdin: SharedArrayBuffer;
-  stdout: SharedArrayBuffer;
-  agdaDataZip: ArrayBuffer | null;
-  agdaStdlibZip: ArrayBuffer | null;
-  plfaProjectZip: ArrayBuffer | null;
-  cacheNamespace: string;
+  writeFile: (path: string, content: string) => Promise<void>;
+  mountArchive: (data: ArrayBuffer) => Promise<void>;
+  persist: () => Promise<void>;
 }

@@ -47,7 +47,8 @@ upstream commit.
 | `static/agda-stdlib-2.3.zip` | not imported; pinned, then retired | The standard library 2.3, which does not check under Agda 2.9.0; the page ships it patched instead ([below](#the-standard-library-patched-here), [#58]). |
 | `static/agda-data.zip` | not imported; pinned, then replaced | Upstream's held Agda 2.7.0.1's builtin library, which the shipped Agda rejects; the flake builds one instead ([below](#agdas-builtin-library-built-here), [#49]). |
 | `static/als-2.8ext.wasm.gz` | not imported; not pinned | The build makes its own ([below](#the-compilers-gzip)). |
-| every other file (85) | same path, unchanged unless listed below | Listed in `upstream/unchanged.sha256`. |
+| `src/lib/worker/proxy-wasi-drive.ts`, `src/lib/worker/patch-wasi.ts`, `src/lib/worker/wrap-poll-oneoff.ts`, `src/lib/worker/util-base64.js` | imported, then removed | They proxied the drive's calls to the drive worker through shared memory, and read the language server's standard input from it; the server's reactor build, with the drive in its worker, needs neither ([#59]). |
+| every other file (81) | same path, unchanged unless listed below | Listed in `upstream/unchanged.sha256`. |
 
 Every change made here to an imported file is listed under [Changes to
 upstream files](#changes-to-upstream-files), and a file that can carry a
@@ -343,6 +344,10 @@ Each change is its own commit, named here by its subject.
 | `src/routes/+page.svelte` | The page runs Agda 2.9.0, and its status bar shows the version the language server reports in place of a literal "Agda 2.8" ([#58]) | "Run the page on the 2.9.0 compiler" |
 | `src/app.html` | The description names Agda 2.9.0, the version the page runs ([#58]) | "Run the page on the 2.9.0 compiler" |
 | `scripts/prepare-cloudflare-assets.mjs` | The compiler's name comes from `scripts/asset-manifest.mjs`, which names the file the page fetches, instead of a literal ([#58]) | "Run the page on the 2.9.0 compiler" |
+| `src/lib/worker/als.ts` | The worker hosts the language server's reactor build and the drive: it compiles the reactor and imports its JavaScript glue, lays out the drive as its own WASI drive, starts GHC's runtime with `_initialize` (Runno's `initialize`), runs the reactor's `run_setup` in place of a throwaway `--setup` instance, and drives the server with `send_message` and `recv_message`, one JSON message per call.  The `--version` instance, the standard input and output in shared memory, and the drive's proxy are gone ([#59]) | "Host the reactor and the drive in the language server's worker" |
+| `src/lib/worker/drive.ts` | No longer a worker: a module of the language server's worker, whose WASI drive it lays out and indexes.  The message loop over shared rings is gone, and the page's writes, archive extraction and the IndexedDB cache are functions that worker exposes; the cache reads each dirty file from the drive's own record, so files at paths made after startup are persisted too ([#59]) | "Host the reactor and the drive in the language server's worker" |
+| `src/lib/worker/types.d.ts` | The worker takes a message port and the glue's URL in place of shared buffers, and the drive worker's types are removed ([#59]) | "Host the reactor and the drive in the language server's worker" |
+| `src/lib/worker/proxy-wasi-drive.ts`, `src/lib/worker/patch-wasi.ts`, `src/lib/worker/wrap-poll-oneoff.ts`, `src/lib/worker/util-base64.js` | Removed ([#59]) | "Host the reactor and the drive in the language server's worker" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
