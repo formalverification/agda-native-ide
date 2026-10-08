@@ -151,20 +151,23 @@ commits that tag records, and the two patches in `compiler/patches/`;
 ghc-wasm-meta `58260711fd5c8ffbb81f4ac56e40323ff509d43b` (GHC
 9.10.3.20260731); the Hackage index at 2026-10-05T16:41:29Z ([#58]).
 `compiler/agda-2.9.0.sha256` pins the four files it writes, and the flake
-fetches them by those hashes (`nix build .#compiler`, `mkCompiler`) from a
-release whose home [#58] decides; until it exists, the fetch succeeds only
-where the files are already in the Nix store.  `.github/workflows/compiler.yml`
-rebuilds them with the recipe and checks the bytes against the pins; its
-run of 2026-10-07 on GitHub's runner built the pinned bytes.
+fetches them by those hashes (`nix build .#compiler`, `mkCompiler`) from the
+release `agda-2.9.0-da66a8c-als-8` of
+[formalverification/agda-wasm-builds][agda-wasm-builds], public since
+2026-10-07.  `.github/workflows/compiler.yml` rebuilds them with the recipe
+and checks the bytes against the pins; its run of 2026-10-07 on GitHub's
+runner built the pinned bytes.
 
-+  `als.wasm`, the language server as a command module, is the compiler the
-   page runs: `packages.assets` installs it as `static/als-2.9.0.wasm`, and
-   the build ships it gzipped ([below](#the-compilers-gzip)).
++  `als-reactor.wasm`, the language server's reactor build, and its glue,
+   `als-reactor.js`, are the compiler the page runs, since [#59]:
+   `packages.assets` installs them as `static/als-reactor-2.9.0.wasm` and
+   `static/als-reactor-2.9.0.js`, and the build ships the module gzipped
+   ([below](#the-compilers-gzip)) and the glue as it is.
++  `als.wasm`, the same server as a command module, is not shipped since
+   [#59]; the page ran it from [#58] until then.
 +  `agda.wasm`, the plain `agda`, is not shipped: the flake runs it under
    wasmtime to build Agda's builtin library
    ([below](#agdas-builtin-library-built-here)).
-+  `als-reactor.wasm` and its glue, `als-reactor.js`, the reactor build of
-   the same server, are not shipped yet ([#59]).
 
 License: NOTICE section 3 names everything the server links and the
 license of each.
@@ -297,9 +300,10 @@ build writes its own, as follows:
 +  `npm run build` gzips the raw compiler in `build/` (node's zlib at level
    9) and deletes the raw copy (`scripts/prepare-cloudflare-assets.mjs`,
    which takes the compiler's name from `scripts/asset-manifest.mjs`).  On
-   2026-10-07 `als-2.9.0.wasm.gz` was 11,119,315 bytes and inflated to the
-   pinned `als.wasm`'s SHA-256; on 2026-10-04 the fork's compiler's was
-   10,154,917 bytes.
+   2026-10-08 `als-reactor-2.9.0.wasm.gz` was 11,095,997 bytes and inflated
+   to the pinned `als-reactor.wasm`'s SHA-256; on 2026-10-07 the command
+   module's, `als-2.9.0.wasm.gz`, was 11,119,315 bytes, and on 2026-10-04
+   the fork's compiler's 10,154,917 bytes.
 +  `npm run dev` falls back to the raw compiler.  With no `.gz` in `static/`,
    the dev server answered the `.gz` with a 404, the page fetched the raw
    compiler instead, and Agda started and checked `Main.agda` (two open
@@ -376,3 +380,4 @@ Each change is its own commit, named here by its subject.
 [cormullion/juliamono]: https://github.com/cormullion/juliamono
 [plfa/plfa.github.io]: https://github.com/plfa/plfa.github.io
 [gzuidhof/coi-serviceworker]: https://github.com/gzuidhof/coi-serviceworker
+[agda-wasm-builds]: https://github.com/formalverification/agda-wasm-builds

@@ -8,6 +8,7 @@
 declare const AGDA_ASSETS: {
   tokens: {
     compiler: string;
+    glue: string;
     builtins: string;
     stdlib: string;
     plfaProject: string;

@@ -16,7 +16,7 @@ Contents
 
   1.  The app: plfa-playground
   2.  The JavaScript bundled into the page
-  3.  The compiler: als-2.9.0.wasm.gz
+  3.  The compiler: als-reactor-2.9.0.wasm.gz and als-reactor-2.9.0.js
   4.  Agda's builtin library: agda-data.zip
   5.  The Agda standard library 2.3, patched: agda-stdlib-2.3-patched.zip
   6.  PLFA: plfa/
@@ -128,11 +128,13 @@ Contents
     Rollup and esbuild, from which Rolldown's code derives.
 
 
-3.  The compiler: als-2.9.0.wasm.gz
+3.  The compiler: als-reactor-2.9.0.wasm.gz and als-reactor-2.9.0.js
 
     The Agda Language Server with Agda 2.9.0, compiled to WebAssembly (WASI)
-    by GHC 9.10.3.20260731 and statically linked: this repository's build,
-    compiler/build-agda-2.9.0.sh, from these sources:
+    by GHC 9.10.3.20260731 and statically linked, as a reactor module (the
+    server's `reactor` build, which the page's worker drives by calling its
+    exports): this repository's build, compiler/build-agda-2.9.0.sh, from
+    these sources:
 
       agda/agda-language-server  0f77a209243185cb8e36a11bfc7b6ab47f5125b4
                                  (tag v8), with compiler/patches/
@@ -144,10 +146,19 @@ Contents
                                  (the 9.10 flavour)
       Hackage                    index state 2026-10-05T16:41:29Z
 
-    The uncompressed binary is als.wasm of compiler/agda-2.9.0.sha256,
-    SHA-256 b1f45936329c529b5677e38bc0e8d22d7a1c9c47277e8f77146f5667c76228e4;
-    the build ships it gzipped.  It contains the following, each under its
-    own license.
+    The uncompressed binary is als-reactor.wasm of
+    compiler/agda-2.9.0.sha256, SHA-256
+    a0c7ae5741dd3f11c6be9e9fac4281889f2861ec2b53b5379452d11a4a23e8c9; the
+    build ships it gzipped.  Beside it ships its JavaScript glue,
+    als-reactor.js of the same file, SHA-256
+    c782dbaca349830299055c71ec9c4f72ec543c0d612d08b7c40fbb364e601dce, which
+    the page's worker imports: GHC's post-linker (post-link.mjs, in the
+    toolchain's library directory) wrote it from GHC's template prelude.mjs
+    and the JavaScript the binary carries from GHC's ghc-internal, so it is
+    GHC's code, under GHC's license (3.3).  The same server built as a
+    command module, als.wasm of the same file, is pinned for the compiler's
+    records and not shipped.  The binary contains the following, each under
+    its own license.
 
     3.1  The Agda Language Server 8.  MIT, Copyright (c) 2017 - 2020 Luā
          Tîng-Giān.  licenses/compiler/agda-language-server.txt.  This
@@ -157,16 +168,18 @@ Contents
          2005-2025 remains with the authors.  licenses/compiler/agda.txt.
 
     3.3  GHC's runtime system and boot libraries, from GHC 9.10.3.20260731
-         (ghc-wasm-bindists release 20260731T193144).  The Glasgow Haskell
-         Compiler License, Copyright 2002, The University Court of the
-         University of Glasgow: licenses/compiler/ghc.txt.  Each boot
-         library's own license is listed in 3.5.
+         (ghc-wasm-bindists release 20260731T193144), and the reactor's
+         JavaScript glue (above).  The Glasgow Haskell Compiler License,
+         Copyright 2002, The University Court of the University of Glasgow:
+         licenses/compiler/ghc.txt.  Each boot library's own license is
+         listed in 3.5.
 
     3.4  GMP 6.3.0, the GNU Multiple Precision Arithmetic Library, linked
          into GHC's ghc-bignum library.  Copyright Free Software
          Foundation, Inc.  GMP is offered under LGPL-3.0-or-later or
          GPL-2.0-or-later, and is distributed here under the GNU Lesser
-         General Public License, version 3 or later:
+         General Public License, version 3 or later (confirmed by William
+         DeMeo on 2026-10-07):
          licenses/compiler/gmp/COPYING.LESSERv3, with the GNU General
          Public License version 3 it incorporates,
          licenses/compiler/gmp/COPYINGv3, and GMP's own statement,
@@ -177,7 +190,10 @@ Contents
          and GHC's two patches to it, in
          https://gitlab.haskell.org/ghc/gmp-tarballs at commit
          01149ce3471128e9fe0feca607579981f4b64395, the GMP that GHC 9.10
-         builds.
+         builds.  Every public release of the compiler attaches the same
+         tarball and patches, beside the binaries and their build plans:
+         the first is agda-2.9.0-da66a8c-als-8, at
+         https://github.com/formalverification/agda-wasm-builds/releases.
 
          To relink with a modified GMP: every other part of the compiler
          is free software whose source is public at the commits named in
@@ -187,7 +203,7 @@ Contents
          (or rebuild GHC's ghc-bignum against it) and run the recipe.
 
     3.5  The Haskell packages linked into it: the executable's link
-         closure in the build's own plan, 140 packages, each package's
+         closure in the build's own plan, 141 packages, each package's
          license file in licenses/compiler/haskell/<name>-<version>/.
          "GHC" marks a boot package shipped with the compiler, "local" a
          package of the project: Agda and the language server at the
@@ -247,6 +263,7 @@ Contents
          generic-lens 2.3.0.0                    BSD-3-Clause    Hackage
          generic-lens-core 2.3.0.0               BSD-3-Clause    Hackage
          ghc-bignum 1.3                          BSD-3-Clause    GHC
+         ghc-experimental 9.1003.0               BSD-3-Clause    GHC
          ghc-boot-th 9.10.3.20260731             BSD-3-Clause    GHC
          ghc-internal 9.1003.0                   BSD-3-Clause    GHC
          ghc-prim 0.12.0                         BSD-3-Clause    GHC
@@ -353,36 +370,39 @@ Contents
          SPDX text with that copyright line, supplied the same way.
 
          How the list was made.  The plan is the build's own
-         (dist-newstyle/cache/plan.json of the recipe's server build,
+         (dist-newstyle/cache/plan.json of the recipe's reactor build,
          index state pinned), and the closure is its executable's library
          dependencies, without the build tools (alex and happy); each
          Hackage package's license is the one its .cabal file declares in
-         the last revision at or before the index state.  Checked against
-         the binary: its strings carry 58 unit ids, 56 of them this plan's
-         units named exactly, one GHC's own, and none disagreeing with
-         the plan.  The other 84 units appear in no string (GHC writes its
-         wired-in packages without versions, and most libraries leave no
-         name behind), and are listed because the plan links them,
-         whether or not any of their code survives the link.  They are
-         adjunctions, ansi-terminal, ap-normalize, assoc, base-orphans,
-         bifunctors, blaze-builder, blaze-html, boring, call-stack,
-         case-insensitive, character-ps, clock, comonad, contravariant,
-         data-default, data-fix, data-hash, Diff, distributive, dlist,
-         enummapset, filemanip, fmlist, free, generic-data,
-         generic-deriving, generic-lens, generic-lens-core, hashable,
-         indexed-profunctors, indexed-traversable,
-         indexed-traversable-instances, integer-logarithms, invariant,
-         kan-extensions, lens, lens-aeson, monad-control, murmur-hash,
-         nonempty-vector, OneTuple, parallel, QuickCheck, random,
-         reflection, regex-base, safe, safe-exceptions, semialign,
-         semigroupoids, semirings, show-combinators, some, sorted-list,
-         splitmix, StateVar, tagged, text-iso8601, text-short,
-         th-abstraction, th-compat, these, time-compat, transformers-base,
-         transformers-compat, unix-compat, unliftio, uri-encode,
-         utf8-string, uuid-types, vector-stream and witherable from
-         Hackage, and base, binary, deepseq, ghc-bignum, ghc-boot-th,
-         ghc-internal, ghc-prim, haskeline, rts, system-cxx-std-lib and
-         template-haskell from GHC.
+         the last revision at or before the index state.  The reactor's
+         plan is the command module's with one more package, the
+         ghc-experimental that the server's reactor code imports
+         (GHC.Wasm.Prim).  Checked against the binary: its strings carry
+         57 unit ids, 56 of them this plan's units named exactly (two are
+         the language server's library and executable), one GHC's own, and
+         none disagreeing with the plan, so 55 packages are named.  The
+         other 86 appear in no string (GHC writes its wired-in packages
+         without versions, and most libraries leave no name behind), and
+         are listed because the plan links them, whether or not any of
+         their code survives the link.  They are adjunctions,
+         ansi-terminal, ap-normalize, assoc, base-orphans, bifunctors,
+         blaze-builder, blaze-html, boring, call-stack, case-insensitive,
+         character-ps, clock, comonad, contravariant, data-default,
+         data-fix, data-hash, Diff, distributive, dlist, enummapset,
+         filemanip, fmlist, free, generic-data, generic-deriving,
+         generic-lens, generic-lens-core, hashable, indexed-profunctors,
+         indexed-traversable, indexed-traversable-instances,
+         integer-logarithms, invariant, kan-extensions, lens, lens-aeson,
+         monad-control, murmur-hash, nonempty-vector, OneTuple, parallel,
+         prettyprinter, QuickCheck, random, reflection, regex-base, safe,
+         safe-exceptions, semialign, semigroupoids, semirings,
+         show-combinators, some, sorted-list, splitmix, StateVar, tagged,
+         text-iso8601, text-short, th-abstraction, th-compat, these,
+         time-compat, transformers-base, transformers-compat, unix-compat,
+         unliftio, uri-encode, utf8-string, uuid-types, vector-stream and
+         witherable from Hackage, and base, binary, deepseq, ghc-bignum,
+         ghc-boot-th, ghc-experimental, ghc-internal, ghc-prim, haskeline,
+         rts, system-cxx-std-lib and template-haskell from GHC.
 
     3.6  C and C++ libraries from the toolchain's wasi-sdk 29.0, and two
          bundled by Haskell packages:

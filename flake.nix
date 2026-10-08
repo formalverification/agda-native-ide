@@ -77,11 +77,8 @@
       # server against it as a command module and as a reactor module with
       # its JavaScript glue.  One pin per line of compiler/agda-2.9.0.sha256
       # (sha256sum's format, with a file name), fetched by hash from the
-      # release that holds the files.  Where that release lives is not
-      # decided yet (issue 58), so the URL below names a place that does
-      # not exist: until it does, `nix build .#compiler` succeeds only
-      # where the files are in the store already, added by hand from a
-      # build of the recipe with `nix-store --add-fixed sha256 <file>`.
+      # release that holds the files, in formalverification/agda-wasm-builds
+      # (public, since 2026-10-07).
       compilerRelease = "https://github.com/formalverification/agda-wasm-builds/releases/download/agda-2.9.0-da66a8c-als-8";
       compilerPins = map (line:
           let m = builtins.match "([0-9a-f]{64})  ([^ /]+)" line;
@@ -272,13 +269,17 @@
 
         # Every binary the app ships at its path in the tree (static/...):
         # upstream's pinned ones, agda-data.zip, the compiler's language
-        # server (as als-2.9.0.wasm) and the standard library.
+        # server and the standard library.  The server is its reactor
+        # build, as als-reactor-2.9.0.wasm, with its JavaScript glue as
+        # als-reactor-2.9.0.js (issue 59); the command build, als.wasm,
+        # stays pinned for the compiler's records and is not shipped.
         assets = pkgs.runCommand "plfa-playground-assets" { } (
           lib.concatMapStrings (pin: ''
             install -D -m 444 ${fetchPin pkgs pin} "$out/${pin.path}"
           '') pins + ''
             install -D -m 444 ${agdaData}/agda-data.zip "$out/static/agda-data.zip"
-            install -D -m 444 ${compiler}/als.wasm "$out/static/als-2.9.0.wasm"
+            install -D -m 444 ${compiler}/als-reactor.wasm "$out/static/als-reactor-2.9.0.wasm"
+            install -D -m 444 ${compiler}/als-reactor.js "$out/static/als-reactor-2.9.0.js"
             install -D -m 444 ${stdlib}/agda-stdlib-2.3-patched.zip "$out/static/agda-stdlib-2.3-patched.zip"
           '');
 
