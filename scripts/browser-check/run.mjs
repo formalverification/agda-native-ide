@@ -1,14 +1,16 @@
 // File: scripts/browser-check/run.mjs
 //
-// The browser check (issue 5).  It serves a built site cross-origin
-// isolated, opens it in headless Chromium with a fresh profile, and uses
-// it as a reader would, through the page alone, as follows:
+// The browser check (issue 5).  It serves a built site, opens it in
+// headless Chromium (or Firefox) with a fresh profile, and uses it as a
+// reader would, through the page alone, as follows:
 //
 //   1.  waits for "Agda ready", then for the automatic first check of the
-//       default Main.agda, and asserts crossOriginIsolated (by the
-//       headers, not by the page's service-worker fallback), two open
-//       goals, and the version Agda reports in the status bar, which the
-//       page's description must name too;
+//       default Main.agda, and asserts crossOriginIsolated as the server
+//       made it (false by default: the page needs no isolation since issue
+//       59; true with --isolated, which sends the two headers), that no
+//       service worker controls the page, two open goals, and the version
+//       Agda reports in the status bar, which the page's description must
+//       name too;
 //   2.  runs Infer on plus-zero from the command strip, and asserts the
 //       modules that first check type-checked: the `Checking` lines of
 //       Agda's running info, which the page shows only in the inspector's
@@ -24,15 +26,19 @@
 // It writes browser-check.json (the timings, the requests, the console)
 // and a screenshot into --out, and exits 1 on the first failed assertion,
 // or when the browser fails; it is the language server's only test, since
-// the server cannot be driven under wasmtime (issue 5).
+// the server cannot be driven under wasmtime (issue 5).  CI runs it in
+// Chromium, served with the headers and without; --browser firefox drives
+// a Firefox through WebDriver BiDi (./bidi.mjs) instead.
 //
-//   CHROME=<chromium> node scripts/browser-check/run.mjs <site> [--out DIR]
-//   nix run .#browser-check -- <site> [--out DIR]
+//   CHROME=<chromium> node scripts/browser-check/run.mjs <site> [--out DIR] [--isolated]
+//   FIREFOX=<firefox> node scripts/browser-check/run.mjs <site> --browser firefox [...]
+//   nix run .#browser-check -- <site> [--out DIR] [--isolated]
 
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { launch } from "./cdp.mjs";
+import * as cdp from "./cdp.mjs";
+import * as bidi from "./bidi.mjs";
 import { serve } from "./serve.mjs";
 
 /** The modules a fresh profile's first check of the default Main.agda
@@ -65,10 +71,23 @@ const STEP_TIMEOUT_MS = 180_000;
 
 const { values: options, positionals } = parseArgs({
   allowPositionals: true,
-  options: { out: { type: "string", default: "browser-check" } },
+  options: {
+    out: { type: "string", default: "browser-check" },
+    // Serve the site with the two headers that make it cross-origin
+    // isolated, and assert that it is.
+    isolated: { type: "boolean", default: false },
+    browser: { type: "string", default: "chromium" },
+  },
 });
-if (positionals.length !== 1 || !process.env.CHROME) {
-  console.error("usage: CHROME=<chromium> node run.mjs <site> [--out DIR]");
+const driver = { chromium: { launch: cdp.launch, executable: process.env.CHROME },
+  firefox: { launch: bidi.launch, executable: process.env.FIREFOX } }[
+  options.browser
+];
+if (positionals.length !== 1 || !driver?.executable) {
+  console.error(
+    "usage: CHROME=<chromium> node run.mjs <site> [--out DIR] [--isolated]\n" +
+      "       FIREFOX=<firefox> node run.mjs <site> --browser firefox [--out DIR] [--isolated]",
+  );
   process.exit(2);
 }
 const site = resolve(positionals[0]);
@@ -106,8 +125,8 @@ const RECORDER = `(() => {
 /** What the page shows, read from its DOM. */
 const state = () => ({
   isolated: self.crossOriginIsolated,
-  // coi-serviceworker.js isolates a page its server does not; with the
-  // headers it never registers, so no worker controls the page.
+  // The page registers no service worker (coi-serviceworker.js, which
+  // isolated a page its server did not, is gone since issue 59).
   controlled: Boolean(navigator.serviceWorker?.controller),
   status:
     document.querySelector(".inspector-status")?.textContent?.trim() ?? "",
@@ -160,6 +179,9 @@ const results = {
   site,
   date: new Date().toISOString(),
   browser: "",
+  served: options.isolated
+    ? "with the isolation headers"
+    : "without the isolation headers",
   expectedChecking: EXPECTED_CHECKING,
   timings: /** @type {Record<string, number>} */ ({}),
   steps: /** @type {string[]} */ ([]),
@@ -168,9 +190,9 @@ let failure = /** @type {string | null} */ (null);
 const consoleLog = /** @type {object[]} */ ([]);
 /** @type {Awaited<ReturnType<typeof serve>> | undefined} */
 let server;
-/** @type {Awaited<ReturnType<typeof launch>> | undefined} */
+/** @type {{ product: string, page: any, close: () => Promise<void> } | undefined} */
 let chrome;
-/** @type {Awaited<ReturnType<typeof launch>>["page"]} */
+/** @type {any} */
 let page;
 
 /** @param {boolean} condition @param {string} message */
@@ -187,6 +209,10 @@ async function waitFor(predicate, what, timeoutMs = STEP_TIMEOUT_MS) {
   while (performance.now() - start < timeoutMs) {
     last = await page.eval(state);
     if (last.banner) throw new Error(`the page says "${last.banner}"`);
+    const thrown = consoleLog.find(
+      (/** @type {any} */ entry) => entry.type === "exception",
+    );
+    if (thrown) throw new Error(`the page threw: ${thrown.text}`);
     if (last.failedAction)
       throw new Error(`the page could not act: "${last.failedAction}"`);
     if (predicate(last)) return last;
@@ -246,40 +272,14 @@ async function step(name, body) {
 }
 
 try {
-  server = await serve({ root: site });
-  chrome = await launch(process.env.CHROME);
+  server = await serve({ root: site, isolated: options.isolated });
+  chrome = await driver.launch(driver.executable);
   page = chrome.page;
   results.browser = chrome.product;
-  page.on("Runtime.consoleAPICalled", (event) =>
-    consoleLog.push({
-      type: event.type,
-      text: event.args
-        .map((/** @type {any} */ a) => a.value ?? a.description ?? "")
-        .join(" ")
-        .slice(0, 500),
-    }),
-  );
-  page.on("Runtime.exceptionThrown", (event) =>
-    consoleLog.push({
-      type: "exception",
-      text: (
-        event.exceptionDetails.exception?.description ??
-        event.exceptionDetails.text
-      ).slice(0, 500),
-    }),
-  );
-  await page.send("Page.enable");
-  await page.send("Runtime.enable");
-  await page.send("Emulation.setDeviceMetricsOverride", {
-    width: 1440,
-    height: 900,
-    deviceScaleFactor: 1,
-    mobile: false,
-  });
-  await page.send("Page.addScriptToEvaluateOnNewDocument", {
-    source: RECORDER,
-  });
-  await page.send("Page.navigate", { url: `${server.origin}/` });
+  await page.onConsole((/** @type {object} */ entry) => consoleLog.push(entry));
+  await page.setViewport(1440, 900);
+  await page.addInitScript(RECORDER);
+  await page.navigate(`${server.origin}/`);
 
   let first = /** @type {ReturnType<typeof state>} */ ({});
   await step("first check", async () => {
@@ -300,11 +300,11 @@ try {
     results.timings["first check, as the page reports it"] = milliseconds(
       first.status,
     );
-    assert(first.isolated === true, `crossOriginIsolated is ${first.isolated}`);
     assert(
-      first.controlled === false,
-      "the page is isolated by coi-serviceworker.js, not by the server's headers",
+      first.isolated === options.isolated,
+      `crossOriginIsolated is ${first.isolated}, served ${results.served}`,
     );
+    assert(first.controlled === false, "a service worker controls the page");
     assert(
       first.problems.length === 0,
       `the first check reported ${JSON.stringify(first.problems)}`,
@@ -458,7 +458,7 @@ function summary() {
   return [
     `### Browser check: ${failure ? "failed" : "passed"}`,
     "",
-    `${results.browser}, ${results.date}`,
+    `${results.browser}, ${results.date}, served ${results.served}`,
     ...(failure ? ["", `**Failure**: ${failure}`] : []),
     "",
     "| Step | ms |",

@@ -113,17 +113,22 @@ builds it again and fails if a byte differs.  After a change to
 how).
 
 `make browser-check` (or `nix run .#browser-check -- <site>`, for any
-built site, such as `nix build .#site`'s `result`) serves the site with the
-two headers and uses it in headless Chromium, with node and Chromium pinned
-by the flake.  It waits for "Agda ready" and the first check of the
-default `Main.agda`, asserts two open goals and the modules that check
-type-checked (the `Checking` lines of Agda's running info, read from the
-inspector after an Infer), gives at a goal, and checks a deliberate type
-error.  It writes
-its timings, every request and a screenshot into `browser-check/`.  CI's
-[`site.yml`][site-ci] runs it on every pull request.  It is the language
-server's only test, since the server cannot be driven under wasmtime (its
-standard input cannot be made nonblocking there).
+built site, such as `nix build .#site`'s `result`) serves the site and uses
+it in headless Chromium, with node and Chromium pinned by the flake.  It
+waits for "Agda ready" and the first check of the default `Main.agda`,
+asserts two open goals and the modules that check type-checked (the
+`Checking` lines of Agda's running info, read from the inspector after an
+Infer), gives at a goal, and checks a deliberate type error.  It serves
+the site without the two isolation headers and asserts that the page is
+not cross-origin isolated; `make browser-check ISOLATED=1` (`--isolated`)
+sends them and asserts that it is.  It writes its timings, every request
+and a screenshot into `browser-check/` (`browser-check/isolated/`), and
+CI's [`site.yml`][site-ci] runs it both ways on every pull request.  It is
+the language server's only test, since the server's reactor build cannot
+run under a standalone runtime such as wasmtime: its exports are called
+from JavaScript.  With `--browser firefox`, and `FIREFOX` naming a Firefox,
+`scripts/browser-check/run.mjs` drives Firefox through WebDriver BiDi
+instead (`scripts/browser-check/bidi.mjs`); CI does not.
 
 `make provenance-check` verifies that every imported file recorded as
 unchanged still is, and that `docs/provenance.md` lists every pin.  To

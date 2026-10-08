@@ -170,6 +170,9 @@ guard-gh:
 #                  byte                (default: upstream/unchanged.sha256)
 #   SITE           the built site browser-check serves, which must exist
 #                  (default: build, from `make build`)
+#   ISOLATED       set (to anything) to serve it with the two headers that
+#                  make it cross-origin isolated, which the page no longer
+#                  needs, and assert that it is (default: without them)
 #   SITE_REVISION  what names the build: SvelteKit's kit.version.name and
 #                  the commit vite.config.js records (default: the
 #                  commit, with -dirty when the tree differs from it; the
@@ -231,8 +234,9 @@ check: node_modules/.package-lock.json ## Type-check the app (svelte-check)
 
 SITE ?= build
 
-browser-check: ## Check Main.agda in $(SITE), served isolated, in headless Chromium
-	nix run .#browser-check -- $(SITE) --out browser-check
+browser-check: ## Check Main.agda in $(SITE) in headless Chromium (ISOLATED=1: with the isolation headers)
+	nix run .#browser-check -- $(SITE) \
+	  $(if $(ISOLATED),--isolated --out browser-check/isolated,--out browser-check)
 
 provenance-check: ## Check the unchanged files, and that docs/provenance.md lists every pin
 	@sha256sum --check --strict --quiet $(UNCHANGED) && \
