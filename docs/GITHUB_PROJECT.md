@@ -840,6 +840,17 @@ Risk to record: a nightly moves and a pin does not.  Keep the move to the releas
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59
 [#61]: https://github.com/formalverification/agda-native-ide/issues/61
 
+
+
+#### Findings, 2026-10-07 (evening): the release, CI, and two more patches for the standard library
+
++  **The binaries' home exists**: formalverification/agda-wasm-builds, public, with the release `agda-2.9.0-da66a8c-als-8` that `flake.nix` names, created by [#59]'s session with William's go-ahead (published 2026-10-08 02:10 UTC).  It holds the four pinned files, the three build plans, GMP's source tarball with GHC's two patches, and `SHA256SUMS`; GMP's decision is on [#53].  Downloaded here anonymously, the four files match `compiler/agda-2.9.0.sha256` (`sha256sum --check --strict`: four `OK`).
++  **CI passes with the new compiler**: the site workflow's rerun on `cb9d43e` (run 37715405062, attempt 2) fetched the four files from the release, built the site, and its browser check passed: `Checking: ["Main"]`, the give, the type error, and the server's version in the status bar.  With phase 3's compiler job, which built the pinned bytes on GitHub's runner, this issue's three criteria are met.
++  **The standard library takes two more patches**.  [#59]'s session found that row 2b's three patches do not make v2.3 check whole, and the fix.  Reproduced here with the nightly at the pin (`agda --build-library`, throwaway `HOME`, `AGDA_DIR` and `Agda_datadir`): the shipped archive stops 651 modules in, at `Data/Nat/Primality.agda:214` (`InstanceNoCandidate`: no instance of type `NonTrivial p`), because Agda 2.9.0's instance search no longer eta-expands a variable of a record type to find the record's instance fields (agda/agda PR 8367).  agda-stdlib's `master` commits `fbf6ce16` (its PR 2932) and `b0d29e13` (its PR 2935) match record patterns in `Data.Nat.Primality` and `Data.Nat.PseudoRandom.LCG`; with them all 1,154 modules check from source (exit 0, 108 s, only the library's own 50 deprecation warnings), and under the compiler's `agda` in wasmtime `Data.Nat.Primality` checks from source (198 modules, exit 0).  They are `stdlib/patches/0004` and `0005`, unchanged.  `nix build .#stdlib` now gives 1,536,421 bytes (11 more), SHA-256 `773c59515bf4cd2ebf6d86aed6d57ec4493333538b28c1ace55509ece7e7aacd`, `--rebuild` finds no difference, and its sources equal formalverification/agda-stdlib's tag `v2.3-agda-2.9.0` (`fb5d1840`, the same five commits), file for file.  The browser check passes on the rebuilt site.  The page's default `Main` does not import the module, which is why nothing earlier saw it.
+
+[#53]: https://github.com/formalverification/agda-native-ide/issues/53
+[#59]: https://github.com/formalverification/agda-native-ide/issues/59
+
 ---
 
 ### Issue M0-14: The reactor build and the drive in its worker: no shared memory, no isolation headers (#59)
@@ -1368,6 +1379,19 @@ Agda accepts an interface only from the same Agda, so the archives [M1-4] ships 
 +  **Records**: the run log of the `Overture.Basic` measurement is attached to [#58]'s findings comment of 2026-10-07.
 
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
+
+
+
+#### Findings, 2026-10-07 (evening): row 2b checks whole only with two more patches
+
+[#59]'s session found, and [#58]'s pull request confirms, that v2.3 with row 2b's three patches does not check whole under Agda 2.9.0: `agda --build-library` with the nightly at the pin stops 651 modules in, at `Data/Nat/Primality.agda:214` (`InstanceNoCandidate`), because Agda's instance search no longer eta-expands a variable of a record type to find the record's instance fields (agda/agda PR 8367).  agda-stdlib's `master` commits `fbf6ce16` (its PR 2932) and `b0d29e13` (its PR 2935) fix it; with them all 1,154 modules check from source (exit 0, 108 s, only the library's own deprecation warnings).  For this issue it means the following:
+
++  **Row 2b was enough for agda-algebras**, whose closure does not reach `Data.Nat.Primality` or `Data.Nat.PseudoRandom.LCG`; a library that imports either needs the two fixes too.
++  **The five-commit tree is published**: formalverification/agda-stdlib, tag `v2.3-agda-2.9.0` (commit `fb5d1840d26909038b5ae1459733b0db425a7488`, NAR hash `sha256-ZF+/2bUhKggpGY0WtHqKkOstRTGe8LOhK4lD+4T3xSc=`), created by [#59]'s session for the other projects to pin.
++  **The page ships the same tree**: [#58]'s pull request adds the two commits as `stdlib/patches/0004` and `0005`, and its archive's sources equal that tag's, file for file.
+
+[#58]: https://github.com/formalverification/agda-native-ide/issues/58
+[#59]: https://github.com/formalverification/agda-native-ide/issues/59
 
 <!-- END GENERATED: milestone-1 -->
 
