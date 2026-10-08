@@ -7,8 +7,9 @@
 # gitlab.haskell.org (the toolchain) and from Hackage, and builds Agda
 # twice: 78 minutes on GitHub's 2-core runner (2026-10-07).  So it runs on
 # demand, and when a pull request that changes the recipe, its patches,
-# its pins or this file is opened, reopened or marked ready for review,
-# not on every push to it; the site's checks are site.yml's.  A newer run
+# its pins, its toolchain (flake.nix's compiler dev shell, or flake.lock)
+# or this file is opened, reopened or marked ready for review, not on
+# every push to it; the site's checks are site.yml's.  A newer run
 # for the same ref cancels one in progress.
 #
 # GHC needs 9 GiB to compile Agda's library (its peak resident memory,
@@ -28,6 +29,8 @@ on:
       - compiler/build-agda-2.9.0.sh
       - compiler/agda-2.9.0.sha256
       - compiler/patches/agda-language-server-*.patch
+      - flake.nix
+      - flake.lock
       - .github/workflows/compiler.yml
 
 permissions:
