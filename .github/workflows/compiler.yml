@@ -10,6 +10,11 @@
 # change the recipe, its patches, its pins or this file, not on every
 # pull request; the site's checks are site.yml's.  A newer push to the
 # same pull request cancels a run in progress.
+#
+# GHC needs 9 GiB to compile Agda's library (its peak resident memory,
+# measured 2026-10-07), and the first run on GitHub's runner was shut down
+# in that build, at the module where GHC passes 8.5 GiB.  So the job adds
+# 16 GiB of swap first, and logs the runner's memory every two minutes.
 
 name: compiler
 
@@ -42,8 +47,23 @@ jobs:
             /opt/ghc /opt/hostedtoolcache/CodeQL /usr/share/swift
           df -h / || true
       - uses: cachix/install-nix-action@v27
+      - name: Add swap, and say what the runner has
+        run: |
+          nproc
+          free -h
+          sudo fallocate -l 16G /swapfile-compiler
+          sudo chmod 600 /swapfile-compiler
+          sudo mkswap /swapfile-compiler
+          sudo swapon /swapfile-compiler
+          free -h
+          df -h / || true
       - name: Build the compiler from its pins
-        run: nix develop .#compiler --command compiler/build-agda-2.9.0.sh "$RUNNER_TEMP/compiler-out"
+        run: |
+          (while sleep 120; do
+            free -m | awk 'NR == 2 { m = $3 " of " $2 } NR == 3 { print "== memory: " m " MiB used, swap " $3 " of " $2 " MiB" }'
+          done) &
+          trap 'kill $! 2> /dev/null || true' EXIT
+          nix develop .#compiler --command compiler/build-agda-2.9.0.sh "$RUNNER_TEMP/compiler-out"
       - name: Check the bytes against the pins
         run: |
           cd "$RUNNER_TEMP/compiler-out"
