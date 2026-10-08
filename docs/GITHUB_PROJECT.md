@@ -562,6 +562,21 @@ Measured 2026-10-04: formalverification.io's DNS is on Cloudflare and its site i
 
 The language server's reactor build, with the drive moved into its worker ([M0-14]), removes the shared memory that requires isolation, so the host need not send the headers once it lands (corrected the same day: the reactor alone removes only the input and output rings, and the drive's proxy shares memory too); until then the choice stands as written, and the service-worker guard this issue measured remains the fallback.  Decide the host for the long run (any static host; GitHub Pages only once the repository is public, since the organization's free plan serves Pages from public repositories alone, as the comment of 2026-10-04 found), and record the headers as a transitional requirement in the ADR.
 
+
+#### Findings, 2026-10-08: the host needs no headers
+
+[#59]'s pull request removes the page's need for cross-origin isolation: the language server's reactor build runs in one worker with the drive, so the page allocates no `SharedArrayBuffer`.  It removes the isolation headers from `static/_headers` (its cache rules stay), `coi-serviceworker.js` with its script tag, and the page's and the worker's checks of `crossOriginIsolated`.  What that changes here is the following:
+
++  **Any static host qualifies**: the built page needs no headers, no service worker and no reload on a first visit.  Measured 2026-10-08: the browser check passes served without the headers (`crossOriginIsolated` false) and with them (true), in headless Chromium 149 and in Firefox 157, and CI's browser job runs it both ways.  A host that sends the headers anyway, as Cloudflare Pages with upstream's `_headers` would have, does no harm.
++  **GitHub Pages qualifies too, once the repository is public**: the organization's free plan serves Pages only from public repositories (this issue's comment of 2026-10-04), so while the repository is private, a host that deploys from Actions by direct upload (Cloudflare Pages, for one) remains the way to publish it.
++  **No visitor holds the service worker**: no deployment ever served it, so nothing needs unregistering.
++  **Criteria that no longer apply**: the second and third criteria above (`curl -sI` shows both headers, or the service-worker path is tested; `crossOriginIsolated` true on a first visit) were the isolation requirement's.  The first (a commit on `main` deploys), the fourth (edge caching of the compiler and the archives) and the fifth (every fetch through the base path) still stand.
++  **Caching is unchanged**: the compiler's gzip and the archives carry content-derived `?cache=` tokens, and the reactor's glue, `als-reactor-2.9.0.js` (5,044 bytes), carries one too.
+
+The choice of host stays William's.
+
+[#59]: https://github.com/formalverification/agda-native-ide/issues/59
+
 ---
 
 ### Issue M0-7: ADR 0001, the runtime: what is forked, what is kept, and the second lane (#7, closed)
@@ -582,7 +597,7 @@ Record the runtime decision in the ADR form agda-native-air uses (decision, evid
 
 ---
 
-### Issue M0-8: Say so when the page is not cross-origin isolated (#8)
+### Issue M0-8: Say so when the page cannot run in this browser (#8)
 
 **Labels:** `bug`, `milestone-0-foundations`, `runtime`
 
@@ -599,6 +614,21 @@ Confirmed twice: without the isolation headers, the fork's service-worker fallba
 #### Revision, 2026-10-05: three platforms, Agda 2.9.0
 
 Still needed while the stdio build ships; moot after [M0-14].  Keep the message, and retire it with the shared buffers.
+
+#### Revision, 2026-10-07: a notice, not a workaround
+
+William's decision of 2026-10-07, for this issue's second failure (proposed in its comment of 2026-10-05) and for any failure of the kind: the project does not support a browser that is hard to support.  It says so instead, with a notice in the page when the page cannot run there, and a disclaimer in the documentation that names the browsers the page is tested in.  So the second failure is folded in, and its fix is a message, never a workaround: no polyfill for `DecompressionStream`, and no fallback to the raw compiler, which has been dead since [#3]'s decision (ADR 0001's decision 15).
+
+Once [#59] lands, the page needs no isolation, so the isolation message goes with the shared buffers, and this issue becomes the page's account of a browser it cannot run in.  [#59]'s kickoff folds this issue into its pull request, since both change the page's startup.
+
+Revised acceptance criteria, in place of the one above:
+
++  The page checks what it needs before it starts (module workers, WebAssembly, `DecompressionStream`), and a browser without one of them gets a message naming what is missing and the browsers the page is tested in; a headless test checks it with `DecompressionStream` removed.
++  When the compiler's request or its decompression fails, the page shows the failure instead of "Agda ready"; a headless test checks it with the request failing.
++  The README names the browsers the page is tested in and says that others are not supported.
+
+[#3]: https://github.com/formalverification/agda-native-ide/issues/3
+[#59]: https://github.com/formalverification/agda-native-ide/issues/59
 
 ---
 
@@ -687,7 +717,7 @@ The design this project follows is agda-native-air's `docs/notes/browser-ide-pro
 
 ---
 
-### Issue M0-13: Agda 2.9.0 as the compiler: pin a nightly, build Agda and the language server for wasm32-wasi from Agda's own flake, and move to the release (#58)
+### Issue M0-13: Agda 2.9.0 as the compiler: pin a nightly, build Agda and the language server for wasm32-wasi from Agda's own flake, and move to the release (#58, closed)
 
 **Labels:** `milestone-0-foundations`, `runtime`, `build`, `provenance`, `adr`
 
@@ -937,6 +967,45 @@ What the spike found in [#58]'s build (also on [#58]):
 +  **It runs**: the exploratory build, under node 22.22.2's WASI (`node:wasi`), instantiated so, `wasi.initialize(instance)`, then `hs_init(0, 0)`; `await run_setup()` resolved in 66 ms, having written the 41 builtin sources under `$Agda_datadir/lib/prim` (the build has no `use-xdg-data-home`), and `await new_language_server()` returned a handle.  So does the pinned build, `a0c7ae57…` with its glue, run the same way (16:49 MDT): `run_setup` in 42 ms, the same 41 sources, and a handle.  The server was not driven through `send_message` and `recv_message`.
 +  **One thing to check**: the link warns that `-rtsopts and -with-rtsopts have no effect with -no-hs-main`, so the command module's `-with-rtsopts=-V1` does not reach the reactor, and the page's `+RTS -A64m -RTS` reaches it only through `hs_init`'s arguments, if at all.  The server's own options do reach it: `new_language_server` reads them with `getArgs`, and this issue's spike drove the reactor in the page with `--raw` (its comment on [#58] of 2026-10-07).
 
+[#58]: https://github.com/formalverification/agda-native-ide/issues/58
+
+
+#### Findings, 2026-10-08: the runtime change, measured
+
+The change is in the pull request that closes this issue: the page runs the server's reactor build (`als-reactor-2.9.0.wasm`, with its glue `als-reactor-2.9.0.js`, both from [#58]'s pins) in one module worker with the drive, so it allocates no `SharedArrayBuffer`, and the isolation headers, the service worker and both isolation checks are gone.  It also carries [#8], since both change the page's startup.
+
+The comparison: headless Chromium 149.0.7827.200 (the flake's), this workstation (20 cores, 64 GB, Linux 7.0.0-31-generic), 2026-10-08 from 00:30 to 00:37 MDT, a fresh profile per run, five runs per cell, the arms alternating, every run starting below a 1-minute load average of 2 (0.66 to 1.97).  The stdio arm is `main` at `5b9a5d6` (`als-2.9.0.wasm`, the drive worker, the rings), served with the isolation headers; the reactor arm is the branch at `e6be0a6`, served without them.  Both are the real app with only the controller's measuring hooks added (the spike's: the controller on `globalThis`, every Agda response timed), both start the server with the fork's argv (`--raw +RTS -A64m -RTS +AGDA --interaction -AGDA`), and both read byte-identical builtins, standard library and PLFA archives, so only the transport and the startup differ.  Each command is timed from its send to Agda's `ResponseEnd`; the first check is the first `Cmd_load` (the reactor arm asks Agda for its version first); "Agda ready" is the status bar's, since navigation.  The larger root is the spike's `Main` importing 32 builtins.  Ranges in ms, medians in parentheses:
+
+| root | arm | Agda ready | first check | give | warm reload |
+|---|---|---:|---:|---:|---:|
+| default | stdio, isolated | 901 to 916 (907) | 269 to 287 (279) | 14.4 to 23.2 (18.1) | 77 to 91 (77) |
+| default | reactor, not isolated | 641 to 666 (650) | 242 to 259 (254) | 13.7 to 22.4 (19.7) | 70 to 72 (70) |
+| 32 builtins | stdio, isolated | 906 to 931 (913) | 514 to 547 (520) | 16.8 to 22.8 (18.7) | 141 to 185 (154) |
+| 32 builtins | reactor, not isolated | 646 to 684 (666) | 414 to 452 (416) | 17.9 to 25.6 (24.4) | 122 to 124 (124) |
+
++  **Every check type-checked what it should**: every first check and every warm reload, in both arms, printed one `Checking` line, `Main`.
++  **Startup**: "Agda ready" came about 257 ms sooner (medians 650 and 907 ms).  The stdio build compiles its module once and instantiates and runs it three times (`--version`, `--setup`, the server) beside the drive's worker; the reactor is instantiated once and runs `run_setup`.
++  **Warm reloads** were 9% faster on the default root and 19% on the larger one (medians), against the spike prototype's 27%.  **The give** is the same within the runs' spread.
++  **A PLFA chapter**, `Naturals` through a copy of `scripts/benchmark-plfa.mjs` (Control+Enter, the page's Mod-Enter on Linux, and the `Checking` lines recorded), five runs per arm alternating, loads 1.13 to 1.85 (one reactor run begun at 2.01 was repeated).  The first check is from source in both arms, since PLFA's archives hold 2.8.0's interfaces, which 2.9.0 does not read: 31 modules, 9,874 to 11,591 ms (10,410) against 9,295 to 10,596 (9,514) by the page's own count.  The warm reload checks the chapter alone: 397 to 431 ms (412) against 301 to 350 (320), 22% faster.  The benchmark's own wall time from the key press, 931 to 970 against 433 to 464 ms, is mostly the harness's waiting: a trace of one run each saw the page's "Checked" 446 and 391 ms after the key press.
++  **A drive call**: 20,000 `pathStat` calls on the root ([#50]'s paths, 30% hits) in the page's worker took 0.19 to 0.21 µs each in four runs and 0.47 µs in a fifth, against 17.1 to 20.1 µs through the proxy ([#50]'s figure, 2026-10-06) and 11.4 to 12.8 µs through it on the spike (2026-10-07).
++  **Memory**: the reactor's WebAssembly memory after a warm reload was 94 MiB on the default root and 121 MiB on the larger (the stdio arm's worker blocks in `Atomics.wait` and cannot be asked).
+
+**The RTS options**.  [#58] found that `-with-rtsopts` does not reach a reactor, and the spike that the runtime strips `+RTS -A64m -RTS` from the argv it reads in `_initialize`.  It takes effect, and buys nothing measured, so the pull request removes it.  The reactor with and without it, five runs each alternating, loads 1.36 to 1.54: the memory after a warm reload 94 MiB with it and 24 without (121 and 31 on the larger root); warm reloads 68 to 75 ms (70) and 64 to 74 (72), 118 to 127 (124) and 113 to 116 (114); first checks and gives the same within the spread; PLFA's `Naturals` from source 9,295 to 10,596 ms (9,514) and 9,400 to 10,335 (9,721), and reloaded 301 to 350 (320) and 300 to 348 (336).
+
+**No isolation, in two browsers**.  The browser check now serves the site without the headers and asserts `crossOriginIsolated` false, or with them (`--isolated`) and asserts it true, every other assertion unchanged; CI runs both.  It passes both ways in Chromium 149, and in Firefox 157 (Ubuntu's snap, headless, through a WebDriver BiDi driver the pull request adds, `scripts/browser-check/bidi.mjs`), 6 runs each way.  A control, the check serving the opposite of what it expects, fails both ways.  WebKit was not at hand.
+
+**A race the new transport exposed**.  In Firefox the give hung in 3 of 8 runs, with the headers and without: a `RangeError` (a UTF-8 position past the end of the document) in the router's stream stopped every later answer.  The editor maps Agda's positions from the text Agda last loaded through the edits made since, and upstream's controller took the buffer as Agda's after every write to the drive, the one after a give included; but after a give Agda goes on giving the remaining goals' ranges in the text it loaded (asked with the compiler's own `agda` under wasmtime, the default `Main.agda`'s goal 1 keeps its range, 303 to 320, after goal 0 is given).  When that write completed before the give's interaction points arrived, their ranges fell past the end.  The pull request takes the buffer as Agda's only when it sends `Cmd_load`: then 12 of 12 runs in Firefox, 6 of 6 in Chromium.  The race is upstream's; no Chromium run met it before the fix.
+
+**The drive's cache** reads each dirty file from the drive's own record, so files at paths made after startup are persisted too (this issue's finding of 2026-10-06; noted on [#50]).  Without IndexedDB in the worker (removed from its global before it ran) the page checks and reloads, uncached, and makes no database; with it, the database is made.
+
+**The version**: the status bar shows "Agda 2.9.0", Agda's own answer to `Cmd_show_version`, which the controller sends when the server is first ready and before it lets the page check.  The browser check asserts it.
+
+**What the page needs**, for [#8]: the reactor's `target_features` section names ten WebAssembly features; validated with each left out in turn (binaryen 132), it needs SIMD, reference types, bulk memory, sign extension and non-trapping float-to-int conversions.  With module workers and `DecompressionStream`, a browser has all the page needs from Chrome 96, Firefox 114 and Safari 16.4 (WebAssembly's feature table and MDN).
+
+The harness, the arms and the records are kept beside the repository in `runs-2026-10-08-reactor/` (its README first); nothing of it is committed.
+
+[#8]: https://github.com/formalverification/agda-native-ide/issues/8
+[#50]: https://github.com/formalverification/agda-native-ide/issues/50
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
 
 ---
@@ -1225,6 +1294,18 @@ The fork carries PLFA throughout: about 750 lines of the page component, the who
 
 +  The default build ships no PLFA content, and NOTICE says so.
 +  The PLFA build scripts are archived or adapted for [M2-3], not lost.
+
+
+#### Findings, 2026-10-07: the PLFA scripts under the 2.9.0 compiler
+
+[#58]'s pull request, [#80], moves the page to Agda 2.9.0 and renames the standard library's archive to `agda-stdlib-2.3-patched.zip` (v2.3 patched for 2.9.0, built by the flake).  For the PLFA build scripts this means the following:
+
++  **They no longer run, and would not help if they did**.  `index-plfa-interfaces.mjs` stops at `ENOENT` on `static/agda-stdlib-2.3.zip`, and `precompile-plfa.mjs` refuses any Agda but 2.8.0 (`PLFA interfaces require Agda 2.8.0; received Agda version 2.9.0`, at its line 106).  Both read or write interfaces under `_build/2.8.0/`, which Agda 2.9.0 does not read.
++  **PLFA's interface archives are stale under 2.9.0**, and if PLFA stays they must be rebuilt by a wasm32 Agda 2.9.0: 2.9.0's interfaces depend on the word size of the Agda that wrote them, so a native 64-bit build is not accepted by the page (ADR 0001 § 7; the builtins are built so, by `agdaWasm` in `flake.nix`).
++  **Pointing `precompile-plfa.mjs` at the patched archive is not enough**: it writes the standard library's archive back into `static/` (its lines 216 to 223), which would replace the flake's build and make `make assets-check` refuse it.
+
+[#58]: https://github.com/formalverification/agda-native-ide/issues/58
+[#80]: https://github.com/formalverification/agda-native-ide/pull/80
 
 ---
 
