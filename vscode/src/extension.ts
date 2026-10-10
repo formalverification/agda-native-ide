@@ -2,10 +2,12 @@
 
 import * as vscode from 'vscode';
 import { compatibility, Compatibility } from './compatibility';
+import { tokenReader } from './highlighting';
 import { panelHtml, panelOptions } from './panel';
 import { Action, actions, isAction, PanelState, restoreState } from './state';
 
 const viewType = 'agdaWorkbench';
+const stateKey = 'agdaWorkbench.panelState';
 const modeId = 'banacorn.agda-mode';
 const modeCommands: Record<Exclude<Action, 'highlighting'>, string> = {
   load: 'agda-mode.load',
@@ -14,16 +16,9 @@ const modeCommands: Record<Exclude<Action, 'highlighting'>, string> = {
   goalContext: 'agda-mode.goal-type-and-context[Simplified]',
 };
 
-function readTokens(uri: vscode.Uri): Promise<vscode.SemanticTokens | undefined> {
-  // The mode's provider waits indefinitely when this module has not loaded.
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Load the module in Agda mode before reading highlighting.')), 3000);
-    void vscode.commands.executeCommand<vscode.SemanticTokens>(
-      'vscode.provideDocumentSemanticTokens', uri,
-    ).then(tokens => { clearTimeout(timer); resolve(tokens); },
-      error => { clearTimeout(timer); reject(error); });
-  });
-}
+const readTokens = tokenReader(uri => vscode.commands.executeCommand<vscode.SemanticTokens | undefined>(
+  'vscode.provideDocumentSemanticTokens', vscode.Uri.parse(uri),
+));
 
 function isAgda(document: vscode.TextDocument): boolean {
   return document.languageId === 'agda' || document.languageId === 'lagda-markdown';
@@ -45,8 +40,14 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
   private persisted: PanelState | undefined;
   private snapshot: DocumentSnapshot | undefined;
   private modeCompatibility: Compatibility;
+  private readonly loadRequests = new WeakSet<vscode.TextDocument>();
+  private readonly previousPanelState: unknown;
+  private stateSignature = '';
+  private stateWrite: Promise<void> = Promise.resolve();
 
   constructor(private readonly context: vscode.ExtensionContext) {
+    // Capture before editor events or a version warning can open a new panel.
+    this.previousPanelState = context.workspaceState.get(stateKey);
     this.modeCompatibility = this.readCompatibility();
     this.track(vscode.window.activeTextEditor, false);
     context.subscriptions.push(
@@ -98,7 +99,7 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
   }
 
   async deserializeWebviewPanel(panel: vscode.WebviewPanel, value: unknown): Promise<void> {
-    this.state = restoreState(value);
+    this.state = restoreState(this.previousPanelState ?? value);
     this.target = undefined;
     if (this.state.uri) {
       try {
@@ -156,6 +157,20 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
     if (document) {
       this.snapshot = { uri: document.uri.toString(), version: document.version, text: document.getText() };
     } else this.snapshot = undefined;
+    if (this.panel) {
+      const signature = JSON.stringify(this.state);
+      if (signature !== this.stateSignature) {
+        this.stateSignature = signature;
+        const saved = restoreState(JSON.parse(signature));
+        // A hidden webview has no script to call setState.  Persist the host's
+        // latest state independently, in the same order as these updates.
+        this.stateWrite = this.stateWrite.then(() => this.context.workspaceState.update(stateKey, saved))
+          .catch(error => {
+            this.error = `The panel state could not be saved: ${String(error)}`;
+            this.publish();
+          });
+      }
+    }
     void this.panel?.webview.postMessage({
       type: 'snapshot', state: this.state, busy: this.busy, error: this.error,
       module: document ? vscode.workspace.asRelativePath(document.uri) : null,
@@ -196,7 +211,10 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
       const started = performance.now();
       let tokenCount: number | undefined;
       if (action === 'highlighting') {
-        const tokens = await readTokens(document.uri);
+        if (!this.loadRequests.has(document)) {
+          throw new Error('Load the module with Agda Workbench before reading highlighting.');
+        }
+        const tokens = await readTokens(document.uri.toString());
         tokenCount = tokens ? tokens.data.length / 5 : 0;
       } else {
         const command = modeCommands[action];
@@ -204,6 +222,7 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
           throw new Error(`The installed Agda mode does not register ${command}.`);
         }
         await vscode.commands.executeCommand(command);
+        if (action === 'load') this.loadRequests.add(document);
       }
       if (this.state.uri === document.uri.toString()) this.state.lastCommand = {
         action, elapsedMs: performance.now() - started,

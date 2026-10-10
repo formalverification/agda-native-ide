@@ -8,6 +8,10 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { downloadAndUnzipVSCode, resolveCliArgsFromVSCodeExecutablePath, runTests } from '@vscode/test-electron';
 
+if (process.platform !== 'linux') {
+  throw new Error('The companion integration tests require Linux with Xvfb and xdotool.');
+}
+
 const extensionRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const output = path.join(extensionRoot, 'test-output');
 const vscodeVersion = '1.141.0';
@@ -106,21 +110,24 @@ try {
         extensionDependencies: ['formalverification.agda-native-ide'],
       }));
       await writeFile(path.join(driver, 'index.cjs'), `exports.activate = require(${JSON.stringify(path.join(extensionRoot, 'out/test/reload.js'))}).activate;\n`);
-      const child = spawn(executable, [workspace, `--extensionDevelopmentPath=${extensionRoot}`, `--extensionDevelopmentPath=${driver}`,
-        `--extensions-dir=${extensions}`, `--user-data-dir=${root}/reload-user`, '--disable-workspace-trust',
-        '--skip-welcome', '--skip-release-notes', '--no-sandbox', '--disable-gpu'],
-        { stdio: 'inherit', env: { ...process.env, COMPANION_TEST_OUTPUT: caseOutput } });
-      await new Promise((resolve, reject) => {
-        const timer = setTimeout(() => { child.kill(); reject(new Error('Window reload test timed out')); }, 90000);
-        child.once('error', error => { clearTimeout(timer); reject(error); });
-        child.once('exit', code => { clearTimeout(timer); code === 0 ? resolve() : reject(new Error(`Reload window exited: ${code}`)); });
-      });
-      const reload = JSON.parse(await readFile(path.join(caseOutput, 'reload-result.json'), 'utf8'));
-      if (!reload.restored) throw new Error(reload.error);
+      for (const reloadCase of ['visible', 'hidden']) {
+        const child = spawn(executable, [workspace, `--extensionDevelopmentPath=${extensionRoot}`, `--extensionDevelopmentPath=${driver}`,
+          `--extensions-dir=${extensions}`, `--user-data-dir=${root}/reload-user-${reloadCase}`, '--disable-workspace-trust',
+          '--skip-welcome', '--skip-release-notes', '--no-sandbox', '--disable-gpu'],
+          { stdio: 'inherit', env: { ...process.env, COMPANION_TEST_OUTPUT: caseOutput, COMPANION_RELOAD_CASE: reloadCase } });
+        await new Promise((resolve, reject) => {
+          const timer = setTimeout(() => { child.kill(); reject(new Error('Window reload test timed out')); }, 90000);
+          child.once('error', error => { clearTimeout(timer); reject(error); });
+          child.once('exit', code => { clearTimeout(timer); code === 0 ? resolve() : reject(new Error(`Reload window exited: ${code}`)); });
+        });
+        const reload = JSON.parse(await readFile(path.join(caseOutput, `reload-result-${reloadCase}.json`), 'utf8'));
+        if (!reload.restored) throw new Error(reload.error);
+      }
     }
     const report = JSON.parse(await readFile(path.join(caseOutput, `${testCase}.json`), 'utf8'));
     delete report.modeRoot;
     report.reloadRestored = testCase === 'supported';
+    report.hiddenStateRestored = testCase === 'supported';
     report.agda = nativeVersion;
     report.sourceSha256 = sourceHash;
     report.modeBundleSha256 = modeBundleHash;

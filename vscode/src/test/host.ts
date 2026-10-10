@@ -64,7 +64,7 @@ export async function run(): Promise<void> {
     assert.equal(snapshot.version, document.version);
     return companion.getState().lastCommand!;
   };
-  await assert.rejects(runCommand('highlighting'), /Load the module in Agda mode/);
+  await assert.rejects(runCommand('highlighting'), /Load the module with Agda Workbench/);
   const load = await runCommand('load');
   assert.equal(document.isDirty, false, 'mode load saves the document');
   const position = document.positionAt(document.getText().indexOf('suc 0ℓ', document.getText().indexOf('ℓ₁ =')) + 1);
@@ -75,8 +75,11 @@ export async function run(): Promise<void> {
   assert.ok(highlighting.tokenCount! > 0, 'real mode semantic tokens');
   const beforeVersion = document.version;
   // Focus the webview before giving; the companion must restore the source editor.
-  panel.reveal(vscode.ViewColumn.Two, false);
-  await until(() => vscode.window.activeTextEditor === undefined, 'panel focus');
+  panel.reveal(undefined, false);
+  await until(() => {
+    const tab = vscode.window.tabGroups.activeTabGroup.activeTab;
+    return tab?.input instanceof vscode.TabInputWebview && tab.label === panel.title;
+  }, 'panel focus');
   const give = await runCommand('give');
   assert.equal(give.documentChanged, true, 'the real mode must edit the buffer');
   assert.ok(document.version > beforeVersion);
@@ -112,6 +115,40 @@ export async function run(): Promise<void> {
   await assert.rejects(runCommand('refine'), /active editor is not an Agda/);
   await vscode.window.showTextDocument(document, { viewColumn: vscode.ViewColumn.One });
   await until(() => companion.getPersistedState()?.lastCommand?.action === invalid.action, 'saved command receipt');
+  const probeUri = vscode.Uri.joinPath(root, 'TokenProbe.agda');
+  await vscode.workspace.fs.writeFile(probeUri, Buffer.from('module TokenProbe where\n'));
+  const probe = await vscode.workspace.openTextDocument(probeUri);
+  await vscode.workspace.getConfiguration('editor', probeUri).update('semanticHighlighting.enabled', false, vscode.ConfigurationTarget.Workspace);
+  await vscode.window.showTextDocument(probe, { viewColumn: vscode.ViewColumn.One });
+  let providerCalls = 0;
+  const requests: Array<(tokens: vscode.SemanticTokens) => void> = [];
+  const provider = vscode.languages.registerDocumentSemanticTokensProvider(
+    { language: 'agda', scheme: 'file', pattern: probeUri.fsPath },
+    { provideDocumentSemanticTokens() {
+      providerCalls++;
+      return new Promise<vscode.SemanticTokens>(resolve => requests.push(resolve));
+    } },
+    new vscode.SemanticTokensLegend(['variable'], []),
+  );
+  try {
+    for (let retry = 0; retry < 3; retry++) {
+      await assert.rejects(Promise.resolve(vscode.commands.executeCommand('agdaWorkbench.highlighting')), /Load the module with Agda Workbench/);
+    }
+    assert.equal(providerCalls, 0, 'no provider request before companion load');
+    await deadline(vscode.commands.executeCommand('agdaWorkbench.load'), 'load provider probe');
+    for (let retry = 0; retry < 3; retry++) {
+      await assert.rejects(Promise.resolve(vscode.commands.executeCommand('agdaWorkbench.highlighting')), /Highlighting is still pending/);
+    }
+    assert.equal(providerCalls, 1, 'retries must share the uncancellable provider request');
+    const tokens = new vscode.SemanticTokens(new Uint32Array([0, 0, 6, 0, 0]));
+    requests[0]!(tokens);
+    await new Promise(resolve => setTimeout(resolve, 50));
+    const next = deadline(vscode.commands.executeCommand('agdaWorkbench.highlighting'), 'fresh tokens after late settlement');
+    await until(() => providerCalls === 2, 'a settled request permits a fresh read');
+    requests[1]!(tokens);
+    await next;
+    assert.equal(companion.getState().lastCommand?.tokenCount, 1);
+  } finally { provider.dispose(); }
   const modeRoot = vscode.extensions.getExtension('banacorn.agda-mode')!.extensionPath;
   const result = {
     date: new Date().toISOString(), machine: { cpu: os.cpus()[0]!.model, logicalCpus: os.cpus().length, memoryBytes: os.totalmem(), kernel: os.release(), loadAverage: os.loadavg() },
@@ -121,6 +158,7 @@ export async function run(): Promise<void> {
     commands: { load, context, highlighting, give, refine, invalid },
     panelOpened: true, webviewStateSaved: true, versionWarning: !status.supported,
     reloadRestored: false,
+    highlightingRequestsShared: true,
   };
   await writeFile(path.join(output, `${phase}.json`), JSON.stringify(result, null, 2) + '\n');
   console.log(`PASS: ${phase}, real load/give/refine, highlighting, rejected candidate, panel focus`);

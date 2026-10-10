@@ -99,7 +99,8 @@ make browser-check-notices  # check what build/ says when it cannot run
 make dev                    # serve the app at http://localhost:5173
 ```
 
-The companion's own gates run separately, in its dedicated shell:
+The companion's integration suite runs separately in its dedicated Linux
+shell:
 
 ```sh
 nix develop .#vscode --command make vscode-check vscode-unit

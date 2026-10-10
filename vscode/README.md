@@ -18,7 +18,7 @@ branches from `main` and needs no code from the drive's pull request.
 Build it from the repository root, as follows:
 
 ```sh
-nix develop .#vscode --command make vscode-build
+nix develop --command make vscode-build
 ```
 
 Set the following paths to your companion package and library checkout,
@@ -56,8 +56,11 @@ the module, put the cursor inside a goal, write the term there, then use
 context** is the button that displays the goal's type and context in
 Agda mode's panel.  Load applies Agda's highlighting to the editor;
 **Highlighting** shows a count of the current highlighted tokens in the
-companion's command summary.  The mode may rearrange editor groups when it
-opens its own panel.
+companion's command summary after **Load** has run through the companion.
+Before that, it asks you to load without starting a provider request.
+Retries share a pending request even after its three-second wait expires;
+a new request is allowed when the previous one settles.  The mode may
+rearrange editor groups when it opens its own panel.
 
 The panel follows the active Agda module and reads the buffer after every
 delegated command.  After Give, a summary such as `give returned` means
@@ -87,7 +90,9 @@ nix develop .#vscode --command make vscode-check vscode-unit
 nix develop .#vscode --command make vscode-test
 ```
 
-The full test downloads VS Code 1.141.0 and agda-mode-vscode 0.10.4 into
+The integration suite and its dedicated shell currently support Linux.
+Type checking and unit tests also run in the default shell.  The full
+test downloads VS Code 1.141.0 and agda-mode-vscode 0.10.4 into
 isolated storage, and starts Xvfb when no display is supplied.  The
 dedicated shell supplies native Agda 2.9.0, Xvfb, xdotool, node, make and
 unzip.  It pins the native compiler and fixture in `flake.lock`; its
@@ -106,11 +111,13 @@ The suite asserts a visible extension development window, a panel beside
 the editor, a live webview that saves its state, real give and refine
 edits through the mode, nonempty highlighting, an invalid candidate left
 in its goal, cursor restoration from panel focus, and the version warning.
-A separate test driver in a normal development window checks a real
-window reload: `@vscode/test-electron`'s test host exits on reload, so it
+A separate test driver in a normal development window checks real
+window reloads: `@vscode/test-electron`'s test host exits on reload, so it
 cannot establish restoration on its own.  The driver verifies the saved
-module, last command and editor column without reopening the panel.  A
-no-window control, with a process still alive, fails the xdotool assertion.
+module, last command and editor column without creating another panel.
+It also changes modules while the panel is hidden, leaves a non-Agda
+editor active, and checks that the latest module survives reload.
+A no-window control, with a process still alive, fails the xdotool assertion.
 
 The tests also check malformed saved state and exact version matching.
 No production code consumes the mode's test hooks.  The fixture is public,
@@ -121,8 +128,11 @@ The webview loads only this package's scripts and stylesheet, through
 `asWebviewUri`, with `default-src 'none'` and a fresh script nonce.  Source
 paths and messages become text, never interpolated HTML.  Its state is a
 schema version, the module URI and the last command's summary, saved with
-`getState`/`setState` and restored by a `WebviewPanelSerializer`.  Buffer
-contents are reread from VS Code.  `retainContextWhenHidden` is false.
+`getState`/`setState` and restored by a `WebviewPanelSerializer`.  The host
+also saves that state in `workspaceState`, since a hidden webview has no
+script to receive updates or call `setState`.  Its latest saved state takes
+precedence on reload.  Buffer contents are reread from VS Code.
+`retainContextWhenHidden` is false.
 
 On 2026-10-10, one run on an Intel Core i9-12900H (20 logical CPUs,
 67,068,481,536 bytes RAM), Linux 7.0.0-31, VS Code 1.141.0, native Agda

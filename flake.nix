@@ -329,6 +329,7 @@
             github-project.packages.${system}.gh-project-engine
           ];
         };
+      } // lib.optionalAttrs pkgs.stdenv.isLinux {
         vscode = pkgs.mkShell {
           packages = [
             pkgs.gnumake pkgs.nodejs_22 pkgs.unzip pkgs.coreutils
