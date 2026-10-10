@@ -1,3 +1,9 @@
+/* File: src/app.css
+ * Changed from SeungheonOh/plfa-playground's src/app.css at
+ * ae0aa84c24363a8d6dadc292b6eb8f88f7f38705 (docs/provenance.md).
+ * The page and editor read the color tokens in static/theme.css (issue 17).
+ */
+
 :root {
   font-family:
     Arial,
@@ -5,24 +11,9 @@
     ui-sans-serif,
     system-ui,
     sans-serif;
-  color: #171a16;
-  background: #e8ebe5;
+  color: var(--text);
+  background: var(--canvas);
   font-synthesis: none;
-  --canvas: #e8ebe5;
-  --surface: #f8f9f5;
-  --surface-soft: #e7eae3;
-  --line: #adb3a9;
-  --line-strong: #6f776d;
-  --text: #171a16;
-  --muted: #565d54;
-  --faint: #7e867b;
-  --green: #176d54;
-  --green-dark: #0e503c;
-  --green-soft: #dcebe3;
-  --amber: #81510f;
-  --amber-soft: #f4e9cd;
-  --red: #9c2925;
-  --red-soft: #f2dfdc;
 }
 * {
   box-sizing: border-box;
@@ -52,8 +43,12 @@ select {
 button {
   color: inherit;
 }
+input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
 ::selection {
-  background: #c8e5d9;
+  background: var(--selection-surface);
 }
 .mono {
   font-family: "JuliaMono", "SFMono-Regular", Consolas, monospace;
@@ -62,4 +57,9 @@ button {
   body {
     overflow: auto;
   }
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }

@@ -22,6 +22,8 @@
 //       error comes back with its position and message, which shows the
 //       page elaborates against the shipped interfaces rather than
 //       skipping work.
+//   5.  in Chromium, exercises the theme choices, persistence, system
+//       changes, first-frame colors and narrow viewports (issue 17).
 //
 // It writes browser-check.json (the timings, the requests, the console)
 // and a screenshot into --out, and exits 1 on the first failed assertion,
@@ -40,6 +42,7 @@ import { parseArgs } from "node:util";
 import * as cdp from "./cdp.mjs";
 import * as bidi from "./bidi.mjs";
 import { serve } from "./serve.mjs";
+import { checkThemes } from "./themes.mjs";
 
 /** The modules a fresh profile's first check of the default Main.agda
  * type-checks, one `Checking` line each: Main alone, since every
@@ -194,6 +197,7 @@ let server;
 let chrome;
 /** @type {any} */
 let page;
+let runtimeCaptured = false;
 
 /** @param {boolean} condition @param {string} message */
 function assert(condition, message) {
@@ -420,14 +424,26 @@ try {
       `the error is ${JSON.stringify(error)}, expected ${JSON.stringify(expected)}`,
     );
   });
+  if (options.browser === "chromium") {
+    // Keep the runtime check's error screenshot and event record before
+    // the theme check navigates to fresh copies of the default document.
+    writeFileSync(join(out, "browser-check.png"), await page.screenshot());
+    results.events = await page.eval(() => window.__browserCheck ?? []);
+    runtimeCaptured = true;
+    await step("themes", async () => {
+      results.themes = await checkThemes(page, server.origin, site, join(out, "themes"));
+    });
+  }
 } catch (error) {
   failure = error instanceof Error ? error.message : String(error);
   console.error(`FAILED: ${failure}`);
 } finally {
   try {
     if (page) {
-      writeFileSync(join(out, "browser-check.png"), await page.screenshot());
-      results.events = await page.eval(() => window.__browserCheck ?? []);
+      if (!runtimeCaptured) {
+        writeFileSync(join(out, "browser-check.png"), await page.screenshot());
+        results.events = await page.eval(() => window.__browserCheck ?? []);
+      }
     }
   } catch {
     // The page may be gone; the record below still says why.
