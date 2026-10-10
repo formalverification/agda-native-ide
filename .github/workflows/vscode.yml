@@ -1,0 +1,33 @@
+# File: .github/workflows/vscode.yml
+name: vscode
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  companion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: Free disk space for the native Agda build
+        run: |
+          df -h /
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /usr/share/swift /opt/hostedtoolcache/CodeQL
+          df -h /
+      - uses: cachix/install-nix-action@v27
+      - name: Install VS Code's system libraries
+        run: sudo apt-get update && sudo apt-get install -y libasound2t64 libgbm1 libgtk-3-0 libnss3
+      - name: Type-check and test the companion with native Agda 2.9.0
+        run: nix develop .#vscode --command make vscode-test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vscode-command-measurements
+          path: vscode/test-output
+          if-no-files-found: error

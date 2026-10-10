@@ -33,6 +33,13 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
   inputs.github-project.url = "github:williamdemeo/github-project";
+  # The companion's real command tests use the page's Agda source commit,
+  # compiled natively, and a copied public library module as their fixture.
+  inputs.native-agda.url = "github:agda/agda/da66a8c75f11d10699a6b38b261efdf244b66f2a";
+  inputs.companion-fixture = {
+    url = "github:ualib/agda-algebras/8736a0b49ed50d49eec2f6192813e049dc4fc60f";
+    flake = false;
+  };
   # The WebAssembly toolchain of the compiler (issue 58): GHC 9.10 for
   # wasm32-wasi, its cabal, binaryen and wasmtime, at the commit Agda's own
   # flake pins at the Agda commit the compiler is built from, with that
@@ -40,7 +47,7 @@
   # gives (compiler/build-agda-2.9.0.sh).
   inputs.ghc-wasm-meta.url = "git+https://gitlab.haskell.org/haskell-wasm/ghc-wasm-meta.git?rev=58260711fd5c8ffbb81f4ac56e40323ff509d43b";
 
-  outputs = { self, nixpkgs, github-project, ghc-wasm-meta }:
+  outputs = { self, nixpkgs, github-project, ghc-wasm-meta, native-agda, companion-fixture }:
     let
       lib = nixpkgs.lib;
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
@@ -321,6 +328,17 @@
             pkgs.nodejs_22
             github-project.packages.${system}.gh-project-engine
           ];
+        };
+      } // lib.optionalAttrs pkgs.stdenv.isLinux {
+        vscode = pkgs.mkShell {
+          packages = [
+            pkgs.gnumake pkgs.nodejs_22 pkgs.unzip pkgs.coreutils
+            pkgs.xorg.xorgserver pkgs.xdotool
+            native-agda.packages.${system}.base.bin
+          ];
+          AGDA = "${native-agda.packages.${system}.base.bin}/bin/agda";
+          AGDA_ALGEBRAS = companion-fixture.outPath;
+          AGDA_STDLIB_ZIP = "${mkStdlib pkgs}/agda-stdlib-2.3-patched.zip";
         };
       } // lib.optionalAttrs (ghc-wasm-meta.packages ? ${system}) {
         # `nix develop .#compiler --command compiler/build-agda-2.9.0.sh`:

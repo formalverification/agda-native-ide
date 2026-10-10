@@ -52,3 +52,8 @@ node_modules
 
 # Vite
 vite.config.js.timestamp-*
+
+# The standalone VS Code companion's compiler and extension-host downloads.
+/vscode/out/
+/vscode/.vscode-test/
+/vscode/test-output/

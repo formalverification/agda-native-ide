@@ -60,6 +60,9 @@ endif
         guard-gh guard-engine engine-mode \
         assets assets-check dev build test check browser-check \
         browser-check-notices provenance-check
+# The companion's targets are separate from the browser app's gates.
+
+.PHONY: vscode-check vscode-build vscode-test vscode-unit
 .DEFAULT_GOAL := help
 
 # In `path` mode the resolved CLI is (typically) a Nix wrapper carrying
@@ -140,6 +143,22 @@ guard-gh:
 	  echo "       https://cli.github.com/  (or: nix develop)"; \
 	  exit 1; \
 	}
+
+# The companion stays standalone until the shared workspace (issue 62).
+vscode/node_modules/.package-lock.json: vscode/package.json vscode/package-lock.json
+	npm ci --prefix vscode
+
+vscode-check: vscode/node_modules/.package-lock.json ## Type-check the VS Code companion
+	npm --prefix vscode run check
+
+vscode-build: vscode/node_modules/.package-lock.json ## Compile the VS Code companion
+	npm --prefix vscode run build
+
+vscode-unit: vscode-build ## Check version policy and serialized state
+	npm --prefix vscode run test:unit
+
+vscode-test: vscode-check vscode-unit ## Run the real companion and Agda mode under Xvfb (nix develop .#vscode)
+	timeout 300s npm --prefix vscode test
 
 # ---------------------------------------------------------------------
 # The app: its binaries, and the build

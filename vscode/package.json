@@ -1,0 +1,36 @@
+{
+  "name": "agda-native-ide",
+  "displayName": "Agda Workbench",
+  "description": "A workbench beside agda-mode-vscode for the active Agda module.",
+  "version": "0.1.0",
+  "publisher": "formalverification",
+  "license": "MIT",
+  "private": true,
+  "engines": { "vscode": "^1.100.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onLanguage:agda", "onLanguage:lagda-markdown", "onWebviewPanel:agdaWorkbench"],
+  "extensionDependencies": ["banacorn.agda-mode"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "agdaWorkbench.open", "title": "Open Panel", "category": "Agda Workbench" },
+      { "command": "agdaWorkbench.load", "title": "Load Module", "category": "Agda Workbench" },
+      { "command": "agdaWorkbench.give", "title": "Give at Cursor", "category": "Agda Workbench" },
+      { "command": "agdaWorkbench.refine", "title": "Refine at Cursor", "category": "Agda Workbench" },
+      { "command": "agdaWorkbench.goalContext", "title": "Show Goal and Context in Agda Mode", "category": "Agda Workbench" },
+      { "command": "agdaWorkbench.highlighting", "title": "Read Highlighting", "category": "Agda Workbench" }
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit && node --check media/panel.js",
+    "test:unit": "node --test out/test/unit.js",
+    "test": "node scripts/run-tests.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/vscode": "1.100.0",
+    "@vscode/test-electron": "3.1.0",
+    "typescript": "5.9.3"
+  }
+}

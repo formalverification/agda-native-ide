@@ -1,0 +1,181 @@
+{
+  "date": "2026-10-10T19:58:34.635Z",
+  "reviewedCommit": "37ca692c1cc7d3c8e92b9d56a51d3fa0e1c3a58e",
+  "providerControl": {
+    "description": "Two real companion commands with a controlled unresolved semantic-token provider; automatic editor semantic highlighting disabled.",
+    "before": {
+      "pendingProviderCallsAfterTwoTimeouts": 2
+    },
+    "after": {
+      "pendingProviderCallsAfterTwoTimeouts": 1
+    }
+  },
+  "hiddenControl": {
+    "description": "Change modules while the webview is hidden, then keep an ordinary editor active across a real reload.",
+    "before": {
+      "expected": {
+        "schema": 1,
+        "uri": "file:///tmp/ide84-provider-probe/workspace/HiddenTarget.agda",
+        "lastCommand": null
+      },
+      "restored": {
+        "schema": 1,
+        "uri": "file:///tmp/ide84-provider-probe/workspace/TokenProbe.agda",
+        "lastCommand": {
+          "action": "load",
+          "elapsedMs": 218.00776599999995,
+          "documentChanged": false
+        }
+      },
+      "matches": false
+    },
+    "after": {
+      "expected": {
+        "schema": 1,
+        "uri": "file:///tmp/ide84-provider-probe/workspace/HiddenTarget.agda",
+        "lastCommand": null
+      },
+      "restored": {
+        "schema": 1,
+        "uri": "file:///tmp/ide84-provider-probe/workspace/HiddenTarget.agda",
+        "lastCommand": null
+      },
+      "matches": true
+    }
+  },
+  "linuxOnlyTestShell": true,
+  "unitTestsPassed": 4,
+  "hostCases": {
+    "supported": {
+      "date": "2026-10-10T19:56:36.568Z",
+      "machine": {
+        "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+        "logicalCpus": 20,
+        "memoryBytes": 67068481536,
+        "kernel": "7.0.0-31-generic",
+        "loadAverage": [
+          2.1,
+          1.58,
+          1.55
+        ]
+      },
+      "vscode": "1.141.0",
+      "node": "v24.21.0",
+      "agdaMode": "0.10.4",
+      "activationBodyMs": 0.6482390000001033,
+      "activationCallMs": 84.41234199999997,
+      "windowTitles": [
+        "[Extension Development Host] workspace - Visual Studio Code"
+      ],
+      "module": "Overture.Basic",
+      "commands": {
+        "load": {
+          "action": "load",
+          "elapsedMs": 5027.634051,
+          "documentChanged": false
+        },
+        "context": {
+          "action": "goalContext",
+          "elapsedMs": 26.675772999999936,
+          "documentChanged": false
+        },
+        "highlighting": {
+          "action": "highlighting",
+          "elapsedMs": 2.298416999999972,
+          "documentChanged": false,
+          "tokenCount": 450
+        },
+        "give": {
+          "action": "give",
+          "elapsedMs": 30.182866999999533,
+          "documentChanged": true
+        },
+        "refine": {
+          "action": "refine",
+          "elapsedMs": 17.381000999999742,
+          "documentChanged": true
+        },
+        "invalid": {
+          "action": "give",
+          "elapsedMs": 2.0885209999996732,
+          "documentChanged": false
+        }
+      },
+      "panelOpened": true,
+      "webviewStateSaved": true,
+      "versionWarning": false,
+      "reloadRestored": true,
+      "highlightingRequestsShared": true,
+      "hiddenStateRestored": true,
+      "agda": "2.9.0",
+      "sourceSha256": "419e24a842c830029a05f9e8f5e329ba3d4e3a32c94b7d41bbe2f555daa9481a",
+      "modeBundleSha256": "22b4fbc5c8c7e537c2af4566c08e126b6fc5305c68aeedc9a0299995d9decef7"
+    },
+    "mismatch": {
+      "date": "2026-10-10T19:57:27.732Z",
+      "machine": {
+        "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+        "logicalCpus": 20,
+        "memoryBytes": 67068481536,
+        "kernel": "7.0.0-31-generic",
+        "loadAverage": [
+          3.49,
+          2.08,
+          1.72
+        ]
+      },
+      "vscode": "1.141.0",
+      "node": "v24.21.0",
+      "agdaMode": "999.0.0",
+      "activationBodyMs": 2.07186200000001,
+      "activationCallMs": 187.1832199999999,
+      "windowTitles": [
+        "[Extension Development Host] workspace - Visual Studio Code"
+      ],
+      "module": "Overture.Basic",
+      "commands": {
+        "load": {
+          "action": "load",
+          "elapsedMs": 922.7567750000003,
+          "documentChanged": false
+        },
+        "context": {
+          "action": "goalContext",
+          "elapsedMs": 61.220582999999806,
+          "documentChanged": false
+        },
+        "highlighting": {
+          "action": "highlighting",
+          "elapsedMs": 12.174910000000182,
+          "documentChanged": false,
+          "tokenCount": 450
+        },
+        "give": {
+          "action": "give",
+          "elapsedMs": 51.46890399999984,
+          "documentChanged": true
+        },
+        "refine": {
+          "action": "refine",
+          "elapsedMs": 45.84029399999963,
+          "documentChanged": true
+        },
+        "invalid": {
+          "action": "give",
+          "elapsedMs": 7.531001000000288,
+          "documentChanged": false
+        }
+      },
+      "panelOpened": true,
+      "webviewStateSaved": true,
+      "versionWarning": true,
+      "reloadRestored": false,
+      "highlightingRequestsShared": true,
+      "hiddenStateRestored": false,
+      "agda": "2.9.0",
+      "sourceSha256": "419e24a842c830029a05f9e8f5e329ba3d4e3a32c94b7d41bbe2f555daa9481a",
+      "modeBundleSha256": "22b4fbc5c8c7e537c2af4566c08e126b6fc5305c68aeedc9a0299995d9decef7"
+    }
+  },
+  "extensionSourceSha256": "3a06bfeaa450359b9fb579598215cbbd5b25ddb13f4132f44924851c67ce2f2f"
+}

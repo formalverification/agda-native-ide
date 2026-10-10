@@ -1,0 +1,326 @@
+{
+  "date": "2026-10-10",
+  "nativeAgdaCommit": "da66a8c75f11d10699a6b38b261efdf244b66f2a",
+  "fixtureCommit": "8736a0b49ed50d49eec2f6192813e049dc4fc60f",
+  "fixtureMethod": "Extract Agda fences from Overture.Basic, then replace the level successor term with a goal; keep the original outside the include root.",
+  "stdlib": "2.3 with the repository’s five 2.9.0 patches",
+  "scope": "One isolated first load, with no fixture interfaces; not a performance benchmark.",
+  "supported": {
+    "date": "2026-10-10T18:30:54.372Z",
+    "machine": {
+      "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+      "logicalCpus": 20,
+      "memoryBytes": 67068481536,
+      "kernel": "7.0.0-31-generic",
+      "loadAverage": [
+        3.5,
+        3.12,
+        3.44
+      ]
+    },
+    "vscode": "1.141.0",
+    "node": "v24.21.0",
+    "agdaMode": "0.10.4",
+    "activationBodyMs": 0.5415970000000243,
+    "activationCallMs": 83.07112499999994,
+    "windowTitles": [
+      "[Extension Development Host] workspace - Visual Studio Code"
+    ],
+    "module": "Overture.Basic",
+    "commands": {
+      "load": {
+        "action": "load",
+        "elapsedMs": 4427.196346000001,
+        "documentChanged": false
+      },
+      "context": {
+        "action": "goalContext",
+        "elapsedMs": 16.051852999999028,
+        "documentChanged": false
+      },
+      "highlighting": {
+        "action": "highlighting",
+        "elapsedMs": 0.8587090000000899,
+        "documentChanged": false,
+        "tokenCount": 450
+      },
+      "give": {
+        "action": "give",
+        "elapsedMs": 30.524210000001403,
+        "documentChanged": true
+      },
+      "refine": {
+        "action": "refine",
+        "elapsedMs": 19.20407300000079,
+        "documentChanged": true
+      },
+      "invalid": {
+        "action": "give",
+        "elapsedMs": 2.1586200000001554,
+        "documentChanged": false
+      }
+    },
+    "panelOpened": true,
+    "webviewStateSaved": true,
+    "versionWarning": false,
+    "reloadRestored": true,
+    "agda": "2.9.0",
+    "sourceSha256": "419e24a842c830029a05f9e8f5e329ba3d4e3a32c94b7d41bbe2f555daa9481a",
+    "modeBundleSha256": "22b4fbc5c8c7e537c2af4566c08e126b6fc5305c68aeedc9a0299995d9decef7"
+  },
+  "mismatch": {
+    "date": "2026-10-10T18:31:13.670Z",
+    "machine": {
+      "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+      "logicalCpus": 20,
+      "memoryBytes": 67068481536,
+      "kernel": "7.0.0-31-generic",
+      "loadAverage": [
+        3.67,
+        3.2,
+        3.46
+      ]
+    },
+    "vscode": "1.141.0",
+    "node": "v24.21.0",
+    "agdaMode": "999.0.0",
+    "activationBodyMs": 0.6261349999999766,
+    "activationCallMs": 76.74822800000004,
+    "windowTitles": [
+      "[Extension Development Host] workspace - Visual Studio Code"
+    ],
+    "module": "Overture.Basic",
+    "commands": {
+      "load": {
+        "action": "load",
+        "elapsedMs": 468.9695999999999,
+        "documentChanged": false
+      },
+      "context": {
+        "action": "goalContext",
+        "elapsedMs": 11.558947999999873,
+        "documentChanged": false
+      },
+      "highlighting": {
+        "action": "highlighting",
+        "elapsedMs": 0.9513419999993857,
+        "documentChanged": false,
+        "tokenCount": 450
+      },
+      "give": {
+        "action": "give",
+        "elapsedMs": 29.562341000000742,
+        "documentChanged": true
+      },
+      "refine": {
+        "action": "refine",
+        "elapsedMs": 16.521969000000354,
+        "documentChanged": true
+      },
+      "invalid": {
+        "action": "give",
+        "elapsedMs": 2.272348999999849,
+        "documentChanged": false
+      }
+    },
+    "panelOpened": true,
+    "webviewStateSaved": true,
+    "versionWarning": true,
+    "reloadRestored": false,
+    "agda": "2.9.0",
+    "sourceSha256": "419e24a842c830029a05f9e8f5e329ba3d4e3a32c94b7d41bbe2f555daa9481a",
+    "modeBundleSha256": "22b4fbc5c8c7e537c2af4566c08e126b6fc5305c68aeedc9a0299995d9decef7"
+  },
+  "commandProbes": [
+    {
+      "command": "agda-mode.load",
+      "ms": 762.266489,
+      "return": {
+        "type": "object",
+        "keys": [
+          "TAG",
+          "_0"
+        ],
+        "tag": "Ok",
+        "stateKeys": [
+          "id",
+          "platformDeps",
+          "agdaVersion",
+          "editor",
+          "document",
+          "panelCache",
+          "runningInfoLog",
+          "tokens",
+          "goals",
+          "cursor",
+          "editorIM",
+          "promptIM",
+          "subscriptions",
+          "onRemoveFromRegistry",
+          "globalStorageUri",
+          "extensionUri",
+          "memento",
+          "channels",
+          "middlewares",
+          "isInRefineOrGiveOperation"
+        ]
+      },
+      "changed": false,
+      "line": "ℓ₁ = {! suc 0ℓ !}"
+    },
+    {
+      "command": "agda-mode.goal-type-and-context[Simplified]",
+      "ms": 20.6664609999998,
+      "return": {
+        "type": "object",
+        "keys": [
+          "TAG",
+          "_0"
+        ],
+        "tag": "Ok",
+        "stateKeys": [
+          "id",
+          "platformDeps",
+          "agdaVersion",
+          "editor",
+          "document",
+          "panelCache",
+          "runningInfoLog",
+          "tokens",
+          "goals",
+          "cursor",
+          "editorIM",
+          "promptIM",
+          "subscriptions",
+          "onRemoveFromRegistry",
+          "globalStorageUri",
+          "extensionUri",
+          "memento",
+          "channels",
+          "middlewares",
+          "isInRefineOrGiveOperation"
+        ]
+      },
+      "changed": false,
+      "line": "ℓ₁ = {! suc 0ℓ !}"
+    },
+    {
+      "semanticTokens": 2250
+    },
+    {
+      "command": "agda-mode.give",
+      "ms": 36.500970999999936,
+      "return": {
+        "type": "object",
+        "keys": [
+          "TAG",
+          "_0"
+        ],
+        "tag": "Ok",
+        "stateKeys": [
+          "id",
+          "platformDeps",
+          "agdaVersion",
+          "editor",
+          "document",
+          "panelCache",
+          "runningInfoLog",
+          "tokens",
+          "goals",
+          "cursor",
+          "editorIM",
+          "promptIM",
+          "subscriptions",
+          "onRemoveFromRegistry",
+          "globalStorageUri",
+          "extensionUri",
+          "memento",
+          "channels",
+          "middlewares",
+          "isInRefineOrGiveOperation"
+        ]
+      },
+      "changed": true,
+      "line": "ℓ₁ = suc 0ℓ"
+    },
+    {
+      "command": "agda-mode.load",
+      "ms": 91.87970199999995,
+      "return": {
+        "type": "object",
+        "keys": [
+          "TAG",
+          "_0"
+        ],
+        "tag": "Ok",
+        "stateKeys": [
+          "id",
+          "platformDeps",
+          "agdaVersion",
+          "editor",
+          "document",
+          "panelCache",
+          "runningInfoLog",
+          "tokens",
+          "goals",
+          "cursor",
+          "editorIM",
+          "promptIM",
+          "subscriptions",
+          "onRemoveFromRegistry",
+          "globalStorageUri",
+          "extensionUri",
+          "memento",
+          "channels",
+          "middlewares",
+          "isInRefineOrGiveOperation"
+        ]
+      },
+      "changed": false,
+      "line": "ℓ₁ = {! suc !}"
+    },
+    {
+      "command": "agda-mode.refine",
+      "ms": 22.95656400000007,
+      "return": {
+        "type": "object",
+        "keys": [
+          "TAG",
+          "_0"
+        ],
+        "tag": "Ok",
+        "stateKeys": [
+          "id",
+          "platformDeps",
+          "agdaVersion",
+          "editor",
+          "document",
+          "panelCache",
+          "runningInfoLog",
+          "tokens",
+          "goals",
+          "cursor",
+          "editorIM",
+          "promptIM",
+          "subscriptions",
+          "onRemoveFromRegistry",
+          "globalStorageUri",
+          "extensionUri",
+          "memento",
+          "channels",
+          "middlewares",
+          "isInRefineOrGiveOperation"
+        ]
+      },
+      "changed": true,
+      "line": "ℓ₁ = suc {!   !}"
+    }
+  ],
+  "noWindowControl": {
+    "processAlive": true,
+    "visibleWindow": false,
+    "windowAssertionExit": 1
+  },
+  "shellClosureBytes": 895241280,
+  "measuredExtensionCommit": "7ac4f6ffad7602283847636f221065eaae9587f2"
+}
