@@ -14,6 +14,17 @@ const modeCommands: Record<Exclude<Action, 'highlighting'>, string> = {
   goalContext: 'agda-mode.goal-type-and-context[Simplified]',
 };
 
+function readTokens(uri: vscode.Uri): Promise<vscode.SemanticTokens | undefined> {
+  // The mode's provider waits indefinitely when this module has not loaded.
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Load the module in Agda mode before reading highlighting.')), 3000);
+    void vscode.commands.executeCommand<vscode.SemanticTokens>(
+      'vscode.provideDocumentSemanticTokens', uri,
+    ).then(tokens => { clearTimeout(timer); resolve(tokens); },
+      error => { clearTimeout(timer); reject(error); });
+  });
+}
+
 function isAgda(document: vscode.TextDocument): boolean {
   return document.languageId === 'agda' || document.languageId === 'lagda-markdown';
 }
@@ -102,6 +113,7 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
   }
 
   private attach(panel: vscode.WebviewPanel): void {
+    if (this.panel && this.panel !== panel) this.panel.dispose();
     this.panel = panel;
     this.persisted = undefined;
     panel.webview.options = panelOptions(this.context.extensionUri);
@@ -183,9 +195,7 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
       const started = performance.now();
       let tokenCount: number | undefined;
       if (action === 'highlighting') {
-        const tokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
-          'vscode.provideDocumentSemanticTokens', document.uri,
-        );
+        const tokens = await readTokens(document.uri);
         tokenCount = tokens ? tokens.data.length / 5 : 0;
       } else {
         const command = modeCommands[action];
@@ -194,7 +204,7 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
         }
         await vscode.commands.executeCommand(command);
       }
-      this.state.lastCommand = {
+      if (this.state.uri === document.uri.toString()) this.state.lastCommand = {
         action, elapsedMs: performance.now() - started,
         documentChanged: before !== document.getText(),
         ...(tokenCount === undefined ? {} : { tokenCount }),
