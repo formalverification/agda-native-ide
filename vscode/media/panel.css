@@ -1,0 +1,24 @@
+/* File: vscode/media/panel.css */
+body {
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+  font-family: var(--vscode-font-family);
+  padding: 1rem;
+  line-height: 1.5;
+}
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.1rem; overflow-wrap: anywhere; }
+.commands { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+button {
+  border: 1px solid var(--vscode-button-border, transparent);
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  font: inherit;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+button:hover { background: var(--vscode-button-hoverBackground); }
+button:focus-visible { outline: 2px solid var(--vscode-focusBorder); outline-offset: 2px; }
+button:disabled { opacity: 0.5; cursor: default; }
+#compatibility { border: 1px solid var(--vscode-editorWarning-foreground); padding: 0.7rem; }
+#activity { overflow-wrap: anywhere; }
