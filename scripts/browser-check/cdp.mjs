@@ -5,7 +5,9 @@
 // and take screenshots.  node 22's global WebSocket is all the protocol
 // needs, so the check runs with no npm package and no bundled browser;
 // the flake pins both node and Chromium.  Adapted from the 2026-10-04
-// investigation's launcher (issue 5).
+// investigation's launcher (issue 5).  The page's navigate, setViewport,
+// addInitScript and onConsole are the interface ./bidi.mjs shares, so the
+// check's assertions run in Firefox too (issue 59).
 //
 // Nothing waits for ever: every command has a time limit, and once the
 // browser exits, its socket closes or the page's renderer crashes, every
@@ -214,6 +216,46 @@ function tab(session, sessionId) {
   const page = {
     /** @param {string} method @param {object} [params] */
     send: (method, params) => session.send(method, params, sessionId),
+    /** @param {number} width @param {number} height */
+    setViewport: (width, height) =>
+      page.send("Emulation.setDeviceMetricsOverride", {
+        width,
+        height,
+        deviceScaleFactor: 1,
+        mobile: false,
+      }),
+    /** Run `source` in every document before its own scripts.
+     * @param {string} source */
+    addInitScript: (source) =>
+      page.send("Page.addScriptToEvaluateOnNewDocument", { source }),
+    /** @param {string} url */
+    async navigate(url) {
+      await page.send("Page.enable");
+      await page.send("Page.navigate", { url });
+    },
+    /** Call `handler` with each console message and uncaught exception.
+     * @param {(entry: { type: string, text: string }) => void} handler */
+    onConsole(handler) {
+      page.on("Runtime.consoleAPICalled", (event) =>
+        handler({
+          type: event.type,
+          text: event.args
+            .map((/** @type {any} */ a) => a.value ?? a.description ?? "")
+            .join(" ")
+            .slice(0, 500),
+        }),
+      );
+      page.on("Runtime.exceptionThrown", (event) =>
+        handler({
+          type: "exception",
+          text: (
+            event.exceptionDetails.exception?.description ??
+            event.exceptionDetails.text
+          ).slice(0, 500),
+        }),
+      );
+      return page.send("Runtime.enable");
+    },
     /** @param {string} method @param {(params: any) => void} handler */
     on(method, handler) {
       session.listeners.push((/** @type {any} */ message) => {

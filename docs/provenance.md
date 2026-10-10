@@ -47,7 +47,10 @@ upstream commit.
 | `static/agda-stdlib-2.3.zip` | not imported; pinned, then retired | The standard library 2.3, which does not check under Agda 2.9.0; the page ships it patched instead ([below](#the-standard-library-patched-here), [#58]). |
 | `static/agda-data.zip` | not imported; pinned, then replaced | Upstream's held Agda 2.7.0.1's builtin library, which the shipped Agda rejects; the flake builds one instead ([below](#agdas-builtin-library-built-here), [#49]). |
 | `static/als-2.8ext.wasm.gz` | not imported; not pinned | The build makes its own ([below](#the-compilers-gzip)). |
-| every other file (85) | same path, unchanged unless listed below | Listed in `upstream/unchanged.sha256`. |
+| `src/lib/worker/proxy-wasi-drive.ts`, `src/lib/worker/patch-wasi.ts`, `src/lib/worker/wrap-poll-oneoff.ts`, `src/lib/worker/util-base64.js` | imported, then removed | They proxied the drive's calls to the drive worker through shared memory, and read the language server's standard input from it; the server's reactor build, with the drive in its worker, needs neither ([#59]). |
+| `src/lib/stdlib.ts` | imported, then removed | Its blocking reads and writes served only the rings in shared memory, which the page no longer has ([#59]). |
+| `static/coi-serviceworker.js` | imported, then removed | The service worker that isolated the page on a host that cannot send headers; the page shares no memory between threads, so it needs no isolation ([#59]). |
+| every other file (79) | same path, unchanged unless listed below | Listed in `upstream/unchanged.sha256`. |
 
 Every change made here to an imported file is listed under [Changes to
 upstream files](#changes-to-upstream-files), and a file that can carry a
@@ -149,20 +152,23 @@ commits that tag records, and the two patches in `compiler/patches/`;
 ghc-wasm-meta `58260711fd5c8ffbb81f4ac56e40323ff509d43b` (GHC
 9.10.3.20260731); the Hackage index at 2026-10-05T16:41:29Z ([#58]).
 `compiler/agda-2.9.0.sha256` pins the four files it writes, and the flake
-fetches them by those hashes (`nix build .#compiler`, `mkCompiler`) from a
-release whose home [#58] decides; until it exists, the fetch succeeds only
-where the files are already in the Nix store.  `.github/workflows/compiler.yml`
-rebuilds them with the recipe and checks the bytes against the pins; its
-run of 2026-10-07 on GitHub's runner built the pinned bytes.
+fetches them by those hashes (`nix build .#compiler`, `mkCompiler`) from the
+release `agda-2.9.0-da66a8c-als-8` of
+[formalverification/agda-wasm-builds][agda-wasm-builds], public since
+2026-10-07.  `.github/workflows/compiler.yml` rebuilds them with the recipe
+and checks the bytes against the pins; its run of 2026-10-07 on GitHub's
+runner built the pinned bytes.
 
-+  `als.wasm`, the language server as a command module, is the compiler the
-   page runs: `packages.assets` installs it as `static/als-2.9.0.wasm`, and
-   the build ships it gzipped ([below](#the-compilers-gzip)).
++  `als-reactor.wasm`, the language server's reactor build, and its glue,
+   `als-reactor.js`, are the compiler the page runs, since [#59]:
+   `packages.assets` installs them as `static/als-reactor-2.9.0.wasm` and
+   `static/als-reactor-2.9.0.js`, and the build ships the module gzipped
+   ([below](#the-compilers-gzip)) and the glue as it is.
++  `als.wasm`, the same server as a command module, is not shipped since
+   [#59]; the page ran it from [#58] until then.
 +  `agda.wasm`, the plain `agda`, is not shipped: the flake runs it under
    wasmtime to build Agda's builtin library
    ([below](#agdas-builtin-library-built-here)).
-+  `als-reactor.wasm` and its glue, `als-reactor.js`, the reactor build of
-   the same server, are not shipped yet ([#59]).
 
 License: NOTICE section 3 names everything the server links and the
 license of each.
@@ -295,14 +301,19 @@ build writes its own, as follows:
 +  `npm run build` gzips the raw compiler in `build/` (node's zlib at level
    9) and deletes the raw copy (`scripts/prepare-cloudflare-assets.mjs`,
    which takes the compiler's name from `scripts/asset-manifest.mjs`).  On
-   2026-10-07 `als-2.9.0.wasm.gz` was 11,119,315 bytes and inflated to the
-   pinned `als.wasm`'s SHA-256; on 2026-10-04 the fork's compiler's was
-   10,154,917 bytes.
-+  `npm run dev` falls back to the raw compiler.  With no `.gz` in `static/`,
-   the dev server answered the `.gz` with a 404, the page fetched the raw
-   compiler instead, and Agda started and checked `Main.agda` (two open
-   goals, cross-origin isolated; headless Chrome 153, 2026-10-04, with
-   `als-2.8ext.wasm`).
+   2026-10-08 `als-reactor-2.9.0.wasm.gz` was 11,095,997 bytes and inflated
+   to the pinned `als-reactor.wasm`'s SHA-256; on 2026-10-07 the command
+   module's, `als-2.9.0.wasm.gz`, was 11,119,315 bytes, and on 2026-10-04
+   the fork's compiler's 10,154,917 bytes.
++  `npm run dev` serves the gzip itself: `vite.config.js` answers its URL
+   with the raw compiler in `static/` compressed (node's zlib at level 1,
+   once per version of the file), since the page fetches only the gzip
+   ([#8]).  On 2026-10-08 the dev server's gzip, 12,931,645 bytes,
+   inflated to the pinned `als-reactor.wasm`'s SHA-256, and the page
+   checked `Main.agda` (two open goals, not cross-origin isolated;
+   headless Chromium 149).  Until then the page fell back to the raw
+   compiler when the `.gz` was missing, which only the dev server could
+   serve.
 +  Upstream committed `static/als-2.8ext.wasm.gz` (10,188,407 bytes, SHA-256
    `ea79dbb12144db68ef7aeb56bdebc10c143d76d3a3af89056276d4015cb2b32f`), and
    it was never pinned here.
@@ -313,7 +324,7 @@ These came in with the import; they are text, so they are in git, unchanged.
 
 | Path | Origin | License |
 |---|---|---|
-| `static/coi-serviceworker.js` | Byte-identical to [gzuidhof/coi-serviceworker] at `509a799daa6583b83b2a70b4dd1898c7e5a902dd` (2023-12-05), the sixth commit to the file after the v0.1.7 release, whose version its header still names | MIT, Copyright (c) 2021 Guido Zuidhof |
+| `static/coi-serviceworker.js` (removed by [#59]) | Byte-identical to [gzuidhof/coi-serviceworker] at `509a799daa6583b83b2a70b4dd1898c7e5a902dd` (2023-12-05), the sixth commit to the file after the v0.1.7 release, whose version its header still names | MIT, Copyright (c) 2021 Guido Zuidhof |
 | `static/plfa/content/**/*.lagda.md` | PLFA's chapters at `870f9bb1` (`scripts/sync-plfa.mjs`) | CC BY 4.0 |
 | `static/plfa/LICENSE` | Byte-identical to plfa/plfa.github.io's `LICENSE` at `870f9bb1` | The CC BY 4.0 text |
 | `static/favicon.svg` | Upstream's adaptation of agda/agda's `doc/user-manual/agda.svg` (its own comment says so) | MIT |
@@ -343,6 +354,26 @@ Each change is its own commit, named here by its subject.
 | `src/routes/+page.svelte` | The page runs Agda 2.9.0, and its status bar shows the version the language server reports in place of a literal "Agda 2.8" ([#58]) | "Run the page on the 2.9.0 compiler" |
 | `src/app.html` | The description names Agda 2.9.0, the version the page runs ([#58]) | "Run the page on the 2.9.0 compiler" |
 | `scripts/prepare-cloudflare-assets.mjs` | The compiler's name comes from `scripts/asset-manifest.mjs`, which names the file the page fetches, instead of a literal ([#58]) | "Run the page on the 2.9.0 compiler" |
+| `src/lib/worker/als.ts` | The worker hosts the language server's reactor build and the drive: it compiles the reactor and imports its JavaScript glue, lays out the drive as its own WASI drive, starts GHC's runtime with `_initialize` (Runno's `initialize`), runs the reactor's `run_setup` in place of a throwaway `--setup` instance, and drives the server with `send_message` and `recv_message`, one JSON message per call.  The `--version` instance, the standard input and output in shared memory, and the drive's proxy are gone ([#59]) | "Host the reactor and the drive in the language server's worker" |
+| `src/lib/worker/drive.ts` | No longer a worker: a module of the language server's worker, whose WASI drive it lays out and indexes.  The message loop over shared rings is gone, and the page's writes, archive extraction and the IndexedDB cache are functions that worker exposes; the cache reads each dirty file from the drive's own record, so files at paths made after startup are persisted too ([#59]) | "Host the reactor and the drive in the language server's worker" |
+| `src/lib/worker/types.d.ts` | The worker takes a message port and the glue's URL in place of shared buffers, and the drive worker's types are removed ([#59]) | "Host the reactor and the drive in the language server's worker" |
+| `src/lib/worker/proxy-wasi-drive.ts`, `src/lib/worker/patch-wasi.ts`, `src/lib/worker/wrap-poll-oneoff.ts`, `src/lib/worker/util-base64.js` | Removed ([#59]) | "Host the reactor and the drive in the language server's worker" |
+| `src/lib/index.js` | The page reaches the language server's worker through a message port, framing and unframing each message for the router, where it read and wrote the server's standard input and output in shared memory; the drive worker, and the functions that wrote to it under a lock, are removed ([#59]) | "Talk to the language server through a message port" |
+| `src/lib/controller.svelte.ts` | The controller starts the server's reactor build, and reaches the drive through the worker's functions; it asks Agda for its version with `Cmd_show_version` when the server is first ready, since the reactor has no `--version`, and lets the page see the server ready once Agda has answered ([#59]) | "Talk to the language server through a message port" |
+| `src/routes/+page.svelte` | The page allocates no `SharedArrayBuffer`, and its status bar shows the version Agda reports ([#59]) | "Talk to the language server through a message port" |
+| `src/lib/stdlib.ts` | Removed ([#59]) | "Talk to the language server through a message port" |
+| `package.json`, `package-lock.json` | `spsc`, which only the rings in shared memory used, removed; the lockfile is upstream's with its one entry deleted, nothing else re-resolved ([#59]).  JSON carries no comment, so this row is the record. | "Talk to the language server through a message port" |
+| `src/lib/worker/als.ts`, `src/routes/+page.svelte` | Their checks that the page is cross-origin isolated are removed ([#59]) | "Serve the page without cross-origin isolation" |
+| `src/app.html` | The script tag of `coi-serviceworker.js` is removed ([#59]) | "Serve the page without cross-origin isolation" |
+| `static/_headers` | The three headers that isolated every route (`Cross-Origin-Opener-Policy`, `Cross-Origin-Embedder-Policy`, `Cross-Origin-Resource-Policy`) are removed; the cache rules stay ([#59]) | "Serve the page without cross-origin isolation" |
+| `vite.config.js` | The dev and preview servers no longer send the isolation headers (the `coi-plugin` is removed) ([#59]) | "Serve the page without cross-origin isolation" |
+| `static/coi-serviceworker.js` | Removed, with its license text, `licenses/coi-serviceworker.txt` ([#59]) | "Serve the page without cross-origin isolation" |
+| `src/lib/controller.svelte.ts` | The editor takes its text as the one Agda's positions refer to only when the page sends `Cmd_load`, not after every write to the drive, since after a give Agda's ranges stay those of the text it loaded; the lock on the drive's writes goes, since they are messages handled in order ([#59]) | "Take the editor's text as Agda's only when Agda loads it" |
+| `src/lib/controller.svelte.ts` | A failure to start Agda (to fetch the compiler or an archive, to decompress or compile the compiler, to lay out the drive, to run the setup) rejects the start with a message saying which step failed, where it was swallowed or left the page saying "Agda ready"; the fallback to the raw compiler, dead in the built site since [#3], is removed ([#8]) | "Say so when the page cannot run, or Agda cannot start" |
+| `src/routes/+page.svelte` | Before it starts Agda, the page checks what the browser needs (`src/lib/support.ts`) and, when something is missing, says what and names the browsers it is tested in; when Agda cannot start, the banner, the inspector's heading and the status bar say so, never "Agda ready" ([#8]) | "Say so when the page cannot run, or Agda cannot start" |
+| `vite.config.js` | The dev server serves the compiler's gzip, compressing the raw compiler in `static/`, since the page no longer falls back to the raw file ([#8]) | "Say so when the page cannot run, or Agda cannot start" |
+| `src/lib/controller.svelte.ts` | The server starts without the fork's `+RTS -A64m -RTS`, which the reactor's runtime takes and which made no check faster while it grew the heap by 70 to 90 MiB ([#59]) | "Start the language server without +RTS -A64m -RTS" |
+| `src/lib/controller.svelte.ts`, `src/routes/+page.svelte`, `src/lib/worker/drive.ts` | A body that breaks off while an archive is read names the archive; a server that fails or exits of its own accord is reported ("Agda stopped"), where the page went on saying "Agda ready"; a browser that refuses IndexedDB by throwing leaves the drive uncached rather than failing the start ([#59]'s review) | "Report a broken archive, a stopped server and a refused cache" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
@@ -353,6 +384,7 @@ Each change is its own commit, named here by its subject.
 [#4]: https://github.com/formalverification/agda-native-ide/issues/4
 [#5]: https://github.com/formalverification/agda-native-ide/issues/5
 [#6]: https://github.com/formalverification/agda-native-ide/issues/6
+[#8]: https://github.com/formalverification/agda-native-ide/issues/8
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
 [#20]: https://github.com/formalverification/agda-native-ide/issues/20
 [#49]: https://github.com/formalverification/agda-native-ide/issues/49
@@ -365,3 +397,4 @@ Each change is its own commit, named here by its subject.
 [cormullion/juliamono]: https://github.com/cormullion/juliamono
 [plfa/plfa.github.io]: https://github.com/plfa/plfa.github.io
 [gzuidhof/coi-serviceworker]: https://github.com/gzuidhof/coi-serviceworker
+[agda-wasm-builds]: https://github.com/formalverification/agda-wasm-builds

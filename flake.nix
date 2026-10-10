@@ -77,11 +77,8 @@
       # server against it as a command module and as a reactor module with
       # its JavaScript glue.  One pin per line of compiler/agda-2.9.0.sha256
       # (sha256sum's format, with a file name), fetched by hash from the
-      # release that holds the files.  Where that release lives is not
-      # decided yet (issue 58), so the URL below names a place that does
-      # not exist: until it does, `nix build .#compiler` succeeds only
-      # where the files are in the store already, added by hand from a
-      # build of the recipe with `nix-store --add-fixed sha256 <file>`.
+      # release that holds the files, in formalverification/agda-wasm-builds
+      # (public, since 2026-10-07).
       compilerRelease = "https://github.com/formalverification/agda-wasm-builds/releases/download/agda-2.9.0-da66a8c-als-8";
       compilerPins = map (line:
           let m = builtins.match "([0-9a-f]{64})  ([^ /]+)" line;
@@ -242,7 +239,7 @@
       # every platform, fetched once by hash.  After a change to the
       # lockfile, set npmDepsHash to lib.fakeHash, build, and copy the
       # hash the failure reports.
-      npmDepsHash = "sha256-4AJmGkkw8pveLasWMlQ4KUptfA2BKH4N7wsdAWn1NGQ=";
+      npmDepsHash = "sha256-sj6GxUNeMYL2c1i9Q0FgMjigSexmZVYWSYFsOhN7hUM=";
       npmDeps = pkgs: pkgs.fetchNpmDeps {
         name = "agda-native-ide-npm-deps";
         src = lib.fileset.toSource {
@@ -272,13 +269,17 @@
 
         # Every binary the app ships at its path in the tree (static/...):
         # upstream's pinned ones, agda-data.zip, the compiler's language
-        # server (as als-2.9.0.wasm) and the standard library.
+        # server and the standard library.  The server is its reactor
+        # build, as als-reactor-2.9.0.wasm, with its JavaScript glue as
+        # als-reactor-2.9.0.js (issue 59); the command build, als.wasm,
+        # stays pinned for the compiler's records and is not shipped.
         assets = pkgs.runCommand "plfa-playground-assets" { } (
           lib.concatMapStrings (pin: ''
             install -D -m 444 ${fetchPin pkgs pin} "$out/${pin.path}"
           '') pins + ''
             install -D -m 444 ${agdaData}/agda-data.zip "$out/static/agda-data.zip"
-            install -D -m 444 ${compiler}/als.wasm "$out/static/als-2.9.0.wasm"
+            install -D -m 444 ${compiler}/als-reactor.wasm "$out/static/als-reactor-2.9.0.wasm"
+            install -D -m 444 ${compiler}/als-reactor.js "$out/static/als-reactor-2.9.0.js"
             install -D -m 444 ${stdlib}/agda-stdlib-2.3-patched.zip "$out/static/agda-stdlib-2.3-patched.zip"
           '');
 
@@ -351,19 +352,26 @@
       # `nix run .#browser-check -- <site> [--out DIR]` checks Main.agda
       # in a built site (build/, or `nix build .#site`'s result) in
       # headless Chromium, with node and Chromium both pinned here
-      # (scripts/browser-check/run.mjs).  Linux only: nixpkgs builds
-      # Chromium for Linux alone.
-      apps = forAllSystems (system: pkgs:
+      # (scripts/browser-check/run.mjs); `nix run .#browser-check-notices`
+      # checks what the page says when it cannot run in a browser, or Agda
+      # cannot start (scripts/browser-check/notices.mjs, issue 8).  Linux
+      # only: nixpkgs builds Chromium for Linux alone.
+      apps = forAllSystems (system: pkgs: let
+        checkApp = name: script: description: {
+          type = "app";
+          program = toString (pkgs.writeShellScript name ''
+            export CHROME=${lib.getExe pkgs.chromium}
+            exec ${lib.getExe pkgs.nodejs_22} ${./scripts/browser-check}/${script} "$@"
+          '');
+          meta.description = description;
+        };
+      in
         github-project.apps.${system}
         // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
-          browser-check = {
-            type = "app";
-            program = toString (pkgs.writeShellScript "browser-check" ''
-              export CHROME=${lib.getExe pkgs.chromium}
-              exec ${lib.getExe pkgs.nodejs_22} ${./scripts/browser-check}/run.mjs "$@"
-            '');
-            meta.description = "Check Main.agda in a built site, in headless Chromium";
-          };
+          browser-check = checkApp "browser-check" "run.mjs"
+            "Check Main.agda in a built site, in headless Chromium";
+          browser-check-notices = checkApp "browser-check-notices" "notices.mjs"
+            "Check a built site's notices for a browser it cannot run in, and for a compiler that fails, in headless Chromium";
         });
     };
 }

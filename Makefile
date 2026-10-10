@@ -59,7 +59,7 @@ endif
 .PHONY: help populate-dry populate update update-check lint init \
         guard-gh guard-engine engine-mode \
         assets assets-check dev build test check browser-check \
-        provenance-check
+        browser-check-notices provenance-check
 .DEFAULT_GOAL := help
 
 # In `path` mode the resolved CLI is (typically) a Nix wrapper carrying
@@ -149,12 +149,13 @@ guard-gh:
 # flake fetches each pinned one from upstream at the imported commit and
 # checks it against its SHA-256 in $(PINS), and adds the files that are
 # not upstream's: Agda's builtin library, agda-data.zip (`nix build
-# .#agda-data`), the compiler's language server, als-2.9.0.wasm (`nix
-# build .#compiler`, fetched by its pins in compiler/agda-2.9.0.sha256),
-# and the standard library, agda-stdlib-2.3-patched.zip (`nix build
+# .#agda-data`), the compiler's language server, its reactor build
+# als-reactor-2.9.0.wasm with its glue als-reactor-2.9.0.js (`nix build
+# .#compiler`, fetched by its pins in compiler/agda-2.9.0.sha256), and
+# the standard library, agda-stdlib-2.3-patched.zip (`nix build
 # .#stdlib`).  `make assets` copies the set into static/, and `make build`
 # refuses to build unless every pinned file there still matches its pin
-# and those three are the flake's.  (Inside the Nix sandbox, where `nix
+# and those four are the flake's.  (Inside the Nix sandbox, where `nix
 # build .#site` runs the same `make build`, there is no nix to ask, and
 # the site's derivation copies them in itself.)  docs/provenance.md
 # records them all.  `make build` also publishes NOTICE (as NOTICE.txt)
@@ -169,6 +170,9 @@ guard-gh:
 #                  byte                (default: upstream/unchanged.sha256)
 #   SITE           the built site browser-check serves, which must exist
 #                  (default: build, from `make build`)
+#   ISOLATED       set (to anything) to serve it with the two headers that
+#                  make it cross-origin isolated, which the page no longer
+#                  needs, and assert that it is (default: without them)
 #   SITE_REVISION  what names the build: SvelteKit's kit.version.name and
 #                  the commit vite.config.js records (default: the
 #                  commit, with -dirty when the tree differs from it; the
@@ -177,7 +181,8 @@ guard-gh:
 PINS      ?= upstream/assets.sha256
 # The files in static/ that are the flake's own (built, or pinned by
 # compiler/agda-2.9.0.sha256) rather than upstream's.
-OWN_ASSETS := agda-data.zip als-2.9.0.wasm agda-stdlib-2.3-patched.zip
+OWN_ASSETS := agda-data.zip als-reactor-2.9.0.wasm als-reactor-2.9.0.js \
+              agda-stdlib-2.3-patched.zip
 UNCHANGED ?= upstream/unchanged.sha256
 SITE_REVISION ?= $(shell rev=$$(git rev-parse HEAD 2>/dev/null) && \
   if [ -n "$$(git status --porcelain 2>/dev/null)" ]; then echo $$rev-dirty; else echo $$rev; fi)
@@ -189,7 +194,7 @@ node_modules/.package-lock.json: package.json package-lock.json
 
 assets: ## Fetch the pinned binaries, build the flake's own (nix build .#assets) into static/
 	@out=$$(nix build .#assets --no-link --print-out-paths) && \
-	  for f in static/*.wasm static/*.wasm.gz static/*.zip; do \
+	  for f in static/*.wasm static/*.wasm.gz static/als-*.js static/*.zip; do \
 	    if [ -e "$$f" ] && [ ! -e "$$out/$$f" ]; then \
 	      rm "$$f" && echo "assets: removed $$f, which the set no longer has"; \
 	    fi; \
@@ -229,8 +234,12 @@ check: node_modules/.package-lock.json ## Type-check the app (svelte-check)
 
 SITE ?= build
 
-browser-check: ## Check Main.agda in $(SITE), served isolated, in headless Chromium
-	nix run .#browser-check -- $(SITE) --out browser-check
+browser-check: ## Check Main.agda in $(SITE) in headless Chromium (ISOLATED=1: with the isolation headers)
+	nix run .#browser-check -- $(SITE) \
+	  $(if $(ISOLATED),--isolated --out browser-check/isolated,--out browser-check)
+
+browser-check-notices: ## Check $(SITE)'s notices: a browser it cannot run in, a compiler that fails
+	nix run .#browser-check-notices -- $(SITE) --out browser-check/notices
 
 provenance-check: ## Check the unchanged files, and that docs/provenance.md lists every pin
 	@sha256sum --check --strict --quiet $(UNCHANGED) && \

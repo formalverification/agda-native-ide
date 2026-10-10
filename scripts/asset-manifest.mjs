@@ -5,14 +5,16 @@
 // each value by hand (issue 3): a cache token for every URL that carries
 // one, the compiler's length in bytes, and the namespace of the drive's
 // IndexedDB cache.  vite.config.js hands the result to the page as
-// AGDA_ASSETS, and src/lib/assets.ts reads it.
+// AGDA_ASSETS, and src/lib/assets.ts reads it.  The compiler is the
+// language server's reactor build, with the JavaScript glue its worker
+// imports (issue 59).
 //
 // A token is the first 16 hex digits of a SHA-256 over a file's bytes or,
 // for a directory, over the SHA-256s and paths of its files, so a rebuilt
 // asset gets a new URL and is never served stale from a cache.  The
-// namespace is the same digest over everything Agda reads (the compiler,
-// the builtins, the standard library and PLFA), so files persisted against
-// one set of assets are never restored against another.
+// namespace is the same digest over everything Agda reads (the compiler
+// and its glue, the builtins, the standard library and PLFA), so files
+// persisted against one set of assets are never restored against another.
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -23,7 +25,8 @@ import { join } from "node:path";
  * (scripts/prepare-cloudflare-assets.mjs), shares the compiler's token,
  * since it changes exactly when the compiler does. */
 export const ASSETS = {
-  compiler: "als-2.9.0.wasm",
+  compiler: "als-reactor-2.9.0.wasm",
+  glue: "als-reactor-2.9.0.js",
   builtins: "agda-data.zip",
   stdlib: "agda-stdlib-2.3-patched.zip",
   plfaProject: "plfa/project.zip",

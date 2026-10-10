@@ -29,7 +29,8 @@ function write(path, content) {
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "asset-manifest-"));
-  write("als-2.9.0.wasm", "compiler v1");
+  write("als-reactor-2.9.0.wasm", "compiler v1");
+  write("als-reactor-2.9.0.js", "glue v1");
   write("agda-data.zip", "builtins v1");
   write("agda-stdlib-2.3-patched.zip", "stdlib v1");
   write("plfa/project.zip", "plfa v1");
@@ -49,6 +50,7 @@ describe("the asset manifest", () => {
   it("takes a file's token from its bytes, and the compiler's length from its size", () => {
     const manifest = assetManifest(dir);
     expect(manifest.tokens.compiler).toBe(sha256("compiler v1").slice(0, 16));
+    expect(manifest.tokens.glue).toBe(sha256("glue v1").slice(0, 16));
     expect(manifest.tokens.stdlib).toBe(sha256("stdlib v1").slice(0, 16));
     expect(manifest.compilerBytes).toBe("compiler v1".length);
     expect(assetManifest(dir)).toEqual(manifest);

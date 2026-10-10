@@ -13,10 +13,45 @@
 // server (compiler/build-agda-2.9.0.sh), which answers in the raw format
 // the transport reads only when started with --raw; the standard library
 // is 2.3 patched to check under 2.9.0 (stdlib/patches/; issue 58).
+//
+// The page runs the server's reactor build, in one worker with the drive
+// (src/lib/worker/als.ts; issue 59): the controller talks to the server
+// through a message port, and to the drive through the worker's functions,
+// where it wrote to rings in shared memory, so the page allocates no
+// SharedArrayBuffer.  The worker compiles the compiler while the page
+// fetches the archives; then it lays out the drive, runs the setup the
+// reactor exports in place of `als --setup`, and starts the server.  A
+// reactor cannot answer `--version`, and the server reports no version of
+// its own, so the controller asks Agda for its version with
+// Cmd_show_version once the server is ready, and the page shows Agda's
+// answer.
+//
+// When Agda cannot start, the controller says why (issue 8): a failure to
+// fetch the compiler, to decompress or compile it, to fetch or read an
+// archive, to lay out the drive or to run the setup rejects the start with
+// a message the page shows, where it used to leave the page saying "Agda
+// ready" with nothing checked.  A server that fails or exits on its own
+// once started rejects it too ("Agda stopped"), where the page went on
+// saying "Agda ready".  The fallback to the raw compiler is gone:
+// the built site has not shipped it since issue 3, and a browser without
+// DecompressionStream is not supported (src/lib/support.ts).
+//
+// The editor takes its text as the one Agda's positions refer to (the
+// offsets' commit) when the page sends Cmd_load, and only then: after a
+// give or a case split, Agda goes on giving the remaining goals' ranges in
+// the text it loaded, which the editor maps through the edits made since
+// (issue 59).  The controller committed after every write to the drive,
+// so a give's edit, written while Agda was still answering the give,
+// could be committed before Agda's interaction points arrived, which then
+// fell outside the text (a RangeError that stopped the transport), seen
+// in Firefox.  Writes to the drive are messages to the server's worker,
+// handled in order, so they need no lock.
+//
+// The server starts without the fork's +RTS -A64m -RTS: the reactor's
+// runtime takes the option from its argv, and measured on the page it
+// added 70 to 90 MiB to the heap and made no check faster (issue 59).
 
-import { SPSC } from "spsc";
-import { SPSCReader } from "spsc/reader";
-import { SPSCWriter } from "spsc/writer";
+import * as Comlink from "comlink";
 
 import type { EditorView } from "@codemirror/view";
 import { Compartment } from "@codemirror/state";
@@ -25,14 +60,9 @@ import { LSPClient, languageServerExtensions } from "@codemirror/lsp-client";
 import { hoverTooltips } from "$lib/codemirror/lsp-hover";
 
 import {
-  createReadableByteStream,
-  createWritableByteStream,
-  makeDriveHostWorker,
+  createPortByteStreams,
   makeLspWorker,
-  mountArchiveOnDrive,
-  persistDriveCache,
   traceFetchProgress,
-  writeSourceFileToDrive,
 } from "$lib";
 import type {
   ALSWorkerInitResultProxied,
@@ -71,12 +101,6 @@ type ALSWorkerStatus =
 const supportedAgdaVersion = ["2.9.0"] as const;
 export type SupportedAgdaVersion = (typeof supportedAgdaVersion)[number];
 
-export interface DriveHandle {
-  lock: Int32Array<SharedArrayBuffer>;
-  stdinWriter: SPSCWriter;
-  stdoutReader: SPSCReader;
-}
-
 export interface AgdaProblem {
   severity: "error" | "warning";
   message: string;
@@ -95,9 +119,12 @@ export interface AgdaResult {
 }
 
 interface AgdaVersionSpec {
-  path: string;
-  compressedPath?: string;
+  // The compiler, gzipped.
+  compressedPath: string;
   byteLength?: number;
+  // The JavaScript glue GHC's post-linker wrote for the server's reactor
+  // build, which the worker imports.
+  gluePath: string;
   stdlibCandidates: string[];
   // Zip archive to unpack to the initial drive. Agda still runs
   // `--setup`, but this archive also carries primitive interfaces.
@@ -107,9 +134,9 @@ interface AgdaVersionSpec {
 export const agdaVersionMap: Record<SupportedAgdaVersion, AgdaVersionSpec> = {
   ["__proto__" as any]: null,
   "2.9.0": {
-    path: `${asset("/als-2.9.0.wasm")}?cache=${cacheTokens.compiler}`,
-    compressedPath: `${asset("/als-2.9.0.wasm.gz")}?cache=${cacheTokens.compiler}`,
+    compressedPath: `${asset("/als-reactor-2.9.0.wasm.gz")}?cache=${cacheTokens.compiler}`,
     byteLength: compilerBytes,
+    gluePath: `${asset("/als-reactor-2.9.0.js")}?cache=${cacheTokens.glue}`,
     stdlibCandidates: ["2.3"],
     dataPath: `${asset("/agda-data.zip")}?cache=${cacheTokens.builtins}`,
   },
@@ -122,45 +149,68 @@ export async function fetchWASMAndData(agdaVersion: SupportedAgdaVersion) {
     );
   }
 
-  const { path, compressedPath, byteLength, dataPath } =
-    agdaVersionMap[agdaVersion];
+  const { compressedPath, byteLength, dataPath } = agdaVersionMap[agdaVersion];
 
-  let wasm: Response;
-  if (compressedPath && typeof DecompressionStream !== "undefined") {
-    const compressed = await fetch(compressedPath);
-    if (compressed.ok && compressed.body) {
-      const headers = new Headers({ "Content-Type": "application/wasm" });
-      if (byteLength) headers.set("Content-Length", String(byteLength));
-      // Some static servers attach Content-Encoding to .gz files, so fetch
-      // has already decoded the response body. Others serve the gzip bytes as
-      // an opaque file and need an explicit DecompressionStream.
-      const body = compressed.headers
-        .get("Content-Encoding")
-        ?.toLowerCase()
-        .includes("gzip")
-        ? compressed.body
-        : compressed.body.pipeThrough(new DecompressionStream("gzip"));
-      wasm = new Response(body, { headers });
-    } else {
-      wasm = await fetch(path);
-    }
-  } else {
-    wasm = await fetch(path);
-  }
+  const compressed = await fetchOrFail(compressedPath, "the compiler");
+  if (!compressed.body)
+    throw new Error("the compiler could not be downloaded (an empty response)");
+  const headers = new Headers({ "Content-Type": "application/wasm" });
+  if (byteLength) headers.set("Content-Length", String(byteLength));
+  // Some static servers attach Content-Encoding to .gz files, so fetch
+  // has already decoded the response body. Others serve the gzip bytes as
+  // an opaque file and need an explicit DecompressionStream.
+  const body = compressed.headers
+    .get("Content-Encoding")
+    ?.toLowerCase()
+    .includes("gzip")
+    ? compressed.body
+    : compressed.body.pipeThrough(new DecompressionStream("gzip"));
+  const wasm = new Response(body, { headers });
 
-  if (!wasm.ok || wasm.status >= 400) {
-    throw new Error(`failed to fetch ALS WASM: ${wasm.statusText}`);
-  }
-
-  let dataFile = null;
-  if (dataPath) {
-    dataFile = await fetch(dataPath);
-    if (!dataFile.ok || dataFile.status >= 400) {
-      throw new Error(`failed to fetch data file: ${dataFile.statusText}`);
-    }
-  }
+  const dataFile = dataPath
+    ? await fetchOrFail(dataPath, "Agda's builtin library")
+    : null;
 
   return { wasm, dataFile };
+}
+
+/** An error in its own words, with its kind when it names one, and
+ * without a closing period, since the page's sentence adds one. */
+function describeError(error: unknown) {
+  if (!(error instanceof Error)) return String(error).trim().replace(/\.$/, "");
+  const message = error.message.trim().replace(/\.$/, "");
+  return error.name && error.name !== "Error"
+    ? `${error.name}: ${message}`
+    : message;
+}
+
+/** Fetch a file Agda needs, or fail saying which file and why. */
+async function fetchOrFail(url: string, what: string) {
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch (error) {
+    throw new Error(`${what} could not be downloaded (${describeError(error)})`, {
+      cause: error,
+    });
+  }
+  if (!response.ok)
+    throw new Error(
+      `${what} could not be downloaded (HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ""})`,
+    );
+  return response;
+}
+
+/** Read a file's body, or fail saying which file and why: a transfer can
+ * break off after its headers have arrived. */
+async function readOrFail(response: Response, what: string) {
+  try {
+    return await response.arrayBuffer();
+  } catch (error) {
+    throw new Error(`${what} could not be downloaded (${describeError(error)})`, {
+      cause: error,
+    });
+  }
 }
 
 export const LS_DOC_KEY = "agda-web-ide-beta:doc";
@@ -178,9 +228,6 @@ function makeLspClient(rootUri: string = "/") {
 }
 
 export class AgdaController {
-  agdaStdinWriter: SPSCWriter;
-  agdaStdoutReader: SPSCReader;
-  driveHandle: DriveHandle;
   editorView?: EditorView;
   lspClient?: LSPClient;
   alsRouter?: ALSMessageRouter;
@@ -189,11 +236,14 @@ export class AgdaController {
   agdaDataZip?: Promise<Uint8Array>;
 
   lspClientCompartment = new Compartment();
-  driveIsLocked = false;
 
   alsWorkerStatus = $state<ALSWorkerStatus>("initial");
   wasmLoadingProgress = $state<WASMLoadingProgress | null>(null);
-  receivedALSVersion = $state<string | undefined>();
+  // What Agda answered to Cmd_show_version, which the controller sends
+  // once, when the server is first ready, before the page may send
+  // anything (queryAgdaVersion).
+  reportedAgdaVersion = $state<string | undefined>();
+  versionQuery: "unsent" | "pending" | "answered" = "unsent";
   driveIsCreated = $state(false);
   driveArchiveLoading = $state(false);
   currentFilePath = $state("/Main.agda");
@@ -217,32 +267,14 @@ export class AgdaController {
   pendingLoadSnapshot?: { filePath: string; source: string };
 
   _lspWorker: Worker | undefined;
-  _driveHostWorker: Worker | undefined;
   _archiveMountPromise: Promise<void> | undefined;
   _mountedDriveArchives = new Set<string>();
 
   constructor(
     readonly config: {
-      agdaBuffers: {
-        stdin: SharedArrayBuffer;
-        stdout: SharedArrayBuffer;
-      };
-      driveBuffers: {
-        lock: SharedArrayBuffer;
-        stdin: SharedArrayBuffer;
-        stdout: SharedArrayBuffer;
-      };
       agdaVersion: SupportedAgdaVersion;
     },
   ) {
-    this.agdaStdinWriter = new SPSCWriter(config.agdaBuffers.stdin);
-    this.agdaStdoutReader = new SPSCReader(config.agdaBuffers.stdout);
-    this.driveHandle = {
-      lock: new Int32Array(config.driveBuffers.lock, 0, 1),
-      stdinWriter: new SPSCWriter(config.driveBuffers.stdin),
-      stdoutReader: new SPSCReader(config.driveBuffers.stdout),
-    };
-
     this.lspClient = makeLspClient();
   }
 
@@ -263,7 +295,7 @@ export class AgdaController {
       this.checked = this.getGoals().length === 0;
     }
     void this.syncEditorToDrive()
-      .then(() => persistDriveCache(this.driveHandle))
+      .then(() => this.workerInitData?.persist())
       .catch((error) =>
         console.warn("Could not persist the Agda cache", error),
       );
@@ -287,13 +319,11 @@ export class AgdaController {
     }
 
     this.alsWorkerStatus = "loading";
-    const wasmAndData = await fetchWASMAndData(this.config.agdaVersion).catch(
-      () => null,
-    );
-
-    if (wasmAndData == null) {
-      this.alsWorkerStatus = "errored";
-      return;
+    let wasmAndData: Awaited<ReturnType<typeof fetchWASMAndData>>;
+    try {
+      wasmAndData = await fetchWASMAndData(this.config.agdaVersion);
+    } catch (error) {
+      throw this.startupFailure(error);
     }
 
     const progressCtx = traceFetchProgress(wasmAndData.wasm, (loaded) => {
@@ -312,7 +342,13 @@ export class AgdaController {
       const resp = new Response(progressCtx.source.stream, {
         headers: { "Content-Type": "application/wasm" },
       });
-      const blob = await resp.blob();
+      const blob = await resp.blob().catch((error) => {
+        throw this.startupFailure(
+          new Error(
+            `the compiler could not be loaded (${describeError(error)})`,
+          ),
+        );
+      });
       this.wasmLoadingProgress = {
         source: { type: "url", url: URL.createObjectURL(blob) },
         bytesLoaded: blob.size,
@@ -330,6 +366,18 @@ export class AgdaController {
     return this.runALSWASM(wasmAndData.dataFile);
   }
 
+  /** What a failure to start Agda raises, for the page to show; the
+   * worker, if any, is stopped. */
+  private startupFailure(error: unknown) {
+    if (this.alsWorkerStatus !== "terminated") {
+      this.alsWorkerStatus = "errored";
+      this._lspWorker?.terminate();
+    }
+    return new Error(`Agda could not start: ${describeError(error)}.`, {
+      cause: error,
+    });
+  }
+
   async restartALSWASM() {
     await this.stopALSWASM();
     // FIXME: make one tick for the status transition, is it required?
@@ -340,9 +388,6 @@ export class AgdaController {
   async _startALSWASM(workerInitData: ALSWorkerInitResultProxied) {
     this.alsWorkerStatus = "active";
 
-    SPSC.resetArrayBuffer(this.config.agdaBuffers.stdin);
-    SPSC.resetArrayBuffer(this.config.agdaBuffers.stdout);
-
     this.runningWASM = workerInitData.start();
 
     this.lspClient!.connect(this.alsRouter!.transport);
@@ -352,62 +397,48 @@ export class AgdaController {
       ),
     });
 
-    const ret = await this.runningWASM;
+    // The server exits when the page stops it (stopALSWASM, which sets
+    // "deactivating" first); any other end, a failure or an exit of its
+    // own, is reported, since the page would otherwise go on saying "Agda
+    // ready".
+    let ret: number;
+    try {
+      ret = await this.runningWASM;
+    } catch (error) {
+      this.runningWASM = undefined;
+      this.deactivate();
+      this.alsWorkerStatus = "exited";
+      throw new Error(
+        `Agda stopped: the language server failed (${describeError(error)}).`,
+        { cause: error },
+      );
+    }
+    // (stopALSWASM may have changed the status while this awaited.)
+    const requested =
+      (this.alsWorkerStatus as ALSWorkerStatus) === "deactivating";
     this.runningWASM = undefined;
     this.deactivate();
 
     this.alsWorkerStatus = "exited";
     console.log("ALS worker exited with code", ret);
+    if (!requested)
+      throw new Error(
+        `Agda stopped: the language server exited with code ${ret}.`,
+      );
     return ret;
   }
 
-  async initDriveHostWorker(options: {
-    builtin?: ArrayBuffer;
-    stdlib?: ArrayBuffer;
-    plfa?: ArrayBuffer;
-  }) {
-    if (this._driveHostWorker) {
-      throw new Error("should not be reusing existing drive host worker");
-    }
-
-    const { lock, stdin, stdout } = this.config.driveBuffers;
-    new Int32Array(lock).set([0]);
-    SPSC.resetArrayBuffer(stdin);
-    SPSC.resetArrayBuffer(stdout);
-
-    const { worker, event } = await makeDriveHostWorker({
-      stdin,
-      stdout,
-      agdaDataZip: options.builtin ?? null,
-      agdaStdlibZip: options.stdlib ?? null,
-      plfaProjectZip: options.plfa ?? null,
-      cacheNamespace: driveCacheNamespace,
-    });
-
-    if (event.data !== "fs-ready") {
-      throw new Error("drive worker did not respond correctly");
-    }
-
-    this.driveIsCreated = true;
-    return (this._driveHostWorker = worker);
-  }
-
-  makeALSTransport(stdinWaker: MessagePort) {
+  makeALSTransport(port: MessagePort) {
     if (!this.editorView) {
       throw new Error("EditorView not ready");
     }
 
-    const lspClientReadable = createReadableByteStream(
-      this.agdaStdoutReader,
-      stdinWaker,
-    );
-    const lspClientWritable = createWritableByteStream(this.agdaStdinWriter);
+    const { readable: lspClientReadable, writable: lspClientWritable } =
+      createPortByteStreams(port);
 
     const router = makeLSPTransport(
       this.editorView,
-      (status) => {
-        this.iotcmStatus = status;
-      },
+      (status) => this.updateIOTCMStatus(status),
       (tag: string, contents: any) => this.handleAgdaResponse(tag, contents),
       this,
     );
@@ -422,29 +453,28 @@ export class AgdaController {
       throw new Error("No active loading wasm");
     }
 
-    const wakerChannel = new MessageChannel();
+    const lspChannel = new MessageChannel();
 
-    this.alsRouter = this.makeALSTransport(wakerChannel.port1);
+    this.alsRouter = this.makeALSTransport(lspChannel.port1);
 
     const { initPromise } = makeLspWorker(
       {
         wasmSource: { ...this.wasmLoadingProgress.source },
-        stdinWaker: wakerChannel.port2,
-        stdin: this.config.agdaBuffers.stdin,
-        stdout: this.config.agdaBuffers.stdout,
-        // note that we pipe the app's stdout to drive's stdin and vice versa
-        driveBuffers: {
-          lock: this.config.driveBuffers.lock,
-          stdin: this.config.driveBuffers.stdout,
-          stdout: this.config.driveBuffers.stdin,
-        },
+        // Absolute: the worker resolves URLs against itself.
+        glueUrl: new URL(
+          agdaVersionMap[this.config.agdaVersion].gluePath,
+          location.href,
+        ).href,
+        port: lspChannel.port2,
         // ALS drives Agda through its interactive command loop, but unlike the
         // `agda --interaction` executable it does not enable Agda's loaded-file
         // cache by default. Pass the matching Agda option explicitly so repeat
         // checks can reuse declarations that have not changed.
         // --raw: the server answers in Agda's own JSON (ResponseJSONRaw),
-        // which the transport reads.
-        args: ["--raw", "+RTS", "-A64m", "-RTS", "+AGDA", "--interaction", "-AGDA"],
+        // which the transport reads.  The fork's +RTS -A64m -RTS (a 64 MB
+        // nursery) is gone: the reactor's runtime takes it, and it made no
+        // check faster while it grew the heap by 70 to 90 MiB (issue 59).
+        args: ["--raw", "+AGDA", "--interaction", "-AGDA"],
       },
       (worker) => {
         this._lspWorker = worker;
@@ -455,41 +485,54 @@ export class AgdaController {
       },
     );
 
-    this.workerInitData = await initPromise;
-
-    const [, dataFileData, stdlibData, plfaData] = await Promise.all([
-      this.workerInitData
-        .getALSVersion()
-        .then((ver) => (this.receivedALSVersion = ver)),
-      dataFile ? dataFile.arrayBuffer() : Promise.resolve(undefined),
-      fetch(
-        `${asset("/agda-stdlib-2.3-patched.zip")}?cache=${cacheTokens.stdlib}`,
-      ).then((x) => x.arrayBuffer()),
-      fetch(
-        `${asset("/plfa/project.zip")}?cache=${cacheTokens.plfaProject}`,
-      ).then((x) => x.arrayBuffer()),
-    ]);
+    // Each step names itself when it fails.
+    const step = <T>(what: string, promise: Promise<T>) =>
+      promise.catch((error) => {
+        throw new Error(`${what} (${describeError(error)})`, { cause: error });
+      });
 
     try {
-      await this.initDriveHostWorker({
-        builtin: dataFileData,
-        stdlib: stdlibData,
-        plfa: plfaData,
-      });
-    } catch (err) {
-      return Promise.reject(
-        new Error("Failed to setup ALS drive host worker", { cause: err }),
-      );
-    }
+      // The worker compiles the compiler while the page fetches the
+      // archives.
+      const [workerInitData, dataFileData, stdlibData, plfaData] =
+        await Promise.all([
+          step("the compiler could not be loaded", initPromise),
+          dataFile
+            ? readOrFail(dataFile, "Agda's builtin library")
+            : Promise.resolve(null),
+          fetchOrFail(
+            `${asset("/agda-stdlib-2.3-patched.zip")}?cache=${cacheTokens.stdlib}`,
+            "the standard library",
+          ).then((x) => readOrFail(x, "the standard library")),
+          fetchOrFail(
+            `${asset("/plfa/project.zip")}?cache=${cacheTokens.plfaProject}`,
+            "PLFA",
+          ).then((x) => readOrFail(x, "PLFA")),
+        ]);
+      this.workerInitData = workerInitData;
 
-    if (this.config.agdaVersion === "2.9.0") {
-      try {
-        await this.workerInitData.spawn(["--setup"]);
-      } catch (err) {
-        console.warn("failed to complete the setup stage of agda", err);
-        this.alsWorkerStatus = "errored";
-        return -1;
-      }
+      const archives = [dataFileData, stdlibData, plfaData].filter(
+        (x): x is ArrayBuffer => x != null,
+      );
+      await step(
+        "the drive could not be set up",
+        this.workerInitData.mount(
+          Comlink.transfer(
+            {
+              builtin: dataFileData,
+              stdlib: stdlibData,
+              plfa: plfaData,
+              cacheNamespace: driveCacheNamespace,
+            },
+            archives,
+          ),
+        ),
+      );
+      this.driveIsCreated = true;
+
+      await step("Agda's setup failed", this.workerInitData.setup());
+    } catch (error) {
+      throw this.startupFailure(error);
     }
 
     // revoke object url after it is consumed
@@ -500,7 +543,7 @@ export class AgdaController {
       URL.revokeObjectURL(this.wasmLoadingProgress.source.url);
     }
 
-    return this._startALSWASM(this.workerInitData);
+    return this._startALSWASM(this.workerInitData!);
   }
 
   async stopALSWASM() {
@@ -529,8 +572,6 @@ export class AgdaController {
     this.workerInitData = undefined;
     this.runningWASM = undefined;
 
-    this._driveHostWorker?.terminate();
-    this._driveHostWorker = undefined;
     this.driveIsCreated = false;
     this.driveArchiveLoading = false;
     this._archiveMountPromise = undefined;
@@ -598,7 +639,7 @@ export class AgdaController {
     this.interactionPoints = [];
     this.activeGoalId = undefined;
 
-    await this.syncEditorToDrive();
+    await this.syncEditorToDrive({ forLoad: true });
 
     const encodedFilePath = JSON.stringify(this.currentFilePath);
     this.pendingLoadSnapshot = {
@@ -675,27 +716,20 @@ export class AgdaController {
     return undefined;
   }
 
-  async syncEditorToDrive() {
-    if (this.driveIsLocked) {
-      return;
-    }
+  /** Write the buffer to the drive.  For a load (`forLoad`), the text
+   * written becomes the one Agda's positions refer to, until the next
+   * load. */
+  async syncEditorToDrive({ forLoad = false } = {}) {
     if (!this.editorView || !this.driveIsCreated) return;
 
     const doc = this.editorView!.state.doc.toString();
     this.persistDocument(doc);
+    if (forLoad) this.editorView!.dispatch({ effects: commit.of() });
 
-    try {
-      this.driveIsLocked = true;
-      await writeSourceFileToDrive(
-        this.driveHandle,
-        this.currentFilePath,
-        browserAgdaSource(this.currentFilePath, doc),
-      );
-    } finally {
-      this.driveIsLocked = false;
-    }
-
-    this.editorView!.dispatch({ effects: commit.of() });
+    await this.workerInitData!.writeFile(
+      this.currentFilePath,
+      browserAgdaSource(this.currentFilePath, doc),
+    );
 
     this.lspClient!.notification("textDocument/didSave", {
       textDocument: {
@@ -730,7 +764,9 @@ export class AgdaController {
       );
       this.lastAction = "Installing PLFA cache…";
       for (const archive of archives) {
-        await mountArchiveOnDrive(this.driveHandle, archive.data);
+        await this.workerInitData!.mountArchive(
+          Comlink.transfer(archive.data, [archive.data]),
+        );
         this._mountedDriveArchives.add(archive.url);
       }
     };
@@ -742,6 +778,30 @@ export class AgdaController {
       this._archiveMountPromise = undefined;
       this.driveArchiveLoading = false;
     }
+  }
+
+  /** Follow the router's status, except that when the server is first
+   * ready, the controller asks Agda for its version (the reactor has no
+   * `--version`, and the server reports no version of its own), and the
+   * page sees the server ready only once Agda has answered. */
+  private updateIOTCMStatus(status: AgdaIOTCMStatus) {
+    if (this.versionQuery === "unsent" && status === "ready") {
+      this.versionQuery = "pending";
+      // After the router has sent the message that made it ready.
+      queueMicrotask(() =>
+        this.sendInteraction("Cmd_show_version").catch((error) => {
+          console.warn("Could not ask Agda for its version", error);
+          this.versionQuery = "answered";
+          this.iotcmStatus = "ready";
+        }),
+      );
+      return;
+    }
+    if (this.versionQuery === "pending") {
+      if (status !== "ready") return;
+      this.versionQuery = "answered";
+    }
+    this.iotcmStatus = status;
   }
 
   async sendInteraction(command: string) {
@@ -931,7 +991,7 @@ export class AgdaController {
         }
         this.pendingLoadSnapshot = undefined;
         if (completedLoad) {
-          void persistDriveCache(this.driveHandle).catch((error) =>
+          void this.workerInitData?.persist().catch((error: unknown) =>
             console.warn("Could not persist the Agda cache", error),
           );
         }
@@ -1080,6 +1140,11 @@ export class AgdaController {
             .join("\n") || "Empty context",
       };
     } else if (info.kind === "Version") {
+      if (this.versionQuery === "pending") {
+        // The controller's own question, not the reader's.
+        this.reportedAgdaVersion = info.version;
+        return;
+      }
       this.lastResult = {
         kind: info.kind,
         title: "Agda version",

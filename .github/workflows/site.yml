@@ -8,10 +8,16 @@
 #            differed); it records the output's NAR hash and uploads the
 #            site for the browser job;
 #   test     the unit tests (vitest) and svelte-check, in the dev shell;
-#   browser  the built site, served cross-origin isolated, checked in
-#            headless Chromium (`nix run .#browser-check`): Agda ready,
-#            the first check of Main.agda and the modules it type-checked,
-#            a give, and a type error at its position; its timings are
+#   browser  the built site checked in headless Chromium (`nix run
+#            .#browser-check`), served without the isolation headers, which
+#            the page no longer needs (issue 59), and again with them: Agda
+#            ready, the first check of Main.agda and the modules it
+#            type-checked, a give, and a type error at its position, with
+#            crossOriginIsolated as the server made it; then the page's
+#            notices (`nix run .#browser-check-notices`): a browser without
+#            DecompressionStream, a compiler request that fails, a compiler
+#            that does not decompress, and an archive whose transfer breaks
+#            off (issue 8).  The timings, records and screenshots are
 #            uploaded.
 #
 # It replaces upstream's workflow (imported as app.yml), whose npm steps
@@ -97,8 +103,14 @@ jobs:
         with:
           name: site
           path: site
-      - name: Check Main.agda in headless Chromium
+      - name: Check Main.agda in headless Chromium, served without the isolation headers
         run: nix run .#browser-check -- site --out browser-check
+      - name: Check Main.agda in headless Chromium, served with the isolation headers
+        if: ${{ !cancelled() }}
+        run: nix run .#browser-check -- site --isolated --out browser-check/isolated
+      - name: Check the page's notices in headless Chromium
+        if: ${{ !cancelled() }}
+        run: nix run .#browser-check-notices -- site --out browser-check/notices
       - uses: actions/upload-artifact@v4
         if: always()
         with:

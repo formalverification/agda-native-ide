@@ -1,15 +1,17 @@
 // File: scripts/browser-check/serve.mjs
 //
-// A static server for a built site, with the two headers that make a
+// A static server for a built site, without the two headers that make a
 // page cross-origin isolated (Cross-Origin-Opener-Policy: same-origin and
-// Cross-Origin-Embedder-Policy: require-corp), which the language
-// server's shared memory needs.  It serves files as they are, a `.gz` as
-// application/gzip with no Content-Encoding (as GitHub Pages does), and
-// logs every request, since a worker's requests are invisible to the
-// page's DevTools session.  Adapted from the 2026-10-04 investigation's
-// harness (issue 5).
+// Cross-Origin-Embedder-Policy: require-corp), or with them when asked:
+// the page needs neither since issue 59, and the check runs both ways, to
+// show that it works with them and without.  It serves files as they are,
+// a `.gz` as application/gzip with no Content-Encoding (as GitHub Pages
+// does), and logs every request, since a worker's requests are invisible
+// to the page's DevTools session.  A test can answer chosen paths itself,
+// to see what the page does when a request fails (issue 8).  Adapted from
+// the 2026-10-04 investigation's harness (issue 5).
 //
-//   node scripts/browser-check/serve.mjs <site> [port]
+//   node scripts/browser-check/serve.mjs <site> [port] [--isolated]
 
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -32,10 +34,16 @@ const TYPES = {
 };
 
 /**
- * Serve `root` on 127.0.0.1 (a secure context, as isolation requires).
- * @param {{ root: string, port?: number }} options
+ * Serve `root` on 127.0.0.1 (a secure context, as isolation requires),
+ * with the isolation headers when `isolated`.  `answer`, when given, is
+ * asked first for each request's path, and its answer, if any, is sent in
+ * place of the file; with `cut`, the answer claims twice its length, and
+ * the connection is dropped after its body, as a transfer that breaks off.
+ * @param {{ root: string, port?: number, isolated?: boolean,
+ *   answer?: (path: string) =>
+ *     { status: number, body: Buffer, cut?: boolean } | undefined }} options
  */
-export function serve({ root, port = 0 }) {
+export function serve({ root, port = 0, isolated = false, answer }) {
   // Every file must lie under this prefix; the filesystem root is its own
   // prefix, already ending in a separator.
   const resolved = resolve(root);
@@ -67,8 +75,15 @@ export function serve({ root, port = 0 }) {
       status = 400;
       body = Buffer.from("bad request");
     }
+    const answered =
+      file === null
+        ? undefined
+        : answer?.(new URL(request.url ?? "/", "http://127.0.0.1").pathname);
     if (file === null) {
       // Answered above.
+    } else if (answered) {
+      status = answered.status;
+      body = answered.body;
     } else if (!file.startsWith(base)) {
       status = 403;
       body = Buffer.from("forbidden");
@@ -82,17 +97,23 @@ export function serve({ root, port = 0 }) {
     }
     entry.status = status;
     entry.bytes = body.length;
+    const cut = Boolean(answered?.cut);
     response.writeHead(status, {
       "content-type":
         status === 200
           ? (TYPES[extname(file ?? "")] ?? "application/octet-stream")
           : "text/plain; charset=utf-8",
-      "content-length": body.length,
+      "content-length": cut ? 2 * body.length : body.length,
       "cache-control": "max-age=600",
-      "cross-origin-opener-policy": "same-origin",
-      "cross-origin-embedder-policy": "require-corp",
+      ...(isolated
+        ? {
+            "cross-origin-opener-policy": "same-origin",
+            "cross-origin-embedder-policy": "require-corp",
+          }
+        : {}),
     });
-    response.end(request.method === "HEAD" ? undefined : body);
+    if (cut) response.write(body, () => response.destroy());
+    else response.end(request.method === "HEAD" ? undefined : body);
   });
   return new Promise((done) => {
     server.listen(port, "127.0.0.1", () => {
@@ -113,11 +134,17 @@ export function serve({ root, port = 0 }) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  const [root, port] = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const isolated = args.includes("--isolated");
+  const [root, port] = args.filter((arg) => arg !== "--isolated");
   if (!root) {
-    console.error("usage: node scripts/browser-check/serve.mjs <site> [port]");
+    console.error(
+      "usage: node scripts/browser-check/serve.mjs <site> [port] [--isolated]",
+    );
     process.exit(2);
   }
-  const { origin } = await serve({ root, port: Number(port ?? 8000) });
-  console.log(`serving ${root} at ${origin}/, cross-origin isolated`);
+  const { origin } = await serve({ root, port: Number(port ?? 8000), isolated });
+  console.log(
+    `serving ${root} at ${origin}/, ${isolated ? "with" : "without"} the isolation headers`,
+  );
 }

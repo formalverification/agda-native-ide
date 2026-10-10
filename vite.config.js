@@ -7,13 +7,20 @@
 // back to `git describe` without it; in the Nix sandbox, which has no
 // .git, the fallback recorded "WORKTREE" for every commit.  It also
 // defines AGDA_ASSETS, what the page needs to know about the files it
-// fetches, derived from them by scripts/asset-manifest.mjs (issue 3).
+// fetches, derived from them by scripts/asset-manifest.mjs (issue 3).  The
+// dev and preview servers no longer send the two headers that made the
+// page cross-origin isolated, which it no longer needs (issue 59).  The dev
+// server serves the compiler gzipped, compressing the raw file in static/,
+// since the page fetches only the gzip the build writes (issue 8).
 
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vitest/config";
 import { exec } from "child_process";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assetManifest } from "./scripts/asset-manifest.mjs";
+import { constants, gzipSync } from "node:zlib";
+import { ASSETS, assetManifest } from "./scripts/asset-manifest.mjs";
 
 const staticDir = fileURLToPath(new URL("./static", import.meta.url));
 
@@ -30,24 +37,35 @@ const requireAssets = () => ({
   },
 });
 
-/** @returns {import('vite').Plugin<unknown>} */
-const coiPlugin = () => ({
-  name: "coi-plugin",
-  configureServer(server) {
-    server.middlewares.use((_req, res, next) => {
-      res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-      res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
-      next();
-    });
-  },
-  configurePreviewServer(server) {
-    server.middlewares.use((_req, res, next) => {
-      res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-      res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
-      next();
-    });
-  },
-});
+/** The dev server answers the compiler's gzip, which only the build writes
+ * (scripts/prepare-cloudflare-assets.mjs), with the raw compiler in
+ * static/ compressed, once per version of the file.
+ * @returns {import('vite').Plugin<unknown>} */
+const serveCompilerGzip = () => {
+  /** @type {{ mtimeMs: number, body: Buffer } | undefined} */
+  let cached;
+  return {
+    name: "serve-compiler-gzip",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const path = new URL(req.url ?? "/", "http://localhost").pathname;
+        const raw = join(staticDir, ASSETS.compiler);
+        if (!path.endsWith(`/${ASSETS.compiler}.gz`) || !existsSync(raw))
+          return next();
+        const { mtimeMs } = statSync(raw);
+        if (cached?.mtimeMs !== mtimeMs)
+          cached = {
+            mtimeMs,
+            body: gzipSync(readFileSync(raw), { level: constants.Z_BEST_SPEED }),
+          };
+        res.setHeader("Content-Type", "application/gzip");
+        res.setHeader("Content-Length", cached.body.length);
+        res.end(cached.body);
+      });
+    },
+  };
+};
 
 /** @type {() => Promise<string>} */
 const getGitCommitHash = () =>
@@ -95,7 +113,7 @@ export default defineConfig(async ({ command }) => {
       include: ["@runno/wasi", "jszip"],
     },
     clearScreen: false,
-    plugins: [requireAssets(), sveltekit(), coiPlugin()],
+    plugins: [requireAssets(), serveCompilerGzip(), sveltekit()],
     build: {
       // bumped for TLA
       target: ["es2022", "edge89", "firefox89", "chrome89", "safari15"],

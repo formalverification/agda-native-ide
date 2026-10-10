@@ -7,10 +7,18 @@
   // and archives comes from $lib/assets, which the build derives from the
   // files, instead of a value maintained by hand (issue 3).  The page runs
   // Agda 2.9.0, and its status bar shows the version the language server
-  // reports, in place of a literal "Agda 2.8" (issue 58).
+  // reports, in place of a literal "Agda 2.8" (issue 58): since the page
+  // runs the server's reactor build, the version Agda gives when the
+  // controller asks for it.  The page allocates no SharedArrayBuffer, since
+  // the server and the drive share one worker, and so no longer requires
+  // cross-origin isolation, or checks for it (issue 59).  Before it starts
+  // Agda, the page checks that the browser has what it needs
+  // ($lib/support), and says so when it does not; when Agda cannot start,
+  // or its server stops of its own accord, the page says why, in the
+  // banner, the inspector's heading and the status bar, rather than "Agda
+  // ready" (issue 8).
 
   import { onDestroy, onMount } from "svelte";
-  import { SPSC } from "spsc";
   import { basicSetup } from "codemirror";
   import { startCompletion } from "@codemirror/autocomplete";
   import { Compartment, Prec } from "@codemirror/state";
@@ -42,6 +50,7 @@
   } from "@lucide/svelte";
 
   import { AgdaController, LS_DOC_KEY } from "$lib/controller.svelte";
+  import { missingFeatures, unsupportedBrowserNotice } from "$lib/support";
   import { cacheTokens } from "$lib/assets";
   import { myCodeMirrorTheme } from "$lib/codemirror/theme";
   import { agdaCompletions } from "$lib/codemirror/completion";
@@ -102,15 +111,6 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   }
 
   const controller = new AgdaController({
-    agdaBuffers: {
-      stdin: SPSC.allocateArrayBuffer(4096),
-      stdout: SPSC.allocateArrayBuffer(4096),
-    },
-    driveBuffers: {
-      lock: new SharedArrayBuffer(4),
-      stdin: SPSC.allocateArrayBuffer(1024 * 1024),
-      stdout: SPSC.allocateArrayBuffer(1024 * 1024),
-    },
     agdaVersion: "2.9.0",
   });
   const sourceLanguageCompartment = new Compartment();
@@ -184,10 +184,20 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     controller.alsWorkerStatus === "active" &&
       controller.iotcmStatus === "ready",
   );
+  // Agda did not start (this browser lacks what the page needs, or a step
+  // of the startup failed), or its server stopped of its own accord.  The
+  // banner says which.
+  const agdaFailed = $derived(startupError !== "");
+  const agdaFailedLabel = $derived(
+    controller.alsWorkerStatus === "exited"
+      ? "Agda stopped"
+      : "Agda did not start",
+  );
   const compilerStarting = $derived(
-    controller.alsWorkerStatus === "initial" ||
-      controller.alsWorkerStatus === "loading" ||
-      controller.alsWorkerStatus === "loaded",
+    !agdaFailed &&
+      (controller.alsWorkerStatus === "initial" ||
+        controller.alsWorkerStatus === "loading" ||
+        controller.alsWorkerStatus === "loaded"),
   );
   const progress = $derived.by(() => {
     const loaded = controller.wasmLoadingProgress?.bytesLoaded ?? 0;
@@ -220,20 +230,23 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     return "goals";
   });
   const inspectorHeading = $derived(
-    compilerStarting
-      ? `${compilerLoadingLabel} ${progress}%`
-      : isBusy
-        ? controller.lastAction
-        : inspectorMode === "problems"
-          ? `${controller.problems.length} problem${controller.problems.length === 1 ? "" : "s"}${checkDurationLabel ? ` · ${checkDurationLabel}` : ""}`
-          : inspectorMode === "result"
-            ? (controller.lastResult?.title ?? "Result")
-            : currentGoals.length
-              ? `${currentGoals.length} open goal${currentGoals.length === 1 ? "" : "s"}${checkDurationLabel ? ` · ${checkDurationLabel}` : ""}`
-              : controller.checked
-                ? `Module checked${checkDurationLabel ? ` · ${checkDurationLabel}` : ""}`
-                : "Waiting for check",
+    agdaFailed
+      ? agdaFailedLabel
+      : compilerStarting
+        ? `${compilerLoadingLabel} ${progress}%`
+        : isBusy
+          ? controller.lastAction
+          : inspectorMode === "problems"
+            ? `${controller.problems.length} problem${controller.problems.length === 1 ? "" : "s"}${checkDurationLabel ? ` · ${checkDurationLabel}` : ""}`
+            : inspectorMode === "result"
+              ? (controller.lastResult?.title ?? "Result")
+              : currentGoals.length
+                ? `${currentGoals.length} open goal${currentGoals.length === 1 ? "" : "s"}${checkDurationLabel ? ` · ${checkDurationLabel}` : ""}`
+                : controller.checked
+                  ? `Module checked${checkDurationLabel ? ` · ${checkDurationLabel}` : ""}`
+                  : "Waiting for check",
   );
+
 
   function formatDuration(milliseconds: number) {
     if (milliseconds < 1000) return `${Math.round(milliseconds)} ms`;
@@ -451,9 +464,9 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
 
     void loadPlfaInterfaceManifest();
 
-    if (!crossOriginIsolated) {
-      startupError =
-        "This page needs COOP/COEP headers so its Agda worker can use SharedArrayBuffer.";
+    const missing = missingFeatures();
+    if (missing.length) {
+      startupError = unsupportedBrowserNotice(missing);
       return;
     }
     void controller.startALSWASM().catch((error) => {
@@ -1107,7 +1120,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
               class:success={controller.checked &&
                 !controller.problems.some((p) => p.severity === "error")}
             >
-              {#if isBusy}<LoaderCircle
+              {#if agdaFailed}<CircleAlert size={13} />{agdaFailedLabel}{:else if isBusy}<LoaderCircle
                   size={13}
                   class="spin"
                 />{controller.lastAction}{:else if controller.problems.some((p) => p.severity === "error")}<CircleAlert
@@ -1121,7 +1134,9 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
               ? ""
               : "s"}</span
           ><span class="status-spacer"></span><span class="status-version"
-            >{controller.receivedALSVersion?.trim() ?? "Agda"}</span
+            >{controller.reportedAgdaVersion
+              ? `Agda ${controller.reportedAgdaVersion}`
+              : "Agda"}</span
           ><span
             >WASI · local</span
           ><span>UTF-8</span>

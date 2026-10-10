@@ -16,6 +16,7 @@ result
 # upstream/assets.sha256 lists them)
 /static/*.wasm
 /static/*.wasm.gz
+/static/als-*.js
 /static/*.zip
 /static/*.woff2
 /static/favicon.png

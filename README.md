@@ -34,17 +34,16 @@ headless Chromium.  Nothing is deployed.
 ## Where things are
 
 +  **The app**, as imported from plfa-playground: `src/` (the page, the
-   controller, and the two workers), `static/` (the files served as they
-   are), `scripts/*.mjs` (the build's post-step and the PLFA tooling),
-   `compiler/` (the recipe that builds the compiler, Agda 2.9.0 and its
-   language server, `build-agda-2.9.0.sh`, with its patches and pins, and
-   upstream's recipe for the fork's 2.8.0 compiler), `stdlib/patches/`
-   (the standard library 2.3's patches for Agda 2.9.0), and the build's
+   controller, and the language server's worker), `static/` (the files served
+   as they are), `scripts/*.mjs` (the build's post-step and the PLFA
+   tooling), `compiler/` (the recipe that builds the compiler, Agda 2.9.0 and
+   its language server, `build-agda-2.9.0.sh`, with its patches and pins, and
+   upstream's recipe for the fork's 2.8.0 compiler), `stdlib/patches/` (the
+   standard library 2.3's patches for Agda 2.9.0), and the build's
    configuration (`package.json`, `svelte.config.js`, `vite.config.js`,
    `tsconfig.json`, `tsconfigs/`).  Upstream's own guide is
-   [`README.plfa-playground.md`][upstream-readme]; its "Run locally"
-   assumes the binaries are committed, so follow "Working on the app"
-   below instead.
+   [`README.plfa-playground.md`][upstream-readme]; its "Run locally" assumes
+   the binaries are committed, so follow "Working on the app" below instead.
 +  [`docs/adr/0001-runtime.md`][adr-0001]: ADR 0001, the runtime: why this
    fork, how it is imported and pinned, and the second lane.  Its
    companion, [`docs/notes/runtime.md`][runtime-note], explains how the
@@ -78,30 +77,30 @@ Everything here runs in the dev shell (`nix develop`), which carries node
 assets` fetches them by hash into `static/`, with Agda's builtin library and
 the patched standard library, which the flake builds (`nix build
 .#agda-data`, `nix build .#stdlib`).  The compiler is fetched by the hashes
-in `compiler/agda-2.9.0.sha256` (`nix build .#compiler`) from a release
-that does not exist yet ([#58]), so until it does, `make assets` works only
-where the four files are in the Nix store already, from a run of the
-recipe: `nix develop .#compiler --command compiler/build-agda-2.9.0.sh
-OUT`, then `nix-store --add-fixed sha256 OUT/<file>` for each of the four
-(a run took 27 minutes on a 20-core workstation).
+in `compiler/agda-2.9.0.sha256` (`nix build .#compiler`) from the release
+`agda-2.9.0-da66a8c-als-8` of [formalverification/agda-wasm-builds]
+([#58]); the site ships its reactor build and that build's JavaScript glue
+([#59]).  `nix develop .#compiler --command compiler/build-agda-2.9.0.sh
+OUT` rebuilds the four files from their sources (a run took 27 minutes on
+a 20-core workstation).
 
 ```sh
-make assets        # fetch the pins and the compiler, build the rest, into static/
-make check         # svelte-check
-make test          # the unit tests (vitest)
-make build         # check the pins, then npm run build, into build/
-make browser-check # check Main.agda in build/ in headless Chromium
-make dev           # serve the app at http://localhost:5173
+make assets                 # fetch the pins and the compiler, build the rest, into static/
+make check                  # svelte-check
+make test                   # the unit tests (vitest)
+make build                  # check the pins, then npm run build, into build/
+make browser-check          # check Main.agda in build/ in headless Chromium
+make browser-check-notices  # check what build/ says when it cannot run
+make dev                    # serve the app at http://localhost:5173
 ```
 
 `make check`, `make test`, `make build` and `make dev` first install the
 locked npm dependencies (`npm ci`) whenever `package.json` or
 `package-lock.json` is newer than the last install.  `make build` refuses
 to build when a file in `static/` differs from its pin; `make assets` puts
-it back.  The dev server sends the two headers the language server's shared
-memory needs (`Cross-Origin-Opener-Policy: same-origin` and
-`Cross-Origin-Embedder-Policy: require-corp`), and so must any server of
-`build/`.
+it back.  `build/` is a static site that any static server can serve: the
+page shares no memory between threads, so it needs no cross-origin
+isolation and no particular headers ([#59]).
 
 `nix build .#site` builds the same site in the Nix sandbox, from a clean
 clone: it runs `make build` with the pinned binaries and the npm
@@ -114,17 +113,30 @@ builds it again and fails if a byte differs.  After a change to
 how).
 
 `make browser-check` (or `nix run .#browser-check -- <site>`, for any
-built site, such as `nix build .#site`'s `result`) serves the site with the
-two headers and uses it in headless Chromium, with node and Chromium pinned
-by the flake.  It waits for "Agda ready" and the first check of the
-default `Main.agda`, asserts two open goals and the modules that check
-type-checked (the `Checking` lines of Agda's running info, read from the
-inspector after an Infer), gives at a goal, and checks a deliberate type
-error.  It writes
-its timings, every request and a screenshot into `browser-check/`.  CI's
-[`site.yml`][site-ci] runs it on every pull request.  It is the language
-server's only test, since the server cannot be driven under wasmtime (its
-standard input cannot be made nonblocking there).
+built site, such as `nix build .#site`'s `result`) serves the site and uses
+it in headless Chromium, with node and Chromium pinned by the flake.  It
+waits for "Agda ready" and the first check of the default `Main.agda`,
+asserts two open goals and the modules that check type-checked (the
+`Checking` lines of Agda's running info, read from the inspector after an
+Infer), gives at a goal, and checks a deliberate type error.  It serves
+the site without the two isolation headers and asserts that the page is
+not cross-origin isolated; `make browser-check ISOLATED=1` (`--isolated`)
+sends them and asserts that it is.  It writes its timings, every request
+and a screenshot into `browser-check/` (`browser-check/isolated/`), and
+CI's [`site.yml`][site-ci] runs it both ways on every pull request.  It is
+the language server's only test, since the server's reactor build cannot
+run under a standalone runtime such as wasmtime: its exports are called
+from JavaScript.  With `--browser firefox`, and `FIREFOX` naming a Firefox,
+`scripts/browser-check/run.mjs` drives Firefox through WebDriver BiDi
+instead (`scripts/browser-check/bidi.mjs`); CI does not.
+
+`make browser-check-notices` (`nix run .#browser-check-notices -- <site>`)
+checks what the page says when it cannot run: in a browser without
+`DecompressionStream`, it names what is missing and the browsers it is
+tested in, and when the compiler's request fails, the compiler does not
+decompress, or the standard library's transfer breaks off, it says so; in
+each case the status bar says that Agda did not start, never "Agda ready".
+CI runs it too.
 
 `make provenance-check` verifies that every imported file recorded as
 unchanged still is, and that `docs/provenance.md` lists every pin.  To
@@ -132,6 +144,26 @@ change an imported file, say so in a header comment naming the upstream file
 and commit (for JSON, which carries no comment, in `docs/provenance.md`
 alone), remove its line from `upstream/unchanged.sha256`, and add a row to
 the "Changes to upstream files" table in `docs/provenance.md`.
+
+## Browsers
+
+The page is tested in the browsers below, and other browsers are not
+supported: in a browser that lacks what the page needs, the page says what
+is missing and where it is tested, and works around nothing ([#8]).
+
+| Browser | Version | How | Last passed |
+|---|---|---|---|
+| Chromium, headless | 149.0.7827.200, the flake's | `make browser-check`, without the isolation headers and with them, and `make browser-check-notices`; CI, on every pull request | 2026-10-08 |
+| Firefox, headless (Ubuntu's snap) | 157.0 | `run.mjs` and `notices.mjs` in `scripts/browser-check/`, with `--browser firefox`, without the headers and with them, by hand | 2026-10-08 |
+
+WebKit (Safari) is untested: none was at hand.  Before it starts Agda,
+the page checks for module workers, `DecompressionStream`, and the five
+WebAssembly features the compiler uses (SIMD, reference types, bulk
+memory, sign extension, and non-trapping float-to-int conversions;
+`src/lib/support.ts`).  By MDN's compatibility data and WebAssembly's
+feature table, a browser has them all from Chrome 96, Firefox 114 and
+Safari 16.4; those are floors, not a promise.  IndexedDB is optional:
+without it the page runs, uncached.
 
 ## Syncing with upstream
 
@@ -236,4 +268,7 @@ every artifact the app ships, with its license.
 [plan]: docs/GITHUB_PROJECT.md
 [proposal]: docs/notes/browser-ide-proposal.md
 [williamdemeo/github-project]: https://github.com/williamdemeo/github-project
+[formalverification/agda-wasm-builds]: https://github.com/formalverification/agda-wasm-builds
+[#8]: https://github.com/formalverification/agda-native-ide/issues/8
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
+[#59]: https://github.com/formalverification/agda-native-ide/issues/59

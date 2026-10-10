@@ -1,7 +1,12 @@
-/*
-  Cross-Origin-Opener-Policy: same-origin
-  Cross-Origin-Embedder-Policy: require-corp
-  Cross-Origin-Resource-Policy: cross-origin
+# File: static/_headers
+#
+# Changed from upstream: this is SeungheonOh/plfa-playground's
+# static/_headers at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
+# (docs/provenance.md).  The headers that made every route cross-origin
+# isolated (Cross-Origin-Opener-Policy, Cross-Origin-Embedder-Policy and
+# Cross-Origin-Resource-Policy) are gone: the page shares no memory
+# between threads, so it needs no isolation (issue 59).  The cache rules
+# are upstream's.
 
 /*.wasm
   Content-Type: application/wasm

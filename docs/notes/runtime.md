@@ -2,135 +2,194 @@
 
 # How the runtime works
 
-This note explains the runtime the IDE forks from plfa-playground: the two
-workers, the transport between the page and the language server, the
-in-memory drive, and the rule that decides between a give and a full check.
-[ADR 0001][adr] records the decisions about it; this note is the explanation
-the ADR links.  Every line reference is to this repository's copy of the
-fork: upstream's `ae0aa84c`, with the changes `docs/provenance.md` lists;
-of those, only the derived `?cache=` tokens, the drive's cache namespace,
-the drive's index, the builtins' archive, and the compiler and standard
-library of Agda 2.9.0 ([#58]) touch what this note describes, and each is
-explained where it arises.  The facts come from
-reading that source, and the measurements from the issues that record
-them (their findings sections condense the 2026-10-04 investigation of
-the fork).
+This note explains the runtime the IDE forks from plfa-playground: the
+language server's worker, the transport between the page and the server,
+the in-memory drive, the page's startup and its notices, and the rule that
+decides between a give and a full check.  [ADR 0001][adr] records the
+decisions about it; this note is the explanation the ADR links.  Every line
+reference is to this repository's copy of the fork: upstream's `ae0aa84c`,
+with the changes `docs/provenance.md` lists; of those, the derived
+`?cache=` tokens, the drive's cache namespace, the drive's index, the
+builtins' archive, the compiler and standard library of Agda 2.9.0 ([#58]),
+and the server's reactor build with the drive in its worker ([#59]) touch
+what this note describes, and each is explained where it arises.  The facts
+come from reading that source, and the measurements from the issues that
+record them (their findings sections condense the 2026-10-04 investigation
+of the fork).
 
 ## The pieces
 
-The page runs three threads.
+The page runs two threads.
 
 +  **The main thread** holds the editor (CodeMirror 6), a language-server
    client (`@codemirror/lsp-client`), and the controller
    (`src/lib/controller.svelte.ts`), which owns the state the page shows:
    the goals, the problems, the inspector's results.
-+  **The language-server worker** (`src/lib/worker/als.ts`) compiles
-   `als-2.9.0.wasm`, the Agda Language Server built for WASI (the
++  **The language server's worker** (`src/lib/worker/als.ts`) compiles
+   `als-reactor-2.9.0.wasm`, the Agda Language Server built for WASI (the
    WebAssembly System Interface, the POSIX-like set of imports a WebAssembly
-   program uses to reach files and streams), and runs it under the WASI
-   implementation `@runno/wasi` 0.10.0.  The language server embeds Agda
-   2.9.0 and runs it in its JSON interaction mode.  It is this
+   program uses to reach files and streams) as a *reactor* (below), and
+   runs it under the WASI implementation `@runno/wasi` 0.10.0.  The server
+   embeds Agda 2.9.0 and runs it in its JSON interaction mode.  It is this
    repository's build, from agda/agda-language-server `v8` and Agda's own
    sources, with two patches (`compiler/build-agda-2.9.0.sh`, [#58]); the
-   fork shipped agda-web's build for Agda 2.8.0, `als-2.8ext.wasm`.
-+  **The drive worker** (`src/lib/worker/drive.ts`) owns the in-memory
-   filesystem Agda reads and writes: the user's buffer, Agda's builtin
-   library, the standard library, PLFA, and the interfaces Agda produces.
+   fork shipped agda-web's build for Agda 2.8.0, `als-2.8ext.wasm`, as a
+   command module.  The same worker holds the drive
+   (`src/lib/worker/drive.ts`): the in-memory filesystem Agda reads and
+   writes, with the user's buffer, Agda's builtin library, the standard
+   library, PLFA, and the interfaces Agda produces.
 
-Both workers are module workers that Vite inlines and emits as separate
-files (`src/lib/index.js:155` and `:193`), loaded relative to the bundle, so
-they work under any base path.
+The worker is a module worker that Vite inlines and emits as a separate
+file (`src/lib/index.js:73`), loaded relative to the bundle, so it works
+under any base path.
 
-## Shared memory, and why the page must be isolated
+## No shared memory, and no isolation
 
-The language server is a blocking program: GHC's runtime waits on standard
-input, and every file operation is a synchronous WASI call.  The workers
-make that work with shared memory.
+A WASI program built as a *command* runs from its `_start` to its exit and
+blocks wherever it waits: GHC's runtime waits on standard input, and every
+file operation is a synchronous WASI call.  The fork ran the server so, and
+made it work with shared memory between threads in two places: the
+server's standard input and output were rings of 4 KiB over a
+`SharedArrayBuffer`, on which the server's worker waited with
+`Atomics.wait`; and every file call was proxied to a second worker, which
+held the drive, through a lock and two rings of 1 MiB.  Browsers expose
+`SharedArrayBuffer` only to a cross-origin isolated page, one served with
+`Cross-Origin-Opener-Policy: same-origin` and
+`Cross-Origin-Embedder-Policy: require-corp`, so every host had to send
+those headers, or the page had to carry a service worker that added them
+(at the cost of a reload on a first visit, and a race that left some first
+visits on a dead page, [#6] and [#8]).
 
-+  **Agda's standard input and output** are single-producer,
-   single-consumer ring buffers (the `spsc` package) of 4 KiB each, over a
-   `SharedArrayBuffer`.  The worker's patched `poll_oneoff` waits on the
-   input ring with `Atomics.wait` (`als.ts:190-195`, through the `spsc` reader's `pollRead`).
-+  **Every filesystem call** the WASI shim makes is proxied to the drive
-   worker through two 1 MiB rings, under a 4-byte mutex taken with
-   `Atomics.compareExchange` and `Atomics.wait`
-   (`src/lib/worker/proxy-wasi-drive.ts:78-98`).  The page allocates all of
-   these when its component is created (`src/routes/+page.svelte:102-113`).
+Since [#59] neither is shared.
 
-Browsers expose `SharedArrayBuffer` only to a cross-origin isolated page:
-one served with `Cross-Origin-Opener-Policy: same-origin` and
-`Cross-Origin-Embedder-Policy: require-corp` (or `credentialless`).  The
-worker refuses to start otherwise (`als.ts:28-30`).  The fork meets the
-requirement three ways:
++  **The server is a reactor**: the same server built with its `reactor`
+   flag (agda-language-server's `app/Reactor.hs`), which exports functions
+   that JavaScript calls (`run_setup`, `new_language_server`,
+   `run_language_server`, `send_message`, `recv_message`), each through
+   GHC's JavaScript FFI and so asynchronous, instead of blocking on
+   standard input.  It imports the 24 WASI functions the command module
+   does, and 19 more from `ghc_wasm_jsffi`, which a JavaScript file GHC's
+   post-linker writes for it supplies: `als-reactor-2.9.0.js`, the glue,
+   which the worker imports by its URL (below).  The reactor made no
+   `poll_oneoff` call, which matters with Runno, whose `poll_oneoff`
+   busy-waits on a clock ([#59]'s spike).
++  **The drive is the worker's own**: the server's WASI drive, so a file
+   call is a function call on the same thread.  The page's writes, the
+   archives it mounts and the IndexedDB cache are functions the worker
+   exposes (through Comlink), run between the server's steps.
 
-+  **real headers**: upstream's Cloudflare deployment sends them from
-   `static/_headers`, and the Vite dev and preview servers add them
-   (`vite.config.js`, the `coi-plugin`);
-+  **a service worker**: `static/coi-serviceworker.js` re-serves the page
-   with the headers on a host that cannot set them, at the cost of one
-   reload on a first visit, and with a race that left some measured first
-   visits unisolated ([#6]);
-+  **nothing else**: without isolation the page throws when it allocates
-   its buffers, before its own check (`+page.svelte:452`) can explain why
-   ([#8]).
-
-The plain Agda checker of the second lane needs none of this (ADR 0001,
-"The second lane"): it runs as one batch process per command, so nothing
-blocks on memory another thread writes.
+So the page allocates no `SharedArrayBuffer`, and needs no isolation: no
+headers (`static/_headers` keeps only its cache rules), no service worker,
+and no check of `crossOriginIsolated`, which the page and the worker each
+made.  No deployment ever served the service worker ([#6] has not chosen a
+host), so no visitor holds a registration of it.  The browser check runs
+the page served with the headers and without, and asserts
+`crossOriginIsolated` as the server made it ([below](#the-checks)).
 
 ## Startup
 
-`runALSWASM` (`controller.svelte.ts:420-504`) starts the runtime.
+The page starts Agda in its `onMount` (`src/routes/+page.svelte:467`), and
+`startALSWASM` and `runALSWASM` (`controller.svelte.ts:304` and `:451`)
+carry it on.
 
-1. It starts the language-server worker and, in parallel, fetches the
-   compiler and the data.  The compiler comes as `als-2.9.0.wasm.gz`,
-   decompressed in the page with `DecompressionStream` unless the server
-   already sent it with `Content-Encoding: gzip`; without
-   `DecompressionStream`, or if the `.gz` cannot be fetched, the page fetches
-   the raw `als-2.9.0.wasm` instead (`fetchWASMAndData`, `:118-164`).  That
-   fallback is dead in the built site: the build's post-step deletes the raw
-   file (`scripts/prepare-cloudflare-assets.mjs`), so the request is a 404 (on
-   upstream's live site, the page's own HTML labelled `application/wasm`); the
-   controller swallows the failure (`:290-297`), so the page says "Agda ready"
-   with no goals and never checks, and shows no error.  Measured 2026-10-05 in
-   headless Chrome 153 with `DecompressionStream` removed from the page: no
-   check after 60 s; with the raw file put back in `build/`, two goals in 1.20
-   s.  Of the build's declared targets (`vite.config.js`: Chrome 89, Edge 89,
-   Firefox 89, Safari 15), Firefox before 113 and Safari before 16.4 have no
-   `DecompressionStream` (MDN's compatibility data, read 2026-10-05).  [#3]
-   decided that the built site does not ship the raw file: the fallback could
-   serve only Safari 15.2 to 16.3, since a Firefox without
-   `DecompressionStream` also lacks module workers (until 114), which the page
-   starts, and it would cost 33 MB a deploy, over Cloudflare Pages' 25 MiB
-   limit for one file.  The page's silence when it cannot fetch or decompress
-   the compiler stays open, proposed for [#8].  The data are `agda-data.zip`
-   (Agda's builtin library), `agda-stdlib-2.3-patched.zip` (the standard
-   library 2.3 with the five patches that make it check under Agda 2.9.0,
-   `stdlib/patches/`, [#61]) and `plfa/project.zip`.  Each of these URLs, and
-   those of PLFA's interface archives, carries a `?cache=` token that the
-   build derives from the file's content (`src/lib/assets.ts`), so a changed
-   file is never served from a cache under its old URL.
-2. The drive worker extracts the three archives (`drive.ts:228-256`): the
-   builtins at `/lib/prim`, whose interfaces the archive already holds
-   under `/lib/prim/_build/<version>/agda/`, where Agda looks (the flake
-   builds it from an Agda's own `lib/prim`, [#49], with the compiler's own
-   plain `agda` run under wasmtime, below); the standard library's
-   sources at `/stdlib`; PLFA at the root.  It writes Agda's
-   library registry, `/home/root/.config/agda/libraries` and `defaults`,
-   naming the standard library and PLFA, and restores what an earlier visit
-   persisted (below).
-3. The controller runs `als --setup` once in a throwaway instance (`:487`),
-   which writes every data file the server embeds over the drive's, the
-   builtins' sources and `agda-builtins.agda-lib` among them (Agda's
-   `dumpDataDir` writes them whether or not they exist), so the builtins'
-   sources Agda reads are always the server's own; it then starts the
-   long-lived server with
-   `--raw +RTS -A64m -RTS +AGDA --interaction -AGDA` (`:447`), with
-   `HOME=/home/root` and `Agda_datadir=/` (`als.ts:143-146`).  `--raw`
-   makes the server answer in Agda's own JSON (below); the fork's server
-   had no other mode and took no such option.  `Agda_datadir=/` is the
-   data directory itself, since the server is built without Agda's
-   `use-xdg-data-home` flag ([#58]).
+0. **What the browser needs**.  Before anything else the page checks for
+   module workers, `DecompressionStream`, and the five WebAssembly features
+   the compiler uses: SIMD, reference types, bulk memory, sign extension and
+   non-trapping float-to-int conversions (`src/lib/support.ts`, each feature
+   by `WebAssembly.validate` of a module of one instruction).  The reactor's
+   `target_features` section names ten; validated with each left out in
+   turn, it needs these five and none of the others.  A browser without one
+   of them gets a notice naming what is missing and the browsers the page is
+   tested in, and the page stops there ([#8]; [below](#when-agda-cannot-start)).
+   IndexedDB is not checked: the drive's cache is optional.
+1. **The compiler and the data**.  The page fetches the compiler as
+   `als-reactor-2.9.0.wasm.gz` and decompresses it as it arrives with
+   `DecompressionStream`, unless the server already sent it with
+   `Content-Encoding: gzip` (`fetchWASMAndData`, `:145`), and streams it to
+   the worker, which compiles it while it imports the glue, by its URL
+   with its cache token (`/* @vite-ignore */`, so Vite does not bundle it:
+   the file the page runs is the pinned file, byte for byte, and changes
+   only with the module it was generated from).  There is no other path:
+   the built site has not shipped the raw compiler since [#3], so its old
+   fallback was a 404 the page swallowed, and the dev server now serves the
+   gzip itself, compressing the raw file in `static/` (`vite.config.js`).
+   Meanwhile the page fetches the data: `agda-data.zip` (Agda's builtin
+   library), `agda-stdlib-2.3-patched.zip` (the standard library 2.3 with
+   the five patches that make it check under Agda 2.9.0,
+   `stdlib/patches/`, [#61]) and `plfa/project.zip`.  Each of these URLs,
+   the glue's, and those of PLFA's interface archives, carries a `?cache=`
+   token that the build derives from the file's content
+   (`src/lib/assets.ts`), so a changed file is never served from a cache
+   under its old URL.
+2. **The drive**.  The worker lays out the drive from the three archives
+   (`layOutDrive`, `drive.ts:119`): the builtins at `/lib/prim`, whose
+   interfaces the archive already holds under
+   `/lib/prim/_build/<version>/agda/`, where Agda looks (the flake builds it
+   from an Agda's own `lib/prim`, [#49], with the compiler's own plain
+   `agda` run under wasmtime, below); the standard library's sources at
+   `/stdlib`; PLFA at the root.  It writes Agda's library registry,
+   `/home/root/.config/agda/libraries` and `defaults`, naming the standard
+   library and PLFA, and restores what an earlier visit persisted (below).
+3. **The reactor**.  The worker instantiates the reactor over that drive,
+   with `{ wasi_snapshot_preview1, ghc_wasm_jsffi: glue(exports) }` and the
+   exports filled in afterwards, and Runno's `initialize` runs its
+   `_initialize`, where GHC's runtime starts and reads the argv and the
+   environment from WASI (`als.ts:121-143`): the program's name first, then
+   `--raw +AGDA --interaction -AGDA` (`controller.svelte.ts:477`), with
+   `HOME=/home/root` and `Agda_datadir=/` (`als.ts:114`).  The server reads
+   them when it is created.  `--raw` makes the server answer in Agda's own
+   JSON (below); `Agda_datadir=/` is the data directory itself, since the
+   server is built without Agda's `use-xdg-data-home` flag ([#58]).  The
+   fork's `+RTS -A64m -RTS` (a nursery of 64 MB for GHC's collector) is
+   gone: the reactor's runtime takes such options from the argv, and this
+   one grew the heap from 24 to 94 MiB on the default `Main.agda` (31 to
+   121 MiB on a larger root) and made no check faster ([#59]).
+4. **The setup**.  The controller calls the reactor's `run_setup`, Agda's
+   `--setup`, which writes every data file the server embeds over the
+   drive's, the builtins' sources and `agda-builtins.agda-lib` among them
+   (Agda's `dumpDataDir` writes them whether or not they exist), so the
+   builtins' sources Agda reads are always the server's own.  The stdio
+   build ran `als --setup` in a throwaway instance, and `als --version` in
+   another; the reactor cannot run as a command, and the second has no
+   replacement (below).
+5. **The server**.  `start` (`als.ts:149`) creates the server with
+   `new_language_server` and runs it with `run_language_server`, never
+   awaited (it settles when the server exits), and the page's language
+   client opens the session.  When the server is first ready, the
+   controller asks Agda for its version with `Cmd_show_version`, and lets
+   the page see the server ready only once Agda has answered
+   (`updateIOTCMStatus`, `:787`), so that the question never overlaps the
+   page's first check.  The status bar shows Agda's answer, "Agda 2.9.0":
+   the server sets no `serverInfo`, and its version string is printed only
+   by the command module's `--version`.  The page then checks `Main.agda`.
+
+"Agda ready" in the status bar means that the server is running (the
+controller's `alsWorkerStatus` is `active`), from step 5.  Measured
+2026-10-08 in headless Chromium 149, five fresh profiles each, it came 641
+to 666 ms after navigation (median 650), where the stdio build, which
+compiled the same size of module but instantiated and ran it three times
+(`--version`, `--setup`, the server) beside a second worker for the drive,
+came at 901 to 916 ms (907), served isolated ([#59]).
+
+### When Agda cannot start
+
+Every step from 1 to 4 that fails says so: a failed request names the file
+and the HTTP status, and so does a body that breaks off while it is read; a
+decompression or compilation that fails says that the compiler could not be
+loaded, with the browser's own words; and so on for the drive and the setup
+(`startupFailure`, `controller.svelte.ts:371`, with `describeError`,
+`fetchOrFail` and `readOrFail`, `:179`, `:188` and `:206`).  The page shows
+"Agda could not start: ..." in its banner, and its inspector's heading and
+its status bar say "Agda did not start", where the fork swallowed the
+failure and the status bar said "Agda ready" with no goals and nothing
+checked (measured 2026-10-05 in headless Chrome 153 with
+`DecompressionStream` removed: no check after 60 s; [#8]'s comment).  A
+server that fails, or exits when the page did not ask it to, is reported the
+same way, as "Agda stopped" (`_startALSWASM`, `:388`), where the page went
+on saying "Agda ready".  `scripts/browser-check/notices.mjs` checks four
+cases in CI: a browser without `DecompressionStream`, a compiler request
+answered 404, a compiler that is not a gzip, and a standard library whose
+transfer breaks off.
 
 The user's buffer is `/Main.agda`, beside `/plfa.agda-lib` (`include: .`),
 so Agda treats `Main` as a module of the PLFA library, which depends on the
@@ -138,16 +197,23 @@ standard library.
 
 ## The transport
 
-The page speaks the Language Server Protocol to the worker, with
-`Content-Length` framing over the stdin and stdout rings
-(`src/lib/agda/transport.js:47-73`), and drives Agda through one custom
-method.
+The page speaks the Language Server Protocol to the server, and drives
+Agda through one custom method.  The router (`src/lib/agda/transport.js`,
+upstream's, unchanged) reads and writes `Content-Length`-framed bytes
+(`:47-73`), as it did over the rings; the reactor takes and gives one JSON
+message per call, with no framing (its `prepareOutwards` is the identity,
+and its `parseInwards` takes the whole message).  So the page's end of a
+`MessageChannel` frames each message from the worker and unframes each one
+the router writes (`createPortByteStreams`, `src/lib/index.js:23`), and
+the worker passes each message on with `send_message`, one at a time,
+chaining each on the last, and keeps one `recv_message` pending, posting
+each answer back (`als.ts:149-170`).
 
 +  **Commands**: every Agda command is an IOTCM string (the form Agda's
    interaction mode reads, as Emacs's agda-mode sends it), carried in a
    request named `agda` whose parameters are
    `{tag: "CmdReq", contents: 'IOTCM "/Main.agda" NonInteractive Direct (<command>)'}`
-   (`controller.svelte.ts:747-756`).  A response `CmdRes` with no contents
+   (`controller.svelte.ts:807-816`).  A response `CmdRes` with no contents
    means the command was accepted.
 +  **Answers**: the server streams Agda's interaction-JSON responses back
    as server-to-client requests, also named `agda` (mostly tagged
@@ -170,7 +236,7 @@ method.
    `Cmd_constraints` takes a normalization level, and `GoalAndHave`,
    `NormalForm`, `InferredType` and `Mimer` answers carry more (Agda's
    changelog for 2.9.0).
-+  **Goal commands** (`controller.svelte.ts:795-868`): `Cmd_goal_type` and
++  **Goal commands** (`controller.svelte.ts:855-928`): `Cmd_goal_type` and
    `Cmd_context` (normalised), `Cmd_give WithoutForce`,
    `Cmd_refine_or_intro False`, `Cmd_make_case`, `Cmd_infer_toplevel`,
    `Cmd_compute DefaultCompute` (or `Cmd_compute_toplevel` with no goal
@@ -179,26 +245,42 @@ method.
 
 ## A check, and the give rule
 
-A check is `loadAgdaFile` (`controller.svelte.ts:553-615`).
+A check is `loadAgdaFile` (`controller.svelte.ts:594-656`).
 
 +  If the buffer is the snapshot last checked and that check had no error,
    nothing is sent.
 +  If the only change since that snapshot lies wholly inside one goal's
    braces, `{! ... !}`, in both the old text and the new, and leaves the
    goal non-empty, the controller sends `Cmd_give WithoutForce` for that
-   goal with its new contents (`getFastGoalCheck`, `:622-676`).  Agda
+   goal with its new contents (`getFastGoalCheck`, `:663-717`).  Agda
    checks the expression against the goal's type, in milliseconds.
 +  Anything else (a declaration, an import, an edit spanning two goals, an
    edit outside every goal) writes the buffer to the drive and sends a full
    `Cmd_load "/Main.agda" []`.  The source says why: "Everything else
    deliberately falls back to Cmd_load, so edits to declarations, imports,
-   or more than one hole always recheck the module" (`:617-621`).
+   or more than one hole always recheck the module" (`:658-662`).
 
 The rule is conservative by construction: the fast path is taken only when
 a give is exactly what the edit means, and a stale result can never stand
 for a changed declaration.  Upstream measured goal edits at 20 to 60 ms and
 a warm declaration edit at 3.01 s on average across PLFA's 25 chapters
 (`README.plfa-playground.md`, "PLFA responsiveness").
+
+Agda's answers place things (goals, highlighting) by offsets in the text it
+last loaded, and the editor maps them through the edits made since, which
+it records from the moment it takes a text as Agda's (the offsets'
+*commit*, `src/lib/codemirror/offsets.js`).  After a give or a case split,
+Agda goes on giving the remaining goals' ranges in the text it loaded:
+asked with the compiler's own `agda`, the default `Main.agda`'s goal 1
+keeps its range, 303 to 320, after goal 0 is given and the text above it
+shrinks.  So the controller commits only when it writes the buffer for a
+`Cmd_load`, at the moment it reads it (`syncEditorToDrive`, `:722-739`).
+Upstream committed after every write to the drive, the write that follows
+a give included; when that write completed before Agda's interaction points
+arrived, their ranges fell past the end of the text, the mapping threw, and
+the router's stream stopped, so the page hung on its give.  The race was
+upstream's; the reactor's transport exposed it in Firefox, 3 times in 8
+runs of the browser check ([#59]).
 
 ## The drive
 
@@ -213,7 +295,8 @@ a warm declaration edit at 3.01 s on average across PLFA's 25 chapters
    directories they name.  It is built once the drive is constructed
    (Runno copies the record it is given), and it follows every call that
    adds or removes a key (`open` with `O_CREAT`, `pathCreateDir`, `unlink`,
-   `rename`) and the drive worker's own writes (message types 3 and 4).  It
+   `rename`) and the page's writes and mounted archives (`writeFile` and
+   `mountArchive`, `drive.ts:313` and `:326`).  It
    also answers a directory's `pathStat` without the filter of the whole
    drive that Runno builds and its stat never reads.  Runno's own methods
    still compute every result, so no answer changes:
@@ -230,35 +313,71 @@ a warm declaration edit at 3.01 s on average across PLFA's 25 chapters
    3.5 to 3.9 ms with 5,361.  The reload took 0.51 to 0.73 s at every size,
    against 6.7 to 8.9 s with 1,361 files and 28.1 to 31.7 s with 5,361
    before the index, and the drive's share of it is 34 to 97 ms, most of
-   that the 46 directories Agda opens and lists.  The round trip through
-   the proxy from the language server's worker now costs more than the
+   that the 46 directories Agda opens and lists.  Then the round trip
+   through the proxy from the language server's worker cost more than the
    lookup: 20,000 lookups took 17.1 to 20.1 µs each through the proxy and
-   0.87 to 1.18 µs in the drive worker, so about 0.15 s of that reload is
-   the round trip, which the reactor build's drive in the server's worker
-   removes ([#59]).
-+  **Protocol**: message type 0 proxies a Runno drive call (reads and stats
-   answer in binary, writes send base64); type 1 writes `/Main.agda`, type 3
-   any path, type 4 extracts a zip at `/`, type 5 persists dirty files, and
-   type 2 dumps the filesystem to the console (`drive.ts:332-424`).
-+  **Persistence**: the drive means to keep `/Main.agda`, any source
-   written with type 3, and every interface Agda writes in an IndexedDB
-   database named `agda-playground-drive-<namespace>` (`drive.ts:136-226`,
-   `:300-324`), where the namespace is a digest of everything Agda reads
-   (the compiler, the builtins, the standard library and PLFA), which the
-   build derives from the files (`scripts/asset-manifest.mjs`, read by
+   0.87 to 1.18 µs in the drive worker ([#50]), and 11.4 to 12.8 µs
+   through the proxy on [#59]'s spike.  Since the drive moved into the
+   server's worker, a call is a function call: on the built page, 20,000
+   `pathStat` calls on the root ([#50]'s paths, 30% hits) took 0.19 to
+   0.21 µs each in four runs and 0.47 µs in a fifth (2026-10-08, headless
+   Chromium 149; the spike's page measured 0.21 to 0.24 µs).
++  **What the page asks of it**: `writeFile` (a source, at any path),
+   `mountArchive` (a zip, extracted at `/`) and `persist` (below), which the
+   worker exposes beside the server's functions (`drive.ts:313-358`), where
+   the drive worker took numbered messages over shared rings.  They run on
+   the server's thread, between its steps: extracting an archive delays the
+   server's next step (not measured).
++  **Persistence**: the drive keeps `/Main.agda`, any source the page
+   writes, and every interface Agda writes in an IndexedDB database named
+   `agda-playground-drive-<namespace>` (`drive.ts:171-242`, `:332`), where
+   the namespace is a digest of everything Agda reads (the compiler and its
+   glue, the builtins, the standard library and PLFA), which the build
+   derives from the files (`scripts/asset-manifest.mjs`, read by
    `src/lib/assets.ts`), so that a cache is never restored against other
    files.  Mounted archives are not persisted; restored records replace
-   archive entries at the same path.  But the persisting code reads each
-   dirty path from the record the drive was constructed from
-   (`drive.ts:203`), not from the drive's own copy of it, so a file at a
-   path made later is never persisted: measured 2026-10-06, after a cold
+   archive entries at the same path.  It reads each dirty file from the
+   drive's own record, `drive.fs`, where Agda's writes land, so files at
+   paths made after startup (`Main`'s interface, a mounted archive's) are
+   persisted too.  The drive worker read them from the record the drive was
+   built from, which Runno copies, and so persisted only files at paths
+   that existed when the drive was built: measured 2026-10-06, after a cold
    check that rewrote 8 builtin interfaces and wrote `Main`'s and 8 PLFA
    modules' interfaces, the database held `/Main.agda` and the builtins'
-   interfaces, whose paths came from `agda-data.zip`, and none of the
-   others ([#59]).
-+  **More libraries**: `mountDriveArchives(urls)` (`controller.svelte.ts:707-745`)
-   fetches zips and extracts them at `/`; it does not touch the library
-   registry, which the drive writes once at startup.
+   interfaces, and none of the others ([#59]).  IndexedDB is optional: in
+   a worker without it the page checks and reloads, uncached (2026-10-08,
+   headless Chromium 149, with `indexedDB` removed from the worker's global
+   before it ran; no database was made).
++  **More libraries**: `mountDriveArchives(urls)`
+   (`controller.svelte.ts:741-781`) fetches zips and extracts them at `/`;
+   it does not touch the library registry, which the drive writes once at
+   startup.
+
+## The checks
+
+The language server's only test is the page itself, since a reactor's
+exports are called from JavaScript and no standalone runtime calls them.
+
++  **The browser check** (`scripts/browser-check/run.mjs`, `make
+   browser-check`) serves a built site, opens it with a fresh profile, and
+   uses it as a reader would: "Agda ready", the first check of the default
+   `Main.agda` with `Main` alone type-checked, Infer, a give, and a type
+   error at its position, with the version Agda reports in the status bar.
+   It serves the site without the isolation headers and asserts
+   `crossOriginIsolated` false, or with them (`--isolated`, `make
+   browser-check ISOLATED=1`) and asserts it true; it fails at once on an
+   uncaught exception in the page.  CI runs it both ways in headless
+   Chromium; `--browser firefox` runs it in Firefox through WebDriver BiDi
+   (`bidi.mjs`), by hand.
++  **The notices** (`scripts/browser-check/notices.mjs`, `make
+   browser-check-notices`), in CI too: a browser without
+   `DecompressionStream`, a compiler request answered 404, a compiler that
+   is not a gzip, and a standard library whose transfer breaks off, each
+   with its notice, the heading and the status bar saying that Agda did not
+   start, and the compiler asked for only where the browser can run it.
++  **The browsers** the page is tested in, and what it needs, are in the
+   README's "Browsers": Chromium 149 and Firefox 157, both ways, on
+   2026-10-08; WebKit untested.
 
 ## Interfaces, and what the measurements found
 
