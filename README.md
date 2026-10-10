@@ -33,6 +33,11 @@ headless Chromium.  Nothing is deployed.
 
 ## Where things are
 
++  **The VS Code companion**, in [`vscode/`][vscode]: a standalone
+   TypeScript package beside agda-mode-vscode, with a persistent webview,
+   delegated editor commands, an explicit tested-version check and real
+   headless extension-host tests.  It will join the shared workspace when
+   that workspace is built.
 +  **The app**, as imported from plfa-playground: `src/` (the page, the
    controller, and the language server's worker), `static/` (the files served
    as they are), `scripts/*.mjs` (the build's post-step and the PLFA
@@ -93,6 +98,17 @@ make browser-check          # check Main.agda in build/ in headless Chromium
 make browser-check-notices  # check what build/ says when it cannot run
 make dev                    # serve the app at http://localhost:5173
 ```
+
+The companion's own gates run separately, in its dedicated shell:
+
+```sh
+nix develop .#vscode --command make vscode-check vscode-unit
+nix develop .#vscode --command make vscode-test
+```
+
+Its [README][vscode] describes opening the panel on an Agda checkout and
+the mode's command contract.  The tests use copied sources and a private
+VS Code profile; they leave the library checkout untouched.
 
 `make check`, `make test`, `make build` and `make dev` first install the
 locked npm dependencies (`npm ci`) whenever `package.json` or
@@ -279,6 +295,7 @@ every artifact the app ships, with its license.
 [adr-0001]: docs/adr/0001-runtime.md
 [runtime-note]: docs/notes/runtime.md
 [adr-0002]: docs/adr/0002-where-the-workbench-lives.md
+[vscode]: vscode/README.md
 [platform-note]: docs/notes/platform-brief-2026-10-05.md
 [provenance]: docs/provenance.md
 [site-ci]: .github/workflows/site.yml
