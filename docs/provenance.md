@@ -375,6 +375,8 @@ Each change is its own commit, named here by its subject.
 | `src/lib/controller.svelte.ts` | The server starts without the fork's `+RTS -A64m -RTS`, which the reactor's runtime takes and which made no check faster while it grew the heap by 70 to 90 MiB ([#59]) | "Start the language server without +RTS -A64m -RTS" |
 | `src/lib/controller.svelte.ts`, `src/routes/+page.svelte`, `src/lib/worker/drive.ts` | A body that breaks off while an archive is read names the archive; a server that fails or exits of its own accord is reported ("Agda stopped"), where the page went on saying "Agda ready"; a browser that refuses IndexedDB by throwing leaves the drive uncached rather than failing the start ([#59]'s review) | "Report a broken archive, a stopped server and a refused cache" |
 
+| `src/app.css`, `src/app.html`, `src/routes/+page.svelte`, `src/lib/agda/color-scheme.js`, `src/lib/codemirror/theme.ts`, `src/lib/codemirror/symbol-input.js` | Literal colors become shared CSS tokens, preserving both system schemes during extraction ([#17]) | "Extract the workbench color tokens" |
+
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
 [records]: ../upstream/
@@ -398,3 +400,5 @@ Each change is its own commit, named here by its subject.
 [plfa/plfa.github.io]: https://github.com/plfa/plfa.github.io
 [gzuidhof/coi-serviceworker]: https://github.com/gzuidhof/coi-serviceworker
 [agda-wasm-builds]: https://github.com/formalverification/agda-wasm-builds
+
+[#17]: https://github.com/formalverification/agda-native-ide/issues/17

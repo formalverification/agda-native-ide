@@ -16,7 +16,8 @@
   // ($lib/support), and says so when it does not; when Agda cannot start,
   // or its server stops of its own accord, the page says why, in the
   // banner, the inspector's heading and the status bar, rather than "Agda
-  // ready" (issue 8).
+  // ready" (issue 8).  Colors use the shared tokens in src/app.css
+  // (issue 17).
 
   import { onDestroy, onMount } from "svelte";
   import { basicSetup } from "codemirror";
@@ -391,24 +392,24 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
           }
         }),
         EditorView.theme({
-          "&": { background: "#fff", color: "#242a23", fontSize: "14px" },
+          "&": { background: "var(--editor-surface)", color: "var(--editor-text)", fontSize: "14px" },
           ".cm-scroller": { overscrollBehavior: "contain", lineHeight: "1.72" },
           ".cm-content": { padding: "18px 0 80px" },
           ".cm-gutters": {
-            background: "#fafbf9",
-            color: "#a0a79d",
-            borderRight: "1px solid #edf0eb",
+            background: "var(--editor-gutter-surface)",
+            color: "var(--editor-gutter-text)",
+            borderRight: "1px solid var(--editor-line)",
           },
-          ".cm-activeLine, .cm-activeLineGutter": { background: "#f3f7f3" },
-          ".cm-cursor": { borderLeftColor: "#20765b", borderLeftWidth: "2px" },
+          ".cm-activeLine, .cm-activeLineGutter": { background: "var(--editor-active-line)" },
+          ".cm-cursor": { borderLeftColor: "var(--editor-cursor)", borderLeftWidth: "2px" },
           ".agda-hole": {
-            background: "#dff3e8",
-            outline: "1px solid #8ac5aa",
+            background: "var(--goal-surface)",
+            outline: "1px solid var(--goal-line)",
             borderRadius: "0",
           },
           ".agda-goal-marker": {
-            background: "#20765b",
-            color: "white",
+            background: "var(--editor-cursor)",
+            color: "var(--goal-marker-text)",
             borderRadius: "0",
             padding: "0 5px",
             marginRight: "3px",
@@ -416,10 +417,10 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
             fontFamily: "Inter, sans-serif",
           },
           ".cm-tooltip": {
-            border: "1px solid #626a60",
+            border: "1px solid var(--tooltip-line)",
             borderRadius: "0",
             boxShadow: "none",
-            background: "#f8f9f5",
+            background: "var(--surface)",
           },
           ".cm-lsp-documentation": {
             padding: "9px 11px",
@@ -427,8 +428,8 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
             fontSize: "12px",
           },
           ".symbol-input-candidates": {
-            background: "#f8f9f5",
-            border: "1px solid #626a60",
+            background: "var(--surface)",
+            border: "1px solid var(--tooltip-line)",
             boxShadow: "none",
           },
         }),
@@ -1265,9 +1266,9 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     justify-content: center;
     gap: 8px;
     padding: 8px 16px;
-    color: var(--red);
-    background: var(--red-soft);
-    border-bottom: 1px solid #efd0cd;
+    color: var(--error);
+    background: var(--error-soft);
+    border-bottom: 1px solid var(--error-banner-line);
     font-size: 12px;
   }
   .workspace {
@@ -1328,7 +1329,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     flex-direction: column;
     align-items: center;
     padding: 8px 0;
-    background: #dfe3dc;
+    background: var(--activity-surface);
     border-right: 1px solid var(--line);
   }
   .activity {
@@ -1337,11 +1338,11 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     height: 40px;
     display: grid;
     place-items: center;
-    color: #7c847a;
+    color: var(--activity-text);
   }
   .activity:hover,
   .activity.active {
-    color: var(--green);
+    color: var(--accent);
   }
   .activity.active:before {
     content: "";
@@ -1349,13 +1350,13 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     left: 0;
     width: 2px;
     height: 24px;
-    background: var(--green);
+    background: var(--accent);
   }
   .explorer {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    background: #ebeee8;
+    background: var(--explorer-surface);
     border-right: 1px solid var(--line);
     color: var(--muted);
     overflow: hidden;
@@ -1376,7 +1377,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     padding: 0 7px;
     font-size: 10px;
     font-weight: 700;
-    color: #4d554b;
+    color: var(--explorer-heading);
   }
   .tree-button {
     width: 100%;
@@ -1385,7 +1386,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   }
   .tree-button:hover,
   .tree-part:hover {
-    background: #dfe3dc;
+    background: var(--activity-surface);
   }
   .file-row {
     height: 31px;
@@ -1394,24 +1395,24 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     gap: 7px;
     width: 100%;
     padding: 0 11px 0 22px;
-    color: #596057;
+    color: var(--explorer-text);
     text-align: left;
     font-size: 12px;
   }
   .file-row.active {
     color: var(--text);
-    background: #d7ddd4;
-    border-left: 3px solid var(--green);
+    background: var(--explorer-active-surface);
+    border-left: 3px solid var(--accent);
   }
   .file-row :global(svg) {
-    color: var(--green);
+    color: var(--accent);
   }
   .plfa-tree {
     min-height: 0;
     flex: 1;
     overflow-y: auto;
     padding-bottom: 12px;
-    border-top: 1px solid #d5d9d2;
+    border-top: 1px solid var(--explorer-line);
   }
   .tree-part,
   .chapter-row {
@@ -1419,7 +1420,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     display: flex;
     align-items: center;
     text-align: left;
-    color: #596057;
+    color: var(--explorer-text);
   }
   .tree-part {
     height: 27px;
@@ -1436,15 +1437,15 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     font-size: 11px;
   }
   .chapter-row:hover {
-    background: #e2e6df;
+    background: var(--explorer-hover-surface);
   }
   .chapter-row.active {
-    color: var(--green-dark);
-    background: #d9e4dc;
+    color: var(--accent-strong);
+    background: var(--chapter-active-surface);
   }
   .chapter-row :global(svg) {
     flex: none;
-    color: #6d756b;
+    color: var(--chapter-icon);
   }
   .chapter-row span {
     min-width: 0;
@@ -1461,21 +1462,21 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     font-size: 10px;
   }
   .tree-message.error {
-    color: var(--red);
+    color: var(--error);
   }
   .dirty-dot {
     width: 6px;
     height: 6px;
     margin-left: auto;
     border-radius: 50%;
-    background: #90ad9d;
+    background: var(--saved-indicator);
   }
   .editor-pane {
     min-width: 0;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    background: #fff;
+    background: var(--editor-surface);
   }
   .editor-pane.lesson-open {
     display: grid;
@@ -1492,7 +1493,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     flex: 1;
   }
   .reader-pane {
-    background: #f8f9f5;
+    background: var(--surface);
     border-right: 1px solid var(--line-strong);
   }
   .reader-tabs {
@@ -1500,7 +1501,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     min-height: 37px;
     display: flex;
     border-bottom: 1px solid var(--line);
-    background: #e9ece6;
+    background: var(--tab-surface);
   }
   .reader-tab {
     min-width: 140px;
@@ -1516,24 +1517,24 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   .reader-tab.active {
     position: relative;
     color: var(--text);
-    background: #fff;
+    background: var(--editor-surface);
   }
   .reader-tab.active:before {
     content: "";
     position: absolute;
     inset: 0 0 auto;
     height: 2px;
-    background: var(--green);
+    background: var(--accent);
   }
   .reader-tab :global(svg) {
-    color: var(--green);
+    color: var(--accent);
   }
   .reader-nav {
     min-height: 39px;
     display: grid;
     grid-template-columns: 31px minmax(0, 1fr) 31px;
     align-items: center;
-    border-bottom: 1px solid #e1e5de;
+    border-bottom: 1px solid var(--reader-line);
   }
   .reader-nav button {
     height: 100%;
@@ -1542,12 +1543,12 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     color: var(--muted);
   }
   .reader-nav button:not(:disabled):hover {
-    color: var(--green-dark);
-    background: var(--green-soft);
+    color: var(--accent-strong);
+    background: var(--accent-soft);
   }
   .reader-nav strong {
     overflow: hidden;
-    color: #454d43;
+    color: var(--reader-heading);
     font-size: 10px;
     font-weight: 600;
     text-align: center;
@@ -1571,7 +1572,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     font-size: 11px;
   }
   .reader-state.error {
-    color: var(--red);
+    color: var(--error);
   }
   .reader-status {
     height: 25px;
@@ -1581,19 +1582,19 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     gap: 10px;
     padding: 0 9px;
     border-top: 1px solid var(--line);
-    background: #e4e8e1;
-    color: #667064;
+    background: var(--status-surface);
+    color: var(--status-text);
     font-size: 10px;
   }
   .reader-status a {
-    color: var(--green-dark);
+    color: var(--accent-strong);
     text-decoration: none;
   }
   .markdown-body {
     max-width: 760px;
     margin: 0 auto;
     padding: 24px 28px 80px;
-    color: #252a24;
+    color: var(--reader-text);
     font-family: Georgia, "Times New Roman", serif;
     font-size: 14px;
     line-height: 1.58;
@@ -1602,14 +1603,14 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   .markdown-body :global(h2),
   .markdown-body :global(h3) {
     margin: 1.65em 0 0.6em;
-    color: #171a16;
+    color: var(--text);
     font-family: Arial, Helvetica, sans-serif;
     font-weight: 600;
     line-height: 1.2;
   }
   .markdown-body :global(h1) {
     padding-bottom: 7px;
-    border-bottom: 1px solid #c9cec5;
+    border-bottom: 1px solid var(--reader-heading-line);
     font-size: 22px;
   }
   .markdown-body :global(h2) {
@@ -1625,7 +1626,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     margin: 0 0 1em;
   }
   .markdown-body :global(a) {
-    color: var(--green-dark);
+    color: var(--accent-strong);
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
   }
@@ -1635,15 +1636,15 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   }
   .markdown-body :global(code) {
     padding: 1px 3px;
-    background: #e8ece5;
+    background: var(--reader-inline-surface);
     font-size: 0.88em;
   }
   .markdown-body :global(pre) {
     overflow: auto;
     margin: 0 0 1.2em;
     padding: 12px 13px;
-    border: 1px solid #bec5ba;
-    background: #f0f2ed;
+    border: 1px solid var(--reader-code-line);
+    background: var(--reader-code-surface);
     font-size: 11px;
     line-height: 1.55;
   }
@@ -1653,13 +1654,13 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   }
   .markdown-body :global(pre.agda-source-block) {
     cursor: pointer;
-    border-left: 3px solid #7f9488;
+    border-left: 3px solid var(--reader-code-accent);
   }
   .markdown-body :global(pre.agda-source-block:hover),
   .markdown-body :global(pre.agda-source-block:focus) {
-    border-color: var(--green);
-    background: #e6eee8;
-    outline: 1px solid var(--green);
+    border-color: var(--accent);
+    background: var(--reader-code-hover-surface);
+    outline: 1px solid var(--accent);
   }
   .markdown-body :global(.source-scroll-anchor) {
     display: block;
@@ -1668,9 +1669,9 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   }
   .markdown-body :global(blockquote) {
     padding: 7px 12px;
-    border-left: 3px solid #8da297;
-    color: #4f574d;
-    background: #eef1eb;
+    border-left: 3px solid var(--reader-quote-line);
+    color: var(--reader-quote-text);
+    background: var(--reader-quote-surface);
   }
   .markdown-body :global(table) {
     width: 100%;
@@ -1681,7 +1682,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   .markdown-body :global(th),
   .markdown-body :global(td) {
     padding: 6px 7px;
-    border: 1px solid #c4c9c0;
+    border: 1px solid var(--reader-table-line);
     text-align: left;
   }
   .markdown-body :global(img) {
@@ -1692,7 +1693,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     min-height: 37px;
     display: flex;
     border-bottom: 1px solid var(--line);
-    background: #e9ece6;
+    background: var(--tab-surface);
   }
   .editor-tab {
     min-width: 140px;
@@ -1706,7 +1707,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   }
   .editor-tab.active {
     position: relative;
-    background: #fff;
+    background: var(--editor-surface);
     color: var(--text);
   }
   .editor-tab.active:before {
@@ -1714,10 +1715,10 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     position: absolute;
     inset: 0 0 auto;
     height: 2px;
-    background: var(--green);
+    background: var(--accent);
   }
   .editor-tab :global(svg:first-child) {
-    color: var(--green);
+    color: var(--accent);
   }
   :global(.tab-close) {
     margin-left: auto;
@@ -1729,7 +1730,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     align-items: center;
     gap: 2px;
     padding: 4px 8px;
-    border-bottom: 1px solid #e8ece6;
+    border-bottom: 1px solid var(--command-line);
     overflow-x: auto;
     scrollbar-width: none;
   }
@@ -1742,13 +1743,13 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     padding: 0 8px;
     border: 1px solid transparent;
     border-radius: 0;
-    color: #535c51;
+    color: var(--command-text);
     font-size: 11px;
   }
   .command-strip button:not(:disabled):hover {
-    background: var(--green-soft);
-    color: var(--green-dark);
-    border-color: #809087;
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    border-color: var(--command-hover-line);
   }
   .strip-divider {
     width: 1px;
@@ -1770,8 +1771,8 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     display: grid;
     grid-template-columns: auto minmax(120px, 1fr) auto auto;
     align-items: stretch;
-    border-top: 1px solid #60685e;
-    background: #d9ded6;
+    border-top: 1px solid var(--input-line);
+    background: var(--input-label-surface);
   }
   .minibuffer label {
     min-width: 150px;
@@ -1779,14 +1780,14 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     align-items: center;
     gap: 7px;
     padding: 0 10px;
-    border-right: 1px solid #899087;
-    color: #2e342d;
+    border-right: 1px solid var(--input-divider);
+    color: var(--input-label-text);
     white-space: nowrap;
   }
   .minibuffer label span {
     padding: 3px 4px;
-    color: #f4f7f1;
-    background: var(--green);
+    color: var(--input-badge-text);
+    background: var(--accent);
     font:
       700 8px JuliaMono,
       monospace;
@@ -1798,41 +1799,41 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   .minibuffer input {
     min-width: 0;
     border: 0;
-    border-right: 1px solid #899087;
+    border-right: 1px solid var(--input-divider);
     border-radius: 0;
     outline: 0;
     padding: 0 10px;
-    color: #1d211c;
-    background: #fafbf7;
+    color: var(--input-text);
+    background: var(--input-surface);
     font-size: 12px;
   }
   .minibuffer input:focus {
-    border-left: 3px solid var(--green);
+    border-left: 3px solid var(--accent);
   }
   .minibuffer-run,
   .minibuffer-cancel {
     min-width: 66px;
     padding: 0 10px;
-    border-right: 1px solid #697167;
-    background: #e9ece6;
-    color: #293029;
+    border-right: 1px solid var(--input-button-line);
+    background: var(--tab-surface);
+    color: var(--input-button-text);
     font:
       700 9px JuliaMono,
       monospace;
     letter-spacing: 0.035em;
   }
   .minibuffer-run {
-    color: #fff;
-    background: var(--green);
+    color: var(--editor-surface);
+    background: var(--accent);
   }
   .minibuffer-run span {
     margin-left: 5px;
   }
   .minibuffer-run:hover {
-    background: var(--green-dark);
+    background: var(--accent-strong);
   }
   .minibuffer-cancel:hover {
-    background: #f5f6f2;
+    background: var(--input-button-hover-surface);
   }
   .statusbar {
     height: 25px;
@@ -1841,9 +1842,9 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     align-items: center;
     gap: 14px;
     padding: 0 9px;
-    background: #e4e8e1;
+    background: var(--status-surface);
     border-top: 1px solid var(--line);
-    color: #667064;
+    color: var(--status-text);
     font-size: 10px;
   }
   .statusbar span {
@@ -1853,20 +1854,20 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     white-space: nowrap;
   }
   .statusbar .success {
-    color: var(--green);
+    color: var(--accent);
   }
   .status-spacer {
     flex: 1;
   }
   .resize-handle {
     cursor: col-resize;
-    background: #dce0d9;
+    background: var(--resize-surface);
     border-inline: 1px solid var(--line);
     z-index: 5;
   }
   .resize-handle:hover,
   .resize-handle:focus {
-    background: #9bcab4;
+    background: var(--resize-hover-surface);
     outline: 0;
   }
   .inspector {
@@ -1874,7 +1875,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     min-height: 0;
     display: flex;
     flex-direction: column;
-    background: #f2f4ef;
+    background: var(--inspector-surface);
   }
   .inspector-header {
     height: 38px;
@@ -1884,14 +1885,14 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     justify-content: space-between;
     gap: 10px;
     border-bottom: 1px solid var(--line);
-    background: #e4e8e1;
+    background: var(--status-surface);
     padding: 0 10px;
   }
   .inspector-title {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    color: var(--green-dark);
+    color: var(--accent-strong);
     font-size: 10px;
     letter-spacing: 0.04em;
     white-space: nowrap;
@@ -1905,16 +1906,16 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   .abort-action {
     height: 23px;
     padding: 0 7px;
-    border: 1px solid #a34c45;
-    color: var(--red);
+    border: 1px solid var(--abort-line);
+    color: var(--error);
     font:
       700 8px JuliaMono,
       monospace;
     letter-spacing: 0.04em;
   }
   .abort-action:hover {
-    color: #fff;
-    background: var(--red);
+    color: var(--editor-surface);
+    background: var(--error);
   }
   .inspector-status {
     min-width: 0;
@@ -1943,15 +1944,15 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     padding: 11px;
     border: 1px solid var(--line);
     border-radius: 0;
-    background: #f9faf6;
+    background: var(--card-surface);
     text-align: left;
   }
   .goal-card:hover {
-    border-color: #b6c9bc;
+    border-color: var(--card-hover-line);
   }
   .goal-card.active {
-    border-color: #78ae95;
-    border-left: 3px solid var(--green);
+    border-color: var(--card-active-line);
+    border-left: 3px solid var(--accent);
   }
   .goal-number {
     display: grid;
@@ -1960,8 +1961,8 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     width: 24px;
     height: 24px;
     border-radius: 0;
-    background: var(--green-soft);
-    color: var(--green-dark);
+    background: var(--accent-soft);
+    color: var(--accent-strong);
     font:
       700 11px JuliaMono,
       monospace;
@@ -1974,7 +1975,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   }
   .goal-content code {
     overflow-wrap: anywhere;
-    color: #28322b;
+    color: var(--goal-text);
     font:
       11px/1.5 JuliaMono,
       monospace;
@@ -1994,7 +1995,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   .context-panel h3,
   .compiler-log h3 {
     margin: 0 0 8px;
-    color: #515950;
+    color: var(--inspector-heading);
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.07em;
@@ -2004,7 +2005,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     grid-template-columns: auto auto 1fr;
     gap: 6px;
     padding: 7px 4px;
-    border-bottom: 1px solid #edf0eb;
+    border-bottom: 1px solid var(--editor-line);
     color: var(--muted);
     font-size: 10px;
   }
@@ -2014,23 +2015,23 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     font:
       10px/1.5 JuliaMono,
       monospace;
-    color: #3f4840;
+    color: var(--context-text);
   }
   .context-row .context-name {
-    color: var(--green-dark);
+    color: var(--accent-strong);
     font-weight: 700;
   }
   .result-card {
     border: 1px solid var(--line);
     border-radius: 0;
-    background: #f9faf6;
+    background: var(--card-surface);
     padding: 14px;
   }
   .result-kind {
     padding: 3px 6px;
     border-radius: 0;
-    background: var(--green-soft);
-    color: var(--green-dark);
+    background: var(--accent-soft);
+    color: var(--accent-strong);
     font-size: 8px;
     font-weight: 700;
     text-transform: uppercase;
@@ -2050,7 +2051,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   .compiler-log pre {
     max-height: 220px;
     overflow: auto;
-    color: #626a60;
+    color: var(--tooltip-line);
     font-size: 10px;
   }
   .problem-list {
@@ -2065,15 +2066,15 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     padding: 11px;
     border: 1px solid;
     border-radius: 0;
-    background: #f9faf6;
+    background: var(--card-surface);
   }
   .problem-card.error {
-    border-color: #eccbc7;
-    color: var(--red);
+    border-color: var(--error-card-line);
+    color: var(--error);
   }
   .problem-card.warning {
-    border-color: #ecd9b7;
-    color: var(--amber);
+    border-color: var(--warning-card-line);
+    color: var(--warning);
   }
   .problem-card :global(svg) {
     flex: none;
@@ -2085,7 +2086,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     text-transform: uppercase;
   }
   .problem-card pre {
-    color: #4f554e;
+    color: var(--problem-text);
     font-size: 10px;
   }
   .action-error {
@@ -2093,9 +2094,9 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     align-items: center;
     gap: 7px;
     padding: 9px 10px;
-    border-top: 1px solid #efcfcc;
-    background: var(--red-soft);
-    color: var(--red);
+    border-top: 1px solid var(--error-action-line);
+    background: var(--error-soft);
+    color: var(--error);
     font-size: 10px;
   }
   .action-error span {

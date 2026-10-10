@@ -1,3 +1,9 @@
+// File: src/lib/codemirror/theme.ts
+//
+// Changed from SeungheonOh/plfa-playground's src/lib/codemirror/theme.ts at
+// ae0aa84c24363a8d6dadc292b6eb8f88f7f38705 (docs/provenance.md).
+// Colors use the shared tokens in src/app.css (issue 17).
+
 import { Compartment, type Extension } from '@codemirror/state'
 import { EditorView, ViewPlugin } from '@codemirror/view'
 
@@ -22,29 +28,29 @@ export const myBaseTheme = EditorView.baseTheme({
     // fontFeatureSettings: '"calt" off, "NWID" on',
   },
   '&dark .cm-activeLine': {
-    backgroundColor: '#66666620',
+    backgroundColor: 'var(--editor-dark-active-line)',
   },
   '&dark .cm-activeLineGutter': {
-    background: '#66666620',
+    background: 'var(--editor-dark-active-line)',
   },
   '.cm-selectionMatch.cm-selectionMatch': {
     // FIXME
     backgroundColor: 'transparent',
-    outline: '1px solid #AAAAAAC0',
+    outline: '1px solid var(--editor-selection-match-line)',
     borderRadius: '2px',
   },
   '&dark .cm-selectionMatch.cm-selectionMatch': {
-    outlineColor: '#666666C0',
+    outlineColor: 'var(--editor-dark-selection-match-line)',
   },
 
   '&dark .cm-cursor': {
-    borderLeftColor: '#bbb',
+    borderLeftColor: 'var(--editor-dark-cursor)',
     borderLeftWidth: '2px',
   },
   '&dark .cm-foldPlaceholder.cm-foldPlaceholder': {
     // FIXME
-    backgroundColor: '#333',
-    borderColor: '#444',
+    backgroundColor: 'var(--editor-fold-surface)',
+    borderColor: 'var(--editor-fold-line)',
   },
 
   '.cm-tooltip-section': {
@@ -53,11 +59,11 @@ export const myBaseTheme = EditorView.baseTheme({
     marginBottom: '0',
   },
   '&dark .cm-tooltip-section': {
-    borderTop: '1px solid #777',
+    borderTop: '1px solid var(--editor-tooltip-section-line)',
   },
 
   '&dark .cm-tooltip.cm-tooltip.cm-tooltip-hover': {
-    borderColor: '#111',
+    borderColor: 'var(--editor-tooltip-hover-line)',
   },
 
   '.cm-tooltip-section:first-child': {
@@ -72,10 +78,10 @@ export const myBaseTheme = EditorView.baseTheme({
   // helpers
   '.cm-agda-marks.hovered-keyword': {
     borderRadius: '2px',
-    outline: '1px solid #000000c0',
+    outline: '1px solid var(--editor-hover-line)',
   },
   '&dark .cm-agda-marks.hovered-keyword': {
-    outlineColor: '#ffffffc0',
+    outlineColor: 'var(--editor-dark-hover-line)',
   },
 })
 
@@ -148,7 +154,7 @@ export function myCodeMirrorTheme(): Extension {
       },
       '.cm-tooltip.cm-tooltip-hover': {
         borderRadius: '2px',
-        border: '1px solid #4c4b51',
+        border: '1px solid var(--editor-tooltip-line)',
       },
     }),
   ]

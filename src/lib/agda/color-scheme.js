@@ -1,8 +1,14 @@
+// File: src/lib/agda/color-scheme.js
+//
+// Changed from SeungheonOh/plfa-playground's src/lib/agda/color-scheme.js at
+// ae0aa84c24363a8d6dadc292b6eb8f88f7f38705 (docs/provenance.md).
+// Colors use the shared tokens in src/app.css (issue 17).
+
 import { EditorView } from '@codemirror/view'
 
 export const agdaLightSchemeFromEmacs = EditorView.theme({
   // not a part of Agda's theme, but Emacs' built-in palette
-  '.agda-hole': { background: '#b4eeb4C0' },  // darkseagreen2
+  '.agda-hole': { background: 'var(--agda-hole-surface-light)' },  // darkseagreen2
   // make error markers opaque
   '.agda-error *': { color: 'currentColor !important' },
 
@@ -11,53 +17,53 @@ export const agdaLightSchemeFromEmacs = EditorView.theme({
   // strings are from `toAtoms :: Aspects -> [String]`
 
   // -- aspects
-  '.agda-comment':                  { color: '#777', fontStyle: 'italic' },
-  '.agda-keyword':                  { color: '#cd6600' },  // DarkOrange3
-  '.agda-string':                   { color: '#b22222' },  // firebrick
-  '.agda-number':                   { color: '#a020f0' },  // purple
+  '.agda-comment':                  { color: 'var(--agda-comment-light)', fontStyle: 'italic' },
+  '.agda-keyword':                  { color: 'var(--agda-keyword-light)' },  // DarkOrange3
+  '.agda-string':                   { color: 'var(--agda-string-light)' },  // firebrick
+  '.agda-number':                   { color: 'var(--agda-number-light)' },  // purple
   //   hole; see above
-  '.agda-symbol':                   { color: '#404040' },  // gray25
-  '.agda-primitivetype':            { color: '#0000cd' },  // medium blue
+  '.agda-symbol':                   { color: 'var(--agda-symbol-light)' },  // gray25
+  '.agda-primitivetype':            { color: 'var(--agda-primitivetype-light)' },  // medium blue
   //   -- name kinds
   //     bound
   //     generalizable
-    '.agda-inductiveconstructor':   { color: '#008b00' },  // green4
-    '.agda-coinductiveconstructor': { color: '#8b7500' },  // gold4
-    '.agda-datatype':               { color: '#0000cd' },  // medium blue
-    '.agda-field':                  { color: '#ee1289' },  // DeepPink2
-    '.agda-function':               { color: '#0000cd' },  // medium blue
-    '.agda-module':                 { color: '#a020f0' },  // purple
-    '.agda-postulate':              { color: '#0000cd' },  // medium blue
-    '.agda-primitive':              { color: '#0000cd' },  // medium blue
-    '.agda-record':                 { color: '#0000cd' },  // medium blue
+    '.agda-inductiveconstructor':   { color: 'var(--agda-inductiveconstructor-light)' },  // green4
+    '.agda-coinductiveconstructor': { color: 'var(--agda-coinductiveconstructor-light)' },  // gold4
+    '.agda-datatype':               { color: 'var(--agda-datatype-light)' },  // medium blue
+    '.agda-field':                  { color: 'var(--agda-field-light)' },  // DeepPink2
+    '.agda-function':               { color: 'var(--agda-function-light)' },  // medium blue
+    '.agda-module':                 { color: 'var(--agda-module-light)' },  // purple
+    '.agda-postulate':              { color: 'var(--agda-postulate-light)' },  // medium blue
+    '.agda-primitive':              { color: 'var(--agda-primitive-light)' },  // medium blue
+    '.agda-record':                 { color: 'var(--agda-record-light)' },  // medium blue
   //     argument
-    '.agda-macro':                  { color: '#458b74' },  // aquamarine4
+    '.agda-macro':                  { color: 'var(--agda-macro-light)' },  // aquamarine4
   //   -- end of name kinds
   //   pragma, background, markup
 
   // -- "other" aspects
-  '.agda-error':                    { color: 'red' },
-  '.agda-errorwarning':             { backgroundColor: '#f0808080' },  // light coral
+  '.agda-error':                    { color: 'var(--agda-error-light)' },
+  '.agda-errorwarning':             { backgroundColor: 'var(--agda-errorwarning-surface-light)' },  // light coral
   // dottedpattern
-  '.agda-unsolvedmeta':             { backgroundColor: '#ffff0080' },  // yellow
-  '.agda-unsolvedconstraint':       { backgroundColor: '#ffff0080' },  // yellow
-  '.agda-terminationproblem':       { backgroundColor: '#ffa07a80' },  // light salmon
-  '.agda-positivityproblem':        { backgroundColor: '#cd853f80' },  // peru
-  '.agda-deadcode':                 { backgroundColor: '#a9a9a980' },  // dark gray
-  '.agda-shadowingintelescope':     { backgroundColor: '#a9a9a980' },  // dark gray
-  '.agda-coverageproblem':          { backgroundColor: '#f5deb380' },  // wheat
+  '.agda-unsolvedmeta':             { backgroundColor: 'var(--agda-unsolvedmeta-surface-light)' },  // yellow
+  '.agda-unsolvedconstraint':       { backgroundColor: 'var(--agda-unsolvedconstraint-surface-light)' },  // yellow
+  '.agda-terminationproblem':       { backgroundColor: 'var(--agda-terminationproblem-surface-light)' },  // light salmon
+  '.agda-positivityproblem':        { backgroundColor: 'var(--agda-positivityproblem-surface-light)' },  // peru
+  '.agda-deadcode':                 { backgroundColor: 'var(--agda-deadcode-surface-light)' },  // dark gray
+  '.agda-shadowingintelescope':     { backgroundColor: 'var(--agda-shadowingintelescope-surface-light)' },  // dark gray
+  '.agda-coverageproblem':          { backgroundColor: 'var(--agda-coverageproblem-surface-light)' },  // wheat
   // incompletepattern
-  '.agda-typechecks':               { color: 'black', backgroundColor: '#add8e680' },  // light blue
-  '.agda-missingdefinition':        { backgroundColor: '#ffa50080' },  // orange
-  '.agda-instanceproblem':          { backgroundColor: '#f5deb380' },  // wheat
-  '.agda-cosmeticproblem':          { backgroundColor: '#f5f5f580' },  // white smoke
-  '.agda-catchallclause':           { backgroundColor: '#f5f5f580' },  // white smoke
-  '.agda-confluenceproblem':        { backgroundColor: '#ffc0cb80' },  // pink
+  '.agda-typechecks':               { color: 'var(--agda-typechecks-light)', backgroundColor: 'var(--agda-typechecks-surface-light)' },  // light blue
+  '.agda-missingdefinition':        { backgroundColor: 'var(--agda-missingdefinition-surface-light)' },  // orange
+  '.agda-instanceproblem':          { backgroundColor: 'var(--agda-instanceproblem-surface-light)' },  // wheat
+  '.agda-cosmeticproblem':          { backgroundColor: 'var(--agda-cosmeticproblem-surface-light)' },  // white smoke
+  '.agda-catchallclause':           { backgroundColor: 'var(--agda-catchallclause-surface-light)' },  // white smoke
+  '.agda-confluenceproblem':        { backgroundColor: 'var(--agda-confluenceproblem-surface-light)' },  // pink
 })
 
 export const agdaDarkSchemeFromEmacs = EditorView.theme({
   // not a part of Agda's theme, but Emacs' built-in palette
-  '.agda-hole': { background: '#556B2FC0' },  // DarkOliveGreen
+  '.agda-hole': { background: 'var(--agda-hole-surface-dark)' },  // DarkOliveGreen
   // make error markers opaque
   '.agda-error *': { color: 'currentColor !important' },
 
@@ -66,46 +72,46 @@ export const agdaDarkSchemeFromEmacs = EditorView.theme({
   // strings are from `toAtoms :: Aspects -> [String]`
 
   // -- aspects
-  '.agda-comment':                  { color: '#999', fontStyle: 'italic' },
-  '.agda-keyword':                  { color: '#FF9932' },
-  '.agda-string':                   { color: '#DD4D4D' },
-  '.agda-number':                   { color: '#9010E0' },
+  '.agda-comment':                  { color: 'var(--agda-comment-dark)', fontStyle: 'italic' },
+  '.agda-keyword':                  { color: 'var(--agda-keyword-dark)' },
+  '.agda-string':                   { color: 'var(--agda-string-dark)' },
+  '.agda-number':                   { color: 'var(--agda-number-dark)' },
   //   hole; see above
-  '.agda-symbol':                   { color: '#BFBFBF' },  // gray75
-  '.agda-primitivetype':            { color: '#8080FF' },
+  '.agda-symbol':                   { color: 'var(--agda-symbol-dark)' },  // gray75
+  '.agda-primitivetype':            { color: 'var(--agda-primitivetype-dark)' },
   //   -- name kinds
   //     bound
   //     generalizable
-    '.agda-inductiveconstructor':   { color: '#29CC29' },
-    '.agda-coinductiveconstructor': { color: '#FFEA75' },
-    '.agda-datatype':               { color: '#8080FF' },
-    '.agda-field':                  { color: '#F570B7' },
-    '.agda-function':               { color: '#8080FF' },
-    '.agda-module':                 { color: '#CD80FF' },
-    '.agda-postulate':              { color: '#8080FF' },
-    '.agda-primitive':              { color: '#8080FF' },
-    '.agda-record':                 { color: '#8080FF' },
+    '.agda-inductiveconstructor':   { color: 'var(--agda-inductiveconstructor-dark)' },
+    '.agda-coinductiveconstructor': { color: 'var(--agda-coinductiveconstructor-dark)' },
+    '.agda-datatype':               { color: 'var(--agda-datatype-dark)' },
+    '.agda-field':                  { color: 'var(--agda-field-dark)' },
+    '.agda-function':               { color: 'var(--agda-function-dark)' },
+    '.agda-module':                 { color: 'var(--agda-module-dark)' },
+    '.agda-postulate':              { color: 'var(--agda-postulate-dark)' },
+    '.agda-primitive':              { color: 'var(--agda-primitive-dark)' },
+    '.agda-record':                 { color: 'var(--agda-record-dark)' },
   //     argument
-    '.agda-macro':                  { color: '#73BAA2' },
+    '.agda-macro':                  { color: 'var(--agda-macro-dark)' },
   //   -- end of name kinds
   //   pragma, background, markup
 
   // -- "other" aspects
-  '.agda-error':                    { color: '#FF0000' },
-  '.agda-errorwarning':             { backgroundColor: '#80240080' },
+  '.agda-error':                    { color: 'var(--agda-error-dark)' },
+  '.agda-errorwarning':             { backgroundColor: 'var(--agda-errorwarning-surface-dark)' },
   // dottedpattern
-  '.agda-unsolvedmeta':             { backgroundColor: '#806B0080' },
-  '.agda-unsolvedconstraint':       { backgroundColor: '#806B0080' },
-  '.agda-terminationproblem':       { backgroundColor: '#80240080' },
-  '.agda-positivityproblem':        { backgroundColor: '#803F0080' },
-  '.agda-deadcode':                 { backgroundColor: '#80808080' },
-  '.agda-shadowingintelescope':     { backgroundColor: '#80808080' },
-  '.agda-coverageproblem':          { backgroundColor: '#80530080' },
+  '.agda-unsolvedmeta':             { backgroundColor: 'var(--agda-unsolvedmeta-surface-dark)' },
+  '.agda-unsolvedconstraint':       { backgroundColor: 'var(--agda-unsolvedconstraint-surface-dark)' },
+  '.agda-terminationproblem':       { backgroundColor: 'var(--agda-terminationproblem-surface-dark)' },
+  '.agda-positivityproblem':        { backgroundColor: 'var(--agda-positivityproblem-surface-dark)' },
+  '.agda-deadcode':                 { backgroundColor: 'var(--agda-deadcode-surface-dark)' },
+  '.agda-shadowingintelescope':     { backgroundColor: 'var(--agda-shadowingintelescope-surface-dark)' },
+  '.agda-coverageproblem':          { backgroundColor: 'var(--agda-coverageproblem-surface-dark)' },
   // incompletepattern
-  '.agda-typechecks':               { color: 'white', backgroundColor: '#00608080' },
-  '.agda-missingdefinition':        { backgroundColor: '#80404080' },
-  '.agda-instanceproblem':          { backgroundColor: '#80530080' },
-  '.agda-cosmeticproblem':          { backgroundColor: '#40404080' },
-  '.agda-catchallclause':           { backgroundColor: '#40404080' },
-  '.agda-confluenceproblem':        { backgroundColor: '#80008080' },
+  '.agda-typechecks':               { color: 'var(--agda-typechecks-dark)', backgroundColor: 'var(--agda-typechecks-surface-dark)' },
+  '.agda-missingdefinition':        { backgroundColor: 'var(--agda-missingdefinition-surface-dark)' },
+  '.agda-instanceproblem':          { backgroundColor: 'var(--agda-instanceproblem-surface-dark)' },
+  '.agda-cosmeticproblem':          { backgroundColor: 'var(--agda-cosmeticproblem-surface-dark)' },
+  '.agda-catchallclause':           { backgroundColor: 'var(--agda-catchallclause-surface-dark)' },
+  '.agda-confluenceproblem':        { backgroundColor: 'var(--agda-confluenceproblem-surface-dark)' },
 }, { dark: true })

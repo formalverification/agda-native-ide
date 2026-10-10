@@ -1,4 +1,10 @@
 // @ts-nocheck
+// File: src/lib/codemirror/symbol-input.js
+//
+// Changed from SeungheonOh/plfa-playground's src/lib/codemirror/symbol-input.js at
+// ae0aa84c24363a8d6dadc292b6eb8f88f7f38705 (docs/provenance.md).
+// Colors use the shared tokens in src/app.css (issue 17).
+
 import { Prec, StateEffect, StateField, Transaction } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, WidgetType, highlightSpecialChars, keymap, showTooltip } from "@codemirror/view";
 import { isolateHistory, undo } from "@codemirror/commands";
@@ -5104,12 +5110,12 @@ const symbolInputKeymap = keymap.of([
 const symbolInputTheme = EditorView.baseTheme({
     ".input-buffer-inline": {
         textDecoration: "underline",
-        background: "#999",
-        color: "#333"
+        background: "var(--symbol-input-surface)",
+        color: "var(--symbol-input-text)"
     },
     ".input-buffer-inline.no-match": {
-        background: "#9003",
-        color: "#fcc"
+        background: "var(--symbol-no-match-surface)",
+        color: "var(--symbol-no-match-text)"
     },
     ".symbol-input-candidates": {
         minWidth: "10em",
@@ -5124,14 +5130,14 @@ const symbolInputTheme = EditorView.baseTheme({
         fontSize: ".8rem",
         fontStyle: "italic"
     },
-    ".symbol-input-candidates .label mark": { background: "#DFB431" },
+    ".symbol-input-candidates .label mark": { background: "var(--symbol-match-surface)" },
     ".symbol-input-candidates .desc": {
-        color: "#888",
+        color: "var(--symbol-muted-text)",
         fontSize: ".75em",
         fontFamily: "var(--font-monospace, monospace)",
         whiteSpace: "pre"
     },
-    ".symbol-input-candidates li > .symbol.alt": { color: "#888" },
+    ".symbol-input-candidates li > .symbol.alt": { color: "var(--symbol-muted-text)" },
     ".symbol-input-candidates li > .symbol": {
         minWidth: "1.25em",
         display: "inline-block",
@@ -5146,7 +5152,7 @@ const symbolInputTheme = EditorView.baseTheme({
     ".symbol-input-candidates ul.exact": {
         display: "grid",
         gridTemplateColumns: `repeat(8, 1fr)`,
-        borderBottom: "1px solid black"
+        borderBottom: "1px solid var(--symbol-exact-line)"
     },
     ".symbol-input-candidates ul.exact > li": { textAlign: "center" },
     ".symbol-input-candidates ul.matches > li": {
@@ -5157,21 +5163,21 @@ const symbolInputTheme = EditorView.baseTheme({
     },
     ".symbol-input-candidates ul.matches > li .symbol.mono": {
         minWidth: "1.75em",
-        background: "#8886"
+        background: "var(--symbol-cell-surface)"
     },
     ".symbol-input-candidates .selected": {
-        color: "#fff",
-        background: "#000"
+        color: "var(--symbol-selected-text)",
+        background: "var(--symbol-selected-surface)"
     },
     ".cm-tooltip.symbol-input-candidates": {
-        background: "#ddd",
+        background: "var(--symbol-tooltip-surface)",
         whiteSpace: "nowrap",
-        color: "#111",
+        color: "var(--symbol-tooltip-text)",
         padding: "4px"
     },
     ".cm-tooltip-autocomplete-disabled.overridden-by-ime": {
-        color: "#777",
-        background: "#ccc"
+        color: "var(--symbol-disabled-text)",
+        background: "var(--symbol-disabled-surface)"
     }
 });
 //#endregion
