@@ -791,7 +791,9 @@ it is tested in, with no polyfill, shim or fallback (William, 2026-10-07).
    the startup fails (a request, the compiler's decompression or
    compilation, the drive, the setup), the page shows "Agda could not
    start:" and the step, and its heading and status bar say "Agda did not
-   start", where the status bar said "Agda ready" with nothing checked.
+   start", where the status bar said "Agda ready" with nothing checked.  A
+   server that fails, or exits when the page did not ask it to, shows
+   "Agda stopped" the same way.
 +  **No fallback**: the page's fallback to the raw compiler, dead in the
    built site since decision 15, is removed; the dev server, which it
    served, serves the gzip itself.
@@ -811,13 +813,19 @@ it is tested in, with no polyfill, shim or fallback (William, 2026-10-07).
    the raw compiler could not have run there either.
 +  **The notices are tested**: `scripts/browser-check/notices.mjs`, in CI,
    checks a browser without `DecompressionStream` (removed before the page
-   loads), a compiler request answered 404, and a compiler that is not a
-   gzip; all three pass in Chromium 149 and Firefox 157.  Against a build of
-   the commit before this change, all three fail, the first two showing
-   "Agda ready | 0 goals" after 60 s, the silence [#8]'s comment of
-   2026-10-05 found.
+   loads), a compiler request answered 404, a compiler that is not a gzip,
+   and a standard library whose transfer breaks off; all four pass in
+   Chromium 149 and Firefox 157.  Against a build of the commit before
+   [#8]'s change, the first three fail, the first two showing "Agda ready |
+   0 goals" after 60 s, the silence [#8]'s comment of 2026-10-05 found; the
+   fourth, added in review, fails against the commit before it, with the
+   browser's error and no file named.  A server that exited when the page
+   had not asked it to left "Agda ready" on screen; it now shows "Agda
+   stopped: the language server exited with code 0." (an LSP `exit` sent
+   without `shutdown`, checked through an instrumented build).
 +  **IndexedDB is optional**: with `indexedDB` removed from the worker's
-   global before it ran, the page checked and reloaded `Main.agda`, and no
+   global before it ran, or replaced by one whose `open` throws at once,
+   the page checked and reloaded `Main.agda`, and no
    cache database was made; with it, the database was made.
 
 **Status**.  Adopted 2026-10-08 ([#8]).  Open: WebKit.
@@ -854,7 +862,7 @@ it is tested in, with no polyfill, shim or fallback (William, 2026-10-07).
 | 24 | The site ships the reactor and its glue, the glue imported by its URL, not bundled; the command module stays pinned, unshipped | Adopted ([#59]) | The shipped glue is the pinned file (`make assets-check`); NOTICE § 3 from the reactor's own plan, 141 packages (§ 8) |
 | 25 | The status bar shows Agda's own version, asked with `Cmd_show_version` when the server is first ready | Adopted ([#59]) | The reactor has no `--version`, and the server sets no `serverInfo`; the browser check asserts "Agda 2.9.0" (§ 8) |
 | 26 | The server starts with no RTS options: the fork's `+RTS -A64m -RTS` is removed | Adopted ([#59]) | It takes effect (a heap of 94 against 24 MiB) and made no check faster (§ 8) |
-| 27 | A browser that is hard to support is not supported: the page checks what it needs, names what is missing and the browsers it is tested in, and shows a failure to start; no polyfill, shim or fallback | Adopted (William, 2026-10-07; [#8], 2026-10-08) | Three notices tested in CI, failing against the page before; the needs first coincide in Chrome 96, Firefox 114 and Safari 16.4 (§ 9) |
+| 27 | A browser that is hard to support is not supported: the page checks what it needs, names what is missing and the browsers it is tested in, and shows a failure to start; no polyfill, shim or fallback | Adopted (William, 2026-10-07; [#8], 2026-10-08) | Four notices tested in CI, failing against the page before; the needs first coincide in Chrome 96, Firefox 114 and Safari 16.4 (§ 9) |
 | 28 | The editor takes its text as the one Agda's positions refer to only when the page sends `Cmd_load` | Adopted ([#59]) | Agda keeps a goal's loaded range after a give; the old commit point hung 3 of 8 runs in Firefox, the new none of 18 (§ 8) |
 
 ---

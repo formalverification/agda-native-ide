@@ -133,9 +133,10 @@ instead (`scripts/browser-check/bidi.mjs`); CI does not.
 `make browser-check-notices` (`nix run .#browser-check-notices -- <site>`)
 checks what the page says when it cannot run: in a browser without
 `DecompressionStream`, it names what is missing and the browsers it is
-tested in, and when the compiler's request fails, or the compiler does not
-decompress, it says so; in each case the status bar says that Agda did not
-start, never "Agda ready".  CI runs it too.
+tested in, and when the compiler's request fails, the compiler does not
+decompress, or the standard library's transfer breaks off, it says so; in
+each case the status bar says that Agda did not start, never "Agda ready".
+CI runs it too.
 
 `make provenance-check` verifies that every imported file recorded as
 unchanged still is, and that `docs/provenance.md` lists every pin.  To

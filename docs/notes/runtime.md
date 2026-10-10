@@ -88,8 +88,8 @@ the page served with the headers and without, and asserts
 
 ## Startup
 
-The page starts Agda in its `onMount` (`src/routes/+page.svelte:460`), and
-`startALSWASM` and `runALSWASM` (`controller.svelte.ts:290` and `:415`)
+The page starts Agda in its `onMount` (`src/routes/+page.svelte:467`), and
+`startALSWASM` and `runALSWASM` (`controller.svelte.ts:304` and `:451`)
 carry it on.
 
 0. **What the browser needs**.  Before anything else the page checks for
@@ -105,7 +105,7 @@ carry it on.
 1. **The compiler and the data**.  The page fetches the compiler as
    `als-reactor-2.9.0.wasm.gz` and decompresses it as it arrives with
    `DecompressionStream`, unless the server already sent it with
-   `Content-Encoding: gzip` (`fetchWASMAndData`, `:143`), and streams it to
+   `Content-Encoding: gzip` (`fetchWASMAndData`, `:145`), and streams it to
    the worker, which compiles it while it imports the glue, by its URL
    with its cache token (`/* @vite-ignore */`, so Vite does not bundle it:
    the file the page runs is the pinned file, byte for byte, and changes
@@ -122,7 +122,7 @@ carry it on.
    (`src/lib/assets.ts`), so a changed file is never served from a cache
    under its old URL.
 2. **The drive**.  The worker lays out the drive from the three archives
-   (`layOutDrive`, `drive.ts:117`): the builtins at `/lib/prim`, whose
+   (`layOutDrive`, `drive.ts:119`): the builtins at `/lib/prim`, whose
    interfaces the archive already holds under
    `/lib/prim/_build/<version>/agda/`, where Agda looks (the flake builds it
    from an Agda's own `lib/prim`, [#49], with the compiler's own plain
@@ -135,7 +135,7 @@ carry it on.
    exports filled in afterwards, and Runno's `initialize` runs its
    `_initialize`, where GHC's runtime starts and reads the argv and the
    environment from WASI (`als.ts:121-143`): the program's name first, then
-   `--raw +AGDA --interaction -AGDA` (`controller.svelte.ts:441`), with
+   `--raw +AGDA --interaction -AGDA` (`controller.svelte.ts:477`), with
    `HOME=/home/root` and `Agda_datadir=/` (`als.ts:114`).  The server reads
    them when it is created.  `--raw` makes the server answer in Agda's own
    JSON (below); `Agda_datadir=/` is the data directory itself, since the
@@ -158,7 +158,7 @@ carry it on.
    client opens the session.  When the server is first ready, the
    controller asks Agda for its version with `Cmd_show_version`, and lets
    the page see the server ready only once Agda has answered
-   (`updateIOTCMStatus`, `:749`), so that the question never overlaps the
+   (`updateIOTCMStatus`, `:787`), so that the question never overlaps the
    page's first check.  The status bar shows Agda's answer, "Agda 2.9.0":
    the server sets no `serverInfo`, and its version string is printed only
    by the command module's `--version`.  The page then checks `Main.agda`.
@@ -174,18 +174,22 @@ came at 901 to 916 ms (907), served isolated ([#59]).
 ### When Agda cannot start
 
 Every step from 1 to 4 that fails says so: a failed request names the file
-and the HTTP status, a decompression or compilation that fails says that the
-compiler could not be loaded, with the browser's own words, and so on for
-the drive and the setup (`startupFailure`, `controller.svelte.ts:357`, with
-`describeError` and `fetchOrFail`, `:177` and `:186`).  The page shows "Agda
-could not start: ..." in its banner, and its inspector's heading and its
-status bar say "Agda did not start", where the fork swallowed the failure
-and the status bar said "Agda ready" with no goals and nothing checked
-(measured 2026-10-05 in headless Chrome 153 with `DecompressionStream`
-removed: no check after 60 s; [#8]'s comment).
-`scripts/browser-check/notices.mjs` checks three cases in CI: a browser
-without `DecompressionStream`, a compiler request answered 404, and a
-compiler that is not a gzip.
+and the HTTP status, and so does a body that breaks off while it is read; a
+decompression or compilation that fails says that the compiler could not be
+loaded, with the browser's own words; and so on for the drive and the setup
+(`startupFailure`, `controller.svelte.ts:371`, with `describeError`,
+`fetchOrFail` and `readOrFail`, `:179`, `:188` and `:206`).  The page shows
+"Agda could not start: ..." in its banner, and its inspector's heading and
+its status bar say "Agda did not start", where the fork swallowed the
+failure and the status bar said "Agda ready" with no goals and nothing
+checked (measured 2026-10-05 in headless Chrome 153 with
+`DecompressionStream` removed: no check after 60 s; [#8]'s comment).  A
+server that fails, or exits when the page did not ask it to, is reported the
+same way, as "Agda stopped" (`_startALSWASM`, `:388`), where the page went
+on saying "Agda ready".  `scripts/browser-check/notices.mjs` checks four
+cases in CI: a browser without `DecompressionStream`, a compiler request
+answered 404, a compiler that is not a gzip, and a standard library whose
+transfer breaks off.
 
 The user's buffer is `/Main.agda`, beside `/plfa.agda-lib` (`include: .`),
 so Agda treats `Main` as a module of the PLFA library, which depends on the
@@ -209,7 +213,7 @@ each answer back (`als.ts:149-170`).
    interaction mode reads, as Emacs's agda-mode sends it), carried in a
    request named `agda` whose parameters are
    `{tag: "CmdReq", contents: 'IOTCM "/Main.agda" NonInteractive Direct (<command>)'}`
-   (`controller.svelte.ts:769-778`).  A response `CmdRes` with no contents
+   (`controller.svelte.ts:807-816`).  A response `CmdRes` with no contents
    means the command was accepted.
 +  **Answers**: the server streams Agda's interaction-JSON responses back
    as server-to-client requests, also named `agda` (mostly tagged
@@ -232,7 +236,7 @@ each answer back (`als.ts:149-170`).
    `Cmd_constraints` takes a normalization level, and `GoalAndHave`,
    `NormalForm`, `InferredType` and `Mimer` answers carry more (Agda's
    changelog for 2.9.0).
-+  **Goal commands** (`controller.svelte.ts:817-890`): `Cmd_goal_type` and
++  **Goal commands** (`controller.svelte.ts:855-928`): `Cmd_goal_type` and
    `Cmd_context` (normalised), `Cmd_give WithoutForce`,
    `Cmd_refine_or_intro False`, `Cmd_make_case`, `Cmd_infer_toplevel`,
    `Cmd_compute DefaultCompute` (or `Cmd_compute_toplevel` with no goal
@@ -241,20 +245,20 @@ each answer back (`als.ts:149-170`).
 
 ## A check, and the give rule
 
-A check is `loadAgdaFile` (`controller.svelte.ts:556-618`).
+A check is `loadAgdaFile` (`controller.svelte.ts:594-656`).
 
 +  If the buffer is the snapshot last checked and that check had no error,
    nothing is sent.
 +  If the only change since that snapshot lies wholly inside one goal's
    braces, `{! ... !}`, in both the old text and the new, and leaves the
    goal non-empty, the controller sends `Cmd_give WithoutForce` for that
-   goal with its new contents (`getFastGoalCheck`, `:625-679`).  Agda
+   goal with its new contents (`getFastGoalCheck`, `:663-717`).  Agda
    checks the expression against the goal's type, in milliseconds.
 +  Anything else (a declaration, an import, an edit spanning two goals, an
    edit outside every goal) writes the buffer to the drive and sends a full
    `Cmd_load "/Main.agda" []`.  The source says why: "Everything else
    deliberately falls back to Cmd_load, so edits to declarations, imports,
-   or more than one hole always recheck the module" (`:620-624`).
+   or more than one hole always recheck the module" (`:658-662`).
 
 The rule is conservative by construction: the fast path is taken only when
 a give is exactly what the edit means, and a stale result can never stand
@@ -270,7 +274,7 @@ Agda goes on giving the remaining goals' ranges in the text it loaded:
 asked with the compiler's own `agda`, the default `Main.agda`'s goal 1
 keeps its range, 303 to 320, after goal 0 is given and the text above it
 shrinks.  So the controller commits only when it writes the buffer for a
-`Cmd_load`, at the moment it reads it (`syncEditorToDrive`, `:684-701`).
+`Cmd_load`, at the moment it reads it (`syncEditorToDrive`, `:722-739`).
 Upstream committed after every write to the drive, the write that follows
 a give included; when that write completed before Agda's interaction points
 arrived, their ranges fell past the end of the text, the mapping threw, and
@@ -292,7 +296,7 @@ runs of the browser check ([#59]).
    (Runno copies the record it is given), and it follows every call that
    adds or removes a key (`open` with `O_CREAT`, `pathCreateDir`, `unlink`,
    `rename`) and the page's writes and mounted archives (`writeFile` and
-   `mountArchive`, `drive.ts:304` and `:317`).  It
+   `mountArchive`, `drive.ts:313` and `:326`).  It
    also answers a directory's `pathStat` without the filter of the whole
    drive that Runno builds and its stat never reads.  Runno's own methods
    still compute every result, so no answer changes:
@@ -320,13 +324,13 @@ runs of the browser check ([#59]).
    Chromium 149; the spike's page measured 0.21 to 0.24 µs).
 +  **What the page asks of it**: `writeFile` (a source, at any path),
    `mountArchive` (a zip, extracted at `/`) and `persist` (below), which the
-   worker exposes beside the server's functions (`drive.ts:304-349`), where
+   worker exposes beside the server's functions (`drive.ts:313-358`), where
    the drive worker took numbered messages over shared rings.  They run on
    the server's thread, between its steps: extracting an archive delays the
    server's next step (not measured).
 +  **Persistence**: the drive keeps `/Main.agda`, any source the page
    writes, and every interface Agda writes in an IndexedDB database named
-   `agda-playground-drive-<namespace>` (`drive.ts:169-233`, `:323`), where
+   `agda-playground-drive-<namespace>` (`drive.ts:171-242`, `:332`), where
    the namespace is a digest of everything Agda reads (the compiler and its
    glue, the builtins, the standard library and PLFA), which the build
    derives from the files (`scripts/asset-manifest.mjs`, read by
@@ -345,7 +349,7 @@ runs of the browser check ([#59]).
    headless Chromium 149, with `indexedDB` removed from the worker's global
    before it ran; no database was made).
 +  **More libraries**: `mountDriveArchives(urls)`
-   (`controller.svelte.ts:703-743`) fetches zips and extracts them at `/`;
+   (`controller.svelte.ts:741-781`) fetches zips and extracts them at `/`;
    it does not touch the library registry, which the drive writes once at
    startup.
 
@@ -367,10 +371,10 @@ exports are called from JavaScript and no standalone runtime calls them.
    (`bidi.mjs`), by hand.
 +  **The notices** (`scripts/browser-check/notices.mjs`, `make
    browser-check-notices`), in CI too: a browser without
-   `DecompressionStream`, a compiler request answered 404, and a compiler
-   that is not a gzip, each with its notice, the heading and the status bar
-   saying that Agda did not start, and the compiler asked for only where the
-   browser can run it.
+   `DecompressionStream`, a compiler request answered 404, a compiler that
+   is not a gzip, and a standard library whose transfer breaks off, each
+   with its notice, the heading and the status bar saying that Agda did not
+   start, and the compiler asked for only where the browser can run it.
 +  **The browsers** the page is tested in, and what it needs, are in the
    README's "Browsers": Chromium 149 and Firefox 157, both ways, on
    2026-10-08; WebKit untested.

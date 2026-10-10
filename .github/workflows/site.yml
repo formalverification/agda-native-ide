@@ -15,9 +15,10 @@
 #            type-checked, a give, and a type error at its position, with
 #            crossOriginIsolated as the server made it; then the page's
 #            notices (`nix run .#browser-check-notices`): a browser without
-#            DecompressionStream, a compiler request that fails, and a
-#            compiler that does not decompress (issue 8).  The timings,
-#            records and screenshots are uploaded.
+#            DecompressionStream, a compiler request that fails, a compiler
+#            that does not decompress, and an archive whose transfer breaks
+#            off (issue 8).  The timings, records and screenshots are
+#            uploaded.
 #
 # It replaces upstream's workflow (imported as app.yml), whose npm steps
 # are `make test` and `make check` here, and whose build is the Nix
