@@ -1,0 +1,322 @@
+{
+  "run": "dark-theme-2026-10-10",
+  "date": "2026-10-10T15:31:17.519Z",
+  "machine": {
+    "os": "Linux 7.0.0-31-generic x86_64",
+    "cpu": "Intel Core i9-12900H",
+    "logicalCpus": 20
+  },
+  "browser": "Chrome/149.0.7827.200",
+  "themeImplementation": "4106b4a1940608876705c9682636bf326d1620ed",
+  "paletteSha256": "976980cf9016ab7951d97e0a7f93265fc77cf75c490d9cbcd3bd532e8e6267c4",
+  "baseline": {
+    "revision": "d3390896ff72d9db7f2dffeeee89a352813f4f79",
+    "hexOccurrences": 196,
+    "files": 6,
+    "gatesSeconds": {
+      "check": 3.604,
+      "test": 2.676,
+      "build": 9.868,
+      "browser": 2.954
+    },
+    "tests": 13
+  },
+  "tokenization": {
+    "revision": "5e0c807fb744be086c1a82a2bc867594ae5b16b2",
+    "viewport": [
+      1440,
+      900
+    ],
+    "normalization": "Set duration labels to 262 ms, revision labels to d3390896, and hide the cursor before capture.",
+    "comparison": "ImageMagick compare -metric AE, then diff the computed-color JSON.",
+    "light": {
+      "changedPixels": 0,
+      "elements": 367,
+      "beforeSha256": "845f56f0bdaea27ab9a4663ad12cf39eec4baa298f51e1e42283fcc481f939df",
+      "afterSha256": "845f56f0bdaea27ab9a4663ad12cf39eec4baa298f51e1e42283fcc481f939df"
+    },
+    "dark": {
+      "changedPixels": 0,
+      "elements": 367,
+      "beforeSha256": "845f56f0bdaea27ab9a4663ad12cf39eec4baa298f51e1e42283fcc481f939df",
+      "afterSha256": "845f56f0bdaea27ab9a4663ad12cf39eec4baa298f51e1e42283fcc481f939df"
+    }
+  },
+  "contrast": {
+    "command": "node scripts/browser-check/contrast.mjs",
+    "pairs": 5318,
+    "failures": 0,
+    "summary": [
+      {
+        "theme": "light",
+        "category": "Page text",
+        "pairs": 1486,
+        "minimum": 4.605851032922787,
+        "foreground": "--status-text",
+        "background": "--explorer-active-surface"
+      },
+      {
+        "theme": "light",
+        "category": "Agda text",
+        "pairs": 918,
+        "minimum": 4.608204725353218,
+        "foreground": "--agda-coinductiveconstructor",
+        "background": "--explorer-active-surface"
+      },
+      {
+        "theme": "light",
+        "category": "UI",
+        "pairs": 255,
+        "minimum": 3.1242466307635812,
+        "foreground": "--line",
+        "background": "--explorer-active-surface"
+      },
+      {
+        "theme": "dark",
+        "category": "Page text",
+        "pairs": 1486,
+        "minimum": 5.815538767537797,
+        "foreground": "--input-badge-text",
+        "background": "--error-fill"
+      },
+      {
+        "theme": "dark",
+        "category": "Agda text",
+        "pairs": 918,
+        "minimum": 4.867974650611661,
+        "foreground": "--agda-macro",
+        "background": "--symbol-match-surface"
+      },
+      {
+        "theme": "dark",
+        "category": "UI",
+        "pairs": 255,
+        "minimum": 3.1013957400947585,
+        "foreground": "--line",
+        "background": "--symbol-match-surface"
+      }
+    ]
+  },
+  "finalGatesSeconds": {
+    "check": 3.748,
+    "test": 2.992,
+    "build": 10.711,
+    "browser": 9.176,
+    "browserIsolated": 8.327
+  },
+  "tests": 5342,
+  "browserChecks": [
+    {
+      "date": "2026-10-10T15:24:24.952Z",
+      "served": "without the isolation headers",
+      "steps": [
+        "first check",
+        "infer, and the first check's Checking lines",
+        "give at goal 0",
+        "check a type error",
+        "themes"
+      ],
+      "checking": [
+        "Main"
+      ],
+      "goals": {
+        "before": 2,
+        "after": 1
+      },
+      "failure": null
+    },
+    {
+      "date": "2026-10-10T15:21:01.762Z",
+      "served": "with the isolation headers",
+      "steps": [
+        "first check",
+        "infer, and the first check's Checking lines",
+        "give at goal 0",
+        "check a type error",
+        "themes"
+      ],
+      "checking": [
+        "Main"
+      ],
+      "goals": {
+        "before": 2,
+        "after": 1
+      },
+      "failure": null
+    }
+  ],
+  "themes": {
+    "date": "2026-10-10T15:24:27.034Z",
+    "cases": [
+      {
+        "name": "system light on first visit",
+        "effective": "light",
+        "theme": "system",
+        "choice": "system",
+        "width": 1440,
+        "scrollWidth": 1440
+      },
+      {
+        "name": "system change to dark",
+        "effective": "dark",
+        "theme": "system",
+        "choice": "system",
+        "width": 1440,
+        "scrollWidth": 1440
+      },
+      {
+        "name": "system dark on first paint",
+        "effective": "dark",
+        "theme": "system",
+        "choice": "system",
+        "width": 1440,
+        "scrollWidth": 1440
+      },
+      {
+        "name": "light overrides dark system",
+        "effective": "light",
+        "theme": "light",
+        "choice": "light",
+        "width": 1440,
+        "scrollWidth": 1440
+      },
+      {
+        "name": "saved light before paint on dark system",
+        "effective": "light",
+        "theme": "light",
+        "choice": "light",
+        "width": 1440,
+        "scrollWidth": 1440
+      },
+      {
+        "name": "explicit light survives system change",
+        "effective": "light",
+        "theme": "light",
+        "choice": "light",
+        "width": 1440,
+        "scrollWidth": 1440
+      },
+      {
+        "name": "dark overrides light system",
+        "effective": "dark",
+        "theme": "dark",
+        "choice": "dark",
+        "width": 1440,
+        "scrollWidth": 1440
+      },
+      {
+        "name": "saved dark before paint on light system",
+        "effective": "dark",
+        "theme": "dark",
+        "choice": "dark",
+        "width": 1440,
+        "scrollWidth": 1440
+      },
+      {
+        "name": "explicit dark survives system change",
+        "effective": "dark",
+        "theme": "dark",
+        "choice": "dark",
+        "width": 1440,
+        "scrollWidth": 1440
+      },
+      {
+        "name": "return to system",
+        "effective": "dark",
+        "theme": "system",
+        "choice": "system",
+        "width": 1440,
+        "scrollWidth": 1440
+      },
+      {
+        "name": "system resumes following changes",
+        "effective": "light",
+        "theme": "system",
+        "choice": "system",
+        "width": 1440,
+        "scrollWidth": 1440
+      },
+      {
+        "name": "theme control at 400px",
+        "effective": "light",
+        "theme": "system",
+        "choice": "system",
+        "width": 400,
+        "scrollWidth": 400
+      },
+      {
+        "name": "theme control at 768px",
+        "effective": "light",
+        "theme": "system",
+        "choice": "system",
+        "width": 768,
+        "scrollWidth": 768
+      },
+      {
+        "name": "theme control at 1440px",
+        "effective": "light",
+        "theme": "system",
+        "choice": "system",
+        "width": 1440,
+        "scrollWidth": 1440
+      },
+      {
+        "name": "invalid saved value follows system",
+        "effective": "light",
+        "theme": "system",
+        "choice": "system",
+        "width": 1440,
+        "scrollWidth": 1440
+      },
+      {
+        "name": "refused theme storage follows system",
+        "effective": "light",
+        "theme": "system",
+        "choice": "system",
+        "width": 1440,
+        "scrollWidth": 1440
+      },
+      {
+        "name": "refused theme storage still switches",
+        "effective": "dark",
+        "theme": "dark",
+        "choice": "dark",
+        "width": 1440,
+        "scrollWidth": 1440
+      }
+    ],
+    "failure": null,
+    "firstFrameSamples": 8,
+    "viewports": [
+      400,
+      768,
+      1440
+    ],
+    "method": "Chrome DevTools Protocol Emulation.setEmulatedMedia, native control changes, reloads, computed colors of the drawn text nodes, and requestAnimationFrame samples.",
+    "screenshots": {
+      "light": {
+        "path": "browser-check/themes/light.png",
+        "sha256": "8432e6d258b36793ed9f21854fd07da2cff7f82406a9a60dc1f44fb17bcba7e2"
+      },
+      "dark": {
+        "path": "browser-check/themes/dark.png",
+        "sha256": "b4ca4b2197456dc28e7d3d25e5b83f3801fb6a27d66cc858e105d1b788765b2d"
+      },
+      "viewport": [
+        1440,
+        900
+      ],
+      "artifact": "Private site workflow browser-check artifact, themes/light.png and themes/dark.png."
+    }
+  },
+  "controls": [
+    {
+      "defect": "missing saved-choice script",
+      "failure": "saved light before paint on dark system: background is rgb(12, 14, 29), expected light --canvas"
+    },
+    {
+      "defect": "nested syntax color overrides Agda",
+      "failure": "system light on first visit: keyword is rgb(36, 42, 35), expected light --agda-keyword"
+    }
+  ]
+}

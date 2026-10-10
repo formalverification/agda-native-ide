@@ -158,6 +158,12 @@ for the current visit.
 The colors are tokens in `static/theme.css`, loaded in the document's
 head.  `make test` reads that stylesheet and checks text against the page
 and highlight surfaces, and UI boundaries and focus against the surfaces.
+The Chromium run of `make browser-check` also exercises theme choices,
+system changes, saved choices before paint, drawn Agda colors, refused
+theme storage and narrow viewports.  It writes `themes/light.png`,
+`themes/dark.png` and `themes/themes.json` under `browser-check/`; CI
+includes them in the private `browser-check` artifact.  The local
+measurement is archived in [`docs/measurements/dark-theme-2026-10-10.json`](docs/measurements/dark-theme-2026-10-10.json).
 
 ## Browsers
 
