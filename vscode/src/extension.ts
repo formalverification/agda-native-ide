@@ -1,6 +1,7 @@
 // File: vscode/src/extension.ts
 
 import * as vscode from 'vscode';
+import { compatibility, Compatibility } from './compatibility';
 import { panelHtml, panelOptions } from './panel';
 import { Action, actions, isAction, PanelState, restoreState } from './state';
 
@@ -32,8 +33,10 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
   private error: string | null = null;
   private persisted: PanelState | undefined;
   private snapshot: DocumentSnapshot | undefined;
+  private modeCompatibility: Compatibility;
 
   constructor(private readonly context: vscode.ExtensionContext) {
+    this.modeCompatibility = this.readCompatibility();
     this.track(vscode.window.activeTextEditor);
     context.subscriptions.push(
       vscode.window.onDidChangeActiveTextEditor(editor => this.track(editor)),
@@ -46,6 +49,11 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
       vscode.workspace.onDidSaveTextDocument(document => {
         if (document.uri.toString() === this.state.uri) this.publish();
       }),
+      vscode.extensions.onDidChange(() => {
+        this.modeCompatibility = this.readCompatibility();
+        if (!this.modeCompatibility.supported && this.document()) this.open();
+        this.publish();
+      }),
     );
   }
 
@@ -53,6 +61,15 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
   getState(): PanelState { return this.state; }
   getPersistedState(): PanelState | undefined { return this.persisted; }
   getSnapshot(): DocumentSnapshot | undefined { return this.snapshot; }
+  getCompatibility(): Compatibility { return this.modeCompatibility; }
+
+  private readCompatibility(): Compatibility {
+    return compatibility(vscode.extensions.getExtension(modeId)?.packageJSON.version);
+  }
+
+  reportCompatibility(): void {
+    if (!this.modeCompatibility.supported && this.document()) this.open();
+  }
 
   open(): void {
     this.track(vscode.window.activeTextEditor);
@@ -110,6 +127,7 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
   private track(editor: vscode.TextEditor | undefined): void {
     if (editor && isAgda(editor.document)) {
       this.target = editor;
+      if (this.state.uri !== editor.document.uri.toString()) this.state.lastCommand = null;
       this.state.uri = editor.document.uri.toString();
       this.error = null;
       this.publish();
@@ -129,6 +147,7 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
       type: 'snapshot', state: this.state, busy: this.busy, error: this.error,
       module: document ? vscode.workspace.asRelativePath(document.uri) : null,
       version: document?.version, dirty: document?.isDirty,
+      compatibility: this.modeCompatibility,
     });
   }
 
@@ -138,10 +157,11 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
     const document = active?.document ?? this.document();
     if (!document) throw new Error('Open an Agda module before issuing a command.');
     const previous = this.target?.document === document ? this.target : undefined;
+    const selection = previous?.selection;
     const editor = await vscode.window.showTextDocument(document, {
       viewColumn: previous?.viewColumn ?? vscode.ViewColumn.One, preserveFocus: false, preview: false,
     });
-    if (previous) editor.selection = previous.selection;
+    if (selection) editor.selection = selection;
     this.target = editor;
     this.state.uri = document.uri.toString();
     return editor;
@@ -208,5 +228,6 @@ export function activate(context: vscode.ExtensionContext): { companion: Compani
     vscode.commands.registerCommand('agdaWorkbench.open', () => companion.open()),
     ...actions.map(action => vscode.commands.registerCommand(`agdaWorkbench.${action}`, () => companion.execute(action))),
   );
+  companion.reportCompatibility();
   return { companion, activationMs: performance.now() - started };
 }

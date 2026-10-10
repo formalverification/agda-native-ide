@@ -12,6 +12,9 @@
   window.addEventListener('message', event => {
     const message = event.data;
     if (message?.type !== 'snapshot') return;
+    const compatibility = message.compatibility;
+    document.getElementById('compatibility').hidden = compatibility.supported;
+    document.getElementById('version-message').textContent = compatibility.message;
     state = message.state;
     vscode.setState(state);
     vscode.postMessage({ type: 'persisted', state });
