@@ -19,6 +19,8 @@
 // record, drive.fs, where Agda's writes land, rather than from the record
 // the drive was built from, which Runno copies, so files at paths made
 // after startup (Main's interface, a mounted archive's) are persisted too.
+// A browser that refuses IndexedDB, by an error or by throwing at once,
+// leaves the drive uncached.
 
 import * as Runno from "@runno/wasi";
 import JSZip from "jszip";
@@ -169,7 +171,14 @@ interface CachedFile {
 export function openCacheDatabase(namespace: string) {
   return new Promise<IDBDatabase | null>((resolve) => {
     if (typeof indexedDB === "undefined") return resolve(null);
-    const request = indexedDB.open(`agda-playground-drive-${namespace}`, 1);
+    let request: IDBOpenDBRequest;
+    try {
+      request = indexedDB.open(`agda-playground-drive-${namespace}`, 1);
+    } catch (error) {
+      // A browser that does not allow storage may throw at once.
+      console.warn("Persistent Agda cache is unavailable", error);
+      return resolve(null);
+    }
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains("files")) {
         request.result.createObjectStore("files", { keyPath: "path" });

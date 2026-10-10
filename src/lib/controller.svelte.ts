@@ -27,10 +27,12 @@
 // answer.
 //
 // When Agda cannot start, the controller says why (issue 8): a failure to
-// fetch the compiler, to decompress or compile it, to fetch an archive,
-// to lay out the drive or to run the setup rejects the start with a
-// message the page shows, where it used to leave the page saying "Agda
-// ready" with nothing checked.  The fallback to the raw compiler is gone:
+// fetch the compiler, to decompress or compile it, to fetch or read an
+// archive, to lay out the drive or to run the setup rejects the start with
+// a message the page shows, where it used to leave the page saying "Agda
+// ready" with nothing checked.  A server that fails or exits on its own
+// once started rejects it too ("Agda stopped"), where the page went on
+// saying "Agda ready".  The fallback to the raw compiler is gone:
 // the built site has not shipped it since issue 3, and a browser without
 // DecompressionStream is not supported (src/lib/support.ts).
 //
@@ -197,6 +199,18 @@ async function fetchOrFail(url: string, what: string) {
       `${what} could not be downloaded (HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ""})`,
     );
   return response;
+}
+
+/** Read a file's body, or fail saying which file and why: a transfer can
+ * break off after its headers have arrived. */
+async function readOrFail(response: Response, what: string) {
+  try {
+    return await response.arrayBuffer();
+  } catch (error) {
+    throw new Error(`${what} could not be downloaded (${describeError(error)})`, {
+      cause: error,
+    });
+  }
 }
 
 export const LS_DOC_KEY = "agda-web-ide-beta:doc";
@@ -383,12 +397,34 @@ export class AgdaController {
       ),
     });
 
-    const ret = await this.runningWASM;
+    // The server exits when the page stops it (stopALSWASM, which sets
+    // "deactivating" first); any other end, a failure or an exit of its
+    // own, is reported, since the page would otherwise go on saying "Agda
+    // ready".
+    let ret: number;
+    try {
+      ret = await this.runningWASM;
+    } catch (error) {
+      this.runningWASM = undefined;
+      this.deactivate();
+      this.alsWorkerStatus = "exited";
+      throw new Error(
+        `Agda stopped: the language server failed (${describeError(error)}).`,
+        { cause: error },
+      );
+    }
+    // (stopALSWASM may have changed the status while this awaited.)
+    const requested =
+      (this.alsWorkerStatus as ALSWorkerStatus) === "deactivating";
     this.runningWASM = undefined;
     this.deactivate();
 
     this.alsWorkerStatus = "exited";
     console.log("ALS worker exited with code", ret);
+    if (!requested)
+      throw new Error(
+        `Agda stopped: the language server exited with code ${ret}.`,
+      );
     return ret;
   }
 
@@ -461,15 +497,17 @@ export class AgdaController {
       const [workerInitData, dataFileData, stdlibData, plfaData] =
         await Promise.all([
           step("the compiler could not be loaded", initPromise),
-          dataFile ? dataFile.arrayBuffer() : Promise.resolve(null),
+          dataFile
+            ? readOrFail(dataFile, "Agda's builtin library")
+            : Promise.resolve(null),
           fetchOrFail(
             `${asset("/agda-stdlib-2.3-patched.zip")}?cache=${cacheTokens.stdlib}`,
             "the standard library",
-          ).then((x) => x.arrayBuffer()),
+          ).then((x) => readOrFail(x, "the standard library")),
           fetchOrFail(
             `${asset("/plfa/project.zip")}?cache=${cacheTokens.plfaProject}`,
             "PLFA",
-          ).then((x) => x.arrayBuffer()),
+          ).then((x) => readOrFail(x, "PLFA")),
         ]);
       this.workerInitData = workerInitData;
 

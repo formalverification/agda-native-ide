@@ -37,9 +37,11 @@ const TYPES = {
  * Serve `root` on 127.0.0.1 (a secure context, as isolation requires),
  * with the isolation headers when `isolated`.  `answer`, when given, is
  * asked first for each request's path, and its answer, if any, is sent in
- * place of the file.
+ * place of the file; with `cut`, the answer claims twice its length, and
+ * the connection is dropped after its body, as a transfer that breaks off.
  * @param {{ root: string, port?: number, isolated?: boolean,
- *   answer?: (path: string) => { status: number, body: Buffer } | undefined }} options
+ *   answer?: (path: string) =>
+ *     { status: number, body: Buffer, cut?: boolean } | undefined }} options
  */
 export function serve({ root, port = 0, isolated = false, answer }) {
   // Every file must lie under this prefix; the filesystem root is its own
@@ -95,12 +97,13 @@ export function serve({ root, port = 0, isolated = false, answer }) {
     }
     entry.status = status;
     entry.bytes = body.length;
+    const cut = Boolean(answered?.cut);
     response.writeHead(status, {
       "content-type":
         status === 200
           ? (TYPES[extname(file ?? "")] ?? "application/octet-stream")
           : "text/plain; charset=utf-8",
-      "content-length": body.length,
+      "content-length": cut ? 2 * body.length : body.length,
       "cache-control": "max-age=600",
       ...(isolated
         ? {
@@ -109,7 +112,8 @@ export function serve({ root, port = 0, isolated = false, answer }) {
           }
         : {}),
     });
-    response.end(request.method === "HEAD" ? undefined : body);
+    if (cut) response.write(body, () => response.destroy());
+    else response.end(request.method === "HEAD" ? undefined : body);
   });
   return new Promise((done) => {
     server.listen(port, "127.0.0.1", () => {

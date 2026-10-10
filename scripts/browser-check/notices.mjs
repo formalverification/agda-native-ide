@@ -14,7 +14,10 @@
 //                           answers 404);
 //   compiler corrupt        the compiler's gzip is not a gzip (the server
 //                           answers bytes that do not inflate), so its
-//                           decompression fails in the worker.
+//                           decompression fails in the worker;
+//   standard library cut    the standard library's transfer breaks off
+//     short                 after its headers (the server drops the
+//                           connection halfway), so reading its body fails.
 //
 // It writes notices.json (each case's page state, requests and console)
 // and a screenshot per case into --out, and exits 1 when a case fails.
@@ -33,6 +36,9 @@ import { serve } from "./serve.mjs";
 
 /** The compiler, as the page fetches it (scripts/asset-manifest.mjs). */
 const COMPILER_GZ = /\/als-reactor-[^/]*\.wasm\.gz$/;
+
+/** The standard library's archive. */
+const STDLIB_ZIP = /\/agda-stdlib-[^/]*\.zip$/;
 
 /** The browsers the page names as tested (src/lib/support.ts). */
 const TESTED = "The page is tested in Chromium and Firefox; other browsers are not supported.";
@@ -63,6 +69,17 @@ const CASES = [
     // The decompressor's own words vary by browser; the page names the
     // step that failed.
     banner: /^Agda could not start: the compiler could not be loaded \(.+\)\.$/,
+    fetchesCompiler: true,
+  },
+  {
+    name: "standard library cut short",
+    answer: (/** @type {string} */ path) =>
+      STDLIB_ZIP.test(path)
+        ? { status: 200, body: Buffer.alloc(65_536, 0x5a), cut: true }
+        : undefined,
+    // The network error's words vary by browser; the page names the file.
+    banner:
+      /^Agda could not start: the standard library could not be downloaded \(.+\)\.$/,
     fetchesCompiler: true,
   },
 ];

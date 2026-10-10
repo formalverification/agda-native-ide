@@ -373,6 +373,7 @@ Each change is its own commit, named here by its subject.
 | `src/routes/+page.svelte` | Before it starts Agda, the page checks what the browser needs (`src/lib/support.ts`) and, when something is missing, says what and names the browsers it is tested in; when Agda cannot start, the banner, the inspector's heading and the status bar say so, never "Agda ready" ([#8]) | "Say so when the page cannot run, or Agda cannot start" |
 | `vite.config.js` | The dev server serves the compiler's gzip, compressing the raw compiler in `static/`, since the page no longer falls back to the raw file ([#8]) | "Say so when the page cannot run, or Agda cannot start" |
 | `src/lib/controller.svelte.ts` | The server starts without the fork's `+RTS -A64m -RTS`, which the reactor's runtime takes and which made no check faster while it grew the heap by 70 to 90 MiB ([#59]) | "Start the language server without +RTS -A64m -RTS" |
+| `src/lib/controller.svelte.ts`, `src/routes/+page.svelte`, `src/lib/worker/drive.ts` | A body that breaks off while an archive is read names the archive; a server that fails or exits of its own accord is reported ("Agda stopped"), where the page went on saying "Agda ready"; a browser that refuses IndexedDB by throwing leaves the drive uncached rather than failing the start ([#59]'s review) | "Report a broken archive, a stopped server and a refused cache" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground

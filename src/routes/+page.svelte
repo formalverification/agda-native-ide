@@ -14,8 +14,9 @@
   // cross-origin isolation, or checks for it (issue 59).  Before it starts
   // Agda, the page checks that the browser has what it needs
   // ($lib/support), and says so when it does not; when Agda cannot start,
-  // the page says why, in the banner, the inspector's heading and the
-  // status bar, rather than "Agda ready" (issue 8).
+  // or its server stops of its own accord, the page says why, in the
+  // banner, the inspector's heading and the status bar, rather than "Agda
+  // ready" (issue 8).
 
   import { onDestroy, onMount } from "svelte";
   import { basicSetup } from "codemirror";
@@ -183,9 +184,15 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     controller.alsWorkerStatus === "active" &&
       controller.iotcmStatus === "ready",
   );
-  // Agda did not start: this browser lacks what the page needs, or a step
-  // of the startup failed.  The banner says which.
+  // Agda did not start (this browser lacks what the page needs, or a step
+  // of the startup failed), or its server stopped of its own accord.  The
+  // banner says which.
   const agdaFailed = $derived(startupError !== "");
+  const agdaFailedLabel = $derived(
+    controller.alsWorkerStatus === "exited"
+      ? "Agda stopped"
+      : "Agda did not start",
+  );
   const compilerStarting = $derived(
     !agdaFailed &&
       (controller.alsWorkerStatus === "initial" ||
@@ -224,7 +231,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   });
   const inspectorHeading = $derived(
     agdaFailed
-      ? "Agda did not start"
+      ? agdaFailedLabel
       : compilerStarting
         ? `${compilerLoadingLabel} ${progress}%`
         : isBusy
@@ -1113,7 +1120,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
               class:success={controller.checked &&
                 !controller.problems.some((p) => p.severity === "error")}
             >
-              {#if agdaFailed}<CircleAlert size={13} />Agda did not start{:else if isBusy}<LoaderCircle
+              {#if agdaFailed}<CircleAlert size={13} />{agdaFailedLabel}{:else if isBusy}<LoaderCircle
                   size={13}
                   class="spin"
                 />{controller.lastAction}{:else if controller.problems.some((p) => p.severity === "error")}<CircleAlert
