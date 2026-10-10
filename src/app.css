@@ -1,7 +1,7 @@
 /* File: src/app.css
  * Changed from SeungheonOh/plfa-playground's src/app.css at
  * ae0aa84c24363a8d6dadc292b6eb8f88f7f38705 (docs/provenance.md).
- * The page and editor share role-based color tokens (issue 17).
+ * The page and editor read the color tokens in static/theme.css (issue 17).
  */
 
 :root {
@@ -14,182 +14,6 @@
   color: var(--text);
   background: var(--canvas);
   font-synthesis: none;
-  --canvas: #e8ebe5;
-  --surface: #f8f9f5;
-  --surface-soft: #e7eae3;
-  --line: #adb3a9;
-  --line-strong: #6f776d;
-  --text: #171a16;
-  --muted: #565d54;
-  --faint: #7e867b;
-  --accent: #176d54;
-  --accent-strong: #0e503c;
-  --accent-soft: #dcebe3;
-  --warning: #81510f;
-  --warning-soft: #f4e9cd;
-  --error: #9c2925;
-  --error-soft: #f2dfdc;
-  --editor-surface: #fff;
-  --editor-text: #242a23;
-  --editor-gutter-surface: #fafbf9;
-  --editor-gutter-text: #a0a79d;
-  --editor-line: #edf0eb;
-  --editor-active-line: #f3f7f3;
-  --editor-cursor: #20765b;
-  --goal-surface: #dff3e8;
-  --goal-line: #8ac5aa;
-  --tooltip-line: #626a60;
-  --surface: #f8f9f5;
-  --error-banner-line: #efd0cd;
-  --activity-surface: #dfe3dc;
-  --activity-text: #7c847a;
-  --explorer-surface: #ebeee8;
-  --explorer-heading: #4d554b;
-  --explorer-text: #596057;
-  --explorer-active-surface: #d7ddd4;
-  --explorer-line: #d5d9d2;
-  --explorer-hover-surface: #e2e6df;
-  --chapter-active-surface: #d9e4dc;
-  --chapter-icon: #6d756b;
-  --saved-indicator: #90ad9d;
-  --tab-surface: #e9ece6;
-  --reader-line: #e1e5de;
-  --reader-heading: #454d43;
-  --status-surface: #e4e8e1;
-  --status-text: #667064;
-  --reader-text: #252a24;
-  --text: #171a16;
-  --reader-heading-line: #c9cec5;
-  --reader-inline-surface: #e8ece5;
-  --reader-code-line: #bec5ba;
-  --reader-code-surface: #f0f2ed;
-  --reader-code-accent: #7f9488;
-  --reader-code-hover-surface: #e6eee8;
-  --reader-quote-line: #8da297;
-  --reader-quote-text: #4f574d;
-  --reader-quote-surface: #eef1eb;
-  --reader-table-line: #c4c9c0;
-  --command-line: #e8ece6;
-  --command-text: #535c51;
-  --command-hover-line: #809087;
-  --input-line: #60685e;
-  --input-label-surface: #d9ded6;
-  --input-divider: #899087;
-  --input-label-text: #2e342d;
-  --input-badge-text: #f4f7f1;
-  --input-text: #1d211c;
-  --input-surface: #fafbf7;
-  --input-button-line: #697167;
-  --input-button-text: #293029;
-  --input-button-hover-surface: #f5f6f2;
-  --resize-surface: #dce0d9;
-  --resize-hover-surface: #9bcab4;
-  --inspector-surface: #f2f4ef;
-  --abort-line: #a34c45;
-  --card-surface: #f9faf6;
-  --card-hover-line: #b6c9bc;
-  --card-active-line: #78ae95;
-  --goal-text: #28322b;
-  --inspector-heading: #515950;
-  --context-text: #3f4840;
-  --error-card-line: #eccbc7;
-  --warning-card-line: #ecd9b7;
-  --problem-text: #4f554e;
-  --error-action-line: #efcfcc;
-  --goal-marker-text: #fff;
-  --selection-surface: #c8e5d9;
-  --agda-hole-surface-light: #b4eeb4C0;
-  --agda-comment-light: #777;
-  --agda-keyword-light: #cd6600;
-  --agda-string-light: #b22222;
-  --agda-number-light: #a020f0;
-  --agda-symbol-light: #404040;
-  --agda-primitivetype-light: #0000cd;
-  --agda-inductiveconstructor-light: #008b00;
-  --agda-coinductiveconstructor-light: #8b7500;
-  --agda-datatype-light: #0000cd;
-  --agda-field-light: #ee1289;
-  --agda-function-light: #0000cd;
-  --agda-module-light: #a020f0;
-  --agda-postulate-light: #0000cd;
-  --agda-primitive-light: #0000cd;
-  --agda-record-light: #0000cd;
-  --agda-macro-light: #458b74;
-  --agda-error-light: #ff0000;
-  --agda-errorwarning-surface-light: #f0808080;
-  --agda-unsolvedmeta-surface-light: #ffff0080;
-  --agda-unsolvedconstraint-surface-light: #ffff0080;
-  --agda-terminationproblem-surface-light: #ffa07a80;
-  --agda-positivityproblem-surface-light: #cd853f80;
-  --agda-deadcode-surface-light: #a9a9a980;
-  --agda-shadowingintelescope-surface-light: #a9a9a980;
-  --agda-coverageproblem-surface-light: #f5deb380;
-  --agda-typechecks-light: #000000;
-  --agda-typechecks-surface-light: #add8e680;
-  --agda-missingdefinition-surface-light: #ffa50080;
-  --agda-instanceproblem-surface-light: #f5deb380;
-  --agda-cosmeticproblem-surface-light: #f5f5f580;
-  --agda-catchallclause-surface-light: #f5f5f580;
-  --agda-confluenceproblem-surface-light: #ffc0cb80;
-  --editor-dark-active-line: #66666620;
-  --editor-selection-match-line: #AAAAAAC0;
-  --editor-dark-selection-match-line: #666666C0;
-  --editor-dark-cursor: #bbb;
-  --editor-fold-surface: #333;
-  --editor-fold-line: #444;
-  --editor-tooltip-section-line: #777;
-  --editor-tooltip-hover-line: #111;
-  --editor-hover-line: #000000c0;
-  --editor-dark-hover-line: #ffffffc0;
-  --editor-tooltip-line: #4c4b51;
-  --symbol-input-surface: #999;
-  --symbol-input-text: #333;
-  --symbol-no-match-surface: #9003;
-  --symbol-no-match-text: #fcc;
-  --symbol-match-surface: #DFB431;
-  --symbol-muted-text: #888;
-  --symbol-cell-surface: #8886;
-  --symbol-selected-text: #fff;
-  --symbol-selected-surface: #000;
-  --symbol-tooltip-surface: #ddd;
-  --symbol-tooltip-text: #111;
-  --symbol-disabled-text: #777;
-  --symbol-disabled-surface: #ccc;
-  --symbol-exact-line: #000;
-  --browser-chrome-surface: #f7f8f5;
-  --agda-hole-surface-dark: #556B2FC0;
-  --agda-comment-dark: #999;
-  --agda-keyword-dark: #FF9932;
-  --agda-string-dark: #DD4D4D;
-  --agda-number-dark: #9010E0;
-  --agda-symbol-dark: #BFBFBF;
-  --agda-primitivetype-dark: #8080FF;
-  --agda-inductiveconstructor-dark: #29CC29;
-  --agda-coinductiveconstructor-dark: #FFEA75;
-  --agda-datatype-dark: #8080FF;
-  --agda-field-dark: #F570B7;
-  --agda-function-dark: #8080FF;
-  --agda-module-dark: #CD80FF;
-  --agda-postulate-dark: #8080FF;
-  --agda-primitive-dark: #8080FF;
-  --agda-record-dark: #8080FF;
-  --agda-macro-dark: #73BAA2;
-  --agda-error-dark: #FF0000;
-  --agda-errorwarning-surface-dark: #80240080;
-  --agda-unsolvedmeta-surface-dark: #806B0080;
-  --agda-unsolvedconstraint-surface-dark: #806B0080;
-  --agda-terminationproblem-surface-dark: #80240080;
-  --agda-positivityproblem-surface-dark: #803F0080;
-  --agda-deadcode-surface-dark: #80808080;
-  --agda-shadowingintelescope-surface-dark: #80808080;
-  --agda-coverageproblem-surface-dark: #80530080;
-  --agda-typechecks-dark: #ffffff;
-  --agda-typechecks-surface-dark: #00608080;
-  --agda-missingdefinition-surface-dark: #80404080;
-  --agda-instanceproblem-surface-dark: #80530080;
-  --agda-cosmeticproblem-surface-dark: #40404080;
-  --agda-catchallclause-surface-dark: #40404080;
-  --agda-confluenceproblem-surface-dark: #80008080;
 }
 * {
   box-sizing: border-box;
@@ -219,6 +43,10 @@ select {
 button {
   color: inherit;
 }
+input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
 ::selection {
   background: var(--selection-surface);
 }
@@ -229,4 +57,9 @@ button {
   body {
     overflow: auto;
   }
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }

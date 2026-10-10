@@ -377,6 +377,8 @@ Each change is its own commit, named here by its subject.
 
 | `src/app.css`, `src/app.html`, `src/routes/+page.svelte`, `src/lib/agda/color-scheme.js`, `src/lib/codemirror/theme.ts`, `src/lib/codemirror/symbol-input.js` | Literal colors become shared CSS tokens, preserving both system schemes during extraction ([#17]) | "Extract the workbench color tokens" |
 
+| `src/app.css`, `src/app.html`, `src/routes/+page.svelte`, `src/lib/agda/color-scheme.js`, `src/lib/agda/index.js`, `src/lib/codemirror/theme.ts`, `src/lib/codemirror/symbol-input.js` | The page and editor use the light and dark tokens in `static/theme.css`, follow the system or the saved theme choice, and share contrast-checked highlighting ([#17]) | "Follow the system or saved workbench theme" |
+
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
 [records]: ../upstream/

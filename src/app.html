@@ -8,7 +8,8 @@
   2.9.0, the version src/routes/+page.svelte configures (issue 58).  The
   script tag of coi-serviceworker.js is gone: the page shares no memory
   between threads, so it needs no cross-origin isolation (issue 59).
-  The browser chrome color reads a shared CSS token (issue 17).
+  The saved theme is applied before first paint, and the browser chrome
+  color reads a shared CSS token (issue 17).
 -->
 <html lang="en">
   <head>
@@ -16,6 +17,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="" />
     <meta name="description" content="A complete Agda 2.9.0 editor and type checker running locally in your browser with WebAssembly." />
+    <script>
+      try {
+        const theme = localStorage.getItem("agda-web-ide-beta:theme");
+        if (theme === "light" || theme === "dark")
+          document.documentElement.dataset.theme = theme;
+      } catch {
+        // With no saved choice, CSS follows the system preference.
+      }
+    </script>
+    <link rel="stylesheet" href="%sveltekit.assets%/theme.css" />
     <link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="%sveltekit.assets%/favicon.png" type="image/png" sizes="128x128" />
     <link rel="stylesheet" href="%sveltekit.assets%/julia-mono.css" />

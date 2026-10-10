@@ -3,7 +3,7 @@
 //
 // Changed from SeungheonOh/plfa-playground's src/lib/codemirror/symbol-input.js at
 // ae0aa84c24363a8d6dadc292b6eb8f88f7f38705 (docs/provenance.md).
-// Colors use the shared tokens in src/app.css (issue 17).
+// Colors use the shared tokens in static/theme.css (issue 17).
 
 import { Prec, StateEffect, StateField, Transaction } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, WidgetType, highlightSpecialChars, keymap, showTooltip } from "@codemirror/view";
@@ -5130,7 +5130,7 @@ const symbolInputTheme = EditorView.baseTheme({
         fontSize: ".8rem",
         fontStyle: "italic"
     },
-    ".symbol-input-candidates .label mark": { background: "var(--symbol-match-surface)" },
+    ".symbol-input-candidates .label mark": { background: "var(--symbol-match-surface)", color: "var(--symbol-match-text)" },
     ".symbol-input-candidates .desc": {
         color: "var(--symbol-muted-text)",
         fontSize: ".75em",
@@ -5169,6 +5169,7 @@ const symbolInputTheme = EditorView.baseTheme({
         color: "var(--symbol-selected-text)",
         background: "var(--symbol-selected-surface)"
     },
+    ".symbol-input-candidates .selected .symbol.alt": { color: "inherit" },
     ".cm-tooltip.symbol-input-candidates": {
         background: "var(--symbol-tooltip-surface)",
         whiteSpace: "nowrap",

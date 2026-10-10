@@ -15,7 +15,6 @@ b2f8006dd411c49ee6ac2d56d701eda7bf0ba975bded4127f9c3bc97e82b1ed7  src/lib/agda/e
 184ae193b8a819d6715b12255a781e029fb8020b663edca98534b69db2572e50  src/lib/agda/goals.js
 deba08d8db9dc7152465d9f4dd184ed0dfdb588cd77d39fba9292226103e3784  src/lib/agda/handlers.js
 d5b79067564f98a2f382f99c8ea4cecc57afabce4cfaad466b877f29b24c7a12  src/lib/agda/highlight.js
-817b165e2dc372bffef107cb099b78146a73161e2377c4ec04b105abf0d1dcc2  src/lib/agda/index.js
 7cc96daf127761d8eb8bf6dc0ecad64ca04907c77b3dbabfa40285dadd1344f0  src/lib/agda/lsp.js
 48009cbc2afd4ba5d3ff20a4243cb43a7a371c4da4d4484bbd6a379f0df05eea  src/lib/agda/schema.js
 43bd7084284c87f8b4a886bef6f39edd816a585f38f69ce9c1bf1b1e19f578b6  src/lib/agda/transport.js

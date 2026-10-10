@@ -145,6 +145,20 @@ and commit (for JSON, which carries no comment, in `docs/provenance.md`
 alone), remove its line from `upstream/unchanged.sha256`, and add a row to
 the "Changes to upstream files" table in `docs/provenance.md`.
 
+## Theme
+
+The **Theme** control beside the editor tab offers System, Light and Dark.
+System follows the operating system's preference, including changes while
+the page is open.  A Light or Dark choice applies to the page, CodeMirror
+and Agda's highlighting, and persists in localStorage beside the document.
+Choosing System clears that override.  The saved choice is read before
+first paint; when theme storage is refused, the control still switches
+for the current visit.
+
+The colors are tokens in `static/theme.css`, loaded in the document's
+head.  `make test` reads that stylesheet and checks text against the page
+and highlight surfaces, and UI boundaries and focus against the surfaces.
+
 ## Browsers
 
 The page is tested in the browsers below, and other browsers are not

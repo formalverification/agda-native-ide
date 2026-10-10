@@ -16,10 +16,11 @@
   // ($lib/support), and says so when it does not; when Agda cannot start,
   // or its server stops of its own accord, the page says why, in the
   // banner, the inspector's heading and the status bar, rather than "Agda
-  // ready" (issue 8).  Colors use the shared tokens in src/app.css
+  // ready" (issue 8).  Colors use the shared tokens in static/theme.css
   // (issue 17).
 
   import { onDestroy, onMount } from "svelte";
+  import { setThemePreference, watchTheme, type ThemePreference } from "$lib/theme";
   import { basicSetup } from "codemirror";
   import { startCompletion } from "@codemirror/autocomplete";
   import { Compartment, Prec } from "@codemirror/state";
@@ -121,6 +122,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   let readerContent = $state<HTMLDivElement>();
   let inspectorPreference = $state<"auto" | "goals">("auto");
   let filesOpen = $state(true);
+  let themePreference = $state<ThemePreference>("system");
   let workspaceMode = $state<WorkspaceMode>("playground");
   let activeResource = $state<ActiveResource>("agda");
   let plfaExpanded = $state(true);
@@ -139,6 +141,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   let startupError = $state("");
   let inspectorWidth = $state(390);
   let didAutoLoad = false;
+  let stopWatchingThemeChanges: (() => void) | undefined;
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
   let globalKeydown: ((event: KeyboardEvent) => void) | undefined;
   let editorScrollHandler: (() => void) | undefined;
@@ -298,6 +301,10 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   };
 
   onMount(() => {
+    themePreference = document.documentElement.dataset.theme === "dark"
+      ? "dark" : document.documentElement.dataset.theme === "light" ? "light" : "system";
+    const stopWatchingTheme = watchTheme();
+    stopWatchingThemeChanges = stopWatchingTheme;
     editor = new EditorView({
       doc: localStorage.getItem(LS_DOC_KEY) ?? DEFAULT_SOURCE,
       parent: editorHost,
@@ -506,6 +513,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   });
 
   onDestroy(() => {
+    stopWatchingThemeChanges?.();
     if (saveTimer) clearTimeout(saveTimer);
     if (scrollSyncRelease) clearTimeout(scrollSyncRelease);
     if (readerScrollFrame) cancelAnimationFrame(readerScrollFrame);
@@ -878,7 +886,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   }
 </script>
 
-<svelte:head><title>Agda Playground — Agda in your browser</title></svelte:head>
+<svelte:head><title>Agda Playground: Agda in your browser</title></svelte:head>
 
 <main class="app-shell" style={`--inspector-width: ${inspectorWidth}px`}>
   {#if startupError}<div class="fatal-banner">
@@ -1037,6 +1045,19 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
           >
             <FileCode size={15} /><span>{editorFileName}</span>
           </button>
+          <label class="theme-control">
+            <span>Theme</span>
+            <select
+              aria-label="Color theme"
+              bind:value={themePreference}
+              onchange={(event) =>
+                setThemePreference(event.currentTarget.value as ThemePreference)}
+            >
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
         </div>
         <div class="command-strip">
           <button
@@ -1695,6 +1716,24 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     border-bottom: 1px solid var(--line);
     background: var(--tab-surface);
   }
+  .theme-control {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .theme-control select {
+    min-width: 76px;
+    padding: 3px 4px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 0;
+    cursor: pointer;
+  }
   .editor-tab {
     min-width: 140px;
     display: flex;
@@ -1787,7 +1826,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   .minibuffer label span {
     padding: 3px 4px;
     color: var(--input-badge-text);
-    background: var(--accent);
+    background: var(--accent-fill);
     font:
       700 8px JuliaMono,
       monospace;
@@ -1823,14 +1862,14 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     letter-spacing: 0.035em;
   }
   .minibuffer-run {
-    color: var(--editor-surface);
-    background: var(--accent);
+    color: var(--input-badge-text);
+    background: var(--accent-fill);
   }
   .minibuffer-run span {
     margin-left: 5px;
   }
   .minibuffer-run:hover {
-    background: var(--accent-strong);
+    background: var(--accent-fill-hover);
   }
   .minibuffer-cancel:hover {
     background: var(--input-button-hover-surface);
@@ -1914,8 +1953,8 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     letter-spacing: 0.04em;
   }
   .abort-action:hover {
-    color: var(--editor-surface);
-    background: var(--error);
+    color: var(--input-badge-text);
+    background: var(--error-fill);
   }
   .inspector-status {
     min-width: 0;
@@ -2051,7 +2090,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   .compiler-log pre {
     max-height: 220px;
     overflow: auto;
-    color: var(--tooltip-line);
+    color: var(--muted);
     font-size: 10px;
   }
   .problem-list {
