@@ -48,7 +48,7 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.modeCompatibility = this.readCompatibility();
-    this.track(vscode.window.activeTextEditor);
+    this.track(vscode.window.activeTextEditor, false);
     context.subscriptions.push(
       vscode.window.onDidChangeActiveTextEditor(editor => this.track(editor)),
       vscode.window.onDidChangeTextEditorSelection(event => {
@@ -83,7 +83,7 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
   }
 
   open(): void {
-    this.track(vscode.window.activeTextEditor);
+    this.track(vscode.window.activeTextEditor, false);
     if (this.panel) {
       this.panel.reveal(undefined, true);
       this.publish();
@@ -136,13 +136,14 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
     panel.webview.html = panelHtml(panel.webview, this.context.extensionUri);
   }
 
-  private track(editor: vscode.TextEditor | undefined): void {
+  private track(editor: vscode.TextEditor | undefined, warn = true): void {
     if (editor && isAgda(editor.document)) {
       this.target = editor;
       if (this.state.uri !== editor.document.uri.toString()) this.state.lastCommand = null;
       this.state.uri = editor.document.uri.toString();
       this.error = null;
       this.publish();
+      if (warn && !this.modeCompatibility.supported && !this.panel) this.open();
     }
   }
 

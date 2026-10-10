@@ -38,6 +38,9 @@ export async function run(): Promise<void> {
   const root = vscode.workspace.workspaceFolders![0]!.uri;
   const document = await vscode.workspace.openTextDocument(vscode.Uri.joinPath(root, 'Overture', 'Basic.agda'));
   let editor = await vscode.window.showTextDocument(document, { viewColumn: vscode.ViewColumn.One });
+  if (phase === 'mismatch') {
+    await until(() => companion.getPanel() !== undefined, 'version warning opens when an Agda editor appears after activation');
+  }
   await deadline(vscode.commands.executeCommand('agdaWorkbench.open'), 'open panel');
   await until(() => companion.getPersistedState()?.uri === document.uri.toString(), 'webview loaded local assets and persisted state');
   const panel = companion.getPanel()!;

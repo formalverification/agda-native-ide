@@ -321,5 +321,6 @@
     "visibleWindow": false,
     "windowAssertionExit": 1
   },
-  "shellClosureBytes": 895241280
+  "shellClosureBytes": 895241280,
+  "measuredExtensionCommit": "7ac4f6ffad7602283847636f221065eaae9587f2"
 }
