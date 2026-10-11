@@ -33,13 +33,24 @@ headless Chromium.  Nothing is deployed.
 
 ## Where things are
 
-+  **The VS Code companion**, in [`vscode/`][vscode]: a standalone
-   TypeScript package beside agda-mode-vscode, with a persistent webview,
-   delegated editor commands, an explicit tested-version check and real
-   headless extension-host tests.  It will join the shared workspace when
-   that workspace is built.
-+  **The app**, as imported from plfa-playground: `src/` (the page, the
-   controller, and the language server's worker), `static/` (the files served
+The repository is an npm workspace: the page at the root, the shared core
+under `packages/`, and the VS Code companion in `vscode/`, installed
+together from one `package-lock.json`.
+
++  **The shared core**, in `packages/`: the engine client
+   (`@agda-native-ide/engine`, Agda's interaction protocol behind one
+   interface, with a browser and a native transport, and the conformance
+   suite both pass), the tool surface (`@agda-native-ide/tools`), the
+   manifest (`@agda-native-ide/manifest`) and the views
+   (`@agda-native-ide/views`).  [`docs/engine/overview.md`][engine-overview]
+   explains them, and [`docs/adr/0003-the-shared-core.md`][adr-0003] records
+   the decisions and the evidence.
++  **The VS Code companion**, in [`vscode/`][vscode]: a TypeScript package
+   beside agda-mode-vscode, with a persistent webview, delegated editor
+   commands, an explicit tested-version check and real headless
+   extension-host tests.
++  **The app**, as imported from plfa-playground: `src/` (the page, and the
+   controller, its host of the engine), `static/` (the files served
    as they are), `scripts/*.mjs` (the build's post-step and the PLFA
    tooling), `compiler/` (the recipe that builds the compiler, Agda 2.9.0 and
    its language server, `build-agda-2.9.0.sh`, with its patches and pins, and
@@ -60,6 +71,11 @@ headless Chromium.  Nothing is deployed.
    [`docs/notes/platform-brief-2026-10-05.md`][platform-note], is the
    platform brief of 2026-10-05 that argued for it, corrected where it has
    since changed or proved wrong.
++  [`docs/adr/0003-the-shared-core.md`][adr-0003]: ADR 0003, the shared
+   core: the workspace, the engine's interface and its two transports,
+   which text an answer is about, what each host owns, and the conformance
+   suite with its runs.  Its companion is
+   [`docs/engine/overview.md`][engine-overview].
 +  [`docs/provenance.md`][provenance]: where every imported file and every
    pinned binary comes from, with its SHA-256 and its license.  The machine
    records are in [`upstream/`][records].
@@ -91,20 +107,25 @@ a 20-core workstation).
 
 ```sh
 make assets                 # fetch the pins and the compiler, build the rest, into static/
-make check                  # svelte-check
-make test                   # the unit tests (vitest)
-make build                  # check the pins, then npm run build, into build/
+make packages               # build the shared packages (the engine, the tools, the manifest)
+make check                  # svelte-check of the page and of the views, after the packages
+make test                   # the unit tests of the page and the packages (vitest)
+make build                  # check the pins, then npm run build and the bundle check, into build/
 make browser-check          # check Main.agda in build/ in headless Chromium
 make browser-check-notices  # check what build/ says when it cannot run
+make conformance-browser    # the engine's conformance suite against build/'s reactor
 make dev                    # serve the app at http://localhost:5173
 ```
 
-The companion's integration suite runs separately in its dedicated Linux
-shell:
+The companion's integration suite, and the engine's conformance suite
+against native Agda, run in the dedicated Linux shell, which builds the
+native Agda at the compiler's own commit:
 
 ```sh
 nix develop .#vscode --command make vscode-check vscode-unit
 nix develop .#vscode --command make vscode-test
+nix develop .#vscode --command make conformance-native
+nix develop --command make conformance-compare   # the two engines' answers, field by field
 ```
 
 Its [README][vscode] describes opening the panel on an Agda checkout and
@@ -112,8 +133,9 @@ the mode's command contract.  The tests use copied sources and a private
 VS Code profile; they leave the library checkout untouched.
 
 `make check`, `make test`, `make build` and `make dev` first install the
-locked npm dependencies (`npm ci`) whenever `package.json` or
-`package-lock.json` is newer than the last install.  `make build` refuses
+locked npm dependencies (`npm ci`) whenever a workspace's `package.json` or
+`package-lock.json` is newer than the last install, and build the shared
+packages.  `make build` refuses
 to build when a file in `static/` differs from its pin; `make assets` puts
 it back.  `build/` is a static site that any static server can serve: the
 page shares no memory between threads, so it needs no cross-origin
@@ -296,6 +318,8 @@ every artifact the app ships, with its license.
 [adr-0001]: docs/adr/0001-runtime.md
 [runtime-note]: docs/notes/runtime.md
 [adr-0002]: docs/adr/0002-where-the-workbench-lives.md
+[adr-0003]: docs/adr/0003-the-shared-core.md
+[engine-overview]: docs/engine/overview.md
 [vscode]: vscode/README.md
 [platform-note]: docs/notes/platform-brief-2026-10-05.md
 [provenance]: docs/provenance.md

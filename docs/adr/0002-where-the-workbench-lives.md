@@ -348,6 +348,11 @@ and native child processes in the editor.
 3), then [#64] and [#66] (Milestone 7).  [#62] records the interface and what
 each shell owns in an ADR of its own.
 
+**Built, 2026-10-11** ([#62]): [ADR 0003][adr-0003] records the workspace,
+the engine's interface with its browser and native transports, what each
+host owns, and one conformance suite that both pass, with identical
+answers.  Open: [#64] and [#66].
+
 ---
 
 ## 4.  Agda 2.9.0 as the compiler
@@ -663,7 +668,7 @@ will answer it.
 |---|---|---|---|
 | 1 | Three platforms with different jobs: the browser for the reader and the views' first host, VS Code for the author, Emacs for the agent half and a picker | Adopted (William, 2026-10-05; PR [#75]) | Only the browser reaches a reader with nothing installed; native HSP check 5.10 to 5.23 s against 11 to 22 s in the page with its drive indexed; 54,294,820 bytes gzipped per reader ([#60], [#50]) |
 | 2 | An Emacs milestone, beyond the brief's recommendation to build nothing for Emacs, scoped to agents and a picker | Adopted (William, 2026-10-05) | Overrides the brief's "Emacs needs nothing built"; the views only as an experiment ([#74]) |
-| 3 | The engine client, tool surface, views and manifest as TypeScript packages over one engine interface, with a WebAssembly and a native implementation and one suite run against both | Adopted; to build ([#62]) | The fork's command path is already behind CodeMirror's `Transport`; its startup and rings are not; agda-mode-vscode's three connections; no cost measured |
+| 3 | The engine client, tool surface, views and manifest as TypeScript packages over one engine interface, with a WebAssembly and a native implementation and one suite run against both | Adopted; built ([#62], [ADR 0003][adr-0003]) | The fork's command path is already behind CodeMirror's `Transport`; its startup and rings are not; agda-mode-vscode's three connections; no cost measured |
 | 4 | The page's Agda is 2.9.0, built here from Agda's own flake with no agda-web patch, pinned to a nightly commit and moved to the release; the libraries it ships are carried to 2.9.0; the editors run the Agda the author's project pins | Adopted; to build ([#58], [#61], [#64]) | PR 8205 is not in 2.8.0.x; risks on 2026-10-06: unreleased, no language-server target, the WebAssembly workflow's last full pass 2026-09-06, no released standard library checks (a patched 2.3 does, [#61]); the HSP closure's interfaces 23 % smaller gzipped |
 | 5 | Keep the 2.8.0 compiler buildable until the 2.9.0 one passes [#13]'s gate | Adopted ([#58]) | The risks of row 4 |
 | 6 | Agents attach through local processes: `agda-mcp` and the companion's registrations in VS Code and Emacs; in the browser a bridge first and the in-page model last | Adopted (PR [#75]; [#38], [#35], [#36], [#65], [#71], [#72]) | Every agent-facing prover integration found is a local MCP server; MCP's transports are a subprocess's stdio and Streamable HTTP; no agents in vscode.dev |
@@ -740,6 +745,7 @@ attributed to the brief (2026-10-05).
 [proposal]: ../notes/browser-ide-proposal.md
 [runtime]: ../notes/runtime.md
 [adr-0001]: 0001-runtime.md
+[adr-0003]: 0003-the-shared-core.md
 [plan]: ../GITHUB_PROJECT.md
 [plfa-playground]: https://github.com/SeungheonOh/plfa-playground
 [air-adr-0002]: https://github.com/formalverification/agda-native-air/blob/7a05012794b604bcd8ad3995930ab7993e7f9588/docs/adr/0002-agda-mcp.md

@@ -9,9 +9,11 @@ refine.  It provides the persistent host for the engine, agent tools and
 diagrams that follow in [#64], [#65] and [#66].  Agda's goals and errors
 stay in the mode's own panel.
 
-This is a standalone package because [#62], the shared workspace, is still
-open.  That issue will fold `vscode/` into the workspace.  The companion
-branches from `main` and needs no code from the drive's pull request.
+The companion is a package of the repository's npm workspace ([#62]),
+installed with the page and the shared packages from the root's
+`package-lock.json`.  It imports none of the shared packages yet: its
+commands are agda-mode-vscode's, and the native engine it will host, with
+the project's own Agda, is [#64]'s.
 
 ## Use the companion
 
@@ -83,7 +85,7 @@ additional release.
 
 ## Checks and measurements
 
-The companion has its own lock file and Make targets, as follows:
+The companion's Make targets run in its workspace, as follows:
 
 ```sh
 nix develop .#vscode --command make vscode-check vscode-unit
