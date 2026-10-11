@@ -59,7 +59,8 @@ endif
 .PHONY: help populate-dry populate update update-check lint init \
         guard-gh guard-engine engine-mode \
         assets assets-check dev build test check browser-check \
-        browser-check-notices provenance-check packages
+        browser-check-notices provenance-check packages \
+        conformance-native conformance-browser conformance-compare
 # The companion's targets are separate from the browser app's gates.
 
 .PHONY: vscode-check vscode-build vscode-test vscode-unit
@@ -174,6 +175,31 @@ vscode-unit: vscode-build ## Check version policy and serialized state
 
 vscode-test: vscode-check vscode-unit ## Run the real companion and Agda mode under Xvfb (nix develop .#vscode)
 	timeout 300s npm --workspace vscode test
+
+# ---------------------------------------------------------------------
+# The engine's conformance suite (issue 62): one suite, two runners, each
+# against a real Agda.  conformance-native runs it under node against the
+# native agda that AGDA names (nix develop .#vscode sets it, at the
+# compiler's own Agda commit); conformance-browser builds the harness page
+# (scripts/conformance/browser/) and runs it in headless Chromium against
+# $(SITE)'s reactor, served without the isolation headers;
+# conformance-compare compares the two runs' answers field by field.  Each
+# writes its record into $(CONFORMANCE).
+
+CONFORMANCE ?= conformance
+CONFORMANCE_HARNESS := .build-tmp/conformance-harness
+
+conformance-native: packages ## Run the engine's conformance suite against native Agda (nix develop .#vscode)
+	timeout 600s node scripts/conformance/native.mjs --out $(CONFORMANCE)
+
+conformance-browser: packages ## Run the engine's conformance suite in headless Chromium against $(SITE)
+	CONFORMANCE_OUT=$(abspath $(CONFORMANCE_HARNESS)) npx vite build \
+	  --config scripts/conformance/browser/vite.config.js
+	timeout 600s nix run .#conformance-browser -- $(SITE) \
+	  --harness $(CONFORMANCE_HARNESS) --out $(CONFORMANCE)
+
+conformance-compare: ## Compare the browser's and the native engine's answers, field by field
+	node scripts/conformance/compare.mjs $(CONFORMANCE)/browser.json $(CONFORMANCE)/native.json
 
 # ---------------------------------------------------------------------
 # The app: its binaries, and the build

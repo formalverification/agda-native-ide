@@ -397,6 +397,19 @@
             "Check Main.agda in a built site, in headless Chromium";
           browser-check-notices = checkApp "browser-check-notices" "notices.mjs"
             "Check a built site's notices for a browser it cannot run in, and for a compiler that fails, in headless Chromium";
+          # `nix run .#conformance-browser -- <site> --harness DIR [--out
+          # DIR]`: the engine's conformance suite in headless Chromium,
+          # against a built site's reactor (scripts/conformance/browser.mjs,
+          # which `make conformance-browser` runs after building the
+          # harness; issue 62).
+          conformance-browser = {
+            type = "app";
+            program = toString (pkgs.writeShellScript "conformance-browser" ''
+              export CHROME=${lib.getExe pkgs.chromium}
+              exec ${lib.getExe pkgs.nodejs_22} ${./scripts}/conformance/browser.mjs "$@"
+            '');
+            meta.description = "Run the engine's conformance suite in headless Chromium, against a built site's reactor";
+          };
         });
     };
 }
