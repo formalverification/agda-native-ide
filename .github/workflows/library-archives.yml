@@ -14,10 +14,10 @@
 # It runs on demand, and when a push to main or a pull request changes
 # what the archives are built from: the flake (the pins of agda-algebras,
 # the compiler, the standard library and wasmtime), the standard library's
-# patches, the compiler's hashes, the scripts, or this file.  A newer run
-# for the same ref cancels one in progress.  The runner's memory is logged
-# every two minutes: wasmtime compiles the 34 MB agda.wasm once per
-# derivation, at about 4.3 GiB, on a runner with 7.8 GiB.
+# patches, the compiler's hashes, the scripts, or this file.  The runner's
+# memory is logged every two minutes: wasmtime compiles the 34 MB
+# agda.wasm once per derivation, at about 4.3 GiB, on a runner with 7.8
+# GiB.
 #
 # What it costs: measured 2026-10-11 on GitHub's runner (2 cores, 7.8
 # GiB, 3 GiB of swap, none of it used; run 38153481044), 58 minutes: the
@@ -56,9 +56,12 @@ on:
 permissions:
   contents: read
 
+# A newer run cancels one in progress on a pull request, but never on
+# main: a later push's guard compares against the commit before it, so
+# that commit's run must finish.
 concurrency:
   group: library-archives-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   archives:

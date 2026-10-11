@@ -296,18 +296,20 @@ It is 285,618 bytes, 42,353 gzipped.
    log.  On a push to `main` and on demand it also builds the interfaces a
    second time with `--rebuild`.  The archives are not uploaded: the
    package rebuilds them from the pins.
-+  **When**: on demand, and on a push to `main` or a pull request that
-   changes what the archives are built from (the flake and its lock, the
-   standard library's patches, the compiler's hashes, the scripts, the
-   workflow), as a path filter; and then only if the check's derivation
-   differs from the base's, or the workflow changed.  The job evaluates
++  **When**: on demand, and on a push to `main` or a pull request that changes
+   what the archives are built from (the flake and its lock, the standard
+   library's patches, the compiler's hashes, the scripts, the workflow), as a
+   path filter; and then only if the check's derivation differs from the
+   base's, or the workflow changed.  The job evaluates
    `.#agda-algebras-check.drvPath` at the base (the pull request's base, or
-   the commit before a push) and at the head, in seconds, and builds
-   nothing when they are equal, since that derivation is the one the base
-   proved.  Nearly every change touches `flake.nix`, and with no Nix cache
-   every run builds everything, so without the guard an unrelated change
-   would cost about 46 minutes; with it, a push that changed nothing the
-   archives are built from took 21 s (run [38159537130][skip]).
+   the commit before a push) and at the head, in seconds, and builds nothing
+   when they are equal, since that derivation is the one the base proved.
+   Nearly every change touches `flake.nix`, and with no Nix cache every run
+   builds everything, so without the guard an unrelated change would cost
+   about 46 minutes; with it, a push that changed nothing the archives are
+   built from took 21 s (run [38159537130][skip]).  A newer run cancels one in
+   progress on a pull request, never on `main`, since a later push's guard
+   compares against the commit before it.
 +  **What it measured** on GitHub's runner (2 cores, 7.8 GiB, 3 GiB of
    swap, none used; 2026-10-11, run [38153481044][run]), 58 minutes in
    all: the interfaces with their inputs in 13 min 43 s, `--build-library`

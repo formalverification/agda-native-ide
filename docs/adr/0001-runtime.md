@@ -968,7 +968,9 @@ browser ([#13]); the benchmark over these roots ([#18]).
 
 +  **Issues**: [#2] (the fork), [#3] (the Nix build), [#4] (the pins), [#5]
    (CI), [#6] (hosting), [#7] (this record), [#8] (the page's notices, once
-   a page that could not isolate itself), [#13] (interface acceptance),
+   a page that could not isolate itself), [#11] (the playground project),
+   [#12] (the library archives, § 10), [#13] (interface acceptance), [#14]
+   (mounting the archives), [#18] (the benchmark),
    [#20] (PLFA's removal), [#30] (the second lane), [#48] (the notice),
    [#49] (the builtins), [#50] (the drive), [#53] (the license review
    before going public), [#58] (the 2.9.0 compiler), [#59] (the reactor),
@@ -977,7 +979,10 @@ browser ([#13]); the benchmark over these roots ([#18]).
    agda-native-air's [browser IDE proposal][proposal]; [plfa-playground][upstream]
    at `ae0aa84c`.
 +  **Documents**: [`docs/notes/runtime.md`][note] (how the runtime works),
-   [`docs/provenance.md`][provenance] (the record), [`NOTICE`][notice].
+   [`docs/notes/library-archives.md`][archives-note] (the library
+   archives), `docs/measurements/library-archives-2026-10-11.json` (their
+   runs), [`docs/provenance.md`][provenance] (the record),
+   [`NOTICE`][notice].
 +  **Code**: `flake.nix` (`packages.assets`, the pins; `packages.site`;
    `apps.browser-check`; `packages.compiler`, `packages.stdlib`,
    `packages.compiler-2_8_0`, `devShells.compiler`, `agdaWasm`),
@@ -991,7 +996,11 @@ browser ([#13]); the benchmark over these roots ([#18]).
    and `src/lib/worker/drive.ts` (the reactor and the drive),
    `src/lib/support.ts` (what the page needs), `scripts/browser-check/`
    (`run.mjs`, `notices.mjs`, `cdp.mjs`, `bidi.mjs`),
-   `.github/workflows/site.yml`.
+   `.github/workflows/site.yml`; for the library archives,
+   `packages.agda-algebras-interfaces`, `-archives` and `-check` in
+   `flake.nix` (`agdaAlgebras`, the pin), `scripts/library-archives/`
+   (`stage.sh`, `build.sh`, `pack.mjs`, `index.mjs`, `check.sh`) and
+   `.github/workflows/library-archives.yml`.
 
 [#2]: https://github.com/formalverification/agda-native-ide/issues/2
 [#3]: https://github.com/formalverification/agda-native-ide/issues/3
