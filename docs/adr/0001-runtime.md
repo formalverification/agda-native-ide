@@ -832,7 +832,97 @@ it is tested in, with no polyfill, shim or fallback (William, 2026-10-07).
 
 ---
 
-## 10.  Decision log
+## 10.  The library archives
+
+(See also [#12], [#13], [#14], [#61], [#11], and
+[`docs/notes/library-archives.md`][archives-note].)
+
+**Decision**.  agda-algebras' interfaces, and those of the standard-library
+modules it imports, are built in the Nix sandbox by the compiler's plain
+`agda.wasm` under wasmtime, over a stage laid out as the page's drive, and
+packed into stored zips so that the archives an import needs hold its
+closure's interfaces and nothing else, with an index taken from Agda's own
+dependency graph.  An *interface* is the file Agda writes for a checked
+module and reads in place of checking it again; a module's *closure* is
+every module it imports, directly or not, itself included.
+
++  **Built by the page's Agda, at the page's paths**: the compiler's
+   `agda.wasm` (decision 20), run with a directory laid out from the
+   archives the page mounts (`agda-data.zip`, the standard library's
+   archive, agda-algebras' sources) as the guest's root, `HOME=/home/root`
+   and `Agda_datadir=/`, as the page's server.  `nix build
+   .#agda-algebras-interfaces` builds them, `.#agda-algebras-archives`
+   packs them, and `.#agda-algebras-check` checks them.
++  **What is built**: every module of agda-algebras' include path,
+   `Legacy/` included (350 at `f067d57d`), with `agda --build-library`,
+   which finds them itself in a fixed order; and the standard-library
+   modules they import (251 of 1,154), not the whole library.
++  **The pin**: agda-algebras at `f067d57d` (its master on 2026-10-10), a
+   `fetchFromGitHub` with its hash beside the standard library's source in
+   `flake.nix`, so a move is one edit and leaves `flake.lock` alone.  Its
+   sources ship as their own archive, `agda-algebras-sources.zip`, beside
+   the standard library's, mounted at `/agda-algebras`.
++  **The packing**: one archive per agda-algebras module; the
+   standard-library modules grouped by the set of agda-algebras modules
+   that reach them, one archive per group.  A group is needed whole or not
+   at all by any set of agda-algebras imports, so nothing is fetched beyond
+   the closure but zip headers.  Stored, since the interfaces' payload is
+   zstd already; every file under 25 MiB.
++  **The index**: `index.json` beside the archives, schema 1: the Agda
+   version and the `agda.wasm` digest, the libraries with their pins and
+   paths, the roots, every archive with its bytes and SHA-256, and every
+   module with its paths, its archive and its successors in Agda's
+   transitively reduced graph, whose reachability is exact.  Closures come
+   from that graph, never from the sources.
++  **The check**: every root, on a fresh stage holding only the archives
+   the index names for it, type-checks a `Main` importing it with exactly
+   one `Checking` line; two controls must print more.
++  **CI**: a job of its own, path-filtered on what the archives are built
+   from, which builds nothing when the check's derivation is the base's; the
+   second build, which proves reproducibility, on `main` and on demand.  The
+   site carries none of it until [#14] mounts the archives.
+
+**Evidence**.  Measured 2026-10-11 on this workstation (20 cores, 64 GB,
+Linux 7.0.0-31-generic) and on GitHub's runner; [#12]'s findings of that
+date have the runs, and `docs/measurements/library-archives-2026-10-11.json`
+the local ones.
+
++  **The build**: in the sandbox, `--build-library` checked all 350 modules
+   of agda-algebras and 251 of the standard library, and no builtin (their
+   interfaces from `agda-data.zip` were accepted), in 10 min 27 s to 12 min
+   27 s in three builds, holding 995 MiB of GHC's total memory in use, a
+   quarter of a wasm32 heap's 4 GiB.  wasmtime's compile of `agda.wasm`,
+   once per derivation, is the peak: 4.4 GiB for 22 s.
++  **Reproducible**: the three builds wrote the same bytes, the third by
+   `--rebuild`, and `--rebuild` of the archives passes; a timestamp written
+   into the output makes it fail.  Every build sees the guest's paths, but
+   the order still matters: built through a generated `Everything.agda`, the
+   same inputs gave 600 of 601 interfaces identical and the umbrella module
+   `agda-algebras` with 70 more deprecation warnings stored (314,087 bytes
+   against 284,544).
++  **The packing**: 395 archives, 70,104,812 bytes, the largest 6,965,690.
+   `Setoid.Varieties.HSP` needs 128 of them, 39,251,541 bytes against a floor
+   of 39,186,131; [#12]'s 2.8.0 tiers, on the same interfaces, fetch
+   15,858,563 bytes for `Overture.Basic` against a floor of 4,306,193.
+   Compression buys 0.09% (the payload is zstd).
++  **The check**: 350 of 350 roots type-checked `Main` alone, eight at once
+   in 7 min 21 s; the two controls printed 2 `Checking` lines each.
++  **On the runner** (2 cores, 7.8 GiB; run 38153481044): `--build-library`
+   in 10 min 33 s (981 MiB), its `--rebuild` passed, and the check, two at
+   once, in 30 min 6 s, 350 of 350; the whole job 58 minutes, no swap used.
+   Its index is byte-identical to the one built here, so all 395 archives
+   reproduce across machines.  A push that left the check's derivation as
+   it was built nothing, in 21 s.
+
+**Status**.  Adopted 2026-10-11 in [#12]'s pull request.  Open: mounting the
+archives in the page, their cache and their license notice ([#14]); the
+playground project, whose `Main` must be `--without-K` now that
+agda-algebras is ([#11]); the same proof under the language server in a
+browser ([#13]); the benchmark over these roots ([#18]).
+
+---
+
+## 11.  Decision log
 
 | # | Decision | Status | Evidence |
 |---|---|---|---|
@@ -864,6 +954,13 @@ it is tested in, with no polyfill, shim or fallback (William, 2026-10-07).
 | 26 | The server starts with no RTS options: the fork's `+RTS -A64m -RTS` is removed | Adopted ([#59]) | It takes effect (a heap of 94 against 24 MiB) and made no check faster (§ 8) |
 | 27 | A browser that is hard to support is not supported: the page checks what it needs, names what is missing and the browsers it is tested in, and shows a failure to start; no polyfill, shim or fallback | Adopted (William, 2026-10-07; [#8], 2026-10-08) | Four notices tested in CI, failing against the page before; the needs first coincide in Chrome 96, Firefox 114 and Safari 16.4 (§ 9) |
 | 28 | The editor takes its text as the one Agda's positions refer to only when the page sends `Cmd_load` | Adopted ([#59]) | Agda keeps a goal's loaded range after a give; the old commit point hung 3 of 8 runs in Firefox, the new none of 18 (§ 8) |
+| 29 | agda-algebras' interfaces are built in the Nix sandbox by the compiler's `agda.wasm` under wasmtime, over a stage laid out as the page's drive from the archives it mounts, mounted as the guest's root | Adopted ([#12]) | 350 + 251 modules checked, no builtin; the interfaces land where the server looks; Agda 2.9.0 interfaces do not cross word sizes (row 20) (§ 10) |
+| 30 | Every module of agda-algebras' include path is built, with `agda --build-library`; the standard library only as far as it is imported | Adopted ([#12]) | `--build-library` sorts its paths, so its order is fixed; 995 MiB of a 4 GiB heap; the standard library's other 903 modules are not needed (§ 10) |
+| 31 | agda-algebras is pinned by `fetchFromGitHub` in `flake.nix`, at `f067d57d`; its sources ship as their own archive, beside the standard library's, at `/agda-algebras` | Adopted ([#12]) | Like the standard library's pin, one edit; `flake.lock` untouched; the sources archive is 985,864 bytes and changes only with agda-algebras (§ 10) |
+| 32 | One archive per agda-algebras module; standard-library modules grouped by the agda-algebras modules that reach them; stored zips, each under 25 MiB | Adopted ([#12]); supersedes [#12]'s 2.8.0 tiers | Any set of agda-algebras imports fetches its closure and zip headers: the HSP root 39,251,541 bytes against 39,186,131; the 2.8.0 tiers fetch 15.9 MB for `Overture.Basic` against 4.3 MB (§ 10) |
+| 33 | The index is JSON beside the archives, schema 1, its closures from Agda's `--dependency-graph` | Adopted ([#12]) | Agda's graph is built from the interfaces' imports and reduced transitively, so reachability is exact; a regular expression misses nested imports ([#12], 2026-10-04) (§ 10) |
+| 34 | Every root is checked cold from the archives the index names, exactly one `Checking` line, with two controls that must fail | Adopted ([#12]) | 350 of 350, here and on GitHub's runner; the controls print 2 lines each (§ 10) |
+| 35 | CI builds, packs and checks them in a job of its own, path-filtered, and skipped when the check's derivation is the base's; the second build runs on `main` and on demand; the site does not carry them until [#14] | Adopted ([#12]) | 58 minutes on GitHub's runner with the second build, about 46 without; 21 s when nothing changed; no Nix cache here (§ 10) |
 
 ---
 
@@ -903,8 +1000,11 @@ it is tested in, with no polyfill, shim or fallback (William, 2026-10-07).
 [#6]: https://github.com/formalverification/agda-native-ide/issues/6
 [#7]: https://github.com/formalverification/agda-native-ide/issues/7
 [#8]: https://github.com/formalverification/agda-native-ide/issues/8
+[#11]: https://github.com/formalverification/agda-native-ide/issues/11
 [#12]: https://github.com/formalverification/agda-native-ide/issues/12
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
+[#14]: https://github.com/formalverification/agda-native-ide/issues/14
+[#18]: https://github.com/formalverification/agda-native-ide/issues/18
 [#20]: https://github.com/formalverification/agda-native-ide/issues/20
 [#30]: https://github.com/formalverification/agda-native-ide/issues/30
 [#48]: https://github.com/formalverification/agda-native-ide/issues/48
@@ -920,6 +1020,7 @@ it is tested in, with no polyfill, shim or fallback (William, 2026-10-07).
 [proposal]: ../notes/browser-ide-proposal.md
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [note]: ../notes/runtime.md
+[archives-note]: ../notes/library-archives.md
 [recipe]: ../../compiler/build-agda-2.9.0.sh
 [provenance]: ../provenance.md
 [notice]: ../../NOTICE
