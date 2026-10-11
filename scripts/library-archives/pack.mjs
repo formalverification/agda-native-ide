@@ -81,6 +81,21 @@ function filesUnder(dir) {
     .sort();
 }
 
+/** The directory of a zip that holds `file` (`agda-stdlib-2.3/` for
+ * `standard-library.agda-lib`), and that file's `name:`, so that nothing
+ * here names a version of the library.
+ * @param {string} zip @param {string} file */
+function libraryIn(zip, file) {
+  const entries = run("unzip", ["-Z1", zip])
+    .split("\n")
+    .filter((entry) => entry === file || entry.endsWith(`/${file}`));
+  if (entries.length !== 1)
+    throw new Error(`${zip}: ${entries.length} entries named ${file}, not 1`);
+  const name = run("unzip", ["-p", zip, entries[0]]).match(/^name:\s*(\S+)/m)?.[1];
+  if (!name) throw new Error(`${zip}: ${entries[0]} has no name: line`);
+  return { root: entries[0].slice(0, -file.length), name };
+}
+
 /** The Agda sources a zip holds under `prefix`, by module path (`A/B` for
  * module `A.B`), mapped to `drive` + the path below the prefix.
  * @param {string} zip @param {string} prefix @param {string} drive */
@@ -110,9 +125,10 @@ const builtins = mkdtempSync(join(tmpdir(), "agda-data-"));
 run("unzip", ["-q", args.builtins, "-d", builtins]);
 const builtinRoot = `lib/prim/_build/${version}/agda`;
 
+const stdlibLibrary = libraryIn(args.stdlib, "standard-library.agda-lib");
 const sources = {
   "agda-algebras": sourcesIn(args.sources, "agda-algebras/src/", "/agda-algebras/src/"),
-  "standard-library": sourcesIn(args.stdlib, "agda-stdlib-2.3/src/", "/stdlib/src/"),
+  "standard-library": sourcesIn(args.stdlib, `${stdlibLibrary.root}src/`, "/stdlib/src/"),
   builtins: sourcesIn(args.builtins, "lib/prim/", "/lib/prim/"),
 };
 
@@ -250,7 +266,7 @@ const index = {
       sources: { path: sourcesName, ...fileDigest(args.sources) },
     },
     "standard-library": {
-      name: "standard-library-2.3",
+      name: stdlibLibrary.name,
       root: "/stdlib",
       agdaLib: "/stdlib/standard-library.agda-lib",
       sources: { path: basename(args.stdlib), ...fileDigest(args.stdlib) },

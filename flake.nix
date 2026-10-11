@@ -287,7 +287,10 @@
           export WASMTIME=${pkgs.wasmtime}/bin/wasmtime AGDA_WASM=${compiler}/agda.wasm
           export AGDA_DATA_ZIP=${agdaData}/agda-data.zip \
             STDLIB_ZIP=${stdlib}/agda-stdlib-2.3-patched.zip
-          export JOBS=$(( NIX_BUILD_CORES < 8 ? NIX_BUILD_CORES : 8 ))
+          # A Nix that passes cores = 0 through means every core.
+          cores=$NIX_BUILD_CORES
+          [ "$cores" -ge 1 ] || cores=$(nproc)
+          export JOBS=$(( cores < 8 ? cores : 8 ))
           mkdir -p "$HOME" "$out"
           bash ${libraryScripts [
             ./scripts/library-archives/stage.sh

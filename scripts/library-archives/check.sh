@@ -40,15 +40,19 @@ shift 2
 work=${WORK:-$(mktemp -d)}
 export MAIN_OPTIONS=${MAIN_OPTIONS:-'{-# OPTIONS --without-K --exact-split --safe #-}'}
 control_root=${CONTROL_ROOT:-Overture.Basic}
+# xargs -P 0 runs every check at once, at up to 1 GiB each.
+jobs=${JOBS:-4}
+if ! [ "$jobs" -ge 1 ] 2> /dev/null; then
+  echo "check: JOBS must be a count of at least 1, not '$jobs'" >&2
+  exit 2
+fi
 index=$archives/index.json
 mkdir -p "$work/archives" "$work/roots" "$work/results"
 
 # The drive before any interface archive, and a play library for Main.
 lay_out_stage "$work/base" "$AGDA_DATA_ZIP" "$STDLIB_ZIP" \
   "$archives/$(cd "$archives" && ls -- *-sources.zip)"
-mkdir -p "$work/base/play"
-printf 'name: play\ndepend: standard-library-2.3 agda-algebras\ninclude: .\n' \
-  > "$work/base/play/play.agda-lib"
+write_play_library "$work/base"
 find "$work/base" -type f -exec chmod a-w {} +
 for zip in "$archives"/interfaces/*.zip; do
   name=$(basename "$zip" .zip)
@@ -87,9 +91,9 @@ export -f check_root agda_guest agda_guest_timed checking_lines
 export work WASMTIME AGDA_WASM
 
 node "$here/index.mjs" each "$index" "$@" > "$work/plan"
-echo "check: $(date -u +%FT%TZ), load $(cut -d' ' -f1-3 /proc/loadavg), ${JOBS:-4} at once" >&2
-xargs -d '\n' -P "${JOBS:-4}" -n 1 bash -c 'check_root "$1"' _ < "$work/plan"
-echo "check: done $(date -u +%FT%TZ), load $(cut -d' ' -f1-3 /proc/loadavg)" >&2
+echo "check: $(date -u +%FT%TZ), load $(load_average), $jobs at once" >&2
+xargs -d '\n' -P "$jobs" -n 1 bash -c 'check_root "$1"' _ < "$work/plan"
+echo "check: done $(date -u +%FT%TZ), load $(load_average)" >&2
 
 {
   echo "root exit checking modules archives bytes"

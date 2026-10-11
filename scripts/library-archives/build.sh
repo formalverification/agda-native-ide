@@ -48,7 +48,7 @@ echo "build: Agda $version; wasmtime's first run:" \
 run() {
   local name=$1 pwd=$2 status=0
   shift 2
-  echo "build: $name: agda $*; load $(cut -d' ' -f1 /proc/loadavg)" >&2
+  echo "build: $name: agda $*; load $(load_average)" >&2
   agda_guest_timed "$logs/$name.time" "$stage" "$pwd" +RTS -s -RTS "$@" \
     > "$logs/$name.log" 2>&1 || status=$?
   cat "$logs/$name.log" >&2
@@ -79,9 +79,7 @@ fi
 
 # 2.  The graph: Agda's own, of a module that imports every module, over
 # the built stage, so that only that module is checked.
-mkdir -p "$stage/play"
-printf 'name: play\ndepend: standard-library-2.3 agda-algebras\ninclude: .\n' \
-  > "$stage/play/play.agda-lib"
+write_play_library "$stage"
 {
   printf '{-# OPTIONS --without-K --safe #-}\n\nmodule All where\n\n'
   sed 's/^/import /' "$out/modules.txt"

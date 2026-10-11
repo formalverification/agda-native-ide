@@ -65,6 +65,26 @@ agda_guest_timed() {
   fi
 }
 
+# library_name AGDA_LIB: the library's name, as a depend: line names it.
+library_name() {
+  sed -n 's/^name: *//p' "$1"
+}
+
+# write_play_library STAGE: /play/play.agda-lib, a library that depends on
+# the stage's two libraries, by the names their .agda-lib files give.
+write_play_library() {
+  mkdir -p "$1/play"
+  printf 'name: play\ndepend: %s %s\ninclude: .\n' \
+    "$(library_name "$1/stdlib/standard-library.agda-lib")" \
+    "$(library_name "$1/agda-algebras/agda-algebras.agda-lib")" \
+    > "$1/play/play.agda-lib"
+}
+
+# load_average: the 1-, 5- and 15-minute load, where the system says.
+load_average() {
+  cut -d' ' -f1-3 /proc/loadavg 2> /dev/null || echo unknown
+}
+
 # checking_lines LOG: how many modules Agda type-checked.  Unanchored, since
 # Agda indents the Checking lines of nested modules.
 checking_lines() {
