@@ -1,0 +1,15 @@
+{
+  // The conformance suite: the engine interface alone, so it runs in a
+  // page and under node alike.
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../../dist/conformance",
+    "tsBuildInfoFile": "../../dist/conformance.tsbuildinfo",
+    "lib": ["ES2022"],
+    "types": []
+  },
+  "include": ["./**/*.ts", "../core/platform.d.ts"],
+  "exclude": ["./**/*.test.ts"],
+  "references": [{ "path": "../core" }]
+}

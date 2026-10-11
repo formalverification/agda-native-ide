@@ -1,9 +1,4 @@
-/// <reference types="@sveltejs/kit" />
-/// <reference no-default-lib="true"/>
-/// <reference lib="esnext" />
-/// <reference lib="webworker" />
-
-// File: src/lib/worker/als.ts
+// File: packages/engine/src/browser/worker/als.ts
 //
 // Changed from upstream: this is SeungheonOh/plfa-playground's
 // src/lib/worker/als.ts at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
@@ -16,6 +11,11 @@
 // isolation.  The throwaway instances that ran `--version` and `--setup`
 // are gone: a reactor cannot run as a command, and its run_setup export is
 // `--setup`.  The WASI debug hook is upstream's.
+//
+// It is the engine package's browser transport's worker (issue 62),
+// moved from the page with the drive: the transport (../index.ts) creates
+// it through the host, which bundles it, and it reads one more function,
+// a source's text as Agda would read it.
 
 import * as Comlink from "comlink";
 import * as Runno from "@runno/wasi";
@@ -25,15 +25,13 @@ import {
   layOutDrive,
   openCacheDatabase,
   restoreCachedFiles,
-} from "./drive";
+} from "./drive.js";
 import type {
   ALSWorkerInitObject,
   ALSWorkerInitResultProxied,
   DriveMount,
   WASMSource,
-} from "./types";
-
-export {};
+} from "./protocol.js";
 
 /** What the reactor exports (agda-language-server's app/Reactor.hs, at
  * v8), each through GHC's JavaScript FFI, so each returns a promise. */
@@ -175,6 +173,7 @@ async function init({
     start,
     writeFile: async (path: string, content: string) =>
       drive!.writeFile(path, new TextEncoder().encode(content)),
+    readFile: async (path: string) => drive!.readFile(path),
     mountArchive: (data: ArrayBuffer) => drive!.mountArchive(data),
     persist: () => drive!.persist(),
   });

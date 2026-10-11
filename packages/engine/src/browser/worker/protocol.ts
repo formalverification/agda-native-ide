@@ -1,4 +1,4 @@
-// File: src/lib/worker/types.d.ts
+// File: packages/engine/src/browser/worker/protocol.ts
 //
 // Changed from upstream: this is SeungheonOh/plfa-playground's
 // src/lib/worker/types.d.ts at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
@@ -6,7 +6,9 @@
 // reactor build and the drive (issue 59): it takes a message port and the
 // reactor's JavaScript glue where it took shared buffers for standard
 // input, standard output and the drive, and the drive worker's own types
-// are gone with it.
+// are gone with it.  The file moved with the worker into the engine
+// package's browser transport (issue 62), whose main thread and worker
+// share it, and gained the drive's readFile.
 
 export type WASMSource =
   | { type: "stream"; stream: ReadableStream<Uint8Array> }
@@ -52,6 +54,8 @@ export interface ALSWorkerInitResultProxied {
   /** Start the server; settles with its exit code when it exits. */
   start: () => Promise<number>;
   writeFile: (path: string, content: string) => Promise<void>;
+  /** A file's text, or undefined when the drive has none. */
+  readFile: (path: string) => Promise<string | undefined>;
   mountArchive: (data: ArrayBuffer) => Promise<void>;
   persist: () => Promise<void>;
 }

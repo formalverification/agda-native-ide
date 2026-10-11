@@ -1,0 +1,578 @@
+// File: packages/engine/src/browser/index.ts
+//
+// The browser engine: the Agda Language Server's reactor build, compiled
+// to WebAssembly, in a worker with the in-memory drive Agda reads (issue
+// 59), reached over a MessagePort, one JSON-RPC message per event.  It owns
+// what the page's controller and transport did to start and reach Agda:
+// the compiler's download and its progress, the archives the drive is laid
+// out from, the worker, the Language Server Protocol session, the `agda`
+// request that carries each command, and the acknowledgement of each of
+// the server's requests, without which it sends no more.
+//
+// The language server wraps Agda's interaction protocol: a command is the
+// `contents` of an `agda` request (`CmdReq`), its acknowledgement
+// (`CmdRes`) says only that the command was queued, and Agda's responses
+// come back as `agda` requests from the server, `ResponseJSONRaw` carrying
+// Agda's own JSON (the server must be started with `--raw`), until
+// `ResponseEnd`, which the server sends when the command has ended
+// (agda-language-server's src/Agda.hs and src/Monad.hs at v8).  This
+// transport unwraps that envelope and nothing more.
+//
+// An editor may speak to the same server, for its own features (the
+// page's hover tooltips): `editorChannel` is a transport in the shape
+// CodeMirror's language-server client takes, multiplexed onto this
+// session.  The server's `initialize` is the engine's; the editor's is
+// answered with its result, and its requests' ids are kept apart.
+//
+// The host supplies what is its own: the URLs (nothing is fetched that
+// the host has not named), the worker (which the host's bundler builds
+// from `@agda-native-ide/engine/browser/worker`), and when to persist.
+// Parts are the fork's: the startup and its failure messages from
+// src/lib/controller.svelte.ts and src/lib/index.js, the router's
+// acknowledgements from src/lib/agda/transport.js (plfa-playground
+// ae0aa84c, with this repository's changes for issues 8, 58 and 59).
+
+import * as Comlink from "comlink";
+
+import {
+  failure,
+  openSession,
+  type AgdaSession,
+  type Capabilities,
+  type EngineTransport,
+  type Failure,
+  type SessionOptions,
+  type TransportEvent,
+} from "../core/index.js";
+import type {
+  ALSWorkerInitObject,
+  ALSWorkerInitResultProxied,
+  WASMSource,
+} from "./worker/protocol.js";
+
+export type { WASMSource } from "./worker/protocol.js";
+
+export interface BrowserConfig {
+  /** A new worker running `@agda-native-ide/engine/browser/worker`, as the
+   * host's bundler builds it. */
+  createWorker: () => Worker;
+  /** The compiler (the reactor), gzipped, and its length unzipped. */
+  compiler: { url: string; byteLength?: number };
+  /** The reactor's JavaScript glue, by an absolute URL: the worker
+   * imports it as it is. */
+  glueUrl: string;
+  /** The archives the drive is laid out from: Agda's builtin library, the
+   * standard library, and a project at the root. */
+  archives: { builtin?: string | null; stdlib?: string | null; project?: string | null };
+  /** The namespace of the drive's IndexedDB cache. */
+  cacheNamespace: string;
+  /** The server's arguments after its name; `--raw` is required. */
+  args: readonly string[];
+  /** Where relative paths resolve on the drive (default "/"). */
+  root?: string;
+  /** Follows the startup: the compiler's bytes as they arrive, and each
+   * phase. */
+  onProgress?: (progress: BrowserProgress) => void;
+  /** Aborting it stops the engine, during its startup or after. */
+  signal?: AbortSignal;
+}
+
+export type BrowserProgress =
+  | { phase: "downloading"; loaded: number; total: number }
+  | { phase: "downloaded" }
+  | { phase: "starting" }
+  | { phase: "ready" };
+
+/** What the editor's language-server client exchanges: one JSON-RPC
+ * message per string (CodeMirror's `Transport`). */
+export interface EditorChannel {
+  send(message: string): void;
+  subscribe(handler: (message: string) => void): void;
+  unsubscribe(handler: (message: string) => void): void;
+}
+
+export const browserCapabilities: Capabilities = {
+  interaction: { supported: true },
+  batch: {
+    supported: false,
+    reason:
+      "the page's batch lane (the plain agda compiled to WebAssembly, one process per check, whose exit code is the verdict) is issue #30; this engine has the interaction lane only",
+  },
+};
+
+/** An error in its own words, with its kind when it names one, and
+ * without a closing period, since the host's sentence adds one. */
+export function describeError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error).trim().replace(/\.$/, "");
+  const message = error.message.trim().replace(/\.$/, "");
+  return error.name && error.name !== "Error" ? `${error.name}: ${message}` : message;
+}
+
+/** Fetch a file Agda needs, or fail saying which file and why. */
+async function fetchOrFail(url: string, what: string) {
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch (error) {
+    throw new Error(`${what} could not be downloaded (${describeError(error)})`, { cause: error });
+  }
+  if (!response.ok)
+    throw new Error(
+      `${what} could not be downloaded (HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ""})`,
+    );
+  return response;
+}
+
+/** Read a file's body, or fail saying which file and why: a transfer can
+ * break off after its headers have arrived. */
+async function readOrFail(response: Response, what: string) {
+  try {
+    return await response.arrayBuffer();
+  } catch (error) {
+    throw new Error(`${what} could not be downloaded (${describeError(error)})`, { cause: error });
+  }
+}
+
+/** A stream of a response's body that reports its bytes as they pass,
+ * and its end. */
+function traceProgress(
+  body: ReadableStream<Uint8Array>,
+  onBytes: (loaded: number) => void,
+  onDone: () => void,
+) {
+  let loaded = 0;
+  let cancelled = false;
+  const reader = body.getReader();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const drain = async () => {
+        for (;;) {
+          const chunk = await reader.read();
+          if (cancelled) throw new Error("cancelled");
+          if (chunk.done) break;
+          loaded += chunk.value.byteLength;
+          onBytes(loaded);
+          controller.enqueue(chunk.value);
+        }
+        controller.close();
+        onDone();
+      };
+      drain()
+        .catch((error) => controller.error(error))
+        .finally(() => reader.releaseLock());
+    },
+  });
+  return { stream, cancel: () => (cancelled = true) };
+}
+
+/** A promise, or a rejection after `ms`. */
+function within<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+const isSafari =
+  typeof navigator !== "undefined" && /Apple Computer/.test((navigator as { vendor?: string }).vendor ?? "");
+
+type JsonRpcId = number | string;
+interface JsonRpcMessage {
+  jsonrpc?: string;
+  id?: JsonRpcId | null;
+  method?: string;
+  params?: unknown;
+  result?: unknown;
+  error?: unknown;
+}
+
+export class BrowserTransport implements EngineTransport {
+  readonly engine = "browser" as const;
+  readonly capabilities = browserCapabilities;
+  readonly editorChannel: EditorChannel;
+
+  private readonly listeners = new Set<(event: TransportEvent) => void>();
+  private readonly editorHandlers = new Set<(message: string) => void>();
+  private readonly pending = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
+  /** The editor's request ids, by the ids they travel under. */
+  private readonly editorIds = new Map<string, JsonRpcId>();
+  /** The `agda` requests that carry an abort, whose refusal ends nothing. */
+  private readonly abortRequests = new Set<string>();
+  private counter = 0;
+  private initializeResult: unknown;
+  private readonly initialized: Promise<void>;
+  private markInitialized!: () => void;
+  private exited = false;
+  private worker: Worker | undefined;
+  private port: MessagePort | undefined;
+  private drive: ALSWorkerInitResultProxied | undefined;
+  private cancelDownload: (() => void) | undefined;
+  private readonly mounted = new Set<string>();
+  private mounting: Promise<void> | undefined;
+  private readonly root: string;
+  /** Rejects when the transport is terminated, so a start in progress
+   * stops waiting on a worker that is gone. */
+  private readonly stopped: Promise<never>;
+  private stop!: (error: Error) => void;
+
+  constructor(private readonly config: BrowserConfig) {
+    this.root = (config.root ?? "/").replace(/\/?$/, "/");
+    this.initialized = new Promise((resolve) => (this.markInitialized = resolve));
+    this.stopped = new Promise<never>((_resolve, reject) => (this.stop = reject));
+    this.stopped.catch(() => {});
+    const handlers = this.editorHandlers;
+    this.editorChannel = {
+      send: (message) => this.fromEditor(message),
+      subscribe: (handler) => void handlers.add(handler),
+      unsubscribe: (handler) => void handlers.delete(handler),
+    };
+  }
+
+  // ---- EngineTransport ----------------------------------------------------
+
+  subscribe(listener: (event: TransportEvent) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  send(line: string): void {
+    if (this.exited) throw new Error("the language server has stopped");
+    void this.agda(line, false);
+  }
+
+  abort(line: string): void {
+    if (!this.exited) void this.agda(line, true);
+  }
+
+  resolvePath(relative: string): string {
+    if (relative.startsWith("/")) return relative;
+    const segments: string[] = [];
+    for (const segment of (this.root + relative).split("/")) {
+      if (segment === "" || segment === ".") continue;
+      if (segment === "..") segments.pop();
+      else segments.push(segment);
+    }
+    return `/${segments.join("/")}`;
+  }
+
+  async writeSource(path: string, text: string): Promise<void> {
+    if (!this.drive) throw new Error("the drive is not ready");
+    await this.drive.writeFile(path, text);
+  }
+
+  async readSource(path: string): Promise<string | undefined> {
+    if (!this.drive) throw new Error("the drive is not ready");
+    return this.drive.readFile(path);
+  }
+
+  async terminate(): Promise<void> {
+    this.stop(new Error("the page stopped Agda"));
+    this.cancelDownload?.();
+    this.worker?.terminate();
+    this.worker = undefined;
+    this.drive = undefined;
+    if (this.port) this.port.onmessage = null;
+    this.exit({ type: "exit", code: null, signal: "terminated", detail: "the language server was stopped" });
+  }
+
+  // ---- What the page asks of the drive ------------------------------------
+
+  /** Fetch zips by URL and extract them at the drive's root, once each. */
+  async mountArchives(urls: readonly string[]): Promise<void> {
+    if (this.mounting) {
+      await this.mounting;
+      return this.mountArchives(urls);
+    }
+    const missing = urls.filter((url, index) => !this.mounted.has(url) && urls.indexOf(url) === index);
+    if (!missing.length) return;
+    const drive = this.drive;
+    if (!drive) throw new Error("Agda's filesystem is not ready");
+    const mount = async () => {
+      const archives = await Promise.all(
+        missing.map(async (url) => {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`Could not load Agda cache: ${response.status}`);
+          return { url, data: await response.arrayBuffer() };
+        }),
+      );
+      for (const archive of archives) {
+        await drive.mountArchive(Comlink.transfer(archive.data, [archive.data]));
+        this.mounted.add(archive.url);
+      }
+    };
+    this.mounting = mount();
+    try {
+      await this.mounting;
+    } finally {
+      this.mounting = undefined;
+    }
+  }
+
+  /** Persist the sources written and the interfaces Agda wrote, in the
+   * drive's IndexedDB cache. */
+  async persist(): Promise<void> {
+    await this.drive?.persist();
+  }
+
+  // ---- Startup ----------------------------------------------------------------
+
+  /** Download the compiler and the archives, start the worker, lay out the
+   * drive, run Agda's setup, start the server and open its session.
+   * Resolves with the server's exit as a promise, which settles when it
+   * stops. */
+  async start(): Promise<void> {
+    const { config } = this;
+    const until = <T>(promise: Promise<T>) => Promise.race([promise, this.stopped]);
+    const compressed = await until(fetchOrFail(config.compiler.url, "the compiler"));
+    if (!compressed.body) throw new Error("the compiler could not be downloaded (an empty response)");
+    // Some static servers attach Content-Encoding to .gz files, so fetch
+    // has already decoded the response body; others serve the gzip bytes
+    // as an opaque file and need an explicit DecompressionStream.
+    const body = compressed.headers.get("Content-Encoding")?.toLowerCase().includes("gzip")
+      ? compressed.body
+      : compressed.body.pipeThrough(new DecompressionStream("gzip") as unknown as ReadableWritablePair<Uint8Array, Uint8Array>);
+    const total = config.compiler.byteLength ?? -1;
+    const traced = traceProgress(
+      body,
+      (loaded) => config.onProgress?.({ phase: "downloading", loaded, total }),
+      () => config.onProgress?.({ phase: "downloaded" }),
+    );
+    this.cancelDownload = traced.cancel;
+    config.onProgress?.({ phase: "downloading", loaded: 0, total });
+
+    let wasmSource: WASMSource;
+    if (isSafari) {
+      // Safari cannot transfer a ReadableStream, so the compiler is read
+      // whole and passed by an object URL.
+      const blob = await until(
+        new Response(traced.stream, { headers: { "Content-Type": "application/wasm" } })
+          .blob()
+          .catch((error) => {
+            throw new Error(`the compiler could not be loaded (${describeError(error)})`, { cause: error });
+          }),
+      );
+      wasmSource = { type: "url", url: URL.createObjectURL(blob) };
+    } else {
+      wasmSource = { type: "stream", stream: traced.stream };
+    }
+
+    const channel = new MessageChannel();
+    this.port = channel.port1;
+    this.port.onmessage = (event: MessageEvent<string>) => this.receive(event.data);
+
+    const worker = config.createWorker();
+    this.worker = worker;
+    worker.addEventListener("error", (event) => {
+      this.exit({ type: "exit", code: null, detail: `the worker failed (${event.message || "an error"})` });
+    });
+    const endpoint = Comlink.wrap<{ init: (init: ALSWorkerInitObject) => ALSWorkerInitResultProxied }>(worker);
+    const init: ALSWorkerInitObject = {
+      wasmSource,
+      glueUrl: config.glueUrl,
+      port: channel.port2,
+      args: [...config.args],
+    };
+    const initPromise = endpoint.init(
+      Comlink.transfer(init, [...(wasmSource.type === "stream" ? [wasmSource.stream] : []), channel.port2]),
+    ) as unknown as Promise<ALSWorkerInitResultProxied>;
+
+    // Each step names itself when it fails.
+    const step = <T>(what: string, promise: Promise<T>) =>
+      promise.catch((error) => {
+        throw new Error(`${what} (${describeError(error)})`, { cause: error });
+      });
+    const archive = (url: string | null | undefined, what: string) =>
+      url ? fetchOrFail(url, what).then((response) => readOrFail(response, what)) : Promise.resolve(null);
+
+    // The worker compiles the compiler while the page fetches the archives.
+    const [drive, builtin, stdlib, project] = await until(Promise.all([
+      step("the compiler could not be loaded", initPromise),
+      archive(config.archives.builtin, "Agda's builtin library"),
+      archive(config.archives.stdlib, "the standard library"),
+      archive(config.archives.project, "PLFA"),
+    ]));
+    this.drive = drive;
+    if (wasmSource.type === "url" && wasmSource.url.startsWith("blob:")) URL.revokeObjectURL(wasmSource.url);
+    config.onProgress?.({ phase: "starting" });
+
+    const buffers = [builtin, stdlib, project].filter((x): x is ArrayBuffer => x != null);
+    await until(step(
+      "the drive could not be set up",
+      drive.mount(
+        Comlink.transfer(
+          { builtin, stdlib, plfa: project, cacheNamespace: config.cacheNamespace },
+          buffers,
+        ),
+      ),
+    ));
+    await until(step("Agda's setup failed", drive.setup()));
+
+    // The server runs until it exits; its exit is the session's end.
+    void drive.start().then(
+      (code) => this.exit({ type: "exit", code, detail: `the language server exited with code ${code}` }),
+      (error) => this.exit({ type: "exit", code: null, detail: `the language server failed (${describeError(error)})` }),
+    );
+
+    const initialize = await until(step(
+      "the language server did not start",
+      within(
+        this.request("initialize", {
+          processId: null,
+          clientInfo: { name: "agda-native-ide" },
+          rootUri: null,
+          capabilities: {},
+        }),
+        60_000,
+        "it did not answer initialize within 60 s",
+      ),
+    ));
+    this.initializeResult = initialize;
+    this.notify("initialized", {});
+    this.markInitialized();
+    config.onProgress?.({ phase: "ready" });
+  }
+
+  // ---- JSON-RPC ---------------------------------------------------------------
+
+  private post(message: JsonRpcMessage) {
+    this.port?.postMessage(JSON.stringify({ jsonrpc: "2.0", ...message }));
+  }
+
+  private request(method: string, params: unknown): Promise<unknown> {
+    const id = `engine-${++this.counter}`;
+    return new Promise((resolve, reject) => {
+      if (this.exited) return reject(new Error("the language server has stopped"));
+      this.pending.set(id, { resolve, reject });
+      this.post({ id, method, params });
+    });
+  }
+
+  private notify(method: string, params: unknown) {
+    this.post({ method, params });
+  }
+
+  private async agda(line: string, isAbort: boolean) {
+    const id = `engine-${++this.counter}`;
+    if (isAbort) this.abortRequests.add(id);
+    const result = await new Promise<unknown>((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
+      this.post({ id, method: "agda", params: { tag: "CmdReq", contents: line } });
+    }).catch(() => undefined);
+    this.abortRequests.delete(id);
+    const refused = (result as { tag?: string; contents?: unknown } | undefined)?.contents;
+    if (refused != null) {
+      // The server could not read the command, so Agda never ran it.
+      this.emit({ type: "noise", text: `the language server refused the command: ${JSON.stringify(refused)}` });
+      if (!isAbort) this.emit({ type: "end" });
+    }
+  }
+
+  private receive(data: string) {
+    let message: JsonRpcMessage;
+    try {
+      message = JSON.parse(data);
+    } catch {
+      this.emit({ type: "noise", text: `not JSON: ${data.slice(0, 200)}` });
+      return;
+    }
+    if (message.method !== undefined && message.id !== undefined && message.id !== null) {
+      // A request from the server: acknowledge it, or the server waits.
+      this.post({ id: message.id, result: null });
+      if (message.method !== "agda") return;
+      const params = message.params as { tag?: string; contents?: unknown } | undefined;
+      if (params?.tag === "ResponseJSONRaw") this.emit({ type: "response", json: params.contents });
+      else if (params?.tag === "ResponseEnd") this.emit({ type: "end" });
+      else this.emit({ type: "noise", text: `a response the engine does not read: ${String(params?.tag)}` });
+      return;
+    }
+    if (message.method !== undefined) {
+      // A notification: the editor's, if it listens.
+      for (const handler of this.editorHandlers) handler(data);
+      return;
+    }
+    const id = String(message.id);
+    const editorId = this.editorIds.get(id);
+    if (editorId !== undefined) {
+      this.editorIds.delete(id);
+      const forwarded = JSON.stringify({ ...message, id: editorId });
+      for (const handler of this.editorHandlers) handler(forwarded);
+      return;
+    }
+    const waiting = this.pending.get(id);
+    if (!waiting) return;
+    this.pending.delete(id);
+    if (message.error !== undefined) waiting.reject(new Error(JSON.stringify(message.error)));
+    else waiting.resolve(message.result);
+  }
+
+  private fromEditor(text: string) {
+    let message: JsonRpcMessage;
+    try {
+      message = JSON.parse(text);
+    } catch {
+      return;
+    }
+    const reply = (result: unknown) => {
+      const answer = JSON.stringify({ jsonrpc: "2.0", id: message.id, result });
+      for (const handler of this.editorHandlers) handler(answer);
+    };
+    if (message.method === undefined) return; // A reply to a server request: the engine acknowledged it.
+    if (message.id === undefined || message.id === null) {
+      if (message.method === "initialized" || message.method === "exit") return;
+      if (!this.exited) this.post(message);
+      return;
+    }
+    if (message.method === "initialize") {
+      void this.initialized.then(() => reply(this.initializeResult));
+      return;
+    }
+    if (message.method === "shutdown") return reply(null);
+    if (this.exited) return;
+    const id = `editor-${++this.counter}`;
+    this.editorIds.set(id, message.id);
+    this.post({ ...message, id });
+  }
+
+  private emit(event: TransportEvent) {
+    for (const listener of this.listeners) listener(event);
+  }
+
+  private exit(event: Extract<TransportEvent, { type: "exit" }>) {
+    if (this.exited) return;
+    this.exited = true;
+    for (const waiting of this.pending.values()) waiting.reject(new Error("the language server has stopped"));
+    this.pending.clear();
+    this.emit(event);
+  }
+}
+
+/** Start the browser engine and open a session on it.  A failure says
+ * which step of the startup failed, in the words the page shows after
+ * "Agda could not start:". */
+export async function startBrowserSession(
+  config: BrowserConfig,
+  options: SessionOptions = {},
+): Promise<{ kind: "session"; session: AgdaSession; transport: BrowserTransport } | Failure> {
+  const transport = new BrowserTransport(config);
+  const stop = () => void transport.terminate();
+  config.signal?.addEventListener("abort", stop, { once: true });
+  try {
+    if (config.signal?.aborted) throw new Error("the page stopped Agda");
+    await transport.start();
+  } catch (error) {
+    await transport.terminate();
+    return failure("startup", describeError(error));
+  }
+  const opened = await openSession(transport, options);
+  if (opened.kind !== "session") return opened;
+  return { kind: "session", session: opened.session, transport };
+}

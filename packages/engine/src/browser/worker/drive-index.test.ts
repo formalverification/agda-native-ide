@@ -1,5 +1,5 @@
 /// <reference types="vitest/globals" />
-// File: src/lib/worker/drive-index.test.ts
+// File: packages/engine/src/browser/worker/drive-index.test.ts
 //
 // The drive index changes no answer (issue 50): two Runno drives over the
 // same files, one plain and one indexed, are given the same random
@@ -8,7 +8,7 @@
 // the indexed drive's root never runs Runno's per-key scans.
 
 import * as Runno from "@runno/wasi";
-import { indexDrive, type DriveIndex } from "./drive-index";
+import { indexDrive, type DriveIndex } from "./drive-index.js";
 
 const { OpenFlags } = Runno.WASISnapshotPreview1;
 type Drive = Runno.WASI["drive"];
@@ -175,9 +175,12 @@ function runSequence(seed: number, steps: number) {
   }
 }
 
+// The 300 sequences take about 4.6 s on a 20-core workstation, near
+// vitest's default limit of 5 s, which a loaded machine exceeds; the limit
+// is not what the test checks.
 test("an indexed drive answers every call as the plain drive does", () => {
   for (let seed = 1; seed <= 300; seed++) runSequence(seed, 150);
-});
+}, 60_000);
 
 test("on the drive's own layout, the root never scans its keys", () => {
   const layout = [
