@@ -9,6 +9,10 @@ import { pathToFileURL } from "node:url";
 export const COLOR_SOURCES = [
   "src/app.css", "src/routes/+page.svelte", "src/lib/agda/color-scheme.js",
   "src/lib/codemirror/theme.ts", "src/lib/codemirror/symbol-input.js",
+  // The inspector's components, with their styles, are the views
+  // package's since issue 62.
+  "packages/views/src/GoalList.svelte", "packages/views/src/ResultView.svelte",
+  "packages/views/src/ProblemList.svelte",
 ];
 
 export function palettes(css) {

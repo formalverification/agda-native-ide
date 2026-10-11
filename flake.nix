@@ -221,7 +221,11 @@
       revision = self.rev or self.dirtyRev or "unknown";
 
       # What the site's build reads, and nothing else, so that a change
-      # to the documentation or the plan does not change its source.
+      # to the documentation or the plan does not change its source.  The
+      # repository is an npm workspace (issue 62): the page builds the
+      # shared packages it imports (packages/), and npm installs every
+      # workspace the lockfile names, the companion's (vscode/) included,
+      # which needs only its manifest for that.
       siteSource = lib.fileset.toSource {
         root = ./.;
         fileset = lib.fileset.unions [
@@ -231,11 +235,14 @@
           ./upstream/assets.sha256
           ./package.json
           ./package-lock.json
+          ./packages
+          ./vscode/package.json
           ./svelte.config.js
           ./vite.config.js
           ./tsconfig.json
           ./tsconfigs
           ./scripts/asset-manifest.mjs
+          ./scripts/check-bundle.mjs
           ./scripts/prepare-cloudflare-assets.mjs
           ./src
           ./static
@@ -246,7 +253,7 @@
       # every platform, fetched once by hash.  After a change to the
       # lockfile, set npmDepsHash to lib.fakeHash, build, and copy the
       # hash the failure reports.
-      npmDepsHash = "sha256-sj6GxUNeMYL2c1i9Q0FgMjigSexmZVYWSYFsOhN7hUM=";
+      npmDepsHash = "sha256-tDg/0bxNBvI9SrKxkcp9gLsHWjw+09GaYVD4nU1CcxA=";
       npmDeps = pkgs: pkgs.fetchNpmDeps {
         name = "agda-native-ide-npm-deps";
         src = lib.fileset.toSource {

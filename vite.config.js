@@ -123,7 +123,10 @@ export default defineConfig(async ({ command }) => {
     },
     test: {
       globals: true,
-      include: ["src/**/*.{test,spec}.{js,ts}"],
+      include: [
+        "src/**/*.{test,spec}.{js,ts}",
+        "packages/*/src/**/*.{test,spec}.{js,ts}",
+      ],
     },
   };
 });

@@ -57,3 +57,8 @@ vite.config.js.timestamp-*
 /vscode/out/
 /vscode/.vscode-test/
 /vscode/test-output/
+
+# The shared packages' builds (`make packages`), and the records the
+# conformance runners write (`make conformance-native`, and the rest).
+/packages/*/dist/
+/conformance/
