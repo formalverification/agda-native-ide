@@ -1,0 +1,21 @@
+{
+  "name": "@agda-native-ide/manifest",
+  "version": "0.1.0",
+  "description": "The manifests the page reads, validated, and the planning it does with them.",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@agda-native-ide/engine": "0.1.0",
+    "zod": "^4.3.6"
+  }
+}
