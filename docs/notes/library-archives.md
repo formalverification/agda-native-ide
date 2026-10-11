@@ -99,8 +99,11 @@ the check does not rebuild the interfaces.
    a time, so its order does not depend on the filesystem
    (`Agda.Interaction.BuildLibrary` at the pin), and no generated
    `Everything.agda` is needed (agda-algebras' own Makefile writes two, which
-   are not tracked).  It took 10 min 27 s to 12 min 27 s in three builds here,
-   and 10 min 33 s on GitHub's runner.
+   are not tracked).  It took 6 min 59 s here on a quiet machine (a 1-minute
+   load of 0.82 before the build), 10 min 27 s to 12 min 27 s in three builds
+   while other sessions loaded it (2.1 to 3.5), and 10 min 33 s on GitHub's
+   runner: this workstation's cores fall to 2.2 GHz under load, from a peak of
+   5 GHz, so its times move with its load.
 +  **The graph**: a module `All` in `/play`, importing every module of
    agda-algebras, checked with `--dependency-graph` over the built stage, so
    that only `All` is checked (15.3 to 22.5 s here).  Agda builds the graph
@@ -130,7 +133,7 @@ the check does not rebuild the interfaces.
 
 ## Reproducibility
 
-+  **The bytes reproduce**: three builds of the interfaces here wrote the
++  **The bytes reproduce**: four builds of the interfaces here wrote the
    same output (the third by `nix build .#agda-algebras-interfaces
    --rebuild`, which builds again and fails if a byte differs), and
    `--rebuild` of the archives passes.  The control shows that the

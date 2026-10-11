@@ -889,11 +889,12 @@ the local ones.
 
 +  **The build**: in the sandbox, `--build-library` checked all 350 modules
    of agda-algebras and 251 of the standard library, and no builtin (their
-   interfaces from `agda-data.zip` were accepted), in 10 min 27 s to 12 min
-   27 s in three builds, holding 995 MiB of GHC's total memory in use, a
-   quarter of a wasm32 heap's 4 GiB.  wasmtime's compile of `agda.wasm`,
-   once per derivation, is the peak: 4.4 GiB for 22 s.
-+  **Reproducible**: the three builds wrote the same bytes, the third by
+   interfaces from `agda-data.zip` were accepted), in 6 min 59 s on a quiet
+   machine and 10 min 27 s to 12 min 27 s on a loaded one, holding 995 MiB
+   of GHC's total memory in use, a quarter of a wasm32 heap's 4 GiB.
+   wasmtime's compile of `agda.wasm`, once per derivation, is the peak: 4.4
+   GiB for 22 s.
++  **Reproducible**: four builds wrote the same bytes, the third by
    `--rebuild`, and `--rebuild` of the archives passes; a timestamp written
    into the output makes it fail.  Every build sees the guest's paths, but
    the order still matters: built through a generated `Everything.agda`, the

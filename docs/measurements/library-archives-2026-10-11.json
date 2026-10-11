@@ -89,10 +89,34 @@
    },
    "checked": "checked 350 of agda-algebras' 350 modules, 251 of the standard library's, 0 builtins",
    "loadBefore": [3.54, 6.8, 5.85]
+  },
+  {
+   "started": "12:00 MDT",
+   "how": "nix build .#agda-algebras-interfaces (after the review fixes to build.sh and stage.sh), on a quiet machine",
+   "wasmtimeFirstRun": {
+    "seconds": 13.63,
+    "peakKiB": 4549816
+   },
+   "build-library": {
+    "loadAtStart": 3.91,
+    "seconds": 419.1,
+    "peakKiB": 1354108,
+    "ghcTotalMemoryInUseMiB": 995,
+    "ghcMaximumResidencyBytes": 584345808
+   },
+   "dependency-graph": {
+    "loadAtStart": 1.95,
+    "seconds": 13.38,
+    "peakKiB": 1078468,
+    "ghcTotalMemoryInUseMiB": 736,
+    "ghcMaximumResidencyBytes": 381493488
+   },
+   "checked": "checked 350 of agda-algebras' 350 modules, 251 of the standard library's, 0 builtins",
+   "loadBefore": [0.82, 1.1, 1.3]
   }
  ],
  "reproducibility": {
-  "builds": "All three builds wrote the same output: the first two compared with diff -r, the third by --rebuild, which compares byte for byte and passed (exit 0).",
+  "builds": "All four builds wrote the same output: the first, second and fourth compared with diff -r, the third by --rebuild, which compares byte for byte and passed (exit 0).",
   "archivesRebuild": "nix build .#agda-algebras-archives --rebuild passed (exit 0).",
   "control": "With a line added to pack.mjs that writes Date.now() into the output, --rebuild failed: 'may not be deterministic: output ... differs from ....check' (exit 1); diff -r named built-at.txt.  pack.mjs restored by filename afterward.",
   "acrossOrders": {
@@ -144,6 +168,7 @@
   "loadAtStart": [8.14, 5.05, 5.42],
   "loadAtEnd": [9.51, 9.13, 7.31],
   "earlierRun": "The same check with check.sh before its last change (a root with no result line now fails too), 15:48:09Z to 15:55:34Z: 350 of 350, the controls 2 and 2.",
+  "laterRun": "After the review fixes (adf4659), from the fourth build: 350 of 350, the controls 2 and 2, the report byte for byte this one.",
   "passed": 350,
   "roots": 350,
   "controls": [
