@@ -1,6 +1,6 @@
 {
   "date": "2026-10-11",
-  "revision": "33da257afc8e16cdc56af39e3fb4275604554470",
+  "revision": "158b4f6c9c35bcd06efc49bb56d820c10a67a262",
   "agdaCommit": "da66a8c75f11d10699a6b38b261efdf244b66f2a",
   "scope": "The engine's conformance suite (packages/engine/src/conformance) through one interface against both engines, each scenario in a fresh session, and each runner's own lifecycle checks; with the runs' transcripts compared field by field.  The timings are single observations, not benchmarks: the browser's include a fresh worker per scenario.",
   "commands": [
@@ -9,12 +9,12 @@
     "nix develop --command make conformance-compare"
   ],
   "loadAverageAfter": [
-    1.97,
-    3.53,
-    5.2
+    2.41,
+    2.63,
+    2.08
   ],
   "native": {
-    "date": "2026-10-11T16:25:26.341Z",
+    "date": "2026-10-11T19:13:48.616Z",
     "engine": "native",
     "agda": {
       "executable": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
@@ -41,7 +41,7 @@
       {
         "name": "a session names its engine and Agda, and has no verdict to give",
         "ok": true,
-        "elapsedMs": 28,
+        "elapsedMs": 115,
         "transcript": {
           "agdaVersion": "2.9.0",
           "batch": false
@@ -50,7 +50,7 @@
       {
         "name": "a load with open goals answers them, and is not a verdict",
         "ok": true,
-        "elapsedMs": 41,
+        "elapsedMs": 48,
         "transcript": {
           "goals": [
             {
@@ -108,7 +108,7 @@
       {
         "name": "Agda's goal type and context",
         "ok": true,
-        "elapsedMs": 39,
+        "elapsedMs": 37,
         "transcript": {
           "goal0": {
             "goal": 0,
@@ -145,7 +145,7 @@
       {
         "name": "a valid give edits the goal and keeps the loaded basis",
         "ok": true,
-        "elapsedMs": 41,
+        "elapsedMs": 40,
         "transcript": {
           "give": {
             "goal": 0,
@@ -185,7 +185,7 @@
       {
         "name": "a rejected term is Agda's answer, and leaves the goal open",
         "ok": true,
-        "elapsedMs": 38,
+        "elapsedMs": 46,
         "transcript": {
           "accepted": false,
           "error": "<root>/Goals.agda:7.14-18: error: [UnequalTypes]\nThe type\n  Nat\nis not a subtype of\n  A\nwhen checking that the expression zero has type A"
@@ -194,7 +194,7 @@
       {
         "name": "an edit inside one goal is a give; any other edit is a reload, which retires the old goals",
         "ok": true,
-        "elapsedMs": 49,
+        "elapsedMs": 51,
         "transcript": {
           "plans": [
             "load",
@@ -261,7 +261,7 @@
       {
         "name": "a case split rewrites the clause, which a check then loads; a refine opens a goal",
         "ok": true,
-        "elapsedMs": 47,
+        "elapsedMs": 44,
         "transcript": {
           "clauses": [
             "choose red = ?",
@@ -310,7 +310,7 @@
       {
         "name": "positions in Unicode text, and terms outside ASCII",
         "ok": true,
-        "elapsedMs": 31,
+        "elapsedMs": 35,
         "transcript": {
           "goal": {
             "id": 0,
@@ -354,7 +354,7 @@
       {
         "name": "a literate module: goals in its code, none in its prose",
         "ok": true,
-        "elapsedMs": 39,
+        "elapsedMs": 35,
         "transcript": {
           "goal": {
             "id": 0,
@@ -395,7 +395,7 @@
       {
         "name": "an abort with nothing running is nothing",
         "ok": true,
-        "elapsedMs": 21,
+        "elapsedMs": 22,
         "transcript": {
           "aborting": null
         }
@@ -415,7 +415,7 @@
       {
         "name": "a start whose Agda exits at once fails, with Agda's words",
         "ok": true,
-        "elapsedMs": 8,
+        "elapsedMs": 7,
         "detail": {
           "message": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda exited before it was ready (code 71)",
           "detail": {
@@ -427,7 +427,7 @@
       {
         "name": "a deadline aborts the command, and the session goes on",
         "ok": true,
-        "elapsedMs": 583,
+        "elapsedMs": 601,
         "detail": {
           "failure": "the normalize outran its deadline of 500 ms and was aborted"
         }
@@ -435,18 +435,18 @@
       {
         "name": "a child that cannot answer the abort is killed, and nothing waits",
         "ok": true,
-        "elapsedMs": 1545,
+        "elapsedMs": 1539,
         "detail": {
-          "pid": 3422684,
+          "pid": 3937532,
           "failure": "the normalize outran its deadline of 400 ms, and Agda was stopped"
         }
       },
       {
         "name": "a child that crashes ends the session, naming the signal",
         "ok": true,
-        "elapsedMs": 338,
+        "elapsedMs": 341,
         "detail": {
-          "pid": 3422699,
+          "pid": 3937591,
           "detail": {
             "reason": "exit",
             "code": null,
@@ -457,9 +457,9 @@
       {
         "name": "disposal leaves no process",
         "ok": true,
-        "elapsedMs": 123,
+        "elapsedMs": 125,
         "detail": {
-          "pid": 3422716
+          "pid": 3937609
         }
       }
     ],
@@ -475,7 +475,7 @@
     }
   },
   "browser": {
-    "date": "2026-10-11T16:25:40.023Z",
+    "date": "2026-10-11T19:14:02.647Z",
     "engine": "browser",
     "browser": "Chrome/149.0.7827.200",
     "served": "without the isolation headers",
@@ -504,7 +504,7 @@
       {
         "name": "a session names its engine and Agda, and has no verdict to give",
         "ok": true,
-        "elapsedMs": 436,
+        "elapsedMs": 499,
         "transcript": {
           "agdaVersion": "2.9.0",
           "batch": false
@@ -513,7 +513,7 @@
       {
         "name": "a load with open goals answers them, and is not a verdict",
         "ok": true,
-        "elapsedMs": 673,
+        "elapsedMs": 729,
         "transcript": {
           "goals": [
             {
@@ -571,7 +571,7 @@
       {
         "name": "Agda's goal type and context",
         "ok": true,
-        "elapsedMs": 734,
+        "elapsedMs": 719,
         "transcript": {
           "goal0": {
             "goal": 0,
@@ -608,7 +608,7 @@
       {
         "name": "a valid give edits the goal and keeps the loaded basis",
         "ok": true,
-        "elapsedMs": 788,
+        "elapsedMs": 760,
         "transcript": {
           "give": {
             "goal": 0,
@@ -648,7 +648,7 @@
       {
         "name": "a rejected term is Agda's answer, and leaves the goal open",
         "ok": true,
-        "elapsedMs": 707,
+        "elapsedMs": 747,
         "transcript": {
           "accepted": false,
           "error": "<root>/Goals.agda:7.14-18: error: [UnequalTypes]\nThe type\n  Nat\nis not a subtype of\n  A\nwhen checking that the expression zero has type A"
@@ -657,7 +657,7 @@
       {
         "name": "an edit inside one goal is a give; any other edit is a reload, which retires the old goals",
         "ok": true,
-        "elapsedMs": 794,
+        "elapsedMs": 742,
         "transcript": {
           "plans": [
             "load",
@@ -675,7 +675,7 @@
       {
         "name": "a module switch cannot reuse the previous module's goals",
         "ok": true,
-        "elapsedMs": 750,
+        "elapsedMs": 766,
         "transcript": {
           "second": [
             {
@@ -724,7 +724,7 @@
       {
         "name": "a case split rewrites the clause, which a check then loads; a refine opens a goal",
         "ok": true,
-        "elapsedMs": 693,
+        "elapsedMs": 753,
         "transcript": {
           "clauses": [
             "choose red = ?",
@@ -773,7 +773,7 @@
       {
         "name": "positions in Unicode text, and terms outside ASCII",
         "ok": true,
-        "elapsedMs": 651,
+        "elapsedMs": 682,
         "transcript": {
           "goal": {
             "id": 0,
@@ -817,7 +817,7 @@
       {
         "name": "a literate module: goals in its code, none in its prose",
         "ok": true,
-        "elapsedMs": 698,
+        "elapsedMs": 713,
         "transcript": {
           "goal": {
             "id": 0,
@@ -858,7 +858,7 @@
       {
         "name": "an abort with nothing running is nothing",
         "ok": true,
-        "elapsedMs": 435,
+        "elapsedMs": 429,
         "transcript": {
           "aborting": null
         }
@@ -878,7 +878,7 @@
       {
         "name": "a start whose compiler is not a compiler fails, and terminates its worker",
         "ok": true,
-        "elapsedMs": 18,
+        "elapsedMs": 15,
         "detail": {
           "message": "the compiler could not be loaded (TypeError: WebAssembly compilation aborted: Network error: Failed to read from a ReadableStream)"
         }
@@ -886,7 +886,7 @@
       {
         "name": "a deadline aborts the command, and the session goes on",
         "ok": true,
-        "elapsedMs": 1681,
+        "elapsedMs": 1743,
         "detail": {
           "failure": "the normalize outran its deadline of 1000 ms and was aborted"
         }
@@ -894,7 +894,7 @@
       {
         "name": "a worker that stops answering is ended by the deadline, and nothing waits",
         "ok": true,
-        "elapsedMs": 1906,
+        "elapsedMs": 1890,
         "detail": {
           "failure": "the normalize outran its deadline of 600 ms, and Agda was stopped"
         }
@@ -902,7 +902,7 @@
       {
         "name": "disposal terminates the worker",
         "ok": true,
-        "elapsedMs": 444,
+        "elapsedMs": 440,
         "detail": {}
       },
       {
@@ -928,10 +928,10 @@
     "console": []
   },
   "comparison": {
-    "date": "2026-10-11T16:25:40.116Z",
+    "date": "2026-10-11T19:14:02.746Z",
     "runs": {
-      "browser": "2026-10-11T16:25:40.023Z",
-      "native": "2026-10-11T16:25:26.341Z"
+      "browser": "2026-10-11T19:14:02.647Z",
+      "native": "2026-10-11T19:13:48.616Z"
     },
     "agda": {
       "browser": "2.9.0",
@@ -1051,6 +1051,7 @@
           "error": "the goal's text: expected \"{! !}\", got \"\\udd39\\ntwi\""
         }
       ]
-    }
+    },
+    "revision": "33da257afc8e16cdc56af39e3fb4275604554470"
   }
 }

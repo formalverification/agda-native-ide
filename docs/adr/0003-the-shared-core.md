@@ -329,7 +329,7 @@ load before anything is sent, and reads back the text it loaded.
    points counted as UTF-16 units, in the built package only), that
    scenario fails on both engines, `the goal's text: expected "{! !}"`,
    and every other scenario passes ([the conformance record][record],
-   `control`).
+   `control`, run on the code before the review fixes).
 +  A module switch's previous goal is refused as stale, and nothing is
    sent for it; a goal of an earlier load of the same file too (§ 9).
 +  Unit tests: a source rewritten during a load fails it; a conversion that
@@ -406,7 +406,7 @@ record][record]), are the following:
    start, the second with Agda's words (`--no-such-option`); a deadline of
    500 ms on a slow normalization is answered by `Cmd_abort` (the session
    goes on, with the same child); a child stopped with SIGSTOP is killed
-   at the deadline and grace (1,545 ms), the queued operation fails, and
+   at the deadline and grace (1,539 ms), the queued operation fails, and
    the process is gone; a child killed mid-command ends the session,
    naming SIGKILL; a disposal leaves no process;
 +  in the browser: a missing compiler fails the start, naming the file and
@@ -529,16 +529,17 @@ the session's name replaced by placeholders, and nothing else removed.
    conformance-compare`, each bounded to ten minutes; CI runs the native
    suite in the companion's workflow and the browser suite in the site's.
 
-**Evidence**.  Run on 2026-10-11 at this branch's code commit, on an Intel
-Core i9-12900H (20 logical CPUs, 64 GB), Linux 7.0.0-31, against Agda
-2.9.0 `da66a8c7` (natively, the flake's build; in Chromium 149.0.7827.200,
-the site's reactor, served without the isolation headers), recorded in
+**Evidence**.  Run on 2026-10-11 on the code of this branch's review
+fixes, on an Intel Core i9-12900H (20 logical CPUs, 64 GB), Linux
+7.0.0-31, against Agda 2.9.0 `da66a8c7` (natively, the flake's build; in
+Chromium 149.0.7827.200, the site's reactor, served without the isolation
+headers), recorded in
 [`docs/measurements/engine-conformance-2026-10-11.json`][record]:
 
 | Runner | Shared scenarios | Its own checks | Time per scenario |
 |---|---:|---:|---:|
-| native, node 22 | 11 of 11 | 6 of 6 | 21 to 51 ms |
-| browser, Chromium 149 | 11 of 11 | 6 of 6 | 435 to 794 ms |
+| native, node 22 | 11 of 11 | 6 of 6 | 22 to 115 ms |
+| browser, Chromium 149 | 11 of 11 | 6 of 6 | 429 to 766 ms |
 
 +  **The comparison**: all 11 transcripts identical, Agda's error texts
    included (the rejected term's `[UnequalTypes]` message, its path
