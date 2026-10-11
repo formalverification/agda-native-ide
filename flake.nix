@@ -274,6 +274,28 @@
             "$out"
         '';
 
+      # The check (scripts/library-archives/check.sh): every root, staged
+      # with only the archives the index names, type-checks Main alone, and
+      # the two controls do not.  Its output is the report; the times and
+      # the peak memory of each check are in the build log.  At most eight
+      # checks at once, about 1 GiB each.
+      mkAgdaAlgebrasCheck = pkgs: { compiler, agdaData, stdlib, archives }:
+        pkgs.runCommand "agda-algebras-check" {
+          nativeBuildInputs = [ pkgs.nodejs_22 pkgs.unzip pkgs.time ];
+        } ''
+          export HOME=$TMPDIR/home WORK=$TMPDIR/work
+          export WASMTIME=${pkgs.wasmtime}/bin/wasmtime AGDA_WASM=${compiler}/agda.wasm
+          export AGDA_DATA_ZIP=${agdaData}/agda-data.zip \
+            STDLIB_ZIP=${stdlib}/agda-stdlib-2.3-patched.zip
+          export JOBS=$(( NIX_BUILD_CORES < 8 ? NIX_BUILD_CORES : 8 ))
+          mkdir -p "$HOME" "$out"
+          bash ${libraryScripts [
+            ./scripts/library-archives/stage.sh
+            ./scripts/library-archives/check.sh
+            ./scripts/library-archives/index.mjs
+          ]}/check.sh --controls ${archives} "$out/report.txt"
+        '';
+
       # The input of agda-data.zip: the Agda the page's server embeds, as
       # the compiler's plain agda (the same commit and flags, and the same
       # word size), and the root lib/prim, since the server is built
@@ -366,6 +388,13 @@
           inherit compiler agdaData stdlib;
           sources = agdaAlgebrasSources;
           interfaces = agda-algebras-interfaces;
+        };
+
+        # Their check: each root, cold, from the archives the index names
+        # (mkAgdaAlgebrasCheck).
+        agda-algebras-check = mkAgdaAlgebrasCheck pkgs {
+          inherit compiler agdaData stdlib;
+          archives = agda-algebras-archives;
         };
 
         # Every binary the app ships at its path in the tree (static/...):
