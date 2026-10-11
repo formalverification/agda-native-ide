@@ -116,6 +116,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   let plfaInterfaceManifest = $state<InterfaceManifest | null>(null);
   let plfaInterfaceManifestPromise: Promise<InterfaceManifest | null> | null =
     null;
+  let plfaManifestPromise: Promise<CorpusManifest | null> = Promise.resolve(null);
   let selectedChapterId = $state("part1/Naturals");
   let plfaMarkdown = $state("");
   let plfaLoading = $state(false);
@@ -444,7 +445,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     };
     window.addEventListener("keydown", globalKeydown, { capture: true });
 
-    void fetch("/plfa/manifest.json")
+    plfaManifestPromise = fetch("/plfa/manifest.json")
       .then((response) => {
         if (!response.ok) throw new Error("Could not load the PLFA index");
         return response.json();
@@ -453,8 +454,12 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
         const parsed = parseCorpusManifest(json);
         if (!parsed.ok) throw new Error(`Could not read the PLFA index: ${parsed.error}`);
         plfaManifest = parsed.value;
+        return parsed.value;
       })
-      .catch((error) => (plfaError = readableError(error)));
+      .catch((error) => {
+        plfaError = readableError(error);
+        return null;
+      });
 
     void loadPlfaInterfaceManifest();
 
@@ -479,13 +484,18 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
           throw new Error("Could not load the PLFA cache index");
         return response.json();
       })
-      .then((json) => {
-        const parsed = parseInterfaceManifest(json);
+      .then(async (json) => {
+        // Checked against the chapters it names, so a chapter's archive
+        // that is not a chapter is refused rather than fetched.
+        const corpus = await plfaManifestPromise;
+        const parsed = parseInterfaceManifest(json, corpus ?? undefined);
         if (!parsed.ok) throw new Error(parsed.error);
         plfaInterfaceManifest = parsed.value;
         return parsed.value;
       })
-      .catch(() => {
+      .catch((error) => {
+        // Without it, a chapter mounts every chapter's archives up to it.
+        console.warn("The PLFA cache index is not used:", readableError(error));
         plfaInterfaceManifest = null;
         return null;
       });
