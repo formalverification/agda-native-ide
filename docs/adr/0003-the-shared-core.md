@@ -437,7 +437,7 @@ persistence and editor; the views own nothing but display.
 | Part | Owns |
 |---|---|
 | The engine's core | Commands, validated answers, one command at a time, deadlines and aborts, the basis, the snapshot and the goals, the give rule, refusals and failures |
-| The browser transport | The compiler's download and its startup failures; the worker, the drive and its cache; the language server's session and acknowledgements; the editor channel |
+| The browser transport | The compiler's download and its startup failures; the worker, the drive and its cache, with the sources under its root on the drive and nothing outside it; the language server's session and acknowledgements; the editor channel |
 | The native transport | The child and its kill ladder; its streams; the files under its project root (it writes a source only when a load gives one), and nothing outside it |
 | A host | Its configuration (URLs, executable, project root, library arguments), what it fetches, when it persists, its source conversion, its editor's effects |
 | The views | What they show, and the reader's selections |

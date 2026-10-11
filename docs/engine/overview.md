@@ -211,7 +211,7 @@ carried out only against the snapshot it was planned on.
 | Part | Owns |
 |---|---|
 | The engine's core | Building commands; validating answers; one command at a time, ended at its transport's boundary; deadlines, aborts and the end of a session; the basis, the snapshot and the goals; the give rule; refusals and failures. |
-| The browser transport | The compiler's download, its progress and its failures (in the words the page shows after "Agda could not start:"); the worker, the drive and its cache; the language server's session and its acknowledgements; the editor channel. |
+| The browser transport | The compiler's download, its progress and its failures (in the words the page shows after "Agda could not start:"); the worker, the drive and its cache, with the sources under its root on the drive (the page's is the whole drive) and nothing outside it; the language server's session and its acknowledgements; the editor channel. |
 | The native transport | The child process and its kill ladder (on its process group, where the platform has one; tested on Linux only); its standard streams; the files under its project root, and nothing outside it, where it writes a source only when a load gives one. |
 | The host | Its configuration (URLs, the executable, the project root, the library arguments), what it may fetch, when to persist, its source conversion, and its editor: applying highlighting, goals and edits, and showing results. |
 | The views | Showing what they are given, and reporting what the reader does. |

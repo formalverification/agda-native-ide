@@ -68,7 +68,9 @@ export interface BrowserConfig {
   cacheNamespace: string;
   /** The server's arguments after its name; `--raw` is required. */
   args: readonly string[];
-  /** Where relative paths resolve on the drive (default "/"). */
+  /** The project's root on the drive (default "/"): where relative paths
+   * resolve, and the only tree the transport reads or writes sources in,
+   * as the native transport's project root is. */
   root?: string;
   /** Follows the startup: the compiler's bytes as they arrive, and each
    * phase. */
@@ -165,6 +167,18 @@ function traceProgress(
   return { stream, cancel: () => (cancelled = true) };
 }
 
+/** An absolute drive path with its `.` and `..` segments resolved (`..`
+ * never climbs above the drive's root). */
+function normalize(path: string): string {
+  const segments: string[] = [];
+  for (const segment of path.split("/")) {
+    if (segment === "" || segment === ".") continue;
+    if (segment === "..") segments.pop();
+    else segments.push(segment);
+  }
+  return `/${segments.join("/")}`;
+}
+
 /** A promise, or a rejection after `ms`. */
 function within<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -225,7 +239,7 @@ export class BrowserTransport implements EngineTransport {
   private stop!: (error: Error) => void;
 
   constructor(private readonly config: BrowserConfig) {
-    this.root = (config.root ?? "/").replace(/\/?$/, "/");
+    this.root = normalize(config.root ?? "/").replace(/\/?$/, "/");
     this.initialized = new Promise((resolve) => (this.markInitialized = resolve));
     this.stopped = new Promise<never>((_resolve, reject) => (this.stop = reject));
     this.stopped.catch(() => {});
@@ -254,24 +268,28 @@ export class BrowserTransport implements EngineTransport {
   }
 
   resolvePath(relative: string): string {
-    if (relative.startsWith("/")) return relative;
-    const segments: string[] = [];
-    for (const segment of (this.root + relative).split("/")) {
-      if (segment === "" || segment === ".") continue;
-      if (segment === "..") segments.pop();
-      else segments.push(segment);
-    }
-    return `/${segments.join("/")}`;
+    return this.inside(relative);
   }
 
   async writeSource(path: string, text: string): Promise<void> {
+    const target = this.inside(path);
     if (!this.drive) throw new Error("the drive is not ready");
-    await this.drive.writeFile(path, text);
+    await this.drive.writeFile(target, text);
   }
 
   async readSource(path: string): Promise<string | undefined> {
+    const target = this.inside(path);
     if (!this.drive) throw new Error("the drive is not ready");
-    return this.drive.readFile(path);
+    return this.drive.readFile(target);
+  }
+
+  /** A path on the drive, normalized, if it lies under the root; a
+   * relative path resolves against the root. */
+  private inside(path: string): string {
+    const absolute = normalize(path.startsWith("/") ? path : this.root + path);
+    if (absolute !== this.root.replace(/\/$/, "") && !absolute.startsWith(this.root) && this.root !== "/")
+      throw new Error(`${path} is outside the project's root on the drive, ${this.root}`);
+    return absolute;
   }
 
   async terminate(): Promise<void> {
