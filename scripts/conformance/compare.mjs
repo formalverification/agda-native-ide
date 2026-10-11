@@ -2,11 +2,13 @@
 //
 // Compare the browser's and the native engine's conformance runs (issue
 // 62), scenario by scenario and field by field: each runner's transcript
-// is what Agda answered, with the engine's root path and the session's
-// name already replaced by placeholders by the suite, and nothing else
-// removed.  It prints every difference and writes comparison.json beside
-// the two runs; it exits 1 when a scenario is missing from either run, or
-// when any field differs.
+// holds the values its scenario asserted on, with the engine's root path
+// and the session's name already replaced by placeholders by the suite,
+// and nothing else removed.  It prints every difference and writes
+// comparison.json beside the two runs; it exits 1 when a scenario is
+// missing from either run, failed in either, or answered differently.  A
+// failed scenario's transcript is empty, so two runs that failed alike
+// would otherwise agree.
 //
 //   node scripts/conformance/compare.mjs <browser.json> <native.json> [--out DIR]
 
@@ -46,7 +48,8 @@ const scenarios = names.map((name) => {
   };
 });
 const fixturesAgree = JSON.stringify(browser.fixtures) === JSON.stringify(native.fixtures);
-const differing = scenarios.filter((scenario) => scenario.missing || scenario.differences.length);
+const failed = (scenario) => scenario.passed && !(scenario.passed.browser && scenario.passed.native);
+const differing = scenarios.filter((scenario) => scenario.missing || failed(scenario) || scenario.differences.length);
 const comparison = {
   date: new Date().toISOString(),
   runs: { browser: browser.date, native: native.date },
@@ -57,6 +60,8 @@ const comparison = {
 };
 for (const scenario of scenarios) {
   if (scenario.missing) console.log(`MISSING ${scenario.name}: not in the ${scenario.missing} run`);
+  else if (failed(scenario))
+    console.log(`FAILED  ${scenario.name}: in ${["browser", "native"].filter((run) => !scenario.passed[run]).join(" and ")}`);
   else if (!scenario.differences.length) console.log(`same    ${scenario.name}`);
   else {
     console.log(`DIFFER  ${scenario.name}`);
@@ -67,7 +72,7 @@ for (const scenario of scenarios) {
 const out = options.out ? resolve(options.out) : dirname(resolve(positionals[0]));
 writeFileSync(join(out, "comparison.json"), `${JSON.stringify(comparison, null, 2)}\n`);
 console.log(
-  `${scenarios.length - differing.length} of ${scenarios.length} scenarios answered identically` +
+  `${scenarios.length - differing.length} of ${scenarios.length} scenarios passed in both runs and answered identically` +
     `${fixturesAgree ? "" : "; the fixtures differ"}; ${join(out, "comparison.json")}`,
 );
 process.exit(comparison.identical ? 0 : 1);
