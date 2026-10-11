@@ -233,6 +233,10 @@ interface Operation<T> {
   /** Runs when the operation reaches the head of the queue, before its
    * command is sent; an outcome here ends it unsent. */
   prepare?: () => Promise<Refusal | Failure | undefined>;
+  /** The load the operation was asked about: if another load, an abort or
+   * a failed load has replaced it by the time the operation reaches the
+   * head of the queue, the operation is refused unsent. */
+  requires?: Loaded;
   finish: (responses: AgdaResponse[], elapsedMs: number) => Promise<Outcome<T>> | Outcome<T>;
   resolve: (outcome: Outcome<T>) => void;
   responses: AgdaResponse[];
@@ -516,6 +520,8 @@ export class AgdaSession {
       loaded.basis.path,
       { kind: "refine", goal: ref.id, expression: value },
       (responses, elapsedMs) => this.finishGive(loaded, ref.id, value, responses, elapsedMs),
+      undefined,
+      loaded,
     );
   }
 
@@ -530,6 +536,8 @@ export class AgdaSession {
       loaded.basis.path,
       { kind: "makeCase", goal: ref.id, patterns: patterns.trim() },
       (responses, elapsedMs) => this.finishMakeCase(loaded, ref.id, responses, elapsedMs),
+      undefined,
+      loaded,
     );
   }
 
@@ -560,6 +568,8 @@ export class AgdaSession {
         if (errors.length) return failure("protocol", `Agda answered goal ${ref.id} with an error: ${errors[0]}`, { responses });
         return failure("protocol", `Agda did not report goal ${ref.id}`, { responses });
       },
+      undefined,
+      loaded,
     );
   }
 
@@ -680,7 +690,7 @@ export class AgdaSession {
           return this.answer({ ...value, error: info.error.message }, responses, elapsedMs, loaded.basis);
       }
       return failure("protocol", `Agda gave no ${kind === "infer" ? "type" : "normal form"}`, { responses });
-    });
+    }, undefined, loaded);
   }
 
   private giveAt(
@@ -701,6 +711,7 @@ export class AgdaSession {
       { kind: "give", goal, expression },
       (responses, elapsedMs) => this.finishGive(loaded, goal, expression, responses, elapsedMs, inGoalEdit),
       prepare,
+      loaded,
     );
   }
 
@@ -890,6 +901,7 @@ export class AgdaSession {
     command: Command,
     finish: Operation<T>["finish"],
     prepare?: Operation<T>["prepare"],
+    requires?: Loaded,
   ): Promise<Outcome<T>> {
     if (this.ended || this.stopping) return Promise.resolve(refusal("session-ended", "the session has ended"));
     if (this.queue.length >= this.options.maxQueue)
@@ -905,6 +917,7 @@ export class AgdaSession {
         command,
         deadlineMs: this.options.deadlines[kind],
         prepare,
+        requires,
         finish,
         resolve,
         responses: [],
@@ -930,6 +943,16 @@ export class AgdaSession {
     op.startedAt = performance.now();
     op.timer = setTimeout(() => this.expire(op), op.deadlineMs);
     this.emitStatus();
+    if (op.requires && this.loaded !== op.requires)
+      return this.settle(
+        op,
+        refusal(
+          "stale-goal",
+          `the ${op.kind} was asked about load ${op.requires.basis.generation} of ${op.requires.basis.path}, which ${
+            this.loaded ? `load ${this.loaded.basis.generation} of ${this.loaded.basis.path} replaced` : "Agda no longer holds"
+          } while it waited; ask again`,
+        ),
+      );
     if (op.prepare) {
       let stop: Refusal | Failure | undefined;
       try {

@@ -302,7 +302,9 @@ load before anything is sent, and reads back the text it loaded.
 +  **Stale goals**: a goal of another session, file or generation is
    refused as stale; one the load does not have, as unknown.  An abort or
    a failed load leaves no file in Agda, and the session refuses until the
-   next load.
+   next load.  The check is made again when an operation reaches the head
+   of the queue, so one that waited while another load or an abort
+   replaced its load is refused, unsent.
 +  **Which file is read**: `load(path, text)` writes `text` where Agda
    reads `path` (the drive in the page; natively, the file under the
    project's root, which the transport never leaves), and `load(path)`

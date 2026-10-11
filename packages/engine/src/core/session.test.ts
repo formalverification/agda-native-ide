@@ -188,6 +188,43 @@ describe("the session", () => {
     expect(transport.sent.filter((line) => line.includes("Cmd_load"))).toHaveLength(2);
   });
 
+  it("refuses, unsent, a goal operation whose load was replaced while it waited", async () => {
+    let release: (() => void) | undefined;
+    const { session, transport } = await started((line, transport) => {
+      // The second load waits until the test releases it.
+      if (line.includes("Cmd_load") && transport.sent.filter((l) => l.includes("Cmd_load")).length === 2)
+        release = () => transport.answer(LOADED);
+      else agda(line, transport);
+    });
+    await session.load(PATH, TEXT);
+    const old = session.goalRef(0)!;
+    const reload = session.load(PATH, TEXT);
+    const waiting = [session.goal(old), session.give(old, "x"), session.infer("identity")];
+    await new Promise((done) => setTimeout(done, 20));
+    release!();
+    await reload;
+    for (const outcome of await Promise.all(waiting))
+      expect(outcome).toMatchObject({ kind: "refusal", reason: "stale-goal" });
+    expect(transport.sent.filter((line) => /Cmd_goal_type_context|Cmd_give|Cmd_infer/.test(line))).toEqual([]);
+  });
+
+  it("refuses, unsent, a goal operation queued behind an aborted command", async () => {
+    const { session, transport } = await started((line, transport) => {
+      if (line.includes("Cmd_load") && transport.sent.filter((l) => l.includes("Cmd_load")).length === 2) return;
+      agda(line, transport);
+    });
+    await session.load(PATH, TEXT);
+    const old = session.goalRef(0)!;
+    const slow = session.load(PATH, TEXT);
+    const waiting = session.goal(old);
+    await new Promise((done) => setTimeout(done, 20));
+    session.abort();
+    transport.answer([{ kind: "DoneAborting" }]);
+    expect(await slow).toMatchObject({ kind: "failure", reason: "aborted" });
+    expect(await waiting).toMatchObject({ kind: "refusal", reason: "stale-goal" });
+    expect(transport.sent.filter((line) => line.includes("Cmd_goal_type_context"))).toEqual([]);
+  });
+
   it("refuses a malformed payload as a protocol failure", async () => {
     const { session } = await started((line, transport) => {
       if (line.includes("Cmd_show_version")) return transport.answer(VERSION);

@@ -156,7 +156,9 @@ loads.  Positions and goal numbers are valid for one generation.
    another session, file or generation is refused as stale, and one the
    current load does not have (given, or never there) as unknown, before
    anything is sent: Agda itself would load the file again, silently, and
-   answer about whatever it read.
+   answer about whatever it read.  The session checks again when an
+   operation reaches the head of the queue, since a load or an abort ahead
+   of it may have replaced the load it was asked about.
 +  After a load, the session reads the source back and compares its
    digest with the text it wrote; a source changed in between fails the
    load, with no basis.
