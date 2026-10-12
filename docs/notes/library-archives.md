@@ -12,7 +12,10 @@ imports the library is [#11]'s, and the Explorer that lists its modules is
 [#9]'s.  Every figure is from the runs of 2026-10-11 that [#12]'s findings
 describe: the local ones in
 [`docs/measurements/library-archives-2026-10-11.json`][record], with the
-machine and its load, and the runner's in its run.
+machine and its load, and the runner's in its run; and the gate's, which
+checks them under the page's own language server ([#13]), from the runs of
+2026-10-12 in
+[`docs/measurements/library-archives-browser-2026-10-12.json`][gate-record].
 
 An *interface* (`.agdai`) is what Agda writes after it type-checks a module:
 the module's definitions in a binary form, which a later check that imports
@@ -288,13 +291,100 @@ It is 285,618 bytes, 42,353 gzipped.
    rejected an interface cannot overwrite what another check reads (the
    second control shows it trying).  Staging costs little, and the checks
    run in parallel (`JOBS`).
-+  **For [#13]**: its gate runs the language server in a browser, whose Agda
-   is a separate build of the same commit at the same word size; the plain
-   `agda` is its proxy until then ([#58] found the server accepts the
-   builtins the plain `agda` built).  `check.sh` takes a list of roots and
-   the compiler (`AGDA_WASM`), `stage.sh` lays a stage out as the page's
-   drive, and `index.mjs` names the archives a root needs, so [#13] can
-   reuse all three.
++  **A proxy for the server**: the page's Agda is the language server's
+   reactor build, a separate binary of the same Agda commit at the same
+   word size, which cannot run under wasmtime; the plain `agda` stands in
+   for it here, and the gate below proves the same under the server itself.
+
+## The gate
+
+(`scripts/library-archives/gate.mjs` and `gate/`, `make library-gate`;
+[#13].)
+
++  **What it proves**, [#13]'s two criteria: the check above, under the
+   language server the site ships, its reactor
+   (`als-reactor-2.9.0.wasm`), in headless Chromium.  For each root, a
+   fresh session of the engine's browser transport, over a drive laid out
+   from the site's own builtins and standard library and agda-algebras'
+   sources archive; a play library beside `/play/Main.agda`, written as
+   `stage.sh` writes it; the archives the index names for the root
+   (`index.mjs`'s `needs`, as `check.sh` stages them), mounted with the
+   transport's `mountArchives` as the page mounts archives; then a load of
+   a `Main` that imports the root under agda-algebras' options line.  It
+   passes when the load's `Checking` lines (the session's
+   `LoadValue.checking`) name `Main` alone and Agda reports no error.
+   Before it starts, the site's builtins and standard library must have
+   the digests the index records, or it stops: archives built against
+   other inputs would be checked again, and the gate would measure that.
++  **The drive's libraries**: the drive wrote Agda's registry once, as
+   fixed text naming the standard library and PLFA, so agda-algebras
+   could not be on it ([#11]'s finding of 2026-10-04).  The engine now
+   takes a list of libraries (`BrowserConfig.archives.libraries`), each a
+   zip extracted at the root, its `.agda-lib` on the drive and its name,
+   the fields `index.json` records under `libraries`; `layOutDrive` writes
+   the libraries file from it after the standard library's `.agda-lib`,
+   which is the stage's file, and a defaults file from the names, which
+   Agda reads only for a file in no library.  The page passes PLFA as the
+   list's one entry, so its drive is as it was; the gate passes
+   agda-algebras'.  A list rather than a slot for agda-algebras, since the
+   engine is every host's, and [#14] and [#11] mount the same library.
++  **Every root, every time**: 350 of 350 on 2026-10-12 here (headless
+   Chromium 149, four at once, a 1-minute load of 3.0 at the start and 8.4
+   at the end, from other sessions' builds), in 12 min 49 s.  Per root,
+   the engine's start took 0.53 to 2.19 s (median 0.86 s), the mount
+   median 0.23 s, and Agda's load median 7.9 s, the slowest 16.8 s
+   (`Classical.Structures.Group.SubgroupClassification`); summed over the
+   roots, 3,020 s, of which the starts are 313 s.  An earlier run, before
+   the gate's last edits, gave the same counts in 13 min 36 s at a load of
+   6 to 8.5.  The fixed roots:
+
+| Imports | Archives | Bytes mounted | Load | Heap |
+|---|---:|---:|---:|---:|
+| `Overture.Basic` | 14 | 4,318,471 | 2.0 s | 57 MiB |
+| `Setoid.Algebras.Basic` | 50 | 16,974,016 | 3.7 s | 181 MiB |
+| `Setoid.Varieties.HSP` | 128 | 39,251,541 | 8.5 s | 351 MiB |
+| `agda-algebras`, the umbrella module | 385 | 69,376,238 | 15.0 s | 701 MiB |
+
++  **The heap** is the reactor's linear memory when the check has ended,
+   which never shrinks, so it is the check's peak: a probe in the gate's
+   worker (`gate/memory.ts`) keeps the instance's memory and reports its
+   size.  The umbrella module's 735,248,384 bytes are the largest, a sixth
+   of a wasm32 heap's 4 GiB; wasmtime's 1,029,252 KiB for the same check
+   is its process's resident set, the runtime's and the compiled code's
+   with Agda's.
++  **Against wasmtime**: the check's own times summed to 3,271 s eight at
+   once, the gate's to 3,020 s four at once, under different loads; the
+   umbrella module took 16.2 s there and 15.0 s here.  So in this
+   measurement the browser is not slower than wasmtime once the drive is
+   indexed, where [#50]'s figures had put it at two to five times; the
+   counts, not these times, are the finding.
++  **Two controls**, after the roots, each in a fresh session, on
+   `Overture.Basic`, each of which must type-check more than `Main`: its
+   own archive left out, and the first byte of its source changed under
+   its interface (a zip of the changed source, mounted after the
+   archives).  Each type-checked `Main` and `Overture.Basic`, 2 lines, in
+   2.0 and 2.2 s; here the drive is writable, so Agda writes the new
+   interface and reports no error, where `check.sh`'s read-only stage made
+   it exit 42.  And the gate's own exit: over a copy of the archives whose
+   `Overture.Basic.zip` holds nothing, both `Overture.Basic` and `Overture`,
+   which imports it, type-checked 2 modules, and the gate exited 1.
++  **A fresh session per root, not one per job**: with `--shared`, each of
+   four sessions checks its roots in turn, mounting each root's archives as
+   it comes, and the 350 roots took 85 s, where fresh sessions took 769 s,
+   since Agda keeps the interfaces it decoded and a later root reads only
+   what is new.  The heap does not decide it: the four sessions ended at
+   844,693,504 to 906,166,272 bytes, the umbrella module among one
+   session's roots.  What decides it is the criterion: a shared session's
+   drive holds every archive mounted for its earlier roots, so a root whose
+   index entry lacked an archive would still pass, and a root's closure is
+   not read from the drive again.  So the gate opens a session per root,
+   and pays its start, a tenth of its time, and the decoding of every
+   closure; `--shared` stays as a quick run while iterating.
++  **What the record holds**: per root, its `Checking` lines, the archives
+   mounted and their bytes, the three times, and the heap; the controls;
+   the site's and the archives' digests and Agda's version as the server
+   reports it; the machine and its load
+   ([`docs/measurements/library-archives-browser-2026-10-12.json`][gate-record]).
 
 ## CI
 
@@ -331,6 +421,28 @@ It is 285,618 bytes, 42,353 gzipped.
    min 6 s, 350 of 350, the controls 2 and 2.  The memory sampled every two
    minutes never passed 2,923 MiB of 7,938 (the compile's peak falls
    between samples), and the disk went from 14 to 13 GB free.
++  **The gate**, after the check: it builds the site (`nix build .#site`)
+   and runs `make library-gate` with every root, as many at once as the
+   runner has cores, writing its counts, its summed times, the slowest load
+   and the largest heap to the step summary and uploading its report and
+   log with the records.  It runs when the check's derivation changed, and
+   also when what the gate is made of did, which the derivation does not
+   cover: the engine (it lays out the drive and counts the `Checking`
+   lines), the gate's scripts and `index.mjs`, the DevTools driver and the
+   static server it shares with the browser check, and the lockfile; the
+   path filter names them, and the guard compares them with the base.  It
+   runs every root wherever it runs, pull requests included, since it runs
+   only when what it proves may have changed.  On GitHub's runner (4 cores,
+   an AMD EPYC 9V74, 15.6 GiB; 2026-10-12, run [38209105006][gate-run],
+   dispatched on [#13]'s branch, so everything was built): 350 of 350 and
+   the controls 2 and 2, the gate itself in 16 min 33 s and its step,
+   with `npm ci` and the page's build, in 17 min 18 s; Agda's load a median
+   10.3 s and at most 23.7 s (`Examples`), the umbrella module 19.1 s at
+   768,081,920 bytes.  The whole job took 48 min 56 s: the interfaces 9
+   min 47 s, their `--rebuild` 9 min 6 s, the check under `agda.wasm` four
+   at once 11 min 45 s, the site 29 s.  A change to the gate alone builds
+   the interfaces once, without the `--rebuild`, and runs the gate: about
+   half an hour while nothing is cached.
 +  **Not in the site**: the site's build carries none of this until [#14]
    mounts the archives, since 71 MB the page never reads would cost every
    build and deploy.
@@ -344,7 +456,11 @@ It is 285,618 bytes, 42,353 gzipped.
    fetched: it builds again on the runner and compares with the first
    build, built or fetched, so on a cached run it proves the bytes
    reproduce across machines.  William's decision of 2026-10-11, with the
-   repository public, where runners cost no minutes.
+   repository public, where runners cost no minutes.  The token has not
+   reached the action yet: `main`'s run of 2026-10-12 says "Pushing is
+   disabled", so nothing is cached yet, and a change to the gate alone
+   builds the interfaces again before it runs.  It does not push the site
+   or its npm dependencies, which `site.yml` builds without the cache.
 
 ## Licenses
 
@@ -391,6 +507,8 @@ kept "so that the HTML and LaTeX backends can generate their output";
 
 [adr]: ../adr/0001-runtime.md
 [record]: ../measurements/library-archives-2026-10-11.json
+[gate-record]: ../measurements/library-archives-browser-2026-10-12.json
+[gate-run]: https://github.com/formalverification/agda-native-ide/actions/runs/38209105006
 [run]: https://github.com/formalverification/agda-native-ide/actions/runs/38153481044
 [skip]: https://github.com/formalverification/agda-native-ide/actions/runs/38159537130
 [#6]: https://github.com/formalverification/agda-native-ide/issues/6
@@ -399,5 +517,6 @@ kept "so that the HTML and LaTeX backends can generate their output";
 [#12]: https://github.com/formalverification/agda-native-ide/issues/12
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
 [#14]: https://github.com/formalverification/agda-native-ide/issues/14
+[#50]: https://github.com/formalverification/agda-native-ide/issues/50
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
 [#61]: https://github.com/formalverification/agda-native-ide/issues/61

@@ -418,6 +418,12 @@ exports are called from JavaScript and no standalone runtime calls them.
    is not a gzip, and a standard library whose transfer breaks off, each
    with its notice, the heading and the status bar saying that Agda did not
    start, and the compiler asked for only where the browser can run it.
++  **The gate** (`scripts/library-archives/gate.mjs`, `make library-gate`,
+   [#13]) runs the engine's browser transport in headless Chromium against
+   a built site's reactor, a fresh session per root of agda-algebras with
+   only the archives its index names, and asserts that each check
+   type-checks `Main` alone; `docs/notes/library-archives.md` describes it.
+   CI runs it in `library-archives.yml`.
 +  **The browsers** the page is tested in, and what it needs, are in the
    README's "Browsers": Chromium 149 and Firefox 157, both ways, on
    2026-10-08; WebKit untested.

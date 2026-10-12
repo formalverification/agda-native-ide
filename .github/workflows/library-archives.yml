@@ -47,13 +47,17 @@
 # DevTools driver and the server it shares with the browser check, the
 # lockfile, which pins the drive's dependencies, or this file.  The site is
 # `nix build .#site`.  When only the gate changed, the archives come from
-# the cache once main's runs push them; until the write token exists,
-# main pushes nothing, and they are built again (6.5 minutes for the
-# interfaces on a 4-core runner, 2026-10-12).  What the gate costs:
-# measured 2026-10-12 on a 20-core workstation shared with other work
-# (docs/measurements/library-archives-browser-2026-10-12.json), every root,
-# four at once, in 13 min 36 s, where one session per job, checking its
-# roots in turn, took 85 s but proves less (docs/notes/library-archives.md).
+# the cache once main's runs push them; until the write token reaches the
+# action, main pushes nothing, and they are built again (6.5 and 9.8
+# minutes for the interfaces in two runs on a 4-core runner, 2026-10-12).  What the gate costs,
+# measured 2026-10-12
+# (docs/measurements/library-archives-browser-2026-10-12.json): on a
+# 4-core runner (run 38209105006, dispatched on issue 13's branch),
+# every root, four at once, in 16 min 33 s, and 17 min 18 s for its step,
+# in a job of 48 min 56 s from the interfaces to the gate; on a 20-core
+# workstation shared with other work, 12 min 49 s.  One session per job,
+# checking its roots in turn, took 85 s there but proves less
+# (docs/notes/library-archives.md).
 
 name: library-archives
 

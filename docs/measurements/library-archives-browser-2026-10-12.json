@@ -1,0 +1,766 @@
+{
+ "run": "library-archives-browser-2026-10-12",
+ "issue": 13,
+ "date": "2026-10-12",
+ "clock": "Times are UTC; the workstation's clock read MDT (UTC-6), 2026-10-11 evening.",
+ "revision": "e891c84dc0187017497dcbed4d4333d2341b1915",
+ "machine": {
+  "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+  "logicalCpus": 20,
+  "memoryBytes": 67068481536,
+  "kernel": "7.0.0-31-generic",
+  "note": "A laptop CPU shared with other sessions' builds (a GHC build, an Agda check) during every run; its cores fall to 2.2 GHz under load (5 GHz peak), so times are indicative and the counts are the findings."
+ },
+ "inputs": {
+  "browser": "Chrome/149.0.7827.200",
+  "agdaVersion": "2.9.0",
+  "reactorSha256": "a0c7ae5741dd3f11c6be9e9fac4281889f2861ec2b53b5379452d11a4a23e8c9",
+  "glueSha256": "c782dbaca349830299055c71ec9c4f72ec543c0d612d08b7c40fbb364e601dce",
+  "site": {
+   "als-reactor-2.9.0.wasm.gz": "sha256:684731b5e7c9cb81e7337c9cf376e0fb2f6de0c3ff860bd6b0c37d949793f820",
+   "als-reactor-2.9.0.js": "sha256:c782dbaca349830299055c71ec9c4f72ec543c0d612d08b7c40fbb364e601dce",
+   "agda-data.zip": "sha256:b250cb2154c15efb882139c6698b5b4c3514a3fb1e361bbde58f58a2eed943c0",
+   "agda-stdlib-2.3-patched.zip": "sha256:773c59515bf4cd2ebf6d86aed6d57ec4493333538b28c1ace55509ece7e7aacd"
+  },
+  "archives": {
+   "path": "/nix/store/623wpa7gwv53p2py9dzqfmxg4sd28qdh-agda-algebras-archives",
+   "index": "sha256:7f94ac5807604672cc824bf9aea81d62471fe741726f221987d20f7b04a3d6a8",
+   "agda": {
+    "version": "2.9.0",
+    "wasm": "da2f1efc6b13e0d8b8a69311511c8ed6fbfbc2759bd8ec299004580fcfba1eb1"
+   },
+   "agdaAlgebras": "f067d57d367a4830834ce1fd80937820754f9a28"
+  },
+  "mainOptions": "{-# OPTIONS --without-K --exact-split --safe #-}",
+  "playLibrary": "name: play\ndepend: standard-library-2.3 agda-algebras\ninclude: .\n"
+ },
+ "commands": [
+  "nix build .#agda-algebras-archives",
+  "nix develop --command make build",
+  "nix develop --command make library-gate ARCHIVES=<the archives> GATE_ARGS='--jobs 4'",
+  "nix run .#library-gate -- build --harness .build-tmp/library-gate-harness --archives <the archives> --jobs 4 --shared --no-controls"
+ ],
+ "gate": {
+  "how": "every root, each in a fresh session of the engine's browser transport (the site's reactor) in headless Chromium, holding only the archives the index names for it; then the two controls",
+  "started": "2026-10-12T05:43:02.849Z",
+  "finished": "2026-10-12T05:55:51.999Z",
+  "wallSeconds": 769,
+  "load": {
+   "start": [
+    3,
+    5.92,
+    6.28
+   ],
+   "end": [
+    6.08,
+    8.38,
+    7.82
+   ]
+  },
+  "jobs": 4,
+  "passed": 350,
+  "roots": 350,
+  "controls": [
+   {
+    "control": "drop_own_archive",
+    "root": "Overture.Basic",
+    "checking": [
+     "Main",
+     "Overture.Basic"
+    ],
+    "loadMs": 2044,
+    "errors": 0
+   },
+   {
+    "control": "change_a_source_byte",
+    "root": "Overture.Basic",
+    "checking": [
+     "Main",
+     "Overture.Basic"
+    ],
+    "loadMs": 2200,
+    "errors": 0
+   }
+  ],
+  "secondsSummed": {
+   "start": 312.9,
+   "mount": 78.1,
+   "load": 2627.8,
+   "total": 3020.1
+  },
+  "startMs": {
+   "min": 532,
+   "median": 862.5,
+   "p90": 1158,
+   "max": 2187,
+   "sum": 312875
+  },
+  "mountMs": {
+   "min": 3,
+   "median": 225.0,
+   "p90": 380,
+   "max": 869,
+   "sum": 78051
+  },
+  "loadMs": {
+   "min": 74,
+   "median": 7857.5,
+   "p90": 11831,
+   "max": 16790,
+   "sum": 2627756
+  },
+  "memoryBytes": {
+   "min": 24969216,
+   "median": 292126720.0,
+   "p90": 390135808,
+   "max": 735248384,
+   "sum": 92886204416
+  },
+  "slowest": [
+   {
+    "root": "Classical.Structures.Group.SubgroupClassification",
+    "loadSeconds": 16.79
+   },
+   {
+    "root": "Classical.Structures.Group.SubgroupLattice",
+    "loadSeconds": 16.519
+   },
+   {
+    "root": "Classical.Structures.Lattice.DistributiveLattice",
+    "loadSeconds": 15.874
+   },
+   {
+    "root": "Examples",
+    "loadSeconds": 15.764
+   },
+   {
+    "root": "Classical.Structures.Group.RegularAction",
+    "loadSeconds": 15.674
+   }
+  ],
+  "largestMemory": [
+   {
+    "root": "agda-algebras",
+    "memoryBytes": 735248384
+   },
+   {
+    "root": "Examples",
+    "memoryBytes": 640483328
+   },
+   {
+    "root": "Examples.Classical",
+    "memoryBytes": 540803072
+   },
+   {
+    "root": "Classical",
+    "memoryBytes": 515571712
+   },
+   {
+    "root": "Examples.Classical.Groups",
+    "memoryBytes": 512098304
+   }
+  ],
+  "withWarnings": 69,
+  "withErrors": 0,
+  "requests": 668,
+  "bytesServed": 155397578,
+  "columns": [
+   "root",
+   "ok",
+   "checking",
+   "modules",
+   "archives",
+   "bytes",
+   "startMs",
+   "mountMs",
+   "loadMs",
+   "memoryBytes"
+  ],
+  "perRoot": [
+   ["Classical", true, 1, 459, 258, 55014387, 1042, 514, 11087, 515571712],
+   ["Classical.Bundles", true, 1, 354, 170, 43056086, 1026, 474, 8835, 394002432],
+   ["Classical.Bundles.AbelianGroup", true, 1, 308, 128, 37320306, 1022, 446, 7500, 390004736],
+   ["Classical.Bundles.CommutativeMonoid", true, 1, 305, 125, 37048705, 1032, 456, 7479, 387186688],
+   ["Classical.Bundles.CommutativeRing", true, 1, 313, 133, 37807309, 848, 180, 7617, 370475008],
+   ["Classical.Bundles.CommutativeSemigroup", true, 1, 302, 122, 36801163, 756, 267, 7326, 366804992],
+   ["Classical.Bundles.DistributiveLattice", true, 1, 309, 129, 37344180, 660, 200, 7701, 364249088],
+   ["Classical.Bundles.Group", true, 1, 306, 126, 37192591, 618, 184, 7675, 375259136],
+   ["Classical.Bundles.Lattice", true, 1, 327, 143, 39501083, 581, 272, 7472, 366346240],
+   ["Classical.Bundles.Magma", true, 1, 249, 72, 28641539, 728, 127, 6042, 290717696],
+   ["Classical.Bundles.Monoid", true, 1, 303, 123, 36924675, 609, 203, 7505, 369033216],
+   ["Classical.Bundles.Ring", true, 1, 311, 131, 37664020, 532, 204, 7509, 362938368],
+   ["Classical.Bundles.Semigroup", true, 1, 300, 120, 36680890, 610, 166, 8418, 374800384],
+   ["Classical.Bundles.Semilattice", true, 1, 304, 124, 36843629, 623, 198, 8630, 368181248],
+   ["Classical.Categories", true, 1, 313, 133, 37565489, 572, 188, 8512, 353239040],
+   ["Classical.Categories.AdjoinUnit", true, 1, 312, 132, 37557873, 729, 259, 9235, 368115712],
+   ["Classical.Categories.Forgetful", true, 1, 307, 127, 37226048, 1023, 265, 8529, 360448000],
+   ["Classical.Equations", true, 1, 75, 19, 4602479, 622, 47, 1748, 74776576],
+   ["Classical.Interpretations", true, 1, 396, 195, 49353613, 690, 289, 11831, 470614016],
+   ["Classical.Interpretations.Maltsev", true, 1, 395, 194, 49350512, 649, 356, 11921, 483721216],
+   ["Classical.Operations", true, 1, 42, 12, 1119323, 679, 18, 671, 33751040],
+   ["Classical.Properties", true, 1, 308, 128, 37134831, 711, 224, 9222, 386596864],
+   ["Classical.Properties.Lattice", true, 1, 307, 127, 37129558, 752, 275, 10628, 386531328],
+   ["Classical.Signatures", true, 1, 211, 70, 22847661, 677, 157, 6652, 253100032],
+   ["Classical.Signatures.Finite", true, 1, 207, 66, 22794547, 867, 204, 7327, 235143168],
+   ["Classical.Signatures.Group", true, 1, 40, 10, 1100494, 916, 28, 977, 33816576],
+   ["Classical.Signatures.Lattice", true, 1, 40, 10, 1100134, 1041, 21, 660, 33751040],
+   ["Classical.Signatures.Magma", true, 1, 40, 10, 1101718, 774, 15, 769, 33947648],
+   ["Classical.Signatures.Monoid", true, 1, 40, 10, 1100095, 729, 20, 741, 33947648],
+   ["Classical.Signatures.Ring", true, 1, 40, 10, 1100964, 670, 20, 720, 33947648],
+   ["Classical.Signatures.Unary", true, 1, 40, 10, 1100389, 1004, 17, 968, 33947648],
+   ["Classical.Small", true, 1, 411, 219, 48494178, 918, 505, 14475, 480968704],
+   ["Classical.Small.Structures", true, 1, 410, 218, 48486729, 975, 681, 13725, 481034240],
+   ["Classical.Small.Structures.AbelianGroup", true, 1, 308, 128, 37109659, 909, 287, 10204, 360448000],
+   ["Classical.Small.Structures.CommutativeMonoid", true, 1, 305, 125, 36843067, 750, 261, 11119, 356450304],
+   ["Classical.Small.Structures.CommutativeRing", true, 1, 313, 133, 37585597, 704, 305, 10626, 360644608],
+   ["Classical.Small.Structures.CommutativeSemigroup", true, 1, 302, 122, 36598807, 688, 292, 9907, 354811904],
+   ["Classical.Small.Structures.DistributiveLattice", true, 1, 309, 129, 37208510, 885, 308, 10720, 363528192],
+   ["Classical.Small.Structures.Group", true, 1, 378, 186, 46338213, 871, 343, 13524, 463601664],
+   ["Classical.Small.Structures.Lattice", true, 1, 327, 143, 39368776, 842, 306, 10796, 380502016],
+   ["Classical.Small.Structures.Magma", true, 1, 249, 72, 28433763, 959, 192, 8566, 300089344],
+   ["Classical.Small.Structures.Monoid", true, 1, 303, 123, 36718632, 835, 231, 10754, 351535104],
+   ["Classical.Small.Structures.Ring", true, 1, 311, 131, 37443614, 724, 233, 10200, 361889792],
+   ["Classical.Small.Structures.Semigroup", true, 1, 300, 120, 36479046, 824, 264, 11079, 351469568],
+   ["Classical.Small.Structures.Semilattice", true, 1, 304, 124, 36720757, 936, 279, 10544, 367001600],
+   ["Classical.Structures", true, 1, 399, 207, 48375873, 754, 455, 12378, 442564608],
+   ["Classical.Structures.CommutativeMonoid", true, 1, 304, 124, 36828124, 889, 268, 9673, 356384768],
+   ["Classical.Structures.CommutativeRing", true, 1, 312, 132, 37567883, 757, 232, 9683, 360513536],
+   ["Classical.Structures.CommutativeSemigroup", true, 1, 301, 121, 36584357, 706, 225, 8889, 350879744],
+   ["Classical.Structures.Group", true, 1, 377, 185, 46271643, 892, 357, 10502, 422838272],
+   ["Classical.Structures.Group.AbelianGroup", true, 1, 307, 127, 37093936, 741, 291, 8789, 360382464],
+   ["Classical.Structures.Group.Basic", true, 1, 305, 125, 36965995, 796, 272, 8399, 386793472],
+   ["Classical.Structures.Group.Centralizer", true, 1, 313, 131, 38234255, 801, 242, 9228, 401801216],
+   ["Classical.Structures.Group.Commutator", true, 1, 310, 128, 37746696, 602, 207, 8816, 367198208],
+   ["Classical.Structures.Group.Complements", true, 1, 315, 133, 38488350, 582, 240, 9141, 368312320],
+   ["Classical.Structures.Group.Complexes", true, 1, 312, 130, 38045602, 755, 268, 9019, 367591424],
+   ["Classical.Structures.Group.Congruences", true, 1, 322, 140, 39380800, 671, 299, 9986, 401801216],
+   ["Classical.Structures.Group.Conjugation", true, 1, 312, 130, 38125760, 578, 298, 8791, 394592256],
+   ["Classical.Structures.Group.Cosets", true, 1, 312, 130, 38079316, 746, 248, 10116, 364707840],
+   ["Classical.Structures.Group.Dedekind", true, 1, 313, 131, 38140993, 935, 344, 9779, 368443392],
+   ["Classical.Structures.Group.Diagonal", true, 1, 330, 143, 40532924, 756, 359, 10501, 422510592],
+   ["Classical.Structures.Group.GSet", true, 1, 314, 132, 38146583, 769, 255, 10153, 362414080],
+   ["Classical.Structures.Group.IndexAction", true, 1, 315, 133, 38485769, 792, 246, 10583, 365887488],
+   ["Classical.Structures.Group.MaximalSubgroup", true, 1, 315, 133, 38280596, 873, 282, 10002, 367984640],
+   ["Classical.Structures.Group.MinimalNormal", true, 1, 317, 135, 38664761, 746, 237, 11477, 366673920],
+   ["Classical.Structures.Group.MinimalNormalDescent", true, 1, 327, 145, 39884834, 910, 299, 11100, 387514368],
+   ["Classical.Structures.Group.NormalClosure", true, 1, 326, 144, 39597183, 681, 333, 11425, 368836608],
+   ["Classical.Structures.Group.NormalCore", true, 1, 314, 132, 38358907, 953, 354, 11586, 366936064],
+   ["Classical.Structures.Group.NormalSubgroupLattice", true, 1, 323, 141, 39549603, 753, 325, 10596, 369033216],
+   ["Classical.Structures.Group.PartitionSubgroup", true, 1, 344, 153, 42036884, 740, 301, 10929, 383516672],
+   ["Classical.Structures.Group.Power", true, 1, 324, 139, 39637140, 811, 269, 10854, 378798080],
+   ["Classical.Structures.Group.PowerCollapse", true, 1, 356, 165, 43859267, 714, 326, 11986, 399245312],
+   ["Classical.Structures.Group.Product", true, 1, 312, 130, 38174934, 647, 250, 11385, 361758720],
+   ["Classical.Structures.Group.RegularAction", true, 1, 315, 133, 38268059, 791, 302, 15674, 366477312],
+   ["Classical.Structures.Group.Simple", true, 1, 319, 137, 38923836, 699, 291, 15510, 366411776],
+   ["Classical.Structures.Group.SubgroupClassification", true, 1, 314, 131, 38283629, 1136, 412, 16790, 375259136],
+   ["Classical.Structures.Group.SubgroupLattice", true, 1, 314, 132, 38242853, 1395, 361, 16519, 365363200],
+   ["Classical.Structures.Group.Subgroups", true, 1, 311, 129, 37960624, 1202, 340, 14582, 367067136],
+   ["Classical.Structures.Group.TableGroup", true, 1, 312, 130, 38077523, 951, 311, 13822, 369950720],
+   ["Classical.Structures.Group.Wreath", true, 1, 334, 147, 41128369, 1135, 397, 15155, 372506624],
+   ["Classical.Structures.Interpret", true, 1, 180, 51, 17089552, 870, 184, 6962, 175964160],
+   ["Classical.Structures.Lattice", true, 1, 326, 142, 39332120, 968, 423, 14638, 376569856],
+   ["Classical.Structures.Lattice.Basic", true, 1, 306, 126, 36996091, 1054, 316, 15459, 354287616],
+   ["Classical.Structures.Lattice.DistributiveLattice", true, 1, 308, 128, 37191632, 880, 344, 15874, 386531328],
+   ["Classical.Structures.Lattice.Dual", true, 1, 308, 128, 37204153, 1081, 369, 14073, 356057088],
+   ["Classical.Structures.Lattice.FilterIdeal", true, 1, 308, 128, 37167213, 1392, 630, 15455, 385613824],
+   ["Classical.Structures.Lattice.Free", true, 1, 318, 134, 38418883, 1089, 386, 14148, 367984640],
+   ["Classical.Structures.Lattice.Free.Derivability", true, 1, 317, 133, 38406946, 975, 427, 14019, 375586816],
+   ["Classical.Structures.Lattice.Free.Term", true, 1, 307, 127, 37145503, 1354, 409, 12782, 355532800],
+   ["Classical.Structures.Lattice.Free.Universal", true, 1, 315, 131, 38061141, 974, 423, 11655, 394461184],
+   ["Classical.Structures.Lattice.Free.Whitman", true, 1, 308, 128, 37251532, 950, 403, 10878, 375128064],
+   ["Classical.Structures.Lattice.OrdinalSum", true, 1, 308, 128, 37297007, 1094, 351, 13181, 387645440],
+   ["Classical.Structures.Lattice.Partitions", true, 1, 312, 128, 37772699, 791, 243, 12824, 375586816],
+   ["Classical.Structures.Lattice.Product", true, 1, 308, 128, 37215717, 1158, 379, 12423, 356188160],
+   ["Classical.Structures.Magma", true, 1, 248, 71, 28427123, 1232, 316, 10338, 300023808],
+   ["Classical.Structures.Monoid", true, 1, 302, 122, 36703339, 784, 300, 14158, 386465792],
+   ["Classical.Structures.Ring", true, 1, 310, 130, 37424780, 1080, 435, 12700, 361758720],
+   ["Classical.Structures.Semigroup", true, 1, 299, 119, 36464190, 822, 470, 10398, 360841216],
+   ["Classical.Structures.Semilattice", true, 1, 303, 123, 36706013, 975, 285, 11292, 352452608],
+   ["Classical.Structures.Unary", true, 1, 209, 68, 22983738, 790, 147, 6835, 247398400],
+   ["Classical.Theories", true, 1, 101, 42, 5346853, 899, 62, 2030, 68747264],
+   ["Classical.Theories.AbelianGroup", true, 1, 86, 27, 4982487, 1219, 73, 2329, 67895296],
+   ["Classical.Theories.CommutativeMonoid", true, 1, 86, 27, 4981057, 1103, 67, 2304, 67895296],
+   ["Classical.Theories.CommutativeRing", true, 1, 86, 27, 4984725, 1322, 69, 2298, 67960832],
+   ["Classical.Theories.CommutativeSemigroup", true, 1, 86, 27, 4982151, 879, 81, 2283, 67764224],
+   ["Classical.Theories.DistributiveLattice", true, 1, 86, 27, 4983901, 1125, 55, 2257, 67829760],
+   ["Classical.Theories.Group", true, 1, 86, 27, 4982463, 1107, 84, 2249, 67829760],
+   ["Classical.Theories.Lattice", true, 1, 86, 27, 4983048, 1084, 68, 2221, 67829760],
+   ["Classical.Theories.Monoid", true, 1, 86, 27, 4981159, 1074, 76, 2218, 67764224],
+   ["Classical.Theories.Ring", true, 1, 86, 27, 4985253, 1028, 61, 2296, 67829760],
+   ["Classical.Theories.Semigroup", true, 1, 86, 27, 4983322, 976, 59, 2409, 67829760],
+   ["Classical.Theories.Semilattice", true, 1, 86, 27, 4982414, 1184, 490, 2137, 67764224],
+   ["Examples", true, 1, 529, 320, 61419334, 1144, 869, 15764, 640483328],
+   ["Examples.Classical", true, 1, 458, 250, 54285120, 1151, 455, 13726, 540803072],
+   ["Examples.Classical.CommutativeIdempotentMagma", true, 1, 252, 75, 28746852, 870, 356, 8088, 293732352],
+   ["Examples.Classical.CommutativeMonoid", true, 1, 306, 126, 36903681, 843, 258, 9533, 361037824],
+   ["Examples.Classical.CommutativeRing", true, 1, 332, 137, 40711274, 736, 417, 9120, 392364032],
+   ["Examples.Classical.CommutativeSemigroup", true, 1, 303, 123, 36658815, 657, 252, 8071, 351600640],
+   ["Examples.Classical.Groups", true, 1, 406, 199, 50272391, 738, 371, 11794, 512098304],
+   ["Examples.Classical.Groups.AbelianGroup", true, 1, 327, 132, 40218599, 804, 296, 9763, 403767296],
+   ["Examples.Classical.Groups.AlternatingGroup5", true, 1, 381, 189, 46754919, 687, 338, 12277, 431554560],
+   ["Examples.Classical.Groups.AlternatingGroup5.Tables", true, 1, 327, 145, 39824154, 643, 273, 11418, 406650880],
+   ["Examples.Classical.Groups.CyclicGroup", true, 1, 396, 189, 49269869, 671, 561, 11894, 477954048],
+   ["Examples.Classical.Groups.CyclicGroup3", true, 1, 380, 188, 46481493, 733, 267, 11938, 460324864],
+   ["Examples.Classical.Groups.KleinFourGroup", true, 1, 380, 188, 46481656, 858, 380, 11560, 460390400],
+   ["Examples.Classical.Groups.SymmetricGroup3", true, 1, 380, 188, 46493433, 678, 307, 10762, 460390400],
+   ["Examples.Classical.Lattices", true, 1, 337, 153, 40013531, 919, 372, 10676, 385941504],
+   ["Examples.Classical.Lattices.FreeLattice3", true, 1, 318, 134, 38465769, 853, 236, 10363, 360054784],
+   ["Examples.Classical.Lattices.L2", true, 1, 330, 146, 39610356, 839, 318, 10210, 405143552],
+   ["Examples.Classical.Lattices.L2Distributive", true, 1, 312, 132, 37414895, 671, 248, 9900, 364118016],
+   ["Examples.Classical.Lattices.L3Heyting", true, 1, 313, 133, 37622937, 1085, 301, 9493, 359530496],
+   ["Examples.Classical.Magma", true, 1, 251, 74, 28674045, 913, 268, 9143, 303169536],
+   ["Examples.Classical.Monoid", true, 1, 308, 127, 37159220, 1013, 355, 10201, 358219776],
+   ["Examples.Classical.Semigroup", true, 1, 305, 125, 37006384, 874, 277, 11704, 372113408],
+   ["Examples.Classical.Semilattice", true, 1, 306, 126, 36762514, 753, 258, 11420, 354418688],
+   ["Examples.Demos", true, 1, 247, 70, 28675081, 1011, 203, 11639, 301531136],
+   ["Examples.Demos.ContraX", true, 1, 244, 67, 28161099, 940, 215, 10137, 281149440],
+   ["Examples.Demos.GeneralOperationsAndRelations", true, 1, 2, 1, 2572, 817, 3, 122, 24969216],
+   ["Examples.Demos.HSP", true, 1, 178, 49, 17236583, 924, 157, 6672, 190316544],
+   ["Examples.FunctionTypeBijections", true, 1, 178, 49, 16812872, 1176, 193, 5958, 174194688],
+   ["Examples.PolynomialFunctors", true, 1, 134, 22, 12390234, 1050, 137, 4445, 141426688],
+   ["Examples.PolynomialFunctors.Functors", true, 1, 133, 21, 12383723, 746, 94, 3837, 144834560],
+   ["Examples.Setoid", true, 1, 335, 150, 41060963, 859, 309, 11480, 382795776],
+   ["Examples.Setoid.CongruenceLattice", true, 1, 269, 89, 33281548, 762, 391, 9149, 356515840],
+   ["Examples.Setoid.FinitarySignatures", true, 1, 311, 122, 39094412, 686, 418, 10425, 373030912],
+   ["Examples.Setoid.FiniteQuotient", true, 1, 280, 100, 34649990, 836, 225, 10277, 363921408],
+   ["Examples.Setoid.FreeMagma", true, 1, 293, 113, 35963336, 876, 297, 9805, 346030080],
+   ["Examples.Setoid.FreeSemigroup", true, 1, 295, 115, 36309917, 819, 281, 9612, 348848128],
+   ["Examples.Setoid.HSPCommutativeMonoid", true, 1, 329, 144, 40412436, 965, 429, 11532, 376504320],
+   ["Examples.Setoid.Presentation", true, 1, 294, 114, 36126541, 924, 283, 9954, 367591424],
+   ["Examples.Setoid.SubalgebraLattice", true, 1, 294, 114, 36297829, 1117, 326, 10880, 362020864],
+   ["Examples.Setoid.SubgroupLattice", true, 1, 295, 115, 36337591, 1034, 244, 11079, 368574464],
+   ["Examples.Structures", true, 1, 230, 100, 21493824, 945, 347, 8501, 283836416],
+   ["Examples.Structures.Basic", true, 1, 229, 99, 21416630, 928, 225, 8003, 272891904],
+   ["Examples.Structures.Signatures", true, 1, 184, 55, 17153451, 1725, 173, 5500, 193134592],
+   ["Exercises", true, 1, 203, 73, 18504055, 1290, 224, 6014, 210894848],
+   ["Exercises.Complexity", true, 1, 202, 72, 18501533, 1069, 239, 6186, 200146944],
+   ["Exercises.Complexity.FiniteCSP", true, 1, 201, 71, 18497560, 976, 151, 6504, 204144640],
+   ["Legacy.Base", true, 1, 253, 122, 23725970, 934, 541, 7871, 302776320],
+   ["Legacy.Base.Adjunction", true, 1, 182, 53, 17115002, 1273, 138, 5451, 176553984],
+   ["Legacy.Base.Adjunction.Closure", true, 1, 60, 14, 3073432, 1105, 78, 1498, 51314688],
+   ["Legacy.Base.Adjunction.Galois", true, 1, 33, 6, 1128374, 958, 18, 820, 35192832],
+   ["Legacy.Base.Adjunction.Residuation", true, 1, 179, 50, 16907507, 1042, 149, 5510, 179372032],
+   ["Legacy.Base.Algebras", true, 1, 198, 68, 18308396, 888, 128, 5879, 204341248],
+   ["Legacy.Base.Algebras.Basic", true, 1, 183, 54, 17166716, 858, 143, 6270, 179830784],
+   ["Legacy.Base.Algebras.Congruences", true, 1, 197, 67, 18263929, 1087, 229, 6518, 193200128],
+   ["Legacy.Base.Algebras.Products", true, 1, 184, 55, 17210114, 930, 125, 6610, 193527808],
+   ["Legacy.Base.Categories", true, 1, 134, 22, 12387386, 968, 94, 4816, 141426688],
+   ["Legacy.Base.Categories.Functors", true, 1, 133, 21, 12379839, 1098, 165, 4504, 141492224],
+   ["Legacy.Base.Complexity", true, 1, 183, 54, 17099878, 1009, 138, 4920, 176029696],
+   ["Legacy.Base.Complexity.Basic", true, 1, 2, 1, 3362, 784, 3, 171, 24969216],
+   ["Legacy.Base.Complexity.CSP", true, 1, 181, 52, 17091368, 816, 217, 4499, 175898624],
+   ["Legacy.Base.Equality", true, 1, 194, 64, 17996243, 771, 107, 4910, 191889408],
+   ["Legacy.Base.Equality.Extensionality", true, 1, 189, 60, 17688057, 731, 119, 4736, 185008128],
+   ["Legacy.Base.Equality.Truncation", true, 1, 188, 59, 17588187, 700, 97, 4641, 184025088],
+   ["Legacy.Base.Equality.Welldefined", true, 1, 186, 56, 17400296, 682, 97, 5130, 181338112],
+   ["Legacy.Base.Functions", true, 1, 182, 53, 17107564, 671, 118, 5189, 178126848],
+   ["Legacy.Base.Functions.Injective", true, 1, 71, 16, 4624505, 821, 60, 2901, 66125824],
+   ["Legacy.Base.Functions.Inverses", true, 1, 67, 15, 4357079, 929, 53, 1920, 69795840],
+   ["Legacy.Base.Functions.Surjective", true, 1, 73, 18, 4693698, 726, 37, 1911, 75431936],
+   ["Legacy.Base.Functions.Transformers", true, 1, 178, 49, 16814404, 1035, 254, 6764, 176488448],
+   ["Legacy.Base.Homomorphisms", true, 1, 207, 77, 19318185, 723, 260, 6966, 216465408],
+   ["Legacy.Base.Homomorphisms.Basic", true, 1, 199, 69, 18407500, 970, 302, 5776, 195821568],
+   ["Legacy.Base.Homomorphisms.Factor", true, 1, 200, 70, 18538151, 721, 135, 6530, 204537856],
+   ["Legacy.Base.Homomorphisms.HomomorphicImages", true, 1, 201, 71, 18583628, 1133, 422, 5206, 197984256],
+   ["Legacy.Base.Homomorphisms.Isomorphisms", true, 1, 201, 71, 18702896, 1006, 370, 5734, 194576384],
+   ["Legacy.Base.Homomorphisms.Kernels", true, 1, 200, 70, 18493731, 881, 316, 5255, 197001216],
+   ["Legacy.Base.Homomorphisms.Noether", true, 1, 201, 71, 18681438, 849, 184, 5725, 195362816],
+   ["Legacy.Base.Homomorphisms.Products", true, 1, 200, 70, 18458531, 815, 255, 5862, 201392128],
+   ["Legacy.Base.Homomorphisms.Properties", true, 1, 200, 70, 18505062, 671, 294, 5545, 203620352],
+   ["Legacy.Base.Relations", true, 1, 182, 53, 17061177, 969, 138, 5738, 176947200],
+   ["Legacy.Base.Relations.Continuous", true, 1, 178, 49, 16779444, 782, 110, 4945, 178061312],
+   ["Legacy.Base.Relations.Discrete", true, 1, 178, 49, 16854465, 1089, 189, 6323, 174587904],
+   ["Legacy.Base.Relations.Properties", true, 1, 64, 12, 4179946, 1162, 72, 1708, 63832064],
+   ["Legacy.Base.Relations.Quotients", true, 1, 180, 51, 17008107, 1317, 196, 7175, 180551680],
+   ["Legacy.Base.Structures", true, 1, 228, 98, 21298586, 1125, 231, 8687, 264175616],
+   ["Legacy.Base.Structures.Basic", true, 1, 183, 54, 17119453, 957, 175, 7198, 192806912],
+   ["Legacy.Base.Structures.Congruences", true, 1, 196, 66, 18128455, 919, 216, 9237, 204275712],
+   ["Legacy.Base.Structures.EquationalLogic", true, 1, 214, 84, 19916631, 645, 141, 9388, 223936512],
+   ["Legacy.Base.Structures.Graphs", true, 1, 200, 70, 18463604, 2187, 333, 8611, 202768384],
+   ["Legacy.Base.Structures.Homs", true, 1, 199, 69, 18381275, 1998, 314, 8403, 189595648],
+   ["Legacy.Base.Structures.Isos", true, 1, 200, 70, 18537232, 920, 213, 6732, 203227136],
+   ["Legacy.Base.Structures.Products", true, 1, 184, 55, 17158173, 1259, 226, 8015, 192020480],
+   ["Legacy.Base.Structures.Sigma", true, 1, 200, 70, 18478340, 1293, 256, 7892, 198836224],
+   ["Legacy.Base.Structures.Sigma.Basic", true, 1, 183, 54, 17122434, 1120, 148, 7598, 193527808],
+   ["Legacy.Base.Structures.Sigma.Congruences", true, 1, 196, 66, 18204864, 1270, 228, 10138, 196345856],
+   ["Legacy.Base.Structures.Sigma.Homs", true, 1, 196, 66, 18168109, 1006, 218, 7903, 193134592],
+   ["Legacy.Base.Structures.Sigma.Isos", true, 1, 198, 68, 18305230, 1543, 284, 6956, 205586432],
+   ["Legacy.Base.Structures.Sigma.Products", true, 1, 184, 55, 17161120, 1470, 177, 6496, 192675840],
+   ["Legacy.Base.Structures.Substructures", true, 1, 218, 88, 20425533, 953, 251, 7423, 239665152],
+   ["Legacy.Base.Structures.Terms", true, 1, 201, 71, 18430328, 982, 217, 6282, 196804608],
+   ["Legacy.Base.Subalgebras", true, 1, 215, 85, 20265942, 1066, 163, 6802, 230883328],
+   ["Legacy.Base.Subalgebras.Properties", true, 1, 213, 83, 20062086, 843, 214, 6462, 228392960],
+   ["Legacy.Base.Subalgebras.Subalgebras", true, 1, 212, 82, 19872238, 926, 180, 6761, 231473152],
+   ["Legacy.Base.Subalgebras.Subuniverses", true, 1, 212, 82, 19926302, 903, 181, 6839, 228786176],
+   ["Legacy.Base.Terms", true, 1, 211, 81, 19780467, 1078, 205, 6850, 226164736],
+   ["Legacy.Base.Terms.Basic", true, 1, 199, 69, 18350331, 939, 189, 6259, 208797696],
+   ["Legacy.Base.Terms.Operations", true, 1, 210, 80, 19709792, 1019, 184, 7419, 217972736],
+   ["Legacy.Base.Terms.Properties", true, 1, 209, 79, 19543695, 1217, 176, 7510, 215810048],
+   ["Legacy.Base.Varieties", true, 1, 222, 92, 21389038, 840, 189, 7908, 257753088],
+   ["Legacy.Base.Varieties.Closure", true, 1, 216, 86, 20425374, 986, 167, 7611, 232652800],
+   ["Legacy.Base.Varieties.EquationalLogic", true, 1, 212, 82, 19831346, 1063, 287, 7938, 223936512],
+   ["Legacy.Base.Varieties.FreeAlgebras", true, 1, 221, 91, 21278378, 869, 341, 9246, 247922688],
+   ["Legacy.Base.Varieties.Invariants", true, 1, 208, 78, 19358193, 1344, 276, 8539, 207421440],
+   ["Legacy.Base.Varieties.Preservation", true, 1, 220, 90, 20992730, 1016, 261, 7578, 241106944],
+   ["Legacy.Base.Varieties.Properties", true, 1, 217, 87, 20512123, 871, 193, 7035, 243662848],
+   ["Order", true, 1, 59, 17, 3035412, 1185, 84, 1494, 49283072],
+   ["Order.CompleteLattice", true, 1, 34, 7, 1174354, 1099, 31, 857, 35061760],
+   ["Order.Interval", true, 1, 41, 11, 1629070, 908, 23, 1111, 38666240],
+   ["Order.Iso", true, 1, 49, 10, 2463698, 913, 28, 1186, 45809664],
+   ["Overture", true, 1, 177, 48, 16742865, 1105, 143, 5791, 187170816],
+   ["Overture.Adjunction", true, 1, 86, 24, 5325453, 952, 98, 2432, 81002496],
+   ["Overture.Adjunction.Closure", true, 1, 60, 14, 3068847, 938, 47, 1656, 49086464],
+   ["Overture.Adjunction.Galois", true, 1, 33, 6, 1128491, 1199, 18, 910, 35127296],
+   ["Overture.Adjunction.Residuation", true, 1, 69, 17, 4420989, 1011, 52, 1890, 61865984],
+   ["Overture.Basic", true, 1, 66, 14, 4318471, 957, 45, 2024, 59899904],
+   ["Overture.Cayley", true, 1, 150, 26, 15372477, 715, 118, 4945, 178061312],
+   ["Overture.Counting", true, 1, 135, 20, 12791170, 940, 95, 4478, 143065088],
+   ["Overture.Functions", true, 1, 72, 17, 4655423, 949, 42, 1819, 65601536],
+   ["Overture.Operations", true, 1, 16, 4, 215073, 818, 11, 314, 27131904],
+   ["Overture.Operations.Properties", true, 1, 145, 24, 14887028, 791, 99, 4729, 175177728],
+   ["Overture.Preface", true, 1, 2, 1, 10258, 730, 4, 74, 24969216],
+   ["Overture.Relations", true, 1, 68, 16, 4347958, 916, 61, 1539, 72744960],
+   ["Overture.Signatures", true, 1, 15, 3, 206933, 941, 7, 474, 26738688],
+   ["Overture.Signatures.Morphisms", true, 1, 70, 15, 4412436, 894, 39, 1882, 71172096],
+   ["Overture.Terms", true, 1, 74, 19, 4504642, 817, 37, 1866, 67895296],
+   ["Overture.Terms.Basic", true, 1, 16, 4, 218324, 756, 12, 274, 27131904],
+   ["Overture.Terms.Interpretation", true, 1, 72, 17, 4481827, 1129, 73, 1654, 61407232],
+   ["Overture.Terms.Translation", true, 1, 72, 17, 4439071, 890, 75, 1501, 67436544],
+   ["Setoid", true, 1, 350, 156, 43472573, 757, 277, 8854, 394002432],
+   ["Setoid.Algebras", true, 1, 237, 60, 27472937, 728, 147, 6158, 265224192],
+   ["Setoid.Algebras.Basic", true, 1, 179, 50, 16974016, 694, 97, 3718, 189267968],
+   ["Setoid.Algebras.Finite", true, 1, 180, 51, 17107107, 561, 105, 3848, 177012736],
+   ["Setoid.Algebras.Finite.Irredundant", true, 1, 233, 56, 27134471, 666, 184, 5618, 284033024],
+   ["Setoid.Algebras.Products", true, 1, 180, 51, 17107027, 634, 100, 3607, 190054400],
+   ["Setoid.Algebras.Products.Finite", true, 1, 182, 53, 17348710, 573, 93, 3934, 201457664],
+   ["Setoid.Algebras.Reduct", true, 1, 180, 51, 17060619, 696, 87, 4242, 189792256],
+   ["Setoid.Categories", true, 1, 286, 106, 34652337, 548, 202, 7264, 369033216],
+   ["Setoid.Categories.Adjunction", true, 1, 52, 13, 2539138, 640, 28, 814, 46465024],
+   ["Setoid.Categories.Algebra", true, 1, 279, 99, 34349924, 708, 209, 7718, 356122624],
+   ["Setoid.Categories.Category", true, 1, 34, 7, 1180133, 549, 16, 477, 35651584],
+   ["Setoid.Categories.FullSubcategory", true, 1, 52, 13, 2530948, 787, 20, 837, 48300032],
+   ["Setoid.Categories.Functor", true, 1, 50, 11, 2488375, 626, 22, 738, 46989312],
+   ["Setoid.Categories.Monad", true, 1, 53, 14, 2573978, 718, 23, 744, 45023232],
+   ["Setoid.Categories.NaturalTransformation", true, 1, 51, 12, 2508137, 633, 35, 797, 48168960],
+   ["Setoid.Categories.Reduct", true, 1, 281, 101, 34535467, 721, 235, 7740, 337838080],
+   ["Setoid.Complexity", true, 1, 183, 54, 17145700, 658, 117, 3888, 177995776],
+   ["Setoid.Complexity.Basic", true, 1, 2, 1, 3316, 692, 3, 180, 24969216],
+   ["Setoid.Complexity.CSP", true, 1, 181, 52, 17137743, 655, 93, 4557, 178061312],
+   ["Setoid.Congruences", true, 1, 256, 82, 31802456, 604, 209, 7344, 342622208],
+   ["Setoid.Congruences.Basic", true, 1, 185, 56, 17453625, 669, 132, 4855, 193265664],
+   ["Setoid.Congruences.Certificates", true, 1, 248, 74, 31243221, 930, 248, 7000, 329318400],
+   ["Setoid.Congruences.Certificates.Congruence", true, 1, 245, 71, 30621325, 665, 248, 8736, 329056256],
+   ["Setoid.Congruences.Certificates.Lattice", true, 1, 247, 73, 31229437, 652, 271, 8226, 317980672],
+   ["Setoid.Congruences.Certificates.Schema", true, 1, 149, 25, 15318057, 643, 91, 4477, 160890880],
+   ["Setoid.Congruences.ChainJoin", true, 1, 202, 61, 22635007, 856, 172, 6005, 250150912],
+   ["Setoid.Congruences.CompleteLattice", true, 1, 189, 60, 17874585, 731, 116, 4563, 184745984],
+   ["Setoid.Congruences.Finite", true, 1, 245, 71, 30381296, 637, 189, 6760, 332922880],
+   ["Setoid.Congruences.Finite.Basic", true, 1, 188, 59, 17879072, 737, 97, 5195, 188809216],
+   ["Setoid.Congruences.Finite.Decidable", true, 1, 244, 70, 30373778, 798, 234, 6755, 304414720],
+   ["Setoid.Congruences.Generation", true, 1, 186, 57, 17558806, 793, 191, 4505, 195690496],
+   ["Setoid.Congruences.Lattice", true, 1, 186, 57, 17585605, 635, 120, 4658, 182517760],
+   ["Setoid.Congruences.Monolith", true, 1, 187, 58, 17698664, 698, 115, 5616, 187957248],
+   ["Setoid.Congruences.Permutability", true, 1, 186, 57, 17535500, 706, 105, 4836, 182059008],
+   ["Setoid.Congruences.Presented", true, 1, 243, 69, 30125383, 843, 365, 11595, 310771712],
+   ["Setoid.Congruences.Presented.Basic", true, 1, 235, 64, 27177808, 957, 173, 8888, 285868032],
+   ["Setoid.Congruences.Presented.Decidable", true, 1, 242, 68, 30115691, 648, 179, 13979, 322961408],
+   ["Setoid.Congruences.Properties", true, 1, 188, 59, 17725191, 662, 117, 7415, 188088320],
+   ["Setoid.Congruences.Simple", true, 1, 188, 59, 17796574, 1481, 260, 7700, 183828480],
+   ["Setoid.Functions", true, 1, 183, 54, 17303576, 1421, 205, 7373, 177471488],
+   ["Setoid.Functions.Basic", true, 1, 49, 10, 2452109, 1284, 44, 2146, 45678592],
+   ["Setoid.Functions.Bijective", true, 1, 182, 53, 17294289, 1525, 171, 8010, 177733632],
+   ["Setoid.Functions.Injective", true, 1, 180, 51, 17067260, 1148, 259, 7429, 189923328],
+   ["Setoid.Functions.Inverses", true, 1, 178, 49, 16880876, 1689, 200, 6947, 174915584],
+   ["Setoid.Functions.Surjective", true, 1, 180, 51, 17120900, 1439, 219, 8450, 176095232],
+   ["Setoid.Homomorphisms", true, 1, 283, 103, 35068657, 1523, 386, 12161, 361889792],
+   ["Setoid.Homomorphisms.Basic", true, 1, 244, 67, 28156981, 1188, 411, 9458, 302579712],
+   ["Setoid.Homomorphisms.Factor", true, 1, 245, 68, 28315635, 1114, 335, 9543, 283967488],
+   ["Setoid.Homomorphisms.HomomorphicImages", true, 1, 279, 99, 34625814, 1283, 330, 10985, 362151936],
+   ["Setoid.Homomorphisms.Isomorphisms", true, 1, 278, 98, 34447007, 1000, 435, 10100, 350420992],
+   ["Setoid.Homomorphisms.Kernels", true, 1, 276, 96, 33984958, 1021, 351, 9759, 358547456],
+   ["Setoid.Homomorphisms.Noether", true, 1, 277, 97, 34125265, 874, 266, 10249, 359530496],
+   ["Setoid.Homomorphisms.Products", true, 1, 245, 68, 28285144, 881, 196, 7740, 283574272],
+   ["Setoid.Homomorphisms.Properties", true, 1, 277, 97, 34169228, 978, 225, 9675, 348258304],
+   ["Setoid.Operations", true, 1, 148, 27, 15023191, 789, 99, 4543, 176029696],
+   ["Setoid.Operations.Properties", true, 1, 147, 26, 15018660, 866, 123, 4379, 175964160],
+   ["Setoid.Relations", true, 1, 182, 53, 17075549, 899, 135, 5801, 175964160],
+   ["Setoid.Relations.Continuous", true, 1, 178, 49, 16825268, 770, 125, 5132, 187891712],
+   ["Setoid.Relations.Discrete", true, 1, 50, 11, 2482056, 815, 35, 1001, 47316992],
+   ["Setoid.Relations.Properties", true, 1, 26, 3, 454638, 978, 83, 382, 29884416],
+   ["Setoid.Relations.Quotients", true, 1, 179, 50, 16976481, 801, 176, 4857, 189202432],
+   ["Setoid.Signatures", true, 1, 178, 49, 16826779, 968, 186, 5304, 174325760],
+   ["Setoid.Signatures.Finite", true, 1, 203, 62, 22705635, 810, 180, 6378, 251985920],
+   ["Setoid.Signatures.Functor", true, 1, 179, 50, 16969033, 707, 106, 5055, 179830784],
+   ["Setoid.Subalgebras", true, 1, 307, 122, 37939549, 873, 285, 10735, 355205120],
+   ["Setoid.Subalgebras.Basic", true, 1, 284, 104, 35142128, 737, 256, 9925, 356909056],
+   ["Setoid.Subalgebras.CompleteLattice", true, 1, 293, 113, 36161876, 921, 294, 9946, 365101056],
+   ["Setoid.Subalgebras.Properties", true, 1, 285, 105, 35341299, 978, 262, 11061, 366149632],
+   ["Setoid.Subalgebras.Subdirect", true, 1, 295, 110, 36625241, 1007, 418, 8460, 390135808],
+   ["Setoid.Subalgebras.Subdirect.Basic", true, 1, 285, 105, 35329419, 842, 364, 8312, 362020864],
+   ["Setoid.Subalgebras.Subdirect.BirkhoffSI", true, 1, 286, 106, 35406602, 914, 228, 8533, 383647744],
+   ["Setoid.Subalgebras.Subdirect.Finite", true, 1, 293, 108, 36420787, 762, 242, 7987, 358154240],
+   ["Setoid.Subalgebras.Subdirect.Irreducible", true, 1, 286, 106, 35522755, 889, 296, 7688, 384761856],
+   ["Setoid.Subalgebras.Subuniverses", true, 1, 292, 112, 36021382, 817, 188, 7844, 354025472],
+   ["Setoid.Terms", true, 1, 291, 111, 35830944, 760, 196, 8248, 358350848],
+   ["Setoid.Terms.Basic", true, 1, 238, 61, 27634296, 724, 146, 6253, 293535744],
+   ["Setoid.Terms.Interpretation", true, 1, 239, 62, 27723814, 846, 176, 6406, 282984448],
+   ["Setoid.Terms.Monad", true, 1, 240, 63, 27753183, 756, 139, 6202, 299630592],
+   ["Setoid.Terms.Operations", true, 1, 286, 106, 35542682, 739, 296, 8175, 365297664],
+   ["Setoid.Terms.Properties", true, 1, 285, 105, 35387585, 682, 213, 7901, 358219776],
+   ["Setoid.Terms.Translation", true, 1, 239, 62, 27703255, 1015, 226, 6387, 282853376],
+   ["Setoid.Varieties", true, 1, 338, 144, 42956717, 857, 314, 9340, 403046400],
+   ["Setoid.Varieties.Closure", true, 1, 308, 123, 38172851, 786, 217, 8729, 395575296],
+   ["Setoid.Varieties.EquationalLogic", true, 1, 292, 112, 35968182, 740, 217, 8171, 338231296],
+   ["Setoid.Varieties.FreeAlgebras", true, 1, 312, 127, 39033711, 645, 240, 8459, 366804992],
+   ["Setoid.Varieties.FreeSubstitution", true, 1, 293, 113, 36200884, 700, 199, 8190, 341245952],
+   ["Setoid.Varieties.HSP", true, 1, 313, 128, 39251541, 884, 291, 8465, 367919104],
+   ["Setoid.Varieties.Interpretation", true, 1, 293, 113, 36130996, 769, 235, 8133, 360841216],
+   ["Setoid.Varieties.Invariance", true, 1, 293, 113, 36090374, 678, 225, 8472, 361365504],
+   ["Setoid.Varieties.Invariants", true, 1, 284, 104, 35111957, 727, 190, 8087, 364707840],
+   ["Setoid.Varieties.Maltsev", true, 1, 310, 121, 39056463, 617, 255, 8225, 397606912],
+   ["Setoid.Varieties.Maltsev.Basic", true, 1, 294, 114, 36224332, 814, 209, 8558, 342228992],
+   ["Setoid.Varieties.Maltsev.Distributivity", true, 1, 307, 118, 38495120, 750, 257, 8972, 358875136],
+   ["Setoid.Varieties.Maltsev.Modularity", true, 1, 308, 119, 38866208, 737, 259, 8352, 367788032],
+   ["Setoid.Varieties.Maltsev.Permutability", true, 1, 297, 117, 36770519, 817, 410, 8869, 345767936],
+   ["Setoid.Varieties.Preservation", true, 1, 311, 126, 38812749, 777, 248, 9094, 400228352],
+   ["Setoid.Varieties.Properties", true, 1, 309, 124, 38369168, 666, 221, 8442, 394395648],
+   ["Setoid.Varieties.Reducts", true, 1, 314, 129, 38914414, 688, 226, 9512, 386531328],
+   ["Setoid.Varieties.SoundAndComplete", true, 1, 292, 112, 36034921, 719, 344, 8773, 361693184],
+   ["agda-algebras", true, 1, 603, 385, 69376238, 606, 477, 14993, 735248384]
+  ]
+ },
+ "earlierRun": {
+  "what": "the same gate before its last edits (the load time rounded, the server's version recorded, the control's object URL revoked), 2026-10-12T05:23:01Z to 05:36:37Z",
+  "wallSeconds": 816,
+  "load": {
+   "start": [
+    6.25,
+    4.32,
+    3.32
+   ],
+   "end": [
+    8.31,
+    8.48,
+    6.64
+   ]
+  },
+  "passed": 350,
+  "controls": [
+   2,
+   2
+  ],
+  "secondsSummed": {
+   "start": 316.2,
+   "mount": 84.3,
+   "load": 2805.9,
+   "total": 3207.7
+  }
+ },
+ "sharedSessions": {
+  "how": "--shared: one session per job, four jobs, each checking its roots in turn on it, mounting each root's archives as it comes",
+  "started": "2026-10-12T05:36:51.865Z",
+  "wallSeconds": 85,
+  "load": {
+   "start": [
+    7.5,
+    8.3,
+    6.6
+   ],
+   "end": [
+    10.98,
+    9.08,
+    7.02
+   ]
+  },
+  "passed": 350,
+  "secondsSummed": {
+   "start": 5.0,
+   "mount": 4.3,
+   "load": 312.2,
+   "total": 317.2
+  },
+  "heapAtEndPerJob": [
+   905707520,
+   844693504,
+   855179264,
+   906166272
+  ],
+  "umbrella": [
+   {
+    "loadMs": 4764,
+    "memoryBytes": 905707520
+   }
+  ],
+  "why not": "A shared session's drive holds every archive mounted for its earlier roots, so a root whose index entry lacked an archive could still pass, and Agda keeps the interfaces it decoded, so a later root's closure is not read from the drive again: it cannot show what the criterion asks, every root checked with only its archives mounted."
+ },
+ "failureControl": {
+  "what": "a copy of the archives whose interfaces/Overture.Basic.zip holds no interface, gated with --root Overture.Basic --root Overture --no-controls",
+  "results": [
+   {
+    "root": "Overture.Basic",
+    "ok": false,
+    "checking": [
+     "Main",
+     "Overture.Basic"
+    ]
+   },
+   {
+    "root": "Overture",
+    "ok": false,
+    "checking": [
+     "Main",
+     "Overture.Basic"
+    ]
+   }
+  ],
+  "exit": 1
+ },
+ "againstWasmtime": "The 2026-10-11 check of every root under agda.wasm (docs/measurements/library-archives-2026-10-11.json): 3,271 s summed over the roots, eight at once at a load of 5 to 9.5, the umbrella module 16.2 s and 1,029,252 KiB resident (the runtime's resident set, not Agda's heap).",
+ "runner": {
+  "run": 38209105006,
+  "url": "https://github.com/formalverification/agda-native-ide/actions/runs/38209105006",
+  "how": "workflow_dispatch of library-archives.yml on issue 13's branch at e891c84, so the guard built everything: the interfaces, their --rebuild, the archives, the check under agda.wasm, the site, and the gate",
+  "image": "ubuntu-latest, Linux 6.17.0-1022-azure",
+  "cpu": "AMD EPYC 9V74 80-Core Processor",
+  "cores": 4,
+  "memoryBytes": 16766410752,
+  "steps": {
+   "interfaces": "9 min 47 s",
+   "interfaces --rebuild (passed)": "9 min 6 s",
+   "archives": "7 s",
+   "check of every root under agda.wasm, four at once": "11 min 45 s",
+   "site (nix build .#site)": "29 s",
+   "gate step (npm ci, the page's build, the gate)": "17 min 18 s",
+   "job": "48 min 56 s"
+  },
+  "gate": {
+   "started": "2026-10-12T06:14:38.789Z",
+   "finished": "2026-10-12T06:31:11.937Z",
+   "wallSeconds": 993,
+   "load": {
+    "start": [
+     1.92,
+     3.31,
+     2.58
+    ],
+    "end": [
+     4.71,
+     5.53,
+     4.75
+    ]
+   },
+   "jobs": 4,
+   "browser": "Chrome/149.0.7827.200",
+   "agdaVersion": "2.9.0",
+   "passed": 350,
+   "roots": 350,
+   "controls": [
+    2,
+    2
+   ],
+   "secondsSummed": {
+    "start": 407.8,
+    "mount": 129.4,
+    "load": 3369.4,
+    "total": 3908.4
+   },
+   "startMs": {
+    "min": 820,
+    "median": 1133.5,
+    "p90": 1378,
+    "max": 2340,
+    "sum": 407780
+   },
+   "mountMs": {
+    "min": 5,
+    "median": 367.5,
+    "p90": 597,
+    "max": 2231,
+    "sum": 129419
+   },
+   "loadMs": {
+    "min": 96,
+    "median": 10299.0,
+    "p90": 14291,
+    "max": 23686,
+    "sum": 3369382
+   },
+   "memoryBytes": {
+    "min": 24969216,
+    "median": 288325632.0,
+    "p90": 391446528,
+    "max": 768081920,
+    "sum": 92921790464
+   },
+   "slowest": [
+    {
+     "root": "Examples",
+     "loadSeconds": 23.686
+    },
+    {
+     "root": "Classical",
+     "loadSeconds": 22.339
+    },
+    {
+     "root": "Examples.Classical",
+     "loadSeconds": 19.481
+    },
+    {
+     "root": "Examples.Classical.Groups",
+     "loadSeconds": 19.287
+    },
+    {
+     "root": "agda-algebras",
+     "loadSeconds": 19.134
+    }
+   ],
+   "largestMemory": [
+    {
+     "root": "agda-algebras",
+     "memoryBytes": 768081920
+    },
+    {
+     "root": "Examples",
+     "memoryBytes": 640286720
+    },
+    {
+     "root": "Examples.Classical",
+     "memoryBytes": 540803072
+    },
+    {
+     "root": "Classical",
+     "memoryBytes": 513998848
+    },
+    {
+     "root": "Examples.Classical.Groups",
+     "memoryBytes": 512163840
+    }
+   ],
+   "fixedRoots": {
+    "Overture.Basic": {
+     "loadMs": 2210,
+     "memoryBytes": 59965440
+    },
+    "Setoid.Algebras.Basic": {
+     "loadMs": 6862,
+     "memoryBytes": 176291840
+    },
+    "Setoid.Varieties.HSP": {
+     "loadMs": 13173,
+     "memoryBytes": 367919104
+    },
+    "agda-algebras": {
+     "loadMs": 19134,
+     "memoryBytes": 768081920
+    }
+   },
+   "site": {
+    "als-reactor-2.9.0.wasm.gz": "sha256:684731b5e7c9cb81e7337c9cf376e0fb2f6de0c3ff860bd6b0c37d949793f820",
+    "als-reactor-2.9.0.js": "sha256:c782dbaca349830299055c71ec9c4f72ec543c0d612d08b7c40fbb364e601dce",
+    "agda-data.zip": "sha256:b250cb2154c15efb882139c6698b5b4c3514a3fb1e361bbde58f58a2eed943c0",
+    "agda-stdlib-2.3-patched.zip": "sha256:773c59515bf4cd2ebf6d86aed6d57ec4493333538b28c1ace55509ece7e7aacd"
+   },
+   "sameReactorGzipAsLocal": true
+  }
+ }
+}
