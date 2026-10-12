@@ -6,11 +6,12 @@ This note explains how the IDE's copy of agda-algebras is built for the page:
 its interfaces built by the Agda the page runs, packed so that a reader's
 imports fetch what they need and nothing else, and indexed from the
 dependency graph Agda itself computes ([#12]).  [ADR 0001][adr] § 10 records
-the decisions; this note is the explanation it links.  Nothing here is
-mounted by the page yet: that is [#14]'s work, the playground project that
-imports the library is [#11]'s, and the Explorer that lists its modules is
-[#9]'s.  Every figure is from the runs of 2026-10-11 that [#12]'s findings
-describe: the local ones in
+the decisions; this note is the explanation it links.  The page ships and
+mounts the sources archive, for the playground's project, which depends on
+the library ([#11]; ADR 0001 § 11); mounting the interface archives is
+[#14]'s work, and the Explorer that lists the modules is [#9]'s.  Every
+figure is from the runs of 2026-10-11 that [#12]'s findings describe: the
+local ones in
 [`docs/measurements/library-archives-2026-10-11.json`][record], with the
 machine and its load, and the runner's in its run; and the gate's, which
 checks them under the page's own language server ([#13]), from the runs of
@@ -37,10 +38,11 @@ for the module checked.
 following:
 
 +  `index.json`, the index (below);
-+  `agda-algebras-sources.zip`, agda-algebras' sources as the page will
-   mount them: `agda-algebras/agda-algebras.agda-lib`, `agda-algebras/src/`,
++  `agda-algebras-sources.zip`, agda-algebras' sources as the page mounts
+   them: `agda-algebras/agda-algebras.agda-lib`, `agda-algebras/src/`,
    and the license texts its `NOTICE` names for them (`LICENSE`,
-   `LICENSE-data`, `NOTICE`), deflated;
+   `LICENSE-data`, `NOTICE`), deflated; the site ships the same file,
+   from the same derivation ([#11]);
 +  `interfaces/*.zip`, the interface archives: one per agda-algebras
    module, named by the module (`interfaces/Setoid.Varieties.HSP.zip`), and
    one per group of standard-library modules (below), named by a digest of
@@ -502,9 +504,12 @@ kept "so that the HTML and LaTeX backends can generate their output";
 +  **The standard library's interfaces: MIT**, like its sources, whose
    archive the page already ships with its `LICENCE`; **the builtins'**
    are already in `agda-data.zip`, under Agda's MIT license.
-+  **When the site ships them** ([#14]), `NOTICE` and `docs/provenance.md`
-   name them in the same change: agda-algebras at its commit under
-   Apache-2.0 with its `NOTICE`'s text, and the index under `LICENSE-data`.
++  **What the site ships**: the sources archive since [#11], which
+   `NOTICE` names, with agda-algebras' `LICENSE` and `NOTICE` copied into
+   `licenses/agda-algebras/`, and `docs/provenance.md` records.  When [#14]
+   ships the interfaces and the index, the same files name them: the
+   interfaces under Apache-2.0 like the sources, and the index under
+   `LICENSE-data`.
 
 (William's decision of 2026-10-11, on the session's recommendation.)
 

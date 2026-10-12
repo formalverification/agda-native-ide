@@ -101,11 +101,11 @@ Everything here runs in the dev shell (`nix develop`), which carries node
 assets` fetches them by hash into `static/`, with Agda's builtin library,
 the patched standard library and agda-algebras' sources, which the flake
 builds (`nix build .#agda-data`, `nix build .#stdlib`, and
-`mkAgdaAlgebrasSources`, from the commit it pins).  The compiler is fetched by the hashes
-in `compiler/agda-2.9.0.sha256` (`nix build .#compiler`) from the release
-`agda-2.9.0-da66a8c-als-8` of [formalverification/agda-wasm-builds]
-([#58]); the site ships its reactor build and that build's JavaScript glue
-([#59]).  `nix develop .#compiler --command compiler/build-agda-2.9.0.sh
+`mkAgdaAlgebrasSources`, from the commit it pins).  The compiler is fetched
+by the hashes in `compiler/agda-2.9.0.sha256` (`nix build .#compiler`) from
+the release `agda-2.9.0-da66a8c-als-8` of
+[formalverification/agda-wasm-builds] ([#58]); the site ships its reactor
+build and that build's JavaScript glue ([#59]).  `nix develop .#compiler --command compiler/build-agda-2.9.0.sh
 OUT` rebuilds the four files from their sources (a run took 27 minutes on
 a 20-core workstation).
 
@@ -174,16 +174,19 @@ session holding only its archives, must type-check `Main` alone, and two
 controls must not.  CI's [`library-archives.yml`][archives-ci] runs all
 three when what they are built from changes, and the gate alone (building
 the archives it mounts) when only what the gate is made of does.
-The page does not mount them yet ([#14]);
+The page mounts the sources archive, for the playground's project
+([#11]), and none of the interface archives yet ([#14]);
 [`docs/notes/library-archives.md`][archives-note] explains them.
 
 `make browser-check` (or `nix run .#browser-check -- <site>`, for any
 built site, such as `nix build .#site`'s `result`) serves the site and uses
 it in headless Chromium, with node and Chromium pinned by the flake.  It
 waits for "Agda ready" and the first check of the default `Main.agda`,
-asserts two open goals and the modules that check type-checked (the
-`Checking` lines of Agda's running info, read from the inspector after an
-Infer), gives at a goal, and checks a deliberate type error.  It serves
+asserts its one open goal with its context and the modules that check
+type-checked (the `Checking` lines of Agda's running info, read from the
+inspector after an Infer), gives at the goal, checks a deliberate type
+error, checks that a postulate is refused, and imports a module of
+agda-algebras, which is type-checked from source.  It serves
 the site without the two isolation headers and asserts that the page is
 not cross-origin isolated; `make browser-check ISOLATED=1` (`--isolated`)
 sends them and asserts that it is.  It writes its timings, every request
@@ -209,6 +212,27 @@ change an imported file, say so in a header comment naming the upstream file
 and commit (for JSON, which carries no comment, in `docs/provenance.md`
 alone), remove its line from `upstream/unchanged.sha256`, and add a row to
 the "Changes to upstream files" table in `docs/provenance.md`.
+
+## The playground
+
+The page's `Main.agda` is a module of a project of its own ([#11]):
+`/play/Main.agda` on the drive, beside `/play/play.agda-lib`, a library
+that depends on the standard library and agda-algebras, whose sources the
+site ships (`agda-algebras-sources.zip`, built by the flake from the
+commit it pins).  The default `Main.agda` carries agda-algebras' own
+options line, `{-# OPTIONS --without-K --exact-split --safe #-}`, so a
+postulate or a `TERMINATING` pragma is refused there as the library
+refuses it; it imports only Agda's builtins, whose interfaces the site
+ships, so the first check type-checks `Main` alone, and it opens one goal,
+which the inspector shows with its context.  Any module of the standard
+library or agda-algebras can be imported, and is type-checked from source,
+with everything it imports, until the page mounts its interfaces ([#14]):
+`Setoid.Algebras.Basic` takes minutes the first time, and seconds after a
+reload, from what the page persisted.  The page keeps the buffer in the
+browser's storage under `agda-web-ide-beta:doc:/play/Main.agda`, and PLFA's
+chapters keep their own library, at the drive's root.
+[`docs/notes/runtime.md`][runtime-note] explains the layout and which
+flags apply to `Main`.
 
 ## Theme
 
@@ -360,6 +384,7 @@ every artifact the app ships, with its license.
 [williamdemeo/github-project]: https://github.com/williamdemeo/github-project
 [formalverification/agda-wasm-builds]: https://github.com/formalverification/agda-wasm-builds
 [#8]: https://github.com/formalverification/agda-native-ide/issues/8
+[#11]: https://github.com/formalverification/agda-native-ide/issues/11
 [#12]: https://github.com/formalverification/agda-native-ide/issues/12
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
 [#14]: https://github.com/formalverification/agda-native-ide/issues/14
