@@ -733,6 +733,17 @@ describe("the session's batch lane", () => {
     expect(await session.checkFile(PATH)).toMatchObject({ kind: "failure", reason: "source-changed" });
   });
 
+  it("leaves a file another writer changed during a given text's run, and keeps what it held before", async () => {
+    const edited = `${TEXT}-- the editor's edit\n`;
+    const { session, transport } = await batched((_text, transport) => {
+      transport.files.set(PATH, edited);
+      return { exitCode: 0 };
+    });
+    const verdict = await session.checkFile(PATH, { text: FILLED });
+    expect(verdict).toMatchObject({ kind: "failure", reason: "source-changed", detail: { original: TEXT } });
+    expect(transport.files.get(PATH)).toBe(edited);
+  });
+
   it("refuses a verdict on no file, or on a missing one", async () => {
     const { session, transport } = await batched(() => ({ exitCode: 0 }));
     expect(await session.checkFile()).toMatchObject({ kind: "refusal", reason: "invalid-input" });

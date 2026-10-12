@@ -783,8 +783,22 @@ export class AgdaSession {
       } catch {
         after = undefined;
       }
-      const unrestored = await restore();
-      if (unrestored) return unrestored;
+      if (original !== undefined) {
+        // Only the text the check wrote is put back: a file another writer
+        // changed meanwhile keeps the newer text.
+        if (after !== undefined && sourceDigest(after) === digest) {
+          const unrestored = await restore();
+          if (unrestored) return unrestored;
+        } else {
+          const before = original;
+          original = undefined;
+          return failure(
+            "source-changed",
+            `${path} changed while the batch run read it, so it was not put back: it keeps the newer text, and the text it held before the check is this failure's detail`,
+            { detail: { original: before } },
+          );
+        }
+      }
       const ran = (handle: BatchHandle | undefined) => handle?.command;
       if (run.startError)
         return failure("startup", `the batch run could not be started (${run.startError})`, {
