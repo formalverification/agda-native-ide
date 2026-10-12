@@ -1,20 +1,20 @@
 {
   "date": "2026-10-11",
-  "revision": "158b4f6c9c35bcd06efc49bb56d820c10a67a262",
+  "revision": "f37cbb0b99168a6609cbcea272a2c70cf3bc40cb",
   "agdaCommit": "da66a8c75f11d10699a6b38b261efdf244b66f2a",
-  "scope": "The engine's conformance suite (packages/engine/src/conformance) through one interface against both engines, each scenario in a fresh session, and each runner's own lifecycle checks; with the runs' transcripts compared field by field.  The timings are single observations, not benchmarks: the browser's include a fresh worker per scenario.",
+  "scope": "The engine's conformance suite (packages/engine/src/conformance) through one interface against both engines, each scenario in a fresh session, and each runner's own lifecycle checks; with the runs' transcripts compared field by field; and two controls, each breaking one coordinate conversion in the built package.  Run at the revision after the self-review's fixes.  The timings are single observations, not benchmarks: the browser's include a fresh worker per scenario.",
   "commands": [
     "nix develop .#vscode --command make conformance-native",
-    "nix develop --command make conformance-browser",
+    "nix develop --command make conformance-browser SITE=build",
     "nix develop --command make conformance-compare"
   ],
   "loadAverageAfter": [
-    2.41,
-    2.63,
-    2.08
+    2.85,
+    2.26,
+    2.67
   ],
   "native": {
-    "date": "2026-10-11T19:13:48.616Z",
+    "date": "2026-10-12T03:11:55.851Z",
     "engine": "native",
     "agda": {
       "executable": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
@@ -34,6 +34,7 @@
       "Goals.agda": "sha256:fd9eac93d9b232286957bb9b7a8285fb117e0ac51c0bd32e3a67054eca5e92c8",
       "Second.agda": "sha256:81b65e26798a5b663b0863ec480de4dad8f725b509dea948803a98018cdeb284",
       "Unicode.agda": "sha256:043068b911614b0cab53f317e80c302bdfe163ed70f26a46305a9fdccdc8664b",
+      "Crlf.agda": "sha256:93304b6fdfca679872d936fb6c297547692270e0f0ccf1fb7a1eb75801722abe",
       "Literate.lagda.md": "sha256:06af241dce5df4730e550b9231fa8ee80bd1b982405f3ed3eaa0958e3e0517ad",
       "Slow.agda": "sha256:bae06f835c68c946003daab49e7fb825f15a250ccc2823b1225663e6808df6cb"
     },
@@ -41,7 +42,7 @@
       {
         "name": "a session names its engine and Agda, and has no verdict to give",
         "ok": true,
-        "elapsedMs": 115,
+        "elapsedMs": 28,
         "transcript": {
           "agdaVersion": "2.9.0",
           "batch": false
@@ -50,7 +51,7 @@
       {
         "name": "a load with open goals answers them, and is not a verdict",
         "ok": true,
-        "elapsedMs": 48,
+        "elapsedMs": 36,
         "transcript": {
           "goals": [
             {
@@ -108,7 +109,7 @@
       {
         "name": "Agda's goal type and context",
         "ok": true,
-        "elapsedMs": 37,
+        "elapsedMs": 42,
         "transcript": {
           "goal0": {
             "goal": 0,
@@ -145,7 +146,7 @@
       {
         "name": "a valid give edits the goal and keeps the loaded basis",
         "ok": true,
-        "elapsedMs": 40,
+        "elapsedMs": 45,
         "transcript": {
           "give": {
             "goal": 0,
@@ -185,7 +186,7 @@
       {
         "name": "a rejected term is Agda's answer, and leaves the goal open",
         "ok": true,
-        "elapsedMs": 46,
+        "elapsedMs": 33,
         "transcript": {
           "accepted": false,
           "error": "<root>/Goals.agda:7.14-18: error: [UnequalTypes]\nThe type\n  Nat\nis not a subtype of\n  A\nwhen checking that the expression zero has type A"
@@ -194,7 +195,7 @@
       {
         "name": "an edit inside one goal is a give; any other edit is a reload, which retires the old goals",
         "ok": true,
-        "elapsedMs": 51,
+        "elapsedMs": 49,
         "transcript": {
           "plans": [
             "load",
@@ -212,7 +213,7 @@
       {
         "name": "a module switch cannot reuse the previous module's goals",
         "ok": true,
-        "elapsedMs": 51,
+        "elapsedMs": 47,
         "transcript": {
           "second": [
             {
@@ -261,7 +262,7 @@
       {
         "name": "a case split rewrites the clause, which a check then loads; a refine opens a goal",
         "ok": true,
-        "elapsedMs": 44,
+        "elapsedMs": 49,
         "transcript": {
           "clauses": [
             "choose red = ?",
@@ -310,7 +311,7 @@
       {
         "name": "positions in Unicode text, and terms outside ASCII",
         "ok": true,
-        "elapsedMs": 35,
+        "elapsedMs": 38,
         "transcript": {
           "goal": {
             "id": 0,
@@ -352,9 +353,101 @@
         }
       },
       {
+        "name": "positions in a text whose line ends are CR LF, which Agda reads as LF",
+        "ok": true,
+        "elapsedMs": 33,
+        "transcript": {
+          "goals": [
+            {
+              "id": 0,
+              "type": "Nat",
+              "agdaRange": {
+                "start": {
+                  "pos": 103,
+                  "line": 8,
+                  "col": 13
+                },
+                "end": {
+                  "pos": 108,
+                  "line": 8,
+                  "col": 18
+                }
+              },
+              "span": {
+                "from": 109,
+                "to": 114
+              }
+            },
+            {
+              "id": 1,
+              "type": "Nat",
+              "agdaRange": {
+                "start": {
+                  "pos": 124,
+                  "line": 9,
+                  "col": 16
+                },
+                "end": {
+                  "pos": 129,
+                  "line": 9,
+                  "col": 21
+                }
+              },
+              "span": {
+                "from": 131,
+                "to": 136
+              }
+            }
+          ],
+          "give": {
+            "goal": 0,
+            "accepted": true,
+            "goals": [
+              {
+                "id": 1,
+                "type": "Nat",
+                "agdaRange": {
+                  "start": {
+                    "pos": 124,
+                    "line": 9,
+                    "col": 16
+                  },
+                  "end": {
+                    "pos": 129,
+                    "line": 9,
+                    "col": 21
+                  }
+                },
+                "span": {
+                  "from": 130,
+                  "to": 135
+                }
+              }
+            ],
+            "newGoals": [],
+            "edit": {
+              "from": 109,
+              "to": 114,
+              "insert": "zero"
+            }
+          },
+          "other": {
+            "goal": 1,
+            "accepted": true,
+            "goals": [],
+            "newGoals": [],
+            "edit": {
+              "from": 130,
+              "to": 135,
+              "insert": "n"
+            }
+          }
+        }
+      },
+      {
         "name": "a literate module: goals in its code, none in its prose",
         "ok": true,
-        "elapsedMs": 35,
+        "elapsedMs": 34,
         "transcript": {
           "goal": {
             "id": 0,
@@ -395,19 +488,19 @@
       {
         "name": "an abort with nothing running is nothing",
         "ok": true,
-        "elapsedMs": 22,
+        "elapsedMs": 25,
         "transcript": {
           "aborting": null
         }
       }
     ],
-    "passed": 11,
+    "passed": 12,
     "failed": 0,
     "lifecycle": [
       {
         "name": "a start that cannot find its executable fails, and says so",
         "ok": true,
-        "elapsedMs": 3,
+        "elapsedMs": 2,
         "detail": {
           "message": "/nonexistent/agda could not be started (spawn /nonexistent/agda ENOENT)"
         }
@@ -415,7 +508,7 @@
       {
         "name": "a start whose Agda exits at once fails, with Agda's words",
         "ok": true,
-        "elapsedMs": 7,
+        "elapsedMs": 9,
         "detail": {
           "message": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda exited before it was ready (code 71)",
           "detail": {
@@ -427,7 +520,7 @@
       {
         "name": "a deadline aborts the command, and the session goes on",
         "ok": true,
-        "elapsedMs": 601,
+        "elapsedMs": 583,
         "detail": {
           "failure": "the normalize outran its deadline of 500 ms and was aborted"
         }
@@ -435,18 +528,18 @@
       {
         "name": "a child that cannot answer the abort is killed, and nothing waits",
         "ok": true,
-        "elapsedMs": 1539,
+        "elapsedMs": 1543,
         "detail": {
-          "pid": 3937532,
+          "pid": 160320,
           "failure": "the normalize outran its deadline of 400 ms, and Agda was stopped"
         }
       },
       {
         "name": "a child that crashes ends the session, naming the signal",
         "ok": true,
-        "elapsedMs": 341,
+        "elapsedMs": 348,
         "detail": {
-          "pid": 3937591,
+          "pid": 160328,
           "detail": {
             "reason": "exit",
             "code": null,
@@ -457,15 +550,15 @@
       {
         "name": "disposal leaves no process",
         "ok": true,
-        "elapsedMs": 125,
+        "elapsedMs": 120,
         "detail": {
-          "pid": 3937609
+          "pid": 160334
         }
       }
     ],
     "totals": {
       "shared": {
-        "passed": 11,
+        "passed": 12,
         "failed": 0
       },
       "lifecycle": {
@@ -475,7 +568,7 @@
     }
   },
   "browser": {
-    "date": "2026-10-11T19:14:02.647Z",
+    "date": "2026-10-12T03:12:08.651Z",
     "engine": "browser",
     "browser": "Chrome/149.0.7827.200",
     "served": "without the isolation headers",
@@ -497,6 +590,7 @@
       "Goals.agda": "sha256:fd9eac93d9b232286957bb9b7a8285fb117e0ac51c0bd32e3a67054eca5e92c8",
       "Second.agda": "sha256:81b65e26798a5b663b0863ec480de4dad8f725b509dea948803a98018cdeb284",
       "Unicode.agda": "sha256:043068b911614b0cab53f317e80c302bdfe163ed70f26a46305a9fdccdc8664b",
+      "Crlf.agda": "sha256:93304b6fdfca679872d936fb6c297547692270e0f0ccf1fb7a1eb75801722abe",
       "Literate.lagda.md": "sha256:06af241dce5df4730e550b9231fa8ee80bd1b982405f3ed3eaa0958e3e0517ad",
       "Slow.agda": "sha256:bae06f835c68c946003daab49e7fb825f15a250ccc2823b1225663e6808df6cb"
     },
@@ -504,7 +598,7 @@
       {
         "name": "a session names its engine and Agda, and has no verdict to give",
         "ok": true,
-        "elapsedMs": 499,
+        "elapsedMs": 414,
         "transcript": {
           "agdaVersion": "2.9.0",
           "batch": false
@@ -513,7 +607,7 @@
       {
         "name": "a load with open goals answers them, and is not a verdict",
         "ok": true,
-        "elapsedMs": 729,
+        "elapsedMs": 605,
         "transcript": {
           "goals": [
             {
@@ -571,7 +665,7 @@
       {
         "name": "Agda's goal type and context",
         "ok": true,
-        "elapsedMs": 719,
+        "elapsedMs": 658,
         "transcript": {
           "goal0": {
             "goal": 0,
@@ -608,7 +702,7 @@
       {
         "name": "a valid give edits the goal and keeps the loaded basis",
         "ok": true,
-        "elapsedMs": 760,
+        "elapsedMs": 586,
         "transcript": {
           "give": {
             "goal": 0,
@@ -648,7 +742,7 @@
       {
         "name": "a rejected term is Agda's answer, and leaves the goal open",
         "ok": true,
-        "elapsedMs": 747,
+        "elapsedMs": 591,
         "transcript": {
           "accepted": false,
           "error": "<root>/Goals.agda:7.14-18: error: [UnequalTypes]\nThe type\n  Nat\nis not a subtype of\n  A\nwhen checking that the expression zero has type A"
@@ -657,7 +751,7 @@
       {
         "name": "an edit inside one goal is a give; any other edit is a reload, which retires the old goals",
         "ok": true,
-        "elapsedMs": 742,
+        "elapsedMs": 646,
         "transcript": {
           "plans": [
             "load",
@@ -675,7 +769,7 @@
       {
         "name": "a module switch cannot reuse the previous module's goals",
         "ok": true,
-        "elapsedMs": 766,
+        "elapsedMs": 623,
         "transcript": {
           "second": [
             {
@@ -724,7 +818,7 @@
       {
         "name": "a case split rewrites the clause, which a check then loads; a refine opens a goal",
         "ok": true,
-        "elapsedMs": 753,
+        "elapsedMs": 627,
         "transcript": {
           "clauses": [
             "choose red = ?",
@@ -773,7 +867,7 @@
       {
         "name": "positions in Unicode text, and terms outside ASCII",
         "ok": true,
-        "elapsedMs": 682,
+        "elapsedMs": 555,
         "transcript": {
           "goal": {
             "id": 0,
@@ -815,9 +909,101 @@
         }
       },
       {
+        "name": "positions in a text whose line ends are CR LF, which Agda reads as LF",
+        "ok": true,
+        "elapsedMs": 550,
+        "transcript": {
+          "goals": [
+            {
+              "id": 0,
+              "type": "Nat",
+              "agdaRange": {
+                "start": {
+                  "pos": 103,
+                  "line": 8,
+                  "col": 13
+                },
+                "end": {
+                  "pos": 108,
+                  "line": 8,
+                  "col": 18
+                }
+              },
+              "span": {
+                "from": 109,
+                "to": 114
+              }
+            },
+            {
+              "id": 1,
+              "type": "Nat",
+              "agdaRange": {
+                "start": {
+                  "pos": 124,
+                  "line": 9,
+                  "col": 16
+                },
+                "end": {
+                  "pos": 129,
+                  "line": 9,
+                  "col": 21
+                }
+              },
+              "span": {
+                "from": 131,
+                "to": 136
+              }
+            }
+          ],
+          "give": {
+            "goal": 0,
+            "accepted": true,
+            "goals": [
+              {
+                "id": 1,
+                "type": "Nat",
+                "agdaRange": {
+                  "start": {
+                    "pos": 124,
+                    "line": 9,
+                    "col": 16
+                  },
+                  "end": {
+                    "pos": 129,
+                    "line": 9,
+                    "col": 21
+                  }
+                },
+                "span": {
+                  "from": 130,
+                  "to": 135
+                }
+              }
+            ],
+            "newGoals": [],
+            "edit": {
+              "from": 109,
+              "to": 114,
+              "insert": "zero"
+            }
+          },
+          "other": {
+            "goal": 1,
+            "accepted": true,
+            "goals": [],
+            "newGoals": [],
+            "edit": {
+              "from": 130,
+              "to": 135,
+              "insert": "n"
+            }
+          }
+        }
+      },
+      {
         "name": "a literate module: goals in its code, none in its prose",
         "ok": true,
-        "elapsedMs": 713,
+        "elapsedMs": 561,
         "transcript": {
           "goal": {
             "id": 0,
@@ -858,13 +1044,13 @@
       {
         "name": "an abort with nothing running is nothing",
         "ok": true,
-        "elapsedMs": 429,
+        "elapsedMs": 408,
         "transcript": {
           "aborting": null
         }
       }
     ],
-    "passed": 11,
+    "passed": 12,
     "failed": 0,
     "lifecycle": [
       {
@@ -878,7 +1064,7 @@
       {
         "name": "a start whose compiler is not a compiler fails, and terminates its worker",
         "ok": true,
-        "elapsedMs": 15,
+        "elapsedMs": 11,
         "detail": {
           "message": "the compiler could not be loaded (TypeError: WebAssembly compilation aborted: Network error: Failed to read from a ReadableStream)"
         }
@@ -886,7 +1072,7 @@
       {
         "name": "a deadline aborts the command, and the session goes on",
         "ok": true,
-        "elapsedMs": 1743,
+        "elapsedMs": 1616,
         "detail": {
           "failure": "the normalize outran its deadline of 1000 ms and was aborted"
         }
@@ -894,7 +1080,7 @@
       {
         "name": "a worker that stops answering is ended by the deadline, and nothing waits",
         "ok": true,
-        "elapsedMs": 1890,
+        "elapsedMs": 1766,
         "detail": {
           "failure": "the normalize outran its deadline of 600 ms, and Agda was stopped"
         }
@@ -902,7 +1088,7 @@
       {
         "name": "disposal terminates the worker",
         "ok": true,
-        "elapsedMs": 440,
+        "elapsedMs": 404,
         "detail": {}
       },
       {
@@ -910,13 +1096,13 @@
         "ok": true,
         "elapsedMs": 0,
         "detail": {
-          "workers": 15
+          "workers": 16
         }
       }
     ],
     "totals": {
       "shared": {
-        "passed": 11,
+        "passed": 12,
         "failed": 0
       },
       "lifecycle": {
@@ -924,14 +1110,13 @@
         "failed": 0
       }
     },
-    "failure": null,
-    "console": []
+    "failure": null
   },
   "comparison": {
-    "date": "2026-10-11T19:14:02.746Z",
+    "date": "2026-10-12T03:12:09.063Z",
     "runs": {
-      "browser": "2026-10-11T19:14:02.647Z",
-      "native": "2026-10-11T19:13:48.616Z"
+      "browser": "2026-10-12T03:12:08.651Z",
+      "native": "2026-10-12T03:11:55.851Z"
     },
     "agda": {
       "browser": "2.9.0",
@@ -1012,6 +1197,14 @@
         "differences": []
       },
       {
+        "name": "positions in a text whose line ends are CR LF, which Agda reads as LF",
+        "passed": {
+          "browser": true,
+          "native": true
+        },
+        "differences": []
+      },
+      {
         "name": "a literate module: goals in its code, none in its prose",
         "passed": {
           "browser": true,
@@ -1030,28 +1223,54 @@
     ],
     "identical": true
   },
-  "control": {
-    "change": "The engine's OffsetTable.fromAgdaPos in the built package (packages/engine/dist/core/text.js, untracked) counted code points as UTF-16 units; both runners then ran against it, and the package was rebuilt after.",
-    "native": {
-      "passed": 10,
-      "failed": 1,
-      "failures": [
-        {
-          "name": "positions in Unicode text, and terms outside ASCII",
-          "error": "the goal's text: expected \"{! !}\", got \"\\udd39\\ntwi\""
-        }
-      ]
+  "controls": {
+    "unicode": {
+      "change": "OffsetTable.toUtf16 in the built package (packages/engine/dist/core/text.js, untracked) counted code points as UTF-16 units; both runners then ran against it, and the package was rebuilt with tsc -b --force after.",
+      "revision": "f37cbb0b99168a6609cbcea272a2c70cf3bc40cb",
+      "native": {
+        "passed": 11,
+        "failed": 1,
+        "failures": [
+          {
+            "name": "positions in Unicode text, and terms outside ASCII",
+            "error": "the goal's text: expected \"{! !}\", got \"\\udd39\\ntwi\""
+          }
+        ]
+      },
+      "browser": {
+        "passed": 11,
+        "failed": 1,
+        "failures": [
+          {
+            "name": "positions in Unicode text, and terms outside ASCII",
+            "error": "the goal's text: expected \"{! !}\", got \"\\udd39\\ntwi\""
+          }
+        ]
+      }
     },
-    "browser": {
-      "passed": 10,
-      "failed": 1,
-      "failures": [
-        {
-          "name": "positions in Unicode text, and terms outside ASCII",
-          "error": "the goal's text: expected \"{! !}\", got \"\\udd39\\ntwi\""
-        }
-      ]
-    },
-    "revision": "33da257afc8e16cdc56af39e3fb4275604554470"
+    "crlf": {
+      "change": "OffsetTable.fromAgdaPos in the built package (packages/engine/dist/core/text.js, untracked) counted a CR LF as two positions; both runners then ran against it, and the package was rebuilt with tsc -b --force after.",
+      "revision": "f37cbb0b99168a6609cbcea272a2c70cf3bc40cb",
+      "native": {
+        "passed": 11,
+        "failed": 1,
+        "failures": [
+          {
+            "name": "positions in a text whose line ends are CR LF, which Agda reads as LF",
+            "error": "the first goal's UTF-16 offset: expected 109, got 102"
+          }
+        ]
+      },
+      "browser": {
+        "passed": 11,
+        "failed": 1,
+        "failures": [
+          {
+            "name": "positions in a text whose line ends are CR LF, which Agda reads as LF",
+            "error": "the first goal's UTF-16 offset: expected 109, got 102"
+          }
+        ]
+      }
+    }
   }
 }
