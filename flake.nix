@@ -540,12 +540,23 @@
           # [--out DIR] [--root ROOT]...`: agda-algebras' archives under a
           # built site's reactor, in headless Chromium, every root and two
           # controls (scripts/library-archives/gate.mjs, which `make
-          # library-gate` runs after building its page; issue 13).
+          # library-gate` runs after building its page; issue 13).  It
+          # carries only the scripts the gate runs, so that its store path
+          # changes only when the gate does: library-archives.yml compares
+          # it with the base's to decide whether to run the gate.
           library-gate = {
             type = "app";
             program = toString (pkgs.writeShellScript "library-gate" ''
               export CHROME=${lib.getExe pkgs.chromium}
-              exec ${lib.getExe pkgs.nodejs_22} ${./scripts}/library-archives/gate.mjs "$@"
+              exec ${lib.getExe pkgs.nodejs_22} ${lib.fileset.toSource {
+                root = ./scripts;
+                fileset = lib.fileset.unions [
+                  ./scripts/library-archives/gate.mjs
+                  ./scripts/library-archives/index.mjs
+                  ./scripts/browser-check/cdp.mjs
+                  ./scripts/browser-check/serve.mjs
+                ];
+              }}/library-archives/gate.mjs "$@"
             '');
             meta.description = "Check agda-algebras' archives under a built site's reactor, in headless Chromium";
           };
