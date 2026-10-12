@@ -9,8 +9,9 @@
 #
 # usage: build.sh OUT
 #   env: WASMTIME, AGDA_WASM (stage.sh); AGDA_DATA_ZIP, STDLIB_ZIP and
-#        SOURCES_ZIP, the three archives the stage is laid out from; WORK, a
-#        directory to build in (default: a new temporary one)
+#        SOURCES_ZIP, the three archives the stage is laid out from; WORK, an
+#        empty directory to build in, kept (default: a new temporary one,
+#        removed at the end)
 #
 # What OUT holds, all of it determined by the inputs:
 #   stage/agda-algebras/_build/<version>/agda/src/**.agdai
@@ -32,7 +33,24 @@ here=$(cd "$(dirname "$0")" && pwd)
 . "$here/stage.sh"
 : "${WASMTIME:?}" "${AGDA_WASM:?}" "${AGDA_DATA_ZIP:?}" "${STDLIB_ZIP:?}" "${SOURCES_ZIP:?}"
 out=${1:?usage: build.sh OUT}
-work=${WORK:-$(mktemp -d)}
+# cp -R into a _build that exists would nest a second copy inside it.
+if [ -n "$(ls -A "$out" 2> /dev/null)" ]; then
+  echo "build: $out is not empty" >&2
+  exit 2
+fi
+# A work directory from another run would be laid out over (unzip stops to
+# ask about every file it would replace), so take an empty one, or make one
+# and remove it at the end.
+if [ -n "${WORK:-}" ]; then
+  if [ -n "$(ls -A "$WORK" 2> /dev/null)" ]; then
+    echo "build: WORK=$WORK is not empty" >&2
+    exit 2
+  fi
+  work=$WORK
+else
+  work=$(mktemp -d)
+  trap 'rm -rf "$work"' EXIT
+fi
 stage=$work/stage
 logs=$work/logs
 mkdir -p "$out" "$logs"

@@ -29,6 +29,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  rmSync,
   statSync,
   utimesSync,
   writeFileSync,
@@ -62,6 +63,20 @@ for (const name of ["interfaces", "sources", "stdlib", "builtins", "wasm", "comm
     );
     process.exit(2);
   }
+
+// zip adds to an archive that exists, keeping its other entries, so a
+// second run into the same OUT would ship what the first left.
+if (existsSync(out) && readdirSync(out).length) {
+  console.error(`pack.mjs: ${out} is not empty`);
+  process.exit(2);
+}
+
+// The temporary trees below, removed however the run ends.
+/** @type {string[]} */
+const temporary = [];
+process.on("exit", () => {
+  for (const dir of temporary) rmSync(dir, { recursive: true, force: true });
+});
 
 /** @param {string} command @param {string[]} argv @param {object} [options] */
 function run(command, argv, options = {}) {
@@ -113,7 +128,10 @@ function sourcesIn(zip, prefix, drive) {
 // ---- What build.sh wrote ---------------------------------------------------
 
 const stage = join(args.interfaces, "stage");
-const [version] = readdirSync(join(stage, "agda-algebras", "_build"));
+const versions = readdirSync(join(stage, "agda-algebras", "_build"));
+if (versions.length !== 1)
+  throw new Error(`${stage}: interfaces for ${versions.length} Agda versions, not 1`);
+const [version] = versions;
 const interfaceRoots = {
   "agda-algebras": `agda-algebras/_build/${version}/agda/src`,
   "standard-library": `stdlib/_build/${version}/agda/src`,
@@ -122,6 +140,7 @@ const interfaceRoots = {
 // The builtins' interfaces, from agda-data.zip, which the drive holds from
 // the start.
 const builtins = mkdtempSync(join(tmpdir(), "agda-data-"));
+temporary.push(builtins);
 run("unzip", ["-q", args.builtins, "-d", builtins]);
 const builtinRoot = `lib/prim/_build/${version}/agda`;
 
@@ -217,6 +236,7 @@ for (const [key, members] of [...archives]) {
 
 mkdirSync(join(out, "interfaces"), { recursive: true });
 const tree = mkdtempSync(join(tmpdir(), "interfaces-"));
+temporary.push(tree);
 for (const { file, drivePath } of modules.values()) {
   if (!drivePath.startsWith("/agda-algebras/") && !drivePath.startsWith("/stdlib/"))
     continue;

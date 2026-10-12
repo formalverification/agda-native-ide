@@ -248,7 +248,10 @@ the check stages each root from what `needs` says.
 
 To find what a set of imports needs: walk `deps` from the imported modules
 (everything reached is the closure, since Agda's graph keeps reachability
-exact), and take each reached module's `archive`, less `null`.  The index
+exact), and take each reached module's `archive`, less `null`.  An import
+the index does not list (a standard-library module agda-algebras does not
+reach, or a reader's own) has no archive here, and Agda checks it from
+source; `needs` returns it in `unknown`.  The index
 is one archive and one module per line, so that two indexes diff by line.
 It is 285,618 bytes, 42,353 gzipped.
 
@@ -286,8 +289,9 @@ It is 285,618 bytes, 42,353 gzipped.
    is a separate build of the same commit at the same word size; the plain
    `agda` is its proxy until then ([#58] found the server accepts the
    builtins the plain `agda` built).  `check.sh` takes a list of roots and
-   the compiler (`AGDA_WASM`), and `stage.sh` lays a stage out from the
-   index, so [#13] can reuse both.
+   the compiler (`AGDA_WASM`), `stage.sh` lays a stage out as the page's
+   drive, and `index.mjs` names the archives a root needs, so [#13] can
+   reuse all three.
 
 ## CI
 

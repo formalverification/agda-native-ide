@@ -48,7 +48,12 @@ export function readIndex(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-/** Every module the given modules reach, themselves included.
+/** Whether the index lists a module.
+ * @param {Index} index @param {string} name */
+export const listed = (index, name) => Object.hasOwn(index.modules, name);
+
+/** Every module the given modules reach, themselves included; each must be
+ * listed, and what a listed module reaches is.
  * @param {Index} index @param {string[]} roots */
 export function closure(index, roots) {
   const seen = new Set();
@@ -56,8 +61,8 @@ export function closure(index, roots) {
   while (todo.length) {
     const name = /** @type {string} */ (todo.pop());
     if (seen.has(name)) continue;
+    if (!listed(index, name)) throw new Error(`not in the index: ${name}`);
     const module = index.modules[name];
-    if (!module) throw new Error(`not in the index: ${name}`);
     seen.add(name);
     todo.push(...module.deps);
   }
@@ -65,10 +70,14 @@ export function closure(index, roots) {
 }
 
 /** The archives a set of imports needs, sorted, with what they hold: the
- * closure's interfaces (the floor) and the archives' own bytes.
+ * closure's interfaces (the floor) and the archives' own bytes.  An import
+ * the index does not list (a standard-library module agda-algebras does not
+ * reach, a reader's own) has no archive here, and Agda checks it from
+ * source: it is returned in `unknown`, and needs nothing.
  * @param {Index} index @param {string[]} roots */
 export function needs(index, roots) {
-  const modules = closure(index, roots);
+  const unknown = roots.filter((root) => !listed(index, root));
+  const modules = closure(index, roots.filter((root) => listed(index, root)));
   const archives = new Set();
   let floor = 0;
   for (const name of modules) {
@@ -83,6 +92,7 @@ export function needs(index, roots) {
     archives: sorted,
     bytes: sorted.reduce((sum, path) => sum + index.archives[path].bytes, 0),
     floor,
+    unknown,
   };
 }
 
@@ -143,6 +153,11 @@ export function summary(index) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const [command, path, ...roots] = process.argv.slice(2);
+  const unlisted = path ? roots.filter((root) => !listed(readIndex(path), root)) : [];
+  if (unlisted.length) {
+    console.error(`not in the index: ${unlisted.join(" ")}`);
+    process.exit(2);
+  }
   if (command === "needs" && path && roots.length) {
     for (const archive of needs(readIndex(path), roots).archives)
       console.log(archive);

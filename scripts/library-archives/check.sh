@@ -20,8 +20,9 @@
 #             changed under its interface
 #   env: WASMTIME, AGDA_WASM (stage.sh); AGDA_DATA_ZIP and STDLIB_ZIP, the
 #        builtins and the standard library the page ships; JOBS, the checks
-#        run at once (default 4); WORK, a directory to stage in (default: a
-#        new temporary one); MAIN_OPTIONS, Main's options line (default
+#        run at once (default 4); WORK, an empty directory to stage in, kept
+#        (default: a new temporary one, removed at the end); MAIN_OPTIONS,
+#        Main's options line (default
 #        agda-algebras'); CONTROL_ROOT (default Overture.Basic)
 #
 # A root's stage links its files to one copy of each archive, made read-only,
@@ -37,7 +38,19 @@ if [ "${1:-}" = --controls ]; then controls=1; shift; fi
 archives=${1:?usage: check.sh [--controls] ARCHIVES REPORT [ROOT...]}
 report=${2:?usage: check.sh [--controls] ARCHIVES REPORT [ROOT...]}
 shift 2
-work=${WORK:-$(mktemp -d)}
+# A work directory from another run would be laid out over (unzip stops to
+# ask about every file it would replace), so take an empty one, or make one
+# and remove it at the end.
+if [ -n "${WORK:-}" ]; then
+  if [ -n "$(ls -A "$WORK" 2> /dev/null)" ]; then
+    echo "check: WORK=$WORK is not empty" >&2
+    exit 2
+  fi
+  work=$WORK
+else
+  work=$(mktemp -d)
+  trap 'rm -rf "$work"' EXIT
+fi
 export MAIN_OPTIONS=${MAIN_OPTIONS:-'{-# OPTIONS --without-K --exact-split --safe #-}'}
 control_root=${CONTROL_ROOT:-Overture.Basic}
 # xargs -P 0 runs every check at once, at up to 1 GiB each.
