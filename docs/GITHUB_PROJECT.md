@@ -597,7 +597,7 @@ Record the runtime decision in the ADR form agda-native-air uses (decision, evid
 
 ---
 
-### Issue M0-8: Say so when the page cannot run in this browser (#8)
+### Issue M0-8: Say so when the page cannot run in this browser (#8, closed)
 
 **Labels:** `bug`, `milestone-0-foundations`, `runtime`
 
@@ -654,7 +654,7 @@ The same GHC and GMP gap is in agda-algebras PR 585's published notice.
 
 ---
 
-### Issue M0-10: Ship builtin interfaces the shipped Agda accepts (#49)
+### Issue M0-10: Ship builtin interfaces the shipped Agda accepts (#49, closed)
 
 **Labels:** `bug`, `milestone-0-foundations`, `runtime`
 
@@ -883,7 +883,7 @@ Risk to record: a nightly moves and a pin does not.  Keep the move to the releas
 
 ---
 
-### Issue M0-14: The reactor build and the drive in its worker: no shared memory, no isolation headers (#59)
+### Issue M0-14: The reactor build and the drive in its worker: no shared memory, no isolation headers (#59, closed)
 
 **Labels:** `milestone-0-foundations`, `runtime`, `hosting`, `measurement`
 
@@ -1010,7 +1010,7 @@ The harness, the arms and the records are kept beside the repository in `runs-20
 
 ---
 
-### Issue M0-15: ADR 0002: where the workbench lives: three platforms, one shared core, Agda 2.9.0 (#60)
+### Issue M0-15: ADR 0002: where the workbench lives: three platforms, one shared core, Agda 2.9.0 (#60, closed)
 
 **Labels:** `documentation`, `milestone-0-foundations`, `adr`
 
@@ -1051,6 +1051,35 @@ The platform brief's native figures were measured on 2026-10-05 and kept beside 
 | total | 314 | 63,719,275 | 54,294,820 |
 
 [#50]: https://github.com/formalverification/agda-native-ide/issues/50
+
+---
+
+### Issue M0-16: Each agent harness, set up for this repository: instructions, skills, the gates, and agda-mcp (#82)
+
+**Labels:** `documentation`, `milestone-0-foundations`, `cross-repo`
+
+Work on this repository is no longer done by one harness.  Codex CLI with GPT-6.1 Sol has [#17] as the first trial of another harness and model here, with [#63] next, and Copilot CLI may follow; each trial begins with setup that the next one should not have to rediscover.  The general part (the plans and what they cost, installation, sign-in, the model and its reasoning effort, and registering agda-mcp with each harness) is agda-native-air's, on a public page of its site that an outside write-up will link: [agda-native-air#247].  This issue is the repository's own part: what a harness needs to work here, and what goes wrong here that does not elsewhere.  It becomes a contributor page, `docs/agents.md` or a name that fits the docs better, linked from the README, with the following sections.
+
++  **Instructions and skills, and which harness sees them**.  The repository tracks neither.  claude-tooling installs `CLAUDE.md` as a symlink in `~/git/formalverification/agda-native-ide/`, the directory above `main/` and `worktrees/`, where Claude Code finds it by walking up from its working directory; the skills reach each worktree through a `.claude` symlink at the worktree's root (claude-tooling's `link-worktrees.sh`), because Claude Code searches for skills only up to that root.  By their documented rules, Codex CLI reads `AGENTS.md` and `.agents/skills` from the repository's root down, so it sees neither, and Copilot CLI reads `.claude/skills` in the repository, so it may find the skills through that symlink but not the parent's `CLAUDE.md`; the kickoff prompts of [#17] and [#63] tell a Codex session to read `CLAUDE.md` by path for that reason.  Record what each harness actually loads here, as observed in a session with the harness's version and the date, and what claude-tooling's second link targets ([claude-tooling#27]) change once they land.
++  **The dev shell and the gates**.  How each harness is started inside `nix develop` at a worktree's root, and whether `make check`, `make test`, `make build` and `make browser-check` run from its session under its default sandbox and approval settings: `make build` checks the pinned assets, and `make browser-check` runs `nix run .#browser-check`, which needs the Nix daemon and starts headless Chromium.  Give the settings that let each gate run, or name the gate that cannot and say why.
++  **agda-mcp here**.  Most issues here are TypeScript and Svelte and need no Agda server.  The ones that check Agda do (agda-algebras and its standard library under 2.9.0 in [#61], the library archives of Milestone 1, the PLFA sources under `static/plfa/`), and for them the server runs a native Agda 2.9.0, named with the launcher's `--agda-bin`, with the library file it reads.  Say which registration a session on such an issue uses, per harness, and whether the native Agda must be the commit the page's compiler is built from.
++  **What leaves the machine**.  The repository is private, and a session sends what it reads to the model's provider.  Per harness and plan, give the provider's data-use default and the setting that controls it, as read on a date.
++  **This project's own servers, later**.  When the local bridge of [#38] and the MCP server definition of [#65] land, the page gains how each harness registers them; until then, one line says so.
+
+#### Acceptance criteria
+
++  The page exists, the README links it, and it covers every harness that has worked on an issue here, each section dated and naming the harness's version.
++  It links agda-native-air's page for everything not specific to this repository, and repeats none of it.
++  What each harness loaded here (instructions, skills, MCP servers) is stated as observed, not as documented.
++  Every gate runs from each harness's session, or the page names the gate that cannot and says why.
+
+[#17]: https://github.com/formalverification/agda-native-ide/issues/17
+[#38]: https://github.com/formalverification/agda-native-ide/issues/38
+[#61]: https://github.com/formalverification/agda-native-ide/issues/61
+[#63]: https://github.com/formalverification/agda-native-ide/issues/63
+[#65]: https://github.com/formalverification/agda-native-ide/issues/65
+[agda-native-air#247]: https://github.com/formalverification/agda-native-air/issues/247
+[claude-tooling#27]: https://github.com/williamdemeo/claude-tooling/issues/27
 
 <!-- END GENERATED: milestone-0 -->
 
@@ -1144,6 +1173,42 @@ The packing the measurement recommends: the standard library in nine dependency 
 #### Revision, 2026-10-05: three platforms, Agda 2.9.0
 
 The archives are built by the pinned Agda 2.9.0 ([M0-13]), laid out under `_build/2.9.0/agda/`, from the agda-algebras commit [M1-17] settles.  The platform brief measured the HSP closure under 2.8.0 at 314 modules and 54.3 MB gzipped per interface (63.7 MB raw); re-measure under 2.9.0 and record the difference.
+
+
+
+
+#### Findings, 2026-10-11: the pipeline under Agda 2.9.0, built by the wasm `agda`
+
+The pipeline exists, on this issue's branch: `nix build .#agda-algebras-archives` builds the archives and their index from agda-algebras `f067d57d`, `nix build .#agda-algebras-check` checks every root from them, and a CI job of its own, `library-archives.yml`, runs both. `docs/notes/library-archives.md` explains them, and ADR 0001 § 10 records the decisions (rows 29 to 35). The local figures below are in `docs/measurements/library-archives-2026-10-11.json`; the runner's are in run [38153481044][run]. They revise the body above, whose figures are 2.8.0's, as follows.
+
++  **Built by the compiler's `agda.wasm`, not natively**: Agda 2.9.0 writes an interface's integers at the word size of the Agda that writes it ([#13]'s findings of 2026-10-07), so the body's native build would ship interfaces the page silently checks again. The package runs the compiler's plain `agda.wasm` under nixpkgs' wasmtime 38.0.4 in the Nix sandbox, over a stage laid out as the page's drive from the archives the page mounts (`agda-data.zip`, the standard library's archive, and agda-algebras' sources at `/agda-algebras`, the layout of [#11]'s finding), mounted as the guest's root with the page's `HOME` and `Agda_datadir`. Every interface lands under its library's `_build/2.9.0/agda/src/`, and no builtin is checked again.
++  **What is built**: `agda --build-library` at `/agda-algebras`, from an empty `_build`: all 350 modules of agda-algebras, `Legacy/` included, and the 251 standard-library modules they import; no builtin. It finds the modules itself and sorts their paths (`Agda.Interaction.BuildLibrary`), so no generated `Everything.agda` is needed and the order does not depend on the filesystem.
++  **Time and memory**: six builds on this workstation (i9-12900H, 20 threads, 64 GB, Linux 7.0.0-31-generic): 5 min 54 s to 6 min 59 s for `--build-library` in three with the machine quieter (12:00 and 20:36 to 20:43 MDT; one of them by `build.sh` outside the Nix sandbox, at a host path), and 12 min 27 s, 12 min 22 s and 10 min 27 s from 09:17 MDT, while other sessions loaded it, each started at a 1-minute load of 2.1 to 3.5 (7.2 to 8.6 once wasmtime's own compile had run); GHC's total memory in use 995 MiB each time (maximum residency 584,345,808 bytes), a quarter of a wasm32 heap's 4 GiB; peak RSS 1,353,444 to 1,353,720 KiB. wasmtime compiles `agda.wasm` once per derivation, 21.9 to 22.9 s at 4,554,164 to 4,568,428 KiB, the build's peak. The probe of 2026-10-10 built the same inputs in 7 min 3 s, as the quiet build did; the loaded ones ran slower because this laptop CPU's cores fall to 2.2 GHz under load (the probe's own warm check of the HSP `Main` took 11.1 s during them, against 6.1 to 7.0 s then), so the times are indicative.
++  **The index comes from Agda's graph**: `--dependency-graph` of a module importing all 350, over the built stage, with only that module checked (15.3 to 22.5 s): 614 nodes and 1,197 edges. Agda builds it from each interface's own imports and reduces it transitively, so reachability in it is exact.
++  **Reproducible, by one fixed procedure**: the six builds wrote the same bytes (the third by `nix build --rebuild`, the fifth outside the sandbox at a host path), and `--rebuild` of the archives passes; with a timestamp written into the output, `--rebuild` fails ("may not be deterministic"). The body's 65 interfaces that differed between directories cannot differ by path here, since every build sees the guest's paths. The order still matters: the probe, which built the same inputs through a generated `Everything.agda`, wrote 600 of the 601 interfaces identically, and the umbrella module `agda-algebras` differently (314,087 bytes against 284,544), its payload holding 70 deprecation warnings that name `Legacy/` sources where the package's holds none. So the fixed procedure is `--build-library`'s order, in the sandbox.
++  **Sizes** (agda-algebras `f067d57d`): agda-algebras' 350 interfaces are 35,969,481 bytes, the standard library's 251 are 33,999,343, and the 12 builtins they reach 94,889 (in `agda-data.zip`, already shipped). The sources archive is 985,864 bytes, deflated; the index 285,618 (42,353 gzipped).
++  **The HSP closure beside [#61]'s native figures**: 313 modules besides `Main`, as before: agda-algebras 92 modules and 10,678,966 bytes (native, at `22f67aa5` and still `--cubical-compatible`: 12,469,807), the standard library 212 and 28,507,165 (29,217,465), the builtins 9 and 65,996 (69,044); 39,252,127 in all, against 41,756,316 native under 2.9.0 (both without `Main`) and 63.7 MB raw (54.3 MB gzipped) under 2.8.0.
++  **The packing, derived again**: compression buys nothing (the payload is zstd; gzip saves 0.09% on the HSP closure), so the archives are stored zips, named `.zip` for the edge cache and for the drive's `mountArchive`. The body's tiers, reconstructed on these interfaces, fetch 15,858,563 bytes for `Overture.Basic` against a floor of 4,306,193, since a tier carries everything any module of its directory needs. The packing adopted is one archive per agda-algebras module, and the standard-library modules grouped by the set of agda-algebras modules that reach them (45 groups): a group is needed whole or not at all by any set of agda-algebras imports, so an import fetches its closure's interfaces and only zip headers more. That is 395 archives, 70,104,812 bytes, the largest 6,965,690, every one far under 25 MiB, though 183 of the 350 closures exceed 25 MiB. The cost is the number of files: 82 for the median root.
+
+| Imports | Modules | Archives | Bytes fetched | Floor |
+|---|---:|---:|---:|---:|
+| `Overture.Basic` | 66 | 14 | 4,318,471 | 4,306,193 |
+| `Setoid.Algebras.Basic` | 179 | 50 | 16,974,016 | 16,939,046 |
+| `Setoid.Varieties.HSP` | 313 | 128 | 39,251,541 | 39,186,131 |
+| the three together | 313 | 128 | 39,251,541 | 39,186,131 |
+| `agda-algebras` (the heaviest) | 603 | 385 | 69,376,238 | 69,242,574 |
+
+The modules count the builtins, which are on the drive from the start; the floor is the closure's other interfaces. Under 2.8.0 the body's packing fetched 99 files and 54.6 MB for the three together, against a floor of 54.3 MB.
+
++  **The check**: every root on a fresh stage holding the builtins, both libraries' sources and only the archives the index names for it, with a `Main` importing it under agda-algebras' options line (`--without-K --exact-split --safe`): 350 of 350 type-checked `Main` alone (one `Checking` line, counted unanchored, and exit 0), eight at once, in 7 min 21 s here (the checks' own times sum to 3,271 s; the slowest root, `Examples.Classical`, 25.7 s; the most memory, the umbrella module's, 1,029,252 KiB), and in an earlier run of the script before its last change, 7 min 25 s. The controls, on `Overture.Basic`: with its own archive left out, 2 `Checking` lines (exit 0); with one byte of its source changed, 2 lines (exit 42, since Agda cannot overwrite the shared, read-only interface).
++  **On GitHub's runner** (2 cores, 7.8 GiB, 3 GiB of swap; run [38153481044][run], 58 minutes in all): the interfaces with their inputs in 13 min 43 s, `--build-library` itself 10 min 33 s (981 MiB of GHC's total memory in use, peak RSS 1,351,012 KiB) after wasmtime's compile (1 min 12 s at 4,501,604 KiB); their `--rebuild` in 12 min 3 s, passed; the archives in 8 s; the check, two at once, in 30 min 6 s, 350 of 350, the controls 2 and 2 (the slowest root 22.8 s, the most memory 1,048,188 KiB). No swap was used; the memory sampled every two minutes never passed 2,923 MiB. Its index, summary and report are byte for byte the ones built here, so all 395 archives reproduce across machines. A push that changed nothing the archives are built from built nothing, in 21 s (run [38159537130][skip]): the job compares the check's derivation at the base and the head first, since without a Nix cache every run would build everything, and nearly every change touches `flake.nix`. The `--rebuild` runs on `main` and on demand only, which leaves a pull request's run at about 46 minutes when it does build.
++  **The criteria**: the first (the archives and the index regenerate from the pinned commit with one command, in CI) holds: `nix build .#agda-algebras-archives`, and the CI job above. The second (for each root, a cold check that mounts only what the index names type-checks only the root) holds for all 350 roots under the compiler's plain `agda`, here and on the runner; under the language server in a browser it is [#13]'s gate. The third (the total and per-root sizes recorded with the run) holds: the job's step summary and uploaded index carry them, and the measurement record carries every root's.
+
+[run]: https://github.com/formalverification/agda-native-ide/actions/runs/38153481044
+[skip]: https://github.com/formalverification/agda-native-ide/actions/runs/38159537130
+[#11]: https://github.com/formalverification/agda-native-ide/issues/11
+[#13]: https://github.com/formalverification/agda-native-ide/issues/13
+[#61]: https://github.com/formalverification/agda-native-ide/issues/61
 
 ---
 
@@ -1239,7 +1304,7 @@ In ualib/agda-algebras: the navigation's "Playground" entry links to this IDE an
 
 ---
 
-### Issue M1-9: A dark theme (#17)
+### Issue M1-9: A dark theme (#17, closed)
 
 **Labels:** `milestone-1-library-ide`, `ui`
 
@@ -1653,7 +1718,7 @@ Shared; the lane it uses is whichever engine implementation the host has ([M3-7]
 
 ---
 
-### Issue M3-7: The shared core as packages: the engine interface with a wasm and a native implementation (#62)
+### Issue M3-7: The shared core as packages: the engine interface with a wasm and a native implementation (#62, closed)
 
 **Labels:** `milestone-3-tool-server`, `runtime`, `tool-server`, `adr`, `core`
 
@@ -1871,7 +1936,7 @@ The commands go through the host's engine: the wasm lane in the page; the native
 
 <!-- BEGIN GENERATED: milestone-7 -->
 
-### Issue M7-1: A companion extension beside agda-mode-vscode: activation, a webview host, and the mode driven through its commands (#63)
+### Issue M7-1: A companion extension beside agda-mode-vscode: activation, a webview host, and the mode driven through its commands (#63, closed)
 
 **Labels:** `ui`, `milestone-7-vscode`, `vscode`
 

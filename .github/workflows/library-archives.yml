@@ -1,0 +1,181 @@
+# File: .github/workflows/library-archives.yml
+#
+# agda-algebras' archives (issue 12): its interfaces built by the
+# compiler's plain agda under wasmtime, packed and indexed, and every root
+# checked cold from the archives the index names
+# (docs/notes/library-archives.md), with the interfaces built a second
+# time to prove the bytes reproduce.  The sizes, the check's counts and the build's time and memory go to the
+# step summary; the index, the summary and the check's report are
+# uploaded.  The archives themselves are not: nothing ships them until the
+# page mounts them (issue 14), and `nix build .#agda-algebras-archives`
+# rebuilds them from the pins.
+#
+# It runs on demand, and when a push to main or a pull request changes
+# what the archives are built from: the flake (the pins of agda-algebras,
+# the compiler, the standard library and wasmtime), the standard library's
+# patches, the compiler's hashes, the scripts, or this file.  The runner's
+# memory is logged every two minutes: wasmtime compiles the 34 MB
+# agda.wasm once per derivation, at about 4.3 GiB, on a runner with 7.8
+# GiB.
+#
+# What it costs: measured 2026-10-11 on a 2-core runner, while the
+# repository was private (7.8 GiB, 3 GiB of swap, none of it used; run
+# 38153481044), 58 minutes: the interfaces with their inputs 13.7, again
+# with --rebuild 12.1, the archives 0.1, and the check of every root, two
+# at once, 31.5.  Nearly every change touches flake.nix, so the job first
+# evaluates the check's derivation at the base (the pull request's base,
+# or the commit before a push) and at the head, which takes seconds, and
+# builds nothing when the two are the same derivation and this file is
+# unchanged: that derivation is the one the base proved.
+#
+# The public formalverification Cachix cache, which agda-algebras' CI
+# also uses, is read on every run, so a derivation built before is
+# fetched rather than built; its write token, CACHIX_AUTH_TOKEN, reaches
+# the action only on main, since a pull request's run executes what the
+# pull request changed.  The second build is never fetched: --rebuild
+# builds again here and compares with what the first build gave, built or
+# fetched.
+
+name: library-archives
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - flake.nix
+      - flake.lock
+      - stdlib/patches/**
+      - compiler/agda-2.9.0.sha256
+      - scripts/library-archives/**
+      - .github/workflows/library-archives.yml
+  pull_request:
+    paths:
+      - flake.nix
+      - flake.lock
+      - stdlib/patches/**
+      - compiler/agda-2.9.0.sha256
+      - scripts/library-archives/**
+      - .github/workflows/library-archives.yml
+
+permissions:
+  contents: read
+
+# A newer run cancels one in progress on a pull request, but never on
+# main: a later push's guard compares against the commit before it, so
+# that commit's run must finish.
+concurrency:
+  group: library-archives-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  archives:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@v27
+      - uses: cachix/cachix-action@v17
+        with:
+          name: formalverification
+          authToken: ${{ github.ref == 'refs/heads/main' && secrets.CACHIX_AUTH_TOKEN || '' }}
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
+          # Not what the flake fetches by hash from GitHub anyway: the
+          # compiler's files and the sources' tarballs.
+          pushFilter: '(-source|-agda\.wasm|-als\.wasm|-als-reactor\.wasm|-als-reactor\.js|-agda-2\.9\.0-compiler)$'
+      - name: Decide whether the archives' derivation changed
+        id: changed
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          head=$(nix eval --raw .#agda-algebras-check.drvPath)
+          base=none
+          if [ "$EVENT" != workflow_dispatch ] && [ -n "$BASE" ] \
+              && git fetch -q --depth=1 origin "$BASE" 2> /dev/null; then
+            base=$(nix eval --raw "git+file://$PWD?rev=$BASE&shallow=1#agda-algebras-check.drvPath" 2> /dev/null) \
+              || base=none
+          fi
+          echo "head: $head"
+          echo "base ($BASE): $base"
+          if [ "$head" = "$base" ] \
+              && git diff --quiet "$BASE" HEAD -- .github/workflows/library-archives.yml; then
+            echo "The archives' derivation is the base's, $head: nothing to build." \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+            echo build=false >> "$GITHUB_OUTPUT"
+          else
+            echo build=true >> "$GITHUB_OUTPUT"
+          fi
+      - name: Say what the runner has
+        if: steps.changed.outputs.build == 'true'
+        run: |
+          nproc
+          free -h
+          df -h / || true
+      - name: Build the interfaces
+        if: steps.changed.outputs.build == 'true'
+        run: |
+          (while sleep 120; do
+            free -m | awk 'NR == 2 { m = $3 " of " $2 } NR == 3 { print "== memory: " m " MiB used, swap " $3 " of " $2 " MiB" }'
+          done) &
+          trap 'kill $! 2> /dev/null || true' EXIT
+          nix build .#agda-algebras-interfaces --print-build-logs
+      - name: Build them again, and fail if a byte differs
+        id: rebuild
+        if: steps.changed.outputs.build == 'true'
+        run: nix build .#agda-algebras-interfaces --rebuild --keep-failed
+      - name: Say what differed
+        if: failure() && steps.rebuild.outcome == 'failure'
+        run: |
+          out=$(nix path-info .#agda-algebras-interfaces)
+          diff -r "$out" "$out.check" | head -200 || true
+      - name: Pack the archives and write the index
+        if: steps.changed.outputs.build == 'true'
+        run: |
+          nix build .#agda-algebras-archives --print-build-logs
+          nix build .#agda-algebras-archives --rebuild
+      - name: Check every root from the archives the index names
+        if: steps.changed.outputs.build == 'true'
+        run: |
+          (while sleep 120; do
+            free -m | awk 'NR == 2 { m = $3 " of " $2 } NR == 3 { print "== memory: " m " MiB used, swap " $3 " of " $2 " MiB" }'
+          done) &
+          trap 'kill $! 2> /dev/null || true' EXIT
+          nix build .#agda-algebras-check --print-build-logs
+      - name: Record the sizes, the counts, and the build's time and memory
+        if: always() && steps.changed.outputs.build == 'true'
+        run: |
+          archives=$(nix path-info .#agda-algebras-archives 2> /dev/null) || exit 0
+          mkdir -p records
+          cp "$archives/index.json" "$archives/summary.md" records/
+          {
+            echo "### agda-algebras' archives"
+            echo
+            cat "$archives/summary.md"
+            echo
+            echo '```'
+            nix log .#agda-algebras-interfaces | grep -E '^build: |Elapsed|Maximum resident|total memory in use' || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if check=$(nix path-info .#agda-algebras-check 2> /dev/null); then
+            cp "$check/report.txt" records/
+            nix log .#agda-algebras-check > records/check.log || true
+            {
+              echo
+              echo "The check: $(awk 'NR > 1 && $1 !~ /^control:/ && $2 == 0 && $3 == 1' "$check/report.txt" | wc -l) of $(awk 'NR > 1 && $1 !~ /^control:/' "$check/report.txt" | wc -l) roots type-checked Main alone; the controls:"
+              echo
+              echo '```'
+              grep '^control:' "$check/report.txt"
+              grep -E '^check: (done|[0-9]+ of)' records/check.log || true
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.changed.outputs.build == 'true'
+        with:
+          name: library-archives
+          path: records
+          if-no-files-found: warn
+      - name: Disk usage after the build
+        if: always() && steps.changed.outputs.build == 'true'
+        run: df -h / || true

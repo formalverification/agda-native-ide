@@ -63,7 +63,8 @@ together from one `package-lock.json`.
 +  [`docs/adr/0001-runtime.md`][adr-0001]: ADR 0001, the runtime: why this
    fork, how it is imported and pinned, and the second lane.  Its
    companion, [`docs/notes/runtime.md`][runtime-note], explains how the
-   runtime works.
+   runtime works, and [`docs/notes/library-archives.md`][archives-note]
+   explains agda-algebras' archives (its § 10).
 +  [`docs/adr/0002-where-the-workbench-lives.md`][adr-0002]: ADR 0002, where
    the workbench lives: three platforms with different jobs, one shared
    core, and Agda 2.9.0, with the measurements behind them and the risks.
@@ -152,6 +153,19 @@ and two builds of one commit are identical: `nix build .#site --rebuild`
 builds it again and fails if a byte differs.  After a change to
 `package-lock.json`, update `npmDepsHash` in `flake.nix` (its comment says
 how).
+
+`nix build .#agda-algebras-archives` builds agda-algebras' archives for
+the page ([#12]), from the commit `flake.nix` pins: the library's
+interfaces and those of the standard-library modules it imports, built by
+the compiler's own `agda.wasm` under wasmtime in the Nix sandbox (6 to 13
+minutes on a 20-core workstation, by its load), packed so that an import
+fetches its closure's interfaces and nothing else, with an index of every
+module and archive and the sources as one archive.  `nix build
+.#agda-algebras-check` checks every module of the library, cold, from the
+archives the index names for it, and CI's
+[`library-archives.yml`][archives-ci] runs both when what they are built
+from changes.  The page does not mount them yet ([#14]);
+[`docs/notes/library-archives.md`][archives-note] explains them.
 
 `make browser-check` (or `nix run .#browser-check -- <site>`, for any
 built site, such as `nix build .#site`'s `result`) serves the site and uses
@@ -319,6 +333,8 @@ every artifact the app ships, with its license.
 [upstream-license]: LICENSE.plfa-playground
 [adr-0001]: docs/adr/0001-runtime.md
 [runtime-note]: docs/notes/runtime.md
+[archives-note]: docs/notes/library-archives.md
+[archives-ci]: .github/workflows/library-archives.yml
 [adr-0002]: docs/adr/0002-where-the-workbench-lives.md
 [adr-0003]: docs/adr/0003-the-shared-core.md
 [engine-overview]: docs/engine/overview.md
@@ -334,5 +350,7 @@ every artifact the app ships, with its license.
 [williamdemeo/github-project]: https://github.com/williamdemeo/github-project
 [formalverification/agda-wasm-builds]: https://github.com/formalverification/agda-wasm-builds
 [#8]: https://github.com/formalverification/agda-native-ide/issues/8
+[#12]: https://github.com/formalverification/agda-native-ide/issues/12
+[#14]: https://github.com/formalverification/agda-native-ide/issues/14
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59

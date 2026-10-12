@@ -196,6 +196,109 @@
           ${compiler}/agda.wasm "$@"
       '';
 
+      # agda-algebras' archives (issue 12), as docs/notes/library-archives.md
+      # describes them: its sources, its interfaces and those of the
+      # standard-library modules it imports, built by the compiler's plain
+      # agda over a stage laid out as the page's drive, packed so that a
+      # reader fetches what an import needs, and an index of it all.  To
+      # move to another commit, change rev and hash together (with
+      # lib.fakeHash, the build reports the hash).
+      agdaAlgebras = {
+        rev = "f067d57d367a4830834ce1fd80937820754f9a28"; # master, 2026-10-10
+        hash = "sha256-5lLdkWSOttoSLr/Prxp+0XgCFYH0FIPzn4ckJfIzUOI=";
+      };
+      agdaAlgebrasSource = pkgs: pkgs.fetchFromGitHub {
+        owner = "ualib";
+        repo = "agda-algebras";
+        inherit (agdaAlgebras) rev hash;
+      };
+
+      # The scripts a derivation runs, each derivation only its own, so that
+      # a change to one script rebuilds only what runs it.
+      libraryScripts = files: lib.fileset.toSource {
+        root = ./scripts/library-archives;
+        fileset = lib.fileset.unions files;
+      };
+
+      # The sources, as the page will mount them (at /, so under
+      # agda-algebras/): the library file, src/, and the license texts its
+      # NOTICE names for them; a zip whose bytes depend on its input alone.
+      mkAgdaAlgebrasSources = pkgs:
+        pkgs.runCommand "agda-algebras-sources" { nativeBuildInputs = [ pkgs.zip ]; } ''
+          src=${agdaAlgebrasSource pkgs}
+          mkdir agda-algebras "$out"
+          cp -R --no-preserve=mode "$src/src" "$src/agda-algebras.agda-lib" \
+            "$src/LICENSE" "$src/LICENSE-data" "$src/NOTICE" agda-algebras/
+          find agda-algebras -type f -exec chmod 644 {} + -exec touch -d @315532800 {} +
+          find agda-algebras -type f | LC_ALL=C sort \
+            | TZ=UTC zip -X -D -9 -q "$out/agda-algebras-sources.zip" -@
+        '';
+
+      # The interfaces and the graph (scripts/library-archives/build.sh),
+      # built by the compiler's agda.wasm under nixpkgs' wasmtime over a stage
+      # laid out from the three archives the page mounts.  wasmtime caches
+      # its compiled module under a writable HOME, so it compiles once.
+      mkAgdaAlgebrasInterfaces = pkgs: { compiler, agdaData, stdlib, sources }:
+        pkgs.runCommand "agda-algebras-interfaces" {
+          nativeBuildInputs = [ pkgs.unzip pkgs.time ];
+        } ''
+          export HOME=$TMPDIR/home WORK=$TMPDIR/work
+          export WASMTIME=${pkgs.wasmtime}/bin/wasmtime AGDA_WASM=${compiler}/agda.wasm
+          export AGDA_DATA_ZIP=${agdaData}/agda-data.zip \
+            STDLIB_ZIP=${stdlib}/agda-stdlib-2.3-patched.zip \
+            SOURCES_ZIP=${sources}/agda-algebras-sources.zip
+          mkdir -p "$HOME"
+          bash ${libraryScripts [
+            ./scripts/library-archives/stage.sh
+            ./scripts/library-archives/build.sh
+          ]}/build.sh "$out"
+        '';
+
+      # The archives and their index (scripts/library-archives/pack.mjs): the
+      # sources, one archive per module of agda-algebras, and the
+      # standard-library modules grouped by the modules that reach them.
+      mkAgdaAlgebrasArchives = pkgs: { compiler, agdaData, stdlib, sources, interfaces }:
+        pkgs.runCommand "agda-algebras-archives" {
+          nativeBuildInputs = [ pkgs.nodejs_22 pkgs.zip pkgs.unzip ];
+        } ''
+          node ${libraryScripts [
+            ./scripts/library-archives/pack.mjs
+            ./scripts/library-archives/index.mjs
+          ]}/pack.mjs \
+            --interfaces ${interfaces} \
+            --sources ${sources}/agda-algebras-sources.zip \
+            --stdlib ${stdlib}/agda-stdlib-2.3-patched.zip \
+            --builtins ${agdaData}/agda-data.zip \
+            --wasm ${compiler}/agda.wasm \
+            --commit ${agdaAlgebras.rev} \
+            "$out"
+        '';
+
+      # The check (scripts/library-archives/check.sh): every root, staged
+      # with only the archives the index names, type-checks Main alone, and
+      # the two controls do not.  Its output is the report; the times and
+      # the peak memory of each check are in the build log.  At most eight
+      # checks at once, about 1 GiB each.
+      mkAgdaAlgebrasCheck = pkgs: { compiler, agdaData, stdlib, archives }:
+        pkgs.runCommand "agda-algebras-check" {
+          nativeBuildInputs = [ pkgs.nodejs_22 pkgs.unzip pkgs.time ];
+        } ''
+          export HOME=$TMPDIR/home WORK=$TMPDIR/work
+          export WASMTIME=${pkgs.wasmtime}/bin/wasmtime AGDA_WASM=${compiler}/agda.wasm
+          export AGDA_DATA_ZIP=${agdaData}/agda-data.zip \
+            STDLIB_ZIP=${stdlib}/agda-stdlib-2.3-patched.zip
+          # A Nix that passes cores = 0 through means every core.
+          cores=$NIX_BUILD_CORES
+          [ "$cores" -ge 1 ] || cores=$(nproc)
+          export JOBS=$(( cores < 8 ? cores : 8 ))
+          mkdir -p "$HOME" "$out"
+          bash ${libraryScripts [
+            ./scripts/library-archives/stage.sh
+            ./scripts/library-archives/check.sh
+            ./scripts/library-archives/index.mjs
+          ]}/check.sh --controls ${archives} "$out/report.txt"
+        '';
+
       # The input of agda-data.zip: the Agda the page's server embeds, as
       # the compiler's plain agda (the same commit and flags, and the same
       # word size), and the root lib/prim, since the server is built
@@ -268,6 +371,7 @@
         compiler = mkCompiler pkgs;
         stdlib = mkStdlib pkgs;
         agdaData = mkAgdaData pkgs (agdaDataInput pkgs compiler);
+        agdaAlgebrasSources = mkAgdaAlgebrasSources pkgs;
       in rec {
         # Agda's builtin library, built (mkAgdaData).
         agda-data = agdaData;
@@ -280,6 +384,28 @@
 
         # The standard library the page ships, patched (mkStdlib).
         inherit stdlib;
+
+        # agda-algebras' interfaces and dependency graph, built by the
+        # compiler's agda (mkAgdaAlgebrasInterfaces).
+        agda-algebras-interfaces = mkAgdaAlgebrasInterfaces pkgs {
+          inherit compiler agdaData stdlib;
+          sources = agdaAlgebrasSources;
+        };
+
+        # agda-algebras' archives and their index (mkAgdaAlgebrasArchives):
+        # issue 12's one command.
+        agda-algebras-archives = mkAgdaAlgebrasArchives pkgs {
+          inherit compiler agdaData stdlib;
+          sources = agdaAlgebrasSources;
+          interfaces = agda-algebras-interfaces;
+        };
+
+        # Their check: each root, cold, from the archives the index names
+        # (mkAgdaAlgebrasCheck).
+        agda-algebras-check = mkAgdaAlgebrasCheck pkgs {
+          inherit compiler agdaData stdlib;
+          archives = agda-algebras-archives;
+        };
 
         # Every binary the app ships at its path in the tree (static/...):
         # upstream's pinned ones, agda-data.zip, the compiler's language
