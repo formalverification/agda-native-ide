@@ -60,7 +60,8 @@ endif
         guard-gh guard-engine engine-mode \
         assets assets-check dev build test check browser-check \
         browser-check-notices provenance-check packages \
-        conformance-native conformance-browser conformance-compare
+        conformance-native conformance-browser conformance-compare \
+        library-gate
 # The companion's targets are separate from the browser app's gates.
 
 .PHONY: vscode-check vscode-build vscode-test vscode-unit
@@ -202,6 +203,31 @@ conformance-browser: packages ## Run the engine's conformance suite in headless 
 
 conformance-compare: packages ## Compare the browser's and the native engine's answers, field by field
 	node scripts/conformance/compare.mjs $(CONFORMANCE)/browser.json $(CONFORMANCE)/native.json
+
+# ---------------------------------------------------------------------
+# The gate (issue 13): agda-algebras' archives under $(SITE)'s language
+# server, in headless Chromium.  It builds the gate's page
+# (scripts/library-archives/gate/) and runs scripts/library-archives/gate.mjs:
+# every root, each in a fresh session with only the archives the index
+# names for it, must type-check Main alone, and two controls must not.
+#
+#   ARCHIVES       what `nix build .#agda-algebras-archives` wrote (default:
+#                  that build's output, built or fetched)
+#   LIBRARY_GATE   where the report goes (default: library-gate)
+#   GATE_ARGS      more of gate.mjs's options: --root ROOT (repeatable),
+#                  --jobs N, --no-controls, --shared
+
+LIBRARY_GATE ?= library-gate
+LIBRARY_GATE_HARNESS := .build-tmp/library-gate-harness
+ARCHIVES ?=
+GATE_ARGS ?=
+
+library-gate: packages ## Check agda-algebras' archives under $(SITE)'s language server, in headless Chromium
+	LIBRARY_GATE_OUT=$(abspath $(LIBRARY_GATE_HARNESS)) npx vite build \
+	  --config scripts/library-archives/gate/vite.config.js
+	archives=$${ARCHIVES:-$$(nix build .#agda-algebras-archives --no-link --print-out-paths)} && \
+	  nix run .#library-gate -- $(SITE) --harness $(LIBRARY_GATE_HARNESS) \
+	    --archives "$$archives" --out $(LIBRARY_GATE) $(GATE_ARGS)
 
 # ---------------------------------------------------------------------
 # The app: its binaries, and the build

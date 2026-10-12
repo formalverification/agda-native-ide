@@ -536,6 +536,19 @@
             '');
             meta.description = "Run the engine's conformance suite in headless Chromium, against a built site's reactor";
           };
+          # `nix run .#library-gate -- <site> --harness DIR --archives DIR
+          # [--out DIR] [--root ROOT]...`: agda-algebras' archives under a
+          # built site's reactor, in headless Chromium, every root and two
+          # controls (scripts/library-archives/gate.mjs, which `make
+          # library-gate` runs after building its page; issue 13).
+          library-gate = {
+            type = "app";
+            program = toString (pkgs.writeShellScript "library-gate" ''
+              export CHROME=${lib.getExe pkgs.chromium}
+              exec ${lib.getExe pkgs.nodejs_22} ${./scripts}/library-archives/gate.mjs "$@"
+            '');
+            meta.description = "Check agda-algebras' archives under a built site's reactor, in headless Chromium";
+          };
         });
     };
 }
