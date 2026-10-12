@@ -3,17 +3,21 @@
 # Agda Workbench companion
 
 The first VS Code host for agda-native-ide, beside
-`banacorn.agda-mode`.  Today its panel shows the active module, buffer
-version and last command's summary, with controls for load, give and
-refine.  It provides the persistent host for the engine, agent tools and
-diagrams that follow in [#64], [#65] and [#66].  Agda's goals and errors
-stay in the mode's own panel.
+`banacorn.agda-mode`.  Its panel shows the active module, buffer version
+and last command's summary, with controls for the mode's load, give and
+refine, and for the native engine's two lanes ([#64]): an interaction lane
+per project root, which answers a goal's type and context, an inference, a
+normalization and a give, and a fresh Agda per verdict, whose exit code the
+panel and the status bar show.  The lanes run the project's own Agda,
+the mode's unless a setting names another.  Agda's goals and errors from
+the mode's commands stay in the mode's own panel.  The agent tools and the
+diagrams follow in [#65] and [#66].
 
 The companion is a package of the repository's npm workspace ([#62]),
 installed with the page and the shared packages from the root's
-`package-lock.json`.  It imports none of the shared packages yet: its
-commands are agda-mode-vscode's, and the native engine it will host, with
-the project's own Agda, is [#64]'s.
+`package-lock.json`.  It imports the engine (`@agda-native-ide/engine`, its
+native entry included) and the tool surface (`@agda-native-ide/tools`), and
+`make vscode-build` bundles them into it (below).
 
 ## Use the companion
 
@@ -22,6 +26,16 @@ Build it from the repository root, as follows:
 ```sh
 nix develop --command make vscode-build
 ```
+
+The build makes the shared packages first, then bundles each entry point
+(`out/extension.js` and the tests in `out/test/`) with rolldown
+(`scripts/build.mjs`): a CommonJS bundle with the engine, zod and the tool
+surface inside it, and only VS Code's API and node's built-in modules
+outside.  The extension host loads a CommonJS main and the engine is
+ECMAScript modules; the bundle joins them without relying on `require()` of
+an ECMAScript module, and holds no workspace symlink, so a package of the
+companion ([#70]) needs only `out/` and `media/`.  `make vscode-check`
+type-checks the same sources with `tsc`.
 
 Set the following paths to your companion package and library checkout,
 then install the tested mode into a separate extension directory:
@@ -83,6 +97,65 @@ The mismatch test uses the same 0.10.4 bundle with a temporary manifest
 version of `999.0.0`; it establishes the warning path, not support for an
 additional release.
 
+## The native lanes
+
+The commands below answer from the native engine, in the panel's
+**Native lanes** section, and from the command palette, as follows:
+
+| Command | What it answers |
+|---|---|
+| **Goal Type and Context (Native Lane)** | The type and context of the goal at the cursor (`Cmd_goal_type_context`, normalized) |
+| **Infer Type (Native Lane)** | An expression's type, in the goal at the cursor, else at the module's top level |
+| **Normalize (Native Lane)** | An expression's normal form, in the same scope |
+| **Give at Cursor (Native Lane)** | Gives the term written in the goal; when Agda takes it, the edit is applied to the editor and saved |
+| **Check File (Batch Verdict)** | A fresh Agda's exit code on the module: 0 when it checks with nothing open, 42 for an error or an open goal, 71 for options Agda refuses, with Agda's messages; also shown in the status bar |
+
+**What the lanes read**.  A lane command saves the module first, as the
+mode's own load does, and the lane loads the file as it is on disk; a
+buffer is never sent.  So every answer and every verdict names the saved
+file, and the batch verdict and the lane read the same text.  A lane loads
+a module only when Agda's live text is not the file's (another module, an
+edit, a failed load), so a warm question costs a few milliseconds.  After a
+give whose edit the editor took and saved, the file is Agda's text again
+and is not loaded again.
+
+**Which Agda they run**.  The first of the following that names an
+executable is the lanes' Agda:
+
+1.  `agdaWorkbench.agda.path`, with `agdaWorkbench.agda.commandLineOptions`,
+    when the path is set (nothing else is then tried);
+2.  agda-mode-vscode's `agdaMode.connection.paths`, from the last entry to
+    the first, as the mode tries them, passing over a URL and a language
+    server (an `als`), with `agdaMode.connection.commandLineOptions`, split
+    on spaces as the mode splits them;
+3.  `agda` on the extension host's PATH, with the mode's options.
+
+It is then asked `--numeric-version`, with its options, and refused unless
+it answers `agdaWorkbench.agda.version` (2.9.0 by default): a refusal in
+the panel names the setting to change.  The options are passed on the
+process's command line, as the mode passes them to its own Agda, so
+without a setting of its own the companion runs the mode's Agda with the
+mode's options, and the two read and write the same `_build/` interfaces.
+Launched from agda-algebras' dev shell, as above, both find its wrapper,
+`.agda/bin/agda`, which adds the library flags itself.  The Agda Language
+Server that the mode can download is not a candidate: it speaks LSP, not
+`agda --interaction-json`.
+
+**One lane per project**.  A module's project root is the directory of the
+nearest `.agda-lib` above it, else its workspace folder.  Each root has one
+lane, kept between commands; one command at a time holds it.  A lane that
+crashes is reported in the panel once, and the next command starts
+another; a lane idle for `agdaWorkbench.lanes.idleMinutes` (15) is closed
+by closing its input; every lane is closed when the extension deactivates.
+The settings are read again at every command, and a lane whose Agda or
+options changed is replaced.
+
+**Windows** is not supported yet.  The lanes stop an Agda by its process
+group, which Windows does not have (a job object, or `taskkill /T`, would
+take its place); the end of a lane by closing its input is unprobed there;
+the search of PATH does not try `PATHEXT`; and the dedicated shell and the
+integration suite below need Linux.
+
 ## Checks and measurements
 
 The companion's Make targets run in its workspace, as follows:
@@ -113,6 +186,11 @@ The suite asserts a visible extension development window, a panel beside
 the editor, a live webview that saves its state, real give and refine
 edits through the mode, nonempty highlighting, an invalid candidate left
 in its goal, cursor restoration from panel focus, and the version warning.
+Then, on the module the mode has just loaded, it runs the native lanes:
+the verdict (42, for the one open goal), the goal's type and context
+(`Level`) from a lane loaded for it and then warm, an inference, a give of
+`0ℓ` written in the goal, which edits and saves the module, and the verdict
+again (0); it puts the goal back for the checks that follow.
 A separate test driver in a normal development window checks real
 window reloads: `@vscode/test-electron`'s test host exits on reload, so it
 cannot establish restoration on its own.  The driver verifies the saved
@@ -143,6 +221,26 @@ copied module at 4,427.20 ms.  The fixture's interfaces were absent before
 that load.  This is one observation, not a benchmark or a comparison with
 the browser.  The command return values, exact versions, source and bundle
 hashes, machine load and timings are archived in [the run record][run].
+
+On 2026-10-12, at `1f94e86`, the same machine (load average 3.3, other
+sessions running), VS Code 1.141.0 (its extension host's node 24.21.0),
+native Agda 2.9.0 and mode 0.10.4 measured the lanes after the mode's own
+first load of the module (4,401 ms, with no interfaces before it), as
+follows:
+
+| Step | Agda's time | The command's |
+|---|---:|---:|
+| The verdict, the goal open (exit 42), which started the lane | 322 ms | 361 ms |
+| The goal's type and context, the lane's first load | 317 ms load, 1.2 ms goal | 327 ms |
+| The same, warm | 0.8 ms | 6.3 ms |
+| An inference in the goal | 1.0 ms | 5.8 ms |
+| A give of `0ℓ`, after a load of the edited module | 63 ms load, 1.4 ms give | 88 ms |
+| The verdict, the module checking (exit 0) | 331 ms | 338 ms |
+
+The batch run and the lane's first load each type-checked `Overture.Basic`
+alone: they accepted every standard library interface the mode's Agda had
+written.  These are single observations, archived in [the native engine's
+record][native-run].
 
 ## The mode's command contract
 
@@ -180,8 +278,8 @@ There is no contributed highlighting command.  Loading requests Agda's
 highlighting, and the public VS Code semantic-token command retrieves the
 editor's tokens.  These tokens are classifications and ranges, not goal
 types, a complete Agda response stream or a verdict.  Queries requiring
-those answers belong to the separate native lane in [#64]; [#69] asks
-upstream for an explicit client API.
+those answers are the native lanes' (above); [#69] asks upstream for an
+explicit client API.
 
 The panel host follows the [VS Code webview guide][webviews].  Paperproof
 was read at `05c68e9cb8e881f9e971abb94efd231a269e0229` for its
@@ -196,6 +294,7 @@ No upstream code is copied.
 [#70]: https://github.com/formalverification/agda-native-ide/issues/70
 [ci]: ../.github/workflows/vscode.yml
 [run]: ../docs/measurements/vscode-companion-2026-10-10.json
+[native-run]: ../docs/measurements/native-engine-2026-10-12.json
 [registration]: https://github.com/banacorn/agda-mode-vscode/blob/535b3eb8f09132edbad87017562e6cb7aab99a7c/src/Main/Main.res
 [dispatch]: https://github.com/banacorn/agda-mode-vscode/blob/535b3eb8f09132edbad87017562e6cb7aab99a7c/src/State/State__Command.res
 [responses]: https://github.com/banacorn/agda-mode-vscode/blob/535b3eb8f09132edbad87017562e6cb7aab99a7c/src/State/State__Response.res

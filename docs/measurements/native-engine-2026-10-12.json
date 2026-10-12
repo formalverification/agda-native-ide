@@ -1,0 +1,1600 @@
+{
+  "date": "2026-10-12",
+  "revision": "1f94e865c803972f8925ed7d0f5527728d852fe5",
+  "agdaCommit": "da66a8c75f11d10699a6b38b261efdf244b66f2a",
+  "scope": "Issue 64's runs: the engine's conformance suite through one interface against both engines (natively through the lane registry and the resolution an editor host uses), with the runners' own checks, the registry's rules and a verdict's deadline among the native runner's; the comparison of the two runs, and three controls that each must fail it; the companion's real suite under VS Code with its native lanes on the agda-algebras fixture; and the probes of 2026-10-11 the decisions rest on.  Each timing is a single observation on a machine other sessions were also using, not a benchmark.",
+  "commands": [
+    "nix develop --command make build",
+    "nix develop .#vscode --command make conformance-native",
+    "nix develop --command make conformance-browser SITE=build",
+    "nix develop --command make conformance-compare",
+    "node scripts/conformance/compare.mjs <control>/browser.json <control>/native.json",
+    "nix develop .#vscode --command make vscode-test"
+  ],
+  "native": {
+    "date": "2026-10-12T05:58:21.902Z",
+    "engine": "native",
+    "agda": {
+      "executable": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+      "version": "Agda version 2.9.0\nBuilt with flags (cabal -f)\n - enable-cluster-counting: unicode cluster counting in LaTeX backend using the ICU library\n - optimise-heavily: extra optimisations"
+    },
+    "machine": {
+      "platform": "linux",
+      "release": "7.0.0-31-generic",
+      "cpus": 20,
+      "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+      "memory": 67068481536
+    },
+    "node": "v22.22.2",
+    "agdaVersion": "2.9.0",
+    "fixtures": {
+      "conformance.agda-lib": "sha256:f6e4dc695eca98e300fb0900342e96989da07525c4161a367e4bcb1367c7ba90",
+      "Goals.agda": "sha256:fd9eac93d9b232286957bb9b7a8285fb117e0ac51c0bd32e3a67054eca5e92c8",
+      "Second.agda": "sha256:81b65e26798a5b663b0863ec480de4dad8f725b509dea948803a98018cdeb284",
+      "Unicode.agda": "sha256:043068b911614b0cab53f317e80c302bdfe163ed70f26a46305a9fdccdc8664b",
+      "Crlf.agda": "sha256:93304b6fdfca679872d936fb6c297547692270e0f0ccf1fb7a1eb75801722abe",
+      "Literate.lagda.md": "sha256:06af241dce5df4730e550b9231fa8ee80bd1b982405f3ed3eaa0958e3e0517ad",
+      "Slow.agda": "sha256:bae06f835c68c946003daab49e7fb825f15a250ccc2823b1225663e6808df6cb"
+    },
+    "scenarios": [
+      {
+        "name": "a session names its engine, its Agda and its lanes",
+        "ok": true,
+        "elapsedMs": 26,
+        "transcript": {
+          "agdaVersion": "2.9.0",
+          "interaction": true
+        }
+      },
+      {
+        "name": "a load with open goals answers them, and is not a verdict",
+        "ok": true,
+        "elapsedMs": 36,
+        "transcript": {
+          "goals": [
+            {
+              "id": 0,
+              "type": "A",
+              "agdaRange": {
+                "start": {
+                  "pos": 127,
+                  "line": 7,
+                  "col": 14
+                },
+                "end": {
+                  "pos": 132,
+                  "line": 7,
+                  "col": 19
+                }
+              },
+              "span": {
+                "from": 126,
+                "to": 131
+              }
+            },
+            {
+              "id": 1,
+              "type": "suc n + 0 ≡ suc n",
+              "agdaRange": {
+                "start": {
+                  "pos": 210,
+                  "line": 11,
+                  "col": 21
+                },
+                "end": {
+                  "pos": 211,
+                  "line": 11,
+                  "col": 22
+                }
+              },
+              "span": {
+                "from": 209,
+                "to": 215
+              }
+            }
+          ],
+          "checking": [
+            "Goals"
+          ],
+          "status": {
+            "checked": false,
+            "showImplicitArguments": false,
+            "showIrrelevantArguments": false
+          },
+          "digest": "sha256:fd9eac93d9b232286957bb9b7a8285fb117e0ac51c0bd32e3a67054eca5e92c8"
+        }
+      },
+      {
+        "name": "Agda's goal type and context",
+        "ok": true,
+        "elapsedMs": 40,
+        "transcript": {
+          "goal0": {
+            "goal": 0,
+            "type": "A",
+            "context": [
+              {
+                "name": "A",
+                "originalName": "A",
+                "type": "Set",
+                "inScope": false
+              },
+              {
+                "name": "x",
+                "originalName": "x",
+                "type": "A",
+                "inScope": true
+              }
+            ]
+          },
+          "goal1": {
+            "goal": 1,
+            "type": "suc (n + 0) ≡ suc n",
+            "context": [
+              {
+                "name": "n",
+                "originalName": "n",
+                "type": "Nat",
+                "inScope": true
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "a valid give edits the goal and keeps the loaded basis",
+        "ok": true,
+        "elapsedMs": 35,
+        "transcript": {
+          "give": {
+            "goal": 0,
+            "accepted": true,
+            "goals": [
+              {
+                "id": 1,
+                "type": "suc n + 0 ≡ suc n",
+                "agdaRange": {
+                  "start": {
+                    "pos": 210,
+                    "line": 11,
+                    "col": 21
+                  },
+                  "end": {
+                    "pos": 211,
+                    "line": 11,
+                    "col": 22
+                  }
+                },
+                "span": {
+                  "from": 205,
+                  "to": 211
+                }
+              }
+            ],
+            "newGoals": [],
+            "edit": {
+              "from": 126,
+              "to": 131,
+              "insert": "x"
+            }
+          },
+          "remaining": "suc (n + 0) ≡ suc n"
+        }
+      },
+      {
+        "name": "a rejected term is Agda's answer, and leaves the goal open",
+        "ok": true,
+        "elapsedMs": 42,
+        "transcript": {
+          "accepted": false,
+          "error": "<root>/Goals.agda:7.14-18: error: [UnequalTypes]\nThe type\n  Nat\nis not a subtype of\n  A\nwhen checking that the expression zero has type A"
+        }
+      },
+      {
+        "name": "an edit inside one goal is a give; any other edit is a reload, which retires the old goals",
+        "ok": true,
+        "elapsedMs": 50,
+        "transcript": {
+          "plans": [
+            "load",
+            "unchanged",
+            "give",
+            "load"
+          ],
+          "refused": {
+            "kind": "refusal",
+            "reason": "stale-goal",
+            "message": "goal 0 of <root>/Goals.agda (session <session>, load 1) belongs to an earlier load; the session now holds <root>/Goals.agda (load 2)"
+          }
+        }
+      },
+      {
+        "name": "a module switch cannot reuse the previous module's goals",
+        "ok": true,
+        "elapsedMs": 50,
+        "transcript": {
+          "second": [
+            {
+              "id": 0,
+              "type": "Nat",
+              "agdaRange": {
+                "start": {
+                  "pos": 131,
+                  "line": 9,
+                  "col": 12
+                },
+                "end": {
+                  "pos": 136,
+                  "line": 9,
+                  "col": 17
+                }
+              },
+              "span": {
+                "from": 130,
+                "to": 135
+              }
+            }
+          ],
+          "refused": {
+            "kind": "refusal",
+            "reason": "stale-goal",
+            "message": "goal 1 of <root>/Goals.agda (session <session>, load 1) belongs to an earlier load; the session now holds <root>/Second.agda (load 2)"
+          },
+          "goal": {
+            "goal": 0,
+            "type": "Nat",
+            "context": [
+              {
+                "name": "c",
+                "originalName": "c",
+                "type": "Colour",
+                "inScope": true
+              }
+            ]
+          },
+          "inferred": {
+            "expression": "Nat"
+          }
+        }
+      },
+      {
+        "name": "a case split rewrites the clause, which a check then loads; a refine opens a goal",
+        "ok": true,
+        "elapsedMs": 47,
+        "transcript": {
+          "clauses": [
+            "choose red = ?",
+            "choose green = ?"
+          ],
+          "refine": {
+            "goal": 1,
+            "accepted": true,
+            "goals": [
+              {
+                "id": 0,
+                "type": "Nat",
+                "agdaRange": {
+                  "start": {
+                    "pos": 133,
+                    "line": 9,
+                    "col": 14
+                  },
+                  "end": {
+                    "pos": 134,
+                    "line": 9,
+                    "col": 15
+                  }
+                },
+                "span": {
+                  "from": 132,
+                  "to": 138
+                }
+              },
+              {
+                "id": 2,
+                "type": "Nat"
+              }
+            ],
+            "newGoals": [
+              2
+            ],
+            "edit": {
+              "from": 154,
+              "to": 160,
+              "insert": "suc ?"
+            }
+          }
+        }
+      },
+      {
+        "name": "positions in Unicode text, and terms outside ASCII",
+        "ok": true,
+        "elapsedMs": 30,
+        "transcript": {
+          "goal": {
+            "id": 0,
+            "type": "𝔹",
+            "agdaRange": {
+              "start": {
+                "pos": 122,
+                "line": 11,
+                "col": 13
+              },
+              "end": {
+                "pos": 127,
+                "line": 11,
+                "col": 18
+              }
+            },
+            "span": {
+              "from": 136,
+              "to": 141
+            }
+          },
+          "give": {
+            "goal": 0,
+            "accepted": true,
+            "goals": [],
+            "newGoals": [],
+            "edit": {
+              "from": 136,
+              "to": 141,
+              "insert": "f (f 𝕓)"
+            }
+          },
+          "normal": {
+            "expression": "𝕥"
+          },
+          "inferred": {
+            "expression": "𝔹 → 𝔹"
+          }
+        }
+      },
+      {
+        "name": "positions in a text whose line ends are CR LF, which Agda reads as LF",
+        "ok": true,
+        "elapsedMs": 29,
+        "transcript": {
+          "goals": [
+            {
+              "id": 0,
+              "type": "Nat",
+              "agdaRange": {
+                "start": {
+                  "pos": 103,
+                  "line": 8,
+                  "col": 13
+                },
+                "end": {
+                  "pos": 108,
+                  "line": 8,
+                  "col": 18
+                }
+              },
+              "span": {
+                "from": 109,
+                "to": 114
+              }
+            },
+            {
+              "id": 1,
+              "type": "Nat",
+              "agdaRange": {
+                "start": {
+                  "pos": 124,
+                  "line": 9,
+                  "col": 16
+                },
+                "end": {
+                  "pos": 129,
+                  "line": 9,
+                  "col": 21
+                }
+              },
+              "span": {
+                "from": 131,
+                "to": 136
+              }
+            }
+          ],
+          "give": {
+            "goal": 0,
+            "accepted": true,
+            "goals": [
+              {
+                "id": 1,
+                "type": "Nat",
+                "agdaRange": {
+                  "start": {
+                    "pos": 124,
+                    "line": 9,
+                    "col": 16
+                  },
+                  "end": {
+                    "pos": 129,
+                    "line": 9,
+                    "col": 21
+                  }
+                },
+                "span": {
+                  "from": 130,
+                  "to": 135
+                }
+              }
+            ],
+            "newGoals": [],
+            "edit": {
+              "from": 109,
+              "to": 114,
+              "insert": "zero"
+            }
+          },
+          "other": {
+            "goal": 1,
+            "accepted": true,
+            "goals": [],
+            "newGoals": [],
+            "edit": {
+              "from": 130,
+              "to": 135,
+              "insert": "n"
+            }
+          }
+        }
+      },
+      {
+        "name": "a literate module: goals in its code, none in its prose",
+        "ok": true,
+        "elapsedMs": 36,
+        "transcript": {
+          "goal": {
+            "id": 0,
+            "type": "Nat",
+            "agdaRange": {
+              "start": {
+                "pos": 190,
+                "line": 11,
+                "col": 12
+              },
+              "end": {
+                "pos": 195,
+                "line": 11,
+                "col": 17
+              }
+            },
+            "span": {
+              "from": 189,
+              "to": 194
+            }
+          },
+          "give": {
+            "goal": 0,
+            "accepted": true,
+            "goals": [],
+            "newGoals": [],
+            "edit": {
+              "from": 189,
+              "to": 194,
+              "insert": "n + n"
+            }
+          },
+          "normal": {
+            "expression": "42"
+          }
+        }
+      },
+      {
+        "name": "a verdict is a fresh Agda's exit code where the engine has a batch lane, and is refused where it has none",
+        "ok": true,
+        "elapsedMs": 132,
+        "transcript": {
+          "capability": {
+            "batch": true
+          },
+          "verdicts": [
+            {
+              "exitCode": 42,
+              "success": false,
+              "digest": "sha256:fd9eac93d9b232286957bb9b7a8285fb117e0ac51c0bd32e3a67054eca5e92c8",
+              "file": "<root>/Goals.agda",
+              "diagnostics": [
+                {
+                  "severity": "error",
+                  "message": "Unsolved interaction metas at the following locations:\n  <root>/Goals.agda:7.14-19\n  <root>/Goals.agda:11.21-22",
+                  "code": "UnsolvedInteractionMetas",
+                  "file": "<root>/Goals.agda",
+                  "range": {
+                    "startLine": 7,
+                    "startCol": 14,
+                    "endLine": 11,
+                    "endCol": 22
+                  }
+                }
+              ]
+            },
+            {
+              "exitCode": 0,
+              "success": true,
+              "digest": "sha256:27c724e74d1e15448d94b8982b40a49897ecec0d43ade3c71bc4b0ba323ee0cb",
+              "file": "<root>/Goals.agda",
+              "diagnostics": []
+            },
+            {
+              "exitCode": 42,
+              "success": false,
+              "digest": "sha256:4244eadc9842e559d2a3eb8b86bf139ce9483a61abc257f105b22a9a89210730",
+              "file": "<root>/Goals.agda",
+              "diagnostics": [
+                {
+                  "severity": "error",
+                  "message": "The type\n  Nat\nis not a subtype of\n  A\nwhen checking that the expression zero has type A",
+                  "code": "UnequalTypes",
+                  "file": "<root>/Goals.agda",
+                  "range": {
+                    "startLine": 7,
+                    "startCol": 14,
+                    "endLine": 7,
+                    "endCol": 18
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "name": "an abort with nothing running is nothing",
+        "ok": true,
+        "elapsedMs": 15,
+        "transcript": {
+          "aborting": null
+        }
+      }
+    ],
+    "passed": 13,
+    "failed": 0,
+    "lifecycle": [
+      {
+        "name": "a start that cannot find its executable fails, and says so",
+        "ok": true,
+        "elapsedMs": 3,
+        "detail": {
+          "message": "/nonexistent/agda could not be started (spawn /nonexistent/agda ENOENT)"
+        }
+      },
+      {
+        "name": "a start whose Agda exits at once fails, with Agda's words",
+        "ok": true,
+        "elapsedMs": 7,
+        "detail": {
+          "message": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda exited before it was ready (code 71)",
+          "detail": {
+            "stdout": "Error: Unrecognized option:\n--no-such-option\nRun 'agda --help' for help on command line options.",
+            "stderr": ""
+          }
+        }
+      },
+      {
+        "name": "a deadline aborts the command, and the session goes on",
+        "ok": true,
+        "elapsedMs": 581,
+        "detail": {
+          "failure": "the normalize outran its deadline of 500 ms and was aborted"
+        }
+      },
+      {
+        "name": "a child that cannot answer the abort is killed, and nothing waits",
+        "ok": true,
+        "elapsedMs": 1534,
+        "detail": {
+          "pid": 985187,
+          "failure": "the normalize outran its deadline of 400 ms, and Agda was stopped"
+        }
+      },
+      {
+        "name": "a child that crashes ends the session, naming the signal",
+        "ok": true,
+        "elapsedMs": 339,
+        "detail": {
+          "pid": 985286,
+          "detail": {
+            "reason": "exit",
+            "code": null,
+            "signal": "SIGKILL"
+          }
+        }
+      },
+      {
+        "name": "disposal leaves no process",
+        "ok": true,
+        "elapsedMs": 112,
+        "detail": {
+          "pid": 985307
+        }
+      },
+      {
+        "name": "a root's files share one lane, another root has its own, and a file loads only when its text is not Agda's",
+        "ok": true,
+        "elapsedMs": 103,
+        "detail": {
+          "loads": [
+            "first",
+            "reused",
+            "switch",
+            "first",
+            "changed",
+            "requested"
+          ]
+        }
+      },
+      {
+        "name": "a lane that crashes is told once, and the next request starts another",
+        "ok": true,
+        "elapsedMs": 91,
+        "detail": {
+          "ended": "crashed",
+          "signal": "SIGKILL"
+        }
+      },
+      {
+        "name": "an idle lane is closed by closing its input, and Agda exits with code 0",
+        "ok": true,
+        "elapsedMs": 353,
+        "detail": {
+          "exit": {
+            "code": 0,
+            "signal": null
+          }
+        }
+      },
+      {
+        "name": "disposal closes every lane, and the registry refuses from then on",
+        "ok": true,
+        "elapsedMs": 175,
+        "detail": {
+          "pids": 2
+        }
+      },
+      {
+        "name": "options the project's Agda refuses are refused before any lane starts, with Agda's words",
+        "ok": true,
+        "elapsedMs": 9,
+        "detail": {
+          "message": "AGDA names <agda>, which did not answer `/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda --no-such-option --numeric-version` (exit 71: Error: Unrecognized option: --no-such-option ); set AGDA to an Agda 2.9.0, or fix its options"
+        }
+      },
+      {
+        "name": "a verdict that outruns its deadline has its Agda stopped, and the lane goes on",
+        "ok": true,
+        "elapsedMs": 1518,
+        "detail": {
+          "elapsedMs": 1505,
+          "failure": "the verdict on <root>/Endless.agda outran its deadline of 1500 ms, and its Agda was stopped"
+        }
+      }
+    ],
+    "totals": {
+      "shared": {
+        "passed": 13,
+        "failed": 0
+      },
+      "lifecycle": {
+        "passed": 12,
+        "failed": 0
+      }
+    }
+  },
+  "browser": {
+    "date": "2026-10-12T05:58:37.850Z",
+    "engine": "browser",
+    "browser": "Chrome/149.0.7827.200",
+    "served": "without the isolation headers",
+    "compiler": {
+      "als-reactor-2.9.0.wasm.gz": "sha256:684731b5e7c9cb81e7337c9cf376e0fb2f6de0c3ff860bd6b0c37d949793f820",
+      "als-reactor-2.9.0.js": "sha256:c782dbaca349830299055c71ec9c4f72ec543c0d612d08b7c40fbb364e601dce",
+      "agda-data.zip": "sha256:b250cb2154c15efb882139c6698b5b4c3514a3fb1e361bbde58f58a2eed943c0"
+    },
+    "machine": {
+      "platform": "linux",
+      "release": "7.0.0-31-generic",
+      "cpus": 20,
+      "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+      "memory": 67068481536
+    },
+    "agdaVersion": "2.9.0",
+    "fixtures": {
+      "conformance.agda-lib": "sha256:f6e4dc695eca98e300fb0900342e96989da07525c4161a367e4bcb1367c7ba90",
+      "Goals.agda": "sha256:fd9eac93d9b232286957bb9b7a8285fb117e0ac51c0bd32e3a67054eca5e92c8",
+      "Second.agda": "sha256:81b65e26798a5b663b0863ec480de4dad8f725b509dea948803a98018cdeb284",
+      "Unicode.agda": "sha256:043068b911614b0cab53f317e80c302bdfe163ed70f26a46305a9fdccdc8664b",
+      "Crlf.agda": "sha256:93304b6fdfca679872d936fb6c297547692270e0f0ccf1fb7a1eb75801722abe",
+      "Literate.lagda.md": "sha256:06af241dce5df4730e550b9231fa8ee80bd1b982405f3ed3eaa0958e3e0517ad",
+      "Slow.agda": "sha256:bae06f835c68c946003daab49e7fb825f15a250ccc2823b1225663e6808df6cb"
+    },
+    "scenarios": [
+      {
+        "name": "a session names its engine, its Agda and its lanes",
+        "ok": true,
+        "elapsedMs": 464,
+        "transcript": {
+          "agdaVersion": "2.9.0",
+          "interaction": true
+        }
+      },
+      {
+        "name": "a load with open goals answers them, and is not a verdict",
+        "ok": true,
+        "elapsedMs": 684,
+        "transcript": {
+          "goals": [
+            {
+              "id": 0,
+              "type": "A",
+              "agdaRange": {
+                "start": {
+                  "pos": 127,
+                  "line": 7,
+                  "col": 14
+                },
+                "end": {
+                  "pos": 132,
+                  "line": 7,
+                  "col": 19
+                }
+              },
+              "span": {
+                "from": 126,
+                "to": 131
+              }
+            },
+            {
+              "id": 1,
+              "type": "suc n + 0 ≡ suc n",
+              "agdaRange": {
+                "start": {
+                  "pos": 210,
+                  "line": 11,
+                  "col": 21
+                },
+                "end": {
+                  "pos": 211,
+                  "line": 11,
+                  "col": 22
+                }
+              },
+              "span": {
+                "from": 209,
+                "to": 215
+              }
+            }
+          ],
+          "checking": [
+            "Goals"
+          ],
+          "status": {
+            "checked": false,
+            "showImplicitArguments": false,
+            "showIrrelevantArguments": false
+          },
+          "digest": "sha256:fd9eac93d9b232286957bb9b7a8285fb117e0ac51c0bd32e3a67054eca5e92c8"
+        }
+      },
+      {
+        "name": "Agda's goal type and context",
+        "ok": true,
+        "elapsedMs": 713,
+        "transcript": {
+          "goal0": {
+            "goal": 0,
+            "type": "A",
+            "context": [
+              {
+                "name": "A",
+                "originalName": "A",
+                "type": "Set",
+                "inScope": false
+              },
+              {
+                "name": "x",
+                "originalName": "x",
+                "type": "A",
+                "inScope": true
+              }
+            ]
+          },
+          "goal1": {
+            "goal": 1,
+            "type": "suc (n + 0) ≡ suc n",
+            "context": [
+              {
+                "name": "n",
+                "originalName": "n",
+                "type": "Nat",
+                "inScope": true
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "a valid give edits the goal and keeps the loaded basis",
+        "ok": true,
+        "elapsedMs": 660,
+        "transcript": {
+          "give": {
+            "goal": 0,
+            "accepted": true,
+            "goals": [
+              {
+                "id": 1,
+                "type": "suc n + 0 ≡ suc n",
+                "agdaRange": {
+                  "start": {
+                    "pos": 210,
+                    "line": 11,
+                    "col": 21
+                  },
+                  "end": {
+                    "pos": 211,
+                    "line": 11,
+                    "col": 22
+                  }
+                },
+                "span": {
+                  "from": 205,
+                  "to": 211
+                }
+              }
+            ],
+            "newGoals": [],
+            "edit": {
+              "from": 126,
+              "to": 131,
+              "insert": "x"
+            }
+          },
+          "remaining": "suc (n + 0) ≡ suc n"
+        }
+      },
+      {
+        "name": "a rejected term is Agda's answer, and leaves the goal open",
+        "ok": true,
+        "elapsedMs": 705,
+        "transcript": {
+          "accepted": false,
+          "error": "<root>/Goals.agda:7.14-18: error: [UnequalTypes]\nThe type\n  Nat\nis not a subtype of\n  A\nwhen checking that the expression zero has type A"
+        }
+      },
+      {
+        "name": "an edit inside one goal is a give; any other edit is a reload, which retires the old goals",
+        "ok": true,
+        "elapsedMs": 764,
+        "transcript": {
+          "plans": [
+            "load",
+            "unchanged",
+            "give",
+            "load"
+          ],
+          "refused": {
+            "kind": "refusal",
+            "reason": "stale-goal",
+            "message": "goal 0 of <root>/Goals.agda (session <session>, load 1) belongs to an earlier load; the session now holds <root>/Goals.agda (load 2)"
+          }
+        }
+      },
+      {
+        "name": "a module switch cannot reuse the previous module's goals",
+        "ok": true,
+        "elapsedMs": 722,
+        "transcript": {
+          "second": [
+            {
+              "id": 0,
+              "type": "Nat",
+              "agdaRange": {
+                "start": {
+                  "pos": 131,
+                  "line": 9,
+                  "col": 12
+                },
+                "end": {
+                  "pos": 136,
+                  "line": 9,
+                  "col": 17
+                }
+              },
+              "span": {
+                "from": 130,
+                "to": 135
+              }
+            }
+          ],
+          "refused": {
+            "kind": "refusal",
+            "reason": "stale-goal",
+            "message": "goal 1 of <root>/Goals.agda (session <session>, load 1) belongs to an earlier load; the session now holds <root>/Second.agda (load 2)"
+          },
+          "goal": {
+            "goal": 0,
+            "type": "Nat",
+            "context": [
+              {
+                "name": "c",
+                "originalName": "c",
+                "type": "Colour",
+                "inScope": true
+              }
+            ]
+          },
+          "inferred": {
+            "expression": "Nat"
+          }
+        }
+      },
+      {
+        "name": "a case split rewrites the clause, which a check then loads; a refine opens a goal",
+        "ok": true,
+        "elapsedMs": 716,
+        "transcript": {
+          "clauses": [
+            "choose red = ?",
+            "choose green = ?"
+          ],
+          "refine": {
+            "goal": 1,
+            "accepted": true,
+            "goals": [
+              {
+                "id": 0,
+                "type": "Nat",
+                "agdaRange": {
+                  "start": {
+                    "pos": 133,
+                    "line": 9,
+                    "col": 14
+                  },
+                  "end": {
+                    "pos": 134,
+                    "line": 9,
+                    "col": 15
+                  }
+                },
+                "span": {
+                  "from": 132,
+                  "to": 138
+                }
+              },
+              {
+                "id": 2,
+                "type": "Nat"
+              }
+            ],
+            "newGoals": [
+              2
+            ],
+            "edit": {
+              "from": 154,
+              "to": 160,
+              "insert": "suc ?"
+            }
+          }
+        }
+      },
+      {
+        "name": "positions in Unicode text, and terms outside ASCII",
+        "ok": true,
+        "elapsedMs": 654,
+        "transcript": {
+          "goal": {
+            "id": 0,
+            "type": "𝔹",
+            "agdaRange": {
+              "start": {
+                "pos": 122,
+                "line": 11,
+                "col": 13
+              },
+              "end": {
+                "pos": 127,
+                "line": 11,
+                "col": 18
+              }
+            },
+            "span": {
+              "from": 136,
+              "to": 141
+            }
+          },
+          "give": {
+            "goal": 0,
+            "accepted": true,
+            "goals": [],
+            "newGoals": [],
+            "edit": {
+              "from": 136,
+              "to": 141,
+              "insert": "f (f 𝕓)"
+            }
+          },
+          "normal": {
+            "expression": "𝕥"
+          },
+          "inferred": {
+            "expression": "𝔹 → 𝔹"
+          }
+        }
+      },
+      {
+        "name": "positions in a text whose line ends are CR LF, which Agda reads as LF",
+        "ok": true,
+        "elapsedMs": 658,
+        "transcript": {
+          "goals": [
+            {
+              "id": 0,
+              "type": "Nat",
+              "agdaRange": {
+                "start": {
+                  "pos": 103,
+                  "line": 8,
+                  "col": 13
+                },
+                "end": {
+                  "pos": 108,
+                  "line": 8,
+                  "col": 18
+                }
+              },
+              "span": {
+                "from": 109,
+                "to": 114
+              }
+            },
+            {
+              "id": 1,
+              "type": "Nat",
+              "agdaRange": {
+                "start": {
+                  "pos": 124,
+                  "line": 9,
+                  "col": 16
+                },
+                "end": {
+                  "pos": 129,
+                  "line": 9,
+                  "col": 21
+                }
+              },
+              "span": {
+                "from": 131,
+                "to": 136
+              }
+            }
+          ],
+          "give": {
+            "goal": 0,
+            "accepted": true,
+            "goals": [
+              {
+                "id": 1,
+                "type": "Nat",
+                "agdaRange": {
+                  "start": {
+                    "pos": 124,
+                    "line": 9,
+                    "col": 16
+                  },
+                  "end": {
+                    "pos": 129,
+                    "line": 9,
+                    "col": 21
+                  }
+                },
+                "span": {
+                  "from": 130,
+                  "to": 135
+                }
+              }
+            ],
+            "newGoals": [],
+            "edit": {
+              "from": 109,
+              "to": 114,
+              "insert": "zero"
+            }
+          },
+          "other": {
+            "goal": 1,
+            "accepted": true,
+            "goals": [],
+            "newGoals": [],
+            "edit": {
+              "from": 130,
+              "to": 135,
+              "insert": "n"
+            }
+          }
+        }
+      },
+      {
+        "name": "a literate module: goals in its code, none in its prose",
+        "ok": true,
+        "elapsedMs": 661,
+        "transcript": {
+          "goal": {
+            "id": 0,
+            "type": "Nat",
+            "agdaRange": {
+              "start": {
+                "pos": 190,
+                "line": 11,
+                "col": 12
+              },
+              "end": {
+                "pos": 195,
+                "line": 11,
+                "col": 17
+              }
+            },
+            "span": {
+              "from": 189,
+              "to": 194
+            }
+          },
+          "give": {
+            "goal": 0,
+            "accepted": true,
+            "goals": [],
+            "newGoals": [],
+            "edit": {
+              "from": 189,
+              "to": 194,
+              "insert": "n + n"
+            }
+          },
+          "normal": {
+            "expression": "42"
+          }
+        }
+      },
+      {
+        "name": "a verdict is a fresh Agda's exit code where the engine has a batch lane, and is refused where it has none",
+        "ok": true,
+        "elapsedMs": 417,
+        "transcript": {
+          "capability": {
+            "batch": false
+          },
+          "refusal": {
+            "reason": "unsupported-capability",
+            "capability": "batch"
+          }
+        }
+      },
+      {
+        "name": "an abort with nothing running is nothing",
+        "ok": true,
+        "elapsedMs": 446,
+        "transcript": {
+          "aborting": null
+        }
+      }
+    ],
+    "passed": 13,
+    "failed": 0,
+    "lifecycle": [
+      {
+        "name": "a start whose compiler is missing fails, saying which file, and makes no worker",
+        "ok": true,
+        "elapsedMs": 3,
+        "detail": {
+          "message": "the compiler could not be downloaded (HTTP 404 Not Found)"
+        }
+      },
+      {
+        "name": "a start whose compiler is not a compiler fails, and terminates its worker",
+        "ok": true,
+        "elapsedMs": 14,
+        "detail": {
+          "message": "the compiler could not be loaded (TypeError: WebAssembly compilation aborted: Network error: Failed to read from a ReadableStream)"
+        }
+      },
+      {
+        "name": "a deadline aborts the command, and the session goes on",
+        "ok": true,
+        "elapsedMs": 1680,
+        "detail": {
+          "failure": "the normalize outran its deadline of 1000 ms and was aborted"
+        }
+      },
+      {
+        "name": "a worker that stops answering is ended by the deadline, and nothing waits",
+        "ok": true,
+        "elapsedMs": 1877,
+        "detail": {
+          "failure": "the normalize outran its deadline of 600 ms, and Agda was stopped"
+        }
+      },
+      {
+        "name": "disposal terminates the worker",
+        "ok": true,
+        "elapsedMs": 413,
+        "detail": {}
+      },
+      {
+        "name": "every worker made was terminated",
+        "ok": true,
+        "elapsedMs": 0,
+        "detail": {
+          "workers": 17
+        }
+      }
+    ],
+    "totals": {
+      "shared": {
+        "passed": 13,
+        "failed": 0
+      },
+      "lifecycle": {
+        "passed": 6,
+        "failed": 0
+      }
+    },
+    "failure": null
+  },
+  "comparison": {
+    "date": "2026-10-12T05:58:38.209Z",
+    "runs": {
+      "browser": "2026-10-12T05:58:37.850Z",
+      "native": "2026-10-12T05:58:21.902Z"
+    },
+    "agda": {
+      "browser": "2.9.0",
+      "native": "2.9.0"
+    },
+    "fixturesAgree": true,
+    "scenarios": [
+      {
+        "name": "a session names its engine, its Agda and its lanes",
+        "passed": {
+          "browser": true,
+          "native": true
+        },
+        "differences": []
+      },
+      {
+        "name": "a load with open goals answers them, and is not a verdict",
+        "passed": {
+          "browser": true,
+          "native": true
+        },
+        "differences": []
+      },
+      {
+        "name": "Agda's goal type and context",
+        "passed": {
+          "browser": true,
+          "native": true
+        },
+        "differences": []
+      },
+      {
+        "name": "a valid give edits the goal and keeps the loaded basis",
+        "passed": {
+          "browser": true,
+          "native": true
+        },
+        "differences": []
+      },
+      {
+        "name": "a rejected term is Agda's answer, and leaves the goal open",
+        "passed": {
+          "browser": true,
+          "native": true
+        },
+        "differences": []
+      },
+      {
+        "name": "an edit inside one goal is a give; any other edit is a reload, which retires the old goals",
+        "passed": {
+          "browser": true,
+          "native": true
+        },
+        "differences": []
+      },
+      {
+        "name": "a module switch cannot reuse the previous module's goals",
+        "passed": {
+          "browser": true,
+          "native": true
+        },
+        "differences": []
+      },
+      {
+        "name": "a case split rewrites the clause, which a check then loads; a refine opens a goal",
+        "passed": {
+          "browser": true,
+          "native": true
+        },
+        "differences": []
+      },
+      {
+        "name": "positions in Unicode text, and terms outside ASCII",
+        "passed": {
+          "browser": true,
+          "native": true
+        },
+        "differences": []
+      },
+      {
+        "name": "positions in a text whose line ends are CR LF, which Agda reads as LF",
+        "passed": {
+          "browser": true,
+          "native": true
+        },
+        "differences": []
+      },
+      {
+        "name": "a literate module: goals in its code, none in its prose",
+        "passed": {
+          "browser": true,
+          "native": true
+        },
+        "differences": []
+      },
+      {
+        "name": "a verdict is a fresh Agda's exit code where the engine has a batch lane, and is refused where it has none",
+        "passed": {
+          "browser": true,
+          "native": true
+        },
+        "declared": {
+          "capability": "batch",
+          "browser": false,
+          "native": true
+        },
+        "differences": []
+      },
+      {
+        "name": "an abort with nothing running is nothing",
+        "passed": {
+          "browser": true,
+          "native": true
+        },
+        "differences": []
+      }
+    ],
+    "identical": true,
+    "declared": [
+      {
+        "name": "a verdict is a fresh Agda's exit code where the engine has a batch lane, and is refused where it has none",
+        "capability": "batch",
+        "browser": false,
+        "native": true
+      }
+    ]
+  },
+  "controls": {
+    "interaction": {
+      "change": "The native run's transcript of the second scenario (a load with open goals) given another `checking` list.",
+      "exitCode": 1,
+      "reported": [
+        "DIFFER  a load with open goals answers them, and is not a verdict",
+        "        /checking/0: browser \"Goals\", native \"Other\""
+      ]
+    },
+    "failed": {
+      "change": "The browser run's verdict scenario marked as failed.",
+      "exitCode": 1,
+      "reported": [
+        "FAILED  a verdict is a fresh Agda's exit code where the engine has a batch lane, and is refused where it has none: in browser"
+      ]
+    },
+    "undeclared": {
+      "change": "The browser run's verdict scenario's transcript stripped of its `capability`.",
+      "exitCode": 1,
+      "reported": [
+        "DIFFER  a verdict is a fresh Agda's exit code where the engine has a batch lane, and is refused where it has none",
+        "        /capability/batch: browser undefined, native true"
+      ]
+    }
+  },
+  "companion": {
+    "date": "2026-10-12T05:59:17.032Z",
+    "machine": {
+      "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+      "logicalCpus": 20,
+      "memoryBytes": 67068481536,
+      "kernel": "7.0.0-31-generic",
+      "loadAverage": [
+        3.28,
+        5.7,
+        6.85
+      ]
+    },
+    "vscode": "1.141.0",
+    "node": "v24.21.0",
+    "agdaMode": "0.10.4",
+    "agda": "2.9.0",
+    "fixture": "agda-algebras' Overture.Basic, its Agda fences in Overture/Basic.agda, as vscode/scripts/run-tests.mjs writes it; the mode's options `--no-libraries --no-default-libraries -i <stdlib> -i <workspace>`, which the lanes take",
+    "sourceSha256": "419e24a842c830029a05f9e8f5e329ba3d4e3a32c94b7d41bbe2f555daa9481a",
+    "modeFirstLoadMs": 4401.1730769999995,
+    "activationCallMs": 106.33665399999995,
+    "nativeLanes": {
+      "verdictBefore": {
+        "exitCode": 42,
+        "agdaMs": 321.5,
+        "commandMs": 360.5,
+        "checking": [
+          "Overture.Basic"
+        ],
+        "warnings": {
+          "UnsupportedIndexedMatch in Decidable.agda": 11
+        },
+        "spawnedLane": true
+      },
+      "firstGoal": {
+        "load": "first",
+        "loadMs": 317.17475000000013,
+        "checking": [
+          "Overture.Basic"
+        ],
+        "agdaMs": 1.2,
+        "commandMs": 327
+      },
+      "warmGoal": {
+        "load": "reused",
+        "agdaMs": 0.8,
+        "commandMs": 6.3
+      },
+      "infer": {
+        "agdaMs": 1,
+        "commandMs": 5.8
+      },
+      "give": {
+        "load": "changed",
+        "loadMs": 63.106974000000264,
+        "agdaMs": 1.4,
+        "commandMs": 87.8
+      },
+      "verdictAfter": {
+        "exitCode": 0,
+        "agdaMs": 330.7,
+        "commandMs": 337.9,
+        "checking": [
+          "Overture.Basic"
+        ],
+        "warnings": {
+          "UnsupportedIndexedMatch in Decidable.agda": 11
+        }
+      }
+    },
+    "note": "The lanes ran after the mode's own first load of the fixture, with the module holding one goal (`ℓ₁ = suc {!   !}`): `agdaMs` is Agda's time for the command (the session's elapsed time), `commandMs` the companion's whole command (saving, resolving, holding the lane, applying an edit).  `checking` lists the modules a run type-checked: the batch run and the lane's first load each checked Overture.Basic alone, accepting every standard library interface the mode's Agda had written.  The warnings come from Agda's report of an imported module, Decidable.agda, under the fixture's --without-K.  The supported phase passed; the window-reload check after it failed in its hidden case, as it did at the base revision d301045 the same night (see probes.hiddenReload)."
+  },
+  "probes": {
+    "batchExitCodes": {
+      "date": "2026-10-11",
+      "method": "Batch `agda <file>` on small modules over Agda's builtins, in a fresh project with its own empty AGDA_DIR; every message is on standard output.",
+      "results": [
+        {
+          "module": "a definition that checks",
+          "exitCode": 0,
+          "diagnostics": []
+        },
+        {
+          "module": "a `{! !}` and a `?`",
+          "exitCode": 42,
+          "diagnostics": [
+            "error UnsolvedInteractionMetas, its range from the first goal to the last"
+          ]
+        },
+        {
+          "module": "true where Nat is expected",
+          "exitCode": 42,
+          "diagnostics": [
+            "error UnequalTypes"
+          ]
+        },
+        {
+          "module": "an implicit argument and an underscore left unsolved",
+          "exitCode": 42,
+          "diagnostics": [
+            "error UnsolvedMetaVariables"
+          ]
+        },
+        {
+          "module": "loop n = loop n",
+          "exitCode": 42,
+          "diagnostics": [
+            "error TerminationIssue"
+          ]
+        },
+        {
+          "module": "an unreachable clause",
+          "exitCode": 0,
+          "diagnostics": [
+            "warning UnreachableClauses, printed twice, around the banner \"All done; warnings encountered\""
+          ]
+        },
+        {
+          "module": "a module that checks, with --no-such-option",
+          "exitCode": 71,
+          "diagnostics": [],
+          "output": "Error: Unrecognized option:\n--no-such-option"
+        }
+      ]
+    },
+    "processArguments": {
+      "date": "2026-10-11",
+      "method": "`agda --interaction-json` sent one `Cmd_load` of a module importing Dep, which only an include path reaches; each case in a fresh tree, so no interface was reused.",
+      "results": [
+        {
+          "process": "-i <lib> -i <dir>",
+          "load": "[]",
+          "checked": [
+            "Dep",
+            "UsesDep"
+          ]
+        },
+        {
+          "process": "",
+          "load": "[-i <lib>, -i <dir>]",
+          "checked": [
+            "Dep",
+            "UsesDep"
+          ]
+        },
+        {
+          "process": "-i <lib> -i <dir>",
+          "load": "[--no-libraries]",
+          "checked": [
+            "Dep",
+            "UsesDep"
+          ]
+        },
+        {
+          "process": "",
+          "load": "[]",
+          "checked": [
+            "UsesDep"
+          ],
+          "error": "FileNotFound: Dep"
+        },
+        {
+          "process": "-i <lib>",
+          "load": "[-i <dir>]",
+          "checked": [
+            "Dep",
+            "UsesDep"
+          ]
+        }
+      ],
+      "finding": "A load's arguments are added to the process's, which every load inherits."
+    },
+    "agdaModeVscode": {
+      "date": "2026-10-11",
+      "version": "0.10.4",
+      "method": "Read in the installed extension's dist/app.bundle.js and package.json.",
+      "findings": [
+        "It spawns its Agda as `[\"--interaction\"].concat(getCommandLineOptions())`.",
+        "For Agda 2.5.0 and later it sends `Cmd_load \"<file>\" []`.",
+        "getCommandLineOptions is `connection.commandLineOptions`, `.trim().split(\" \")`, blank words dropped.",
+        "`connection.paths` (default [\"agda\", \"als\"]) is \"tried for connection from the LAST to the first\"."
+      ]
+    },
+    "hiddenReload": {
+      "date": "2026-10-12",
+      "method": "vscode/src/test/reload.ts instrumented, in one run at 1f94e86 and then restored, to log each change of the active editor and the companion's module.",
+      "trace": [
+        "1760 ms: Cover.txt active (the companion's module Basic.agda)",
+        "1818 ms: Basic.agda active",
+        "1832 ms: HiddenTarget.agda active (module HiddenTarget.agda)",
+        "1871 ms: Basic.agda active (module Basic.agda)",
+        "1886 ms: Cover.txt active",
+        "1939 ms: the marker is written with the module Basic.agda"
+      ],
+      "finding": "Showing a document in the panel's column made Basic.agda, in column one, the active editor for about 15 ms first, and the companion follows every active Agda editor, so its module moved back.  The check passed in the first run of the session and failed in four later ones, one at the base revision; CI's last twelve runs of the workflow passed."
+    }
+  }
+}

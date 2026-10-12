@@ -48,7 +48,9 @@ together from one `package-lock.json`.
 +  **The VS Code companion**, in [`vscode/`][vscode]: a TypeScript package
    beside agda-mode-vscode, with a persistent webview, delegated editor
    commands, an explicit tested-version check and real headless
-   extension-host tests.
+   extension-host tests; and the native engine's two lanes, an interaction
+   lane per project root and a fresh Agda per verdict, running the
+   project's own Agda.
 +  **The app**, as imported from plfa-playground: `src/` (the page, and the
    controller, its host of the engine), `static/` (the files served
    as they are), `scripts/*.mjs` (the build's post-step and the PLFA
@@ -129,9 +131,10 @@ nix develop .#vscode --command make conformance-native
 nix develop --command make conformance-compare   # the two engines' answers, field by field
 ```
 
-Its [README][vscode] describes opening the panel on an Agda checkout and
-the mode's command contract.  The tests use copied sources and a private
-VS Code profile; they leave the library checkout untouched.
+Its [README][vscode] describes opening the panel on an Agda checkout, the
+native lanes and which Agda they run, and the mode's command contract.  The
+tests use copied sources and a private VS Code profile; they leave the
+library checkout untouched.
 
 `make check`, `make test`, `make build` and `make dev` first install the
 locked npm dependencies (`npm ci`) whenever a workspace's `package.json` or

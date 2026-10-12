@@ -21,7 +21,7 @@ together from one `package-lock.json`.
 | `@agda-native-ide/engine` | `.` | The engine client's interface: the session, its outcomes, the commands, the response validation (`parseResponse`), the give rule, coordinates and digests.  No platform. |
 | | `./browser` | The browser transport: the language server's reactor in a worker, over a message port. |
 | | `./browser/worker` | That worker's script, which a host's bundler builds. |
-| | `./native` | The native transport: `agda --interaction-json` as a child process.  Exported under the `node` condition only. |
+| | `./native` | The native engine: `agda --interaction-json` as a child process and a fresh `agda` per verdict (the transport), one lane per project root (the registry), and which Agda a project uses (the resolution).  Exported under the `node` condition only. |
 | | `./conformance` | The conformance suite, which runs through `.` alone. |
 | `@agda-native-ide/tools` | `.` | The tool surface over a session: agda-mcp's tools, with JSON Schemas. |
 | `@agda-native-ide/manifest` | `.` | The manifests the page reads, validated, and the planning it does with them. |
@@ -34,7 +34,7 @@ page (src/)  ->  engine, engine/browser, tools, manifest, views
 tools        ->  engine
 manifest     ->  engine
 engine/browser, engine/native, engine/conformance  ->  engine
-vscode/      ->  none of them yet (issue 64 adds the native engine)
+vscode/      ->  engine, engine/native, tools (bundled into it)
 ```
 
 `make packages` builds the engine, the tools and the manifest with
@@ -78,10 +78,12 @@ following:
    level of the loaded file;
 +  `reloadNext(reason)`: no command; the next check loads, whatever the text,
    for a host that has replaced the text it shows;
-+  `version()`, `abort()`, `checkFile()`, `dispose()`.
++  `checkFile(path, { text?, expect? })`: the batch lane's verdict, a fresh
+   Agda's exit code on the file, where the engine has one (below);
++  `version()`, `abort()`, `dispose()`.
 
-Every operation returns an `Outcome`, one of the following three types,
-which a caller cannot confuse:
+Every operation but the verdict returns an `Outcome`, one of the following
+three types, which a caller cannot confuse:
 
 +  an **answer**, Agda's: its value, every response Agda sent for the
    command (validated), the time it took, the lane (`interaction`), and the
@@ -93,6 +95,15 @@ which a caller cannot confuse:
 +  a **failure** to get an answer: a deadline, an abort, Agda's exit, a
    malformed answer, a source that changed while Agda read it, a file that
    could not be read or written, or a start that failed.
+
+A verdict is a fourth type, `Verdict` (`kind: "verdict"`, `lane:
+"batch"`), and `checkFile` returns it, a refusal or a failure
+(`VerdictOutcome`).  It carries Agda's exit code; `success`, which is that
+code being 0 and nothing else; Agda's diagnostics, read from its output;
+the modules the run type-checked; the command that ran; and the file and
+the digest of the text it read.  The diagnostics say why, and never decide
+the verdict: a change in Agda's message format can empty them, and cannot
+turn a failing run green.
 
 A host listens to the session too: `onResponse` gives each of Agda's
 responses as it arrives, with the command it answers (the page colors its
@@ -108,7 +119,9 @@ quotes zod's account; a kind it does not read is kept whole as `Unread`.
 A transport (`EngineTransport`) is all an engine needs to provide: send a
 command line, send an abort out of band, resolve a path, write and read a
 source, terminate, and deliver events (a response, the end of a command,
-output that is not a response, Agda's exit).
+output that is not a response, Agda's exit).  A transport with the batch
+lane also starts a batch run (`runBatch`): a fresh Agda on a file, with the
+lane's executable, arguments and directory, which it can stop.
 
 ## What ends a command
 
@@ -237,7 +250,8 @@ snapshot it was planned on.
 |---|---|
 | The engine's core | Building commands; validating answers; one command at a time, ended at its transport's boundary; deadlines, aborts and the end of a session; the basis, the snapshot and the goals; the give rule; refusals and failures. |
 | The browser transport | The compiler's download, its progress and its failures (in the words the page shows after "Agda could not start:"); the worker, the drive and its cache, with the sources under its root on the drive (the page's is the whole drive) and nothing outside it; the language server's session and its acknowledgements; the editor channel. |
-| The native transport | The child process and its kill ladder (on its process group, where the platform has one; tested on Linux only); its standard streams; the files under its project root, and nothing outside it, where it writes a source only when a load gives one. |
+| The native transport | The child process and its kill ladder (on its process group, where the platform has one; tested on Linux only); its standard streams; its batch runs, each in a process group of its own; the files under its project root, and nothing outside it, where it writes a source only when a load gives one. |
+| The lane registry | One lane per project root; which request holds a lane; when a file is loaded; a lane's end, its replacement, its idle close and its disposal. |
 | The host | Its configuration (URLs, the executable, the project root, the library arguments), what it may fetch, when to persist, its source conversion, and its editor: applying highlighting, goals and edits, and showing results. |
 | The views | Showing what they are given, and reporting what the reader does. |
 
@@ -263,9 +277,76 @@ of what Agda holds, and it applies no answer about another file than the one
 on screen.
 
 The companion keeps its delegated commands: it drives agda-mode-vscode's
-own commands and reads their effects, and imports no package yet.  Issue
-64 hosts the native engine there, with the project's own Agda and
-libraries.
+own commands and reads their effects.  It also hosts the native engine
+(issue 64), next.
+
+## The native engine in an editor
+
+The native entry (`@agda-native-ide/engine/native`) has three modules: the
+transport, the lane registry and the resolution.  The VS Code companion
+uses all three; the native conformance runner opens its sessions through
+the same two last ones.
+
+**The batch lane**.  The transport starts `agda <args> <file>` in the
+project's root, with the interaction lane's executable and arguments, in a
+process group of its own, and keeps its output and its exit code.  The
+session queues the run with the lane's commands, so a verdict and a load
+never write a checkout's interfaces at once, and gives it the deadline of
+a load; at the deadline, an abort or the session's end it stops the run's
+Agda (SIGTERM, then SIGKILL to the group) and settles once that Agda is
+gone.  It reads the file before the run and after it, and a file that
+changed in between has no verdict.  `checkFile(path, { text, expect })`
+writes `text` over the file for the run and puts the file back on every
+path; `expect` is the digest the file must hold first.  agda-native-air's
+`fill_hole` checks a candidate this way, in place, since a copy of a
+hierarchical module fails to load.  Batch Agda 2.9.0 exits 0 when the
+file checks with nothing open, 42 for an error, an open goal, an unsolved
+meta or a termination problem, and 71 for options it refuses, and prints
+every message on standard output; `parseDiagnostics` reads each
+`<file>:<range>: error: [Code]` block, once.
+
+**One lane per project root** (`LaneRegistry`), with agda-native-air's
+persistence rules (its interaction lane note, § 3).  The host gives the
+registry a function that resolves a file to a root and an Agda; the
+registry calls it on every request, keys the lane by the root, and
+replaces a lane whose Agda or arguments changed.  `withFile(path, use)`
+holds the root's lane while it makes sure the file is loaded and runs
+`use`; `withLane(path, use)` holds it without loading anything, for a
+verdict.  A request loads its file only when the lane holds none or
+another, or the file's text is not the session's snapshot (the text
+Agda's live state reflects), or its last load failed, or the request asks;
+it says why, in air's words (`first`, `switch`, `changed`, `retry`,
+`requested`, or `reused` when nothing is loaded).  The stamp is the text,
+so a rewrite that keeps the size and the modification time counts, and a
+file that holds the lane's own give is not loaded again.  A crash fails
+the request it interrupts, and the host is told of it once (`onLaneEnded`),
+whether the lane was busy or idle; the next request starts a new lane.  A
+lane idle for fifteen minutes is closed by closing its input, which Agda
+answers by exiting with code 0; disposal closes every lane, one still
+starting included, and the registry refuses from then on.  A lane's
+sessions record a `?` as written, since the lane loads files as they are
+on disk.
+
+**Which Agda** (`resolveAgda`, `findProjectRoot`).  A project's root is
+the directory of the nearest `.agda-lib` above the file, where Agda finds
+its library and writes its interfaces; with none, the host's fallback (the
+workspace folder) around the file, else the file's directory.  The host
+lists candidates in its order, each an executable (a path, or a name on
+PATH) with its arguments; the first that names an executable decides, and
+is refused, naming the setting it came from, unless it answers
+`--numeric-version`, given its arguments, with the version the project
+expects.  The arguments go on the process's command line, and every
+`Cmd_load` inherits them (Agda adds a load's own arguments to the
+process's).  The companion's order is its own setting, then
+agda-mode-vscode's connection paths from the last, then `agda` on PATH,
+so it runs the mode's Agda with the mode's options and the two share the
+checkout's interfaces; `vscode/README.md` has the settings.
+
+**What the companion loads**.  A lane command saves the module first, as
+the mode's own load does, and the lane loads the file as it is: a buffer
+is never sent, so every answer and verdict names the file on disk, and the
+batch verdict and the lane read the same text.  A give's edit is applied
+to the editor and saved, so the file is again the lane's snapshot.
 
 ## The tool surface
 
@@ -279,9 +360,17 @@ model tool calling (from its zod schema), as follows:
    text, columns counting code points), or by nothing when the file has
    one goal, and the answer says which it used (`addressed`).  Agda's error
    about an expression is part of its answer.
-+  `fill_hole` and `check_file` are verdicts, a fresh batch check's exit
-   code, and refuse until an engine has a batch lane: a give is not a
-   verdict.
++  `check_file` and `fill_hole` are verdicts, from the batch lane, where
+   the engine has one (natively): `check_file` a fresh check of a file as
+   it is on disk (the loaded one by default), `fill_hole` of the loaded
+   file with a candidate written over a goal (addressed as `get_goal`'s
+   is), put back afterwards.  Each answer has `status: "verdict"` and
+   `lane: "batch"`, the tree (the file and the digest of the text the run
+   read), the command, and `verdict` (the exit code, a command line that
+   reproduces the run, and agda-native-air's sentence for what `success`
+   or `status` means); `fill_hole` is `ok` when the run exits 0, or 42 with
+   nothing but `UnsolvedInteractionMetas`.  Where the engine has no batch
+   lane (the page), both refuse: a give is not a verdict.
 
 Input that the schema does not admit, and a tool the surface does not have,
 are refused before Agda is asked.  The page's Goal type and Context buttons
@@ -331,8 +420,7 @@ target: a function that opens a fresh session with the suite's fixtures
 written where its Agda reads them.  The fixtures (`fixtures.ts`) use
 Agda's builtins only.  The scenarios are as follows:
 
-+  a session names its engine and Agda, and refuses a verdict, naming the
-   issue that adds it;
++  a session names its engine, its Agda and its lanes;
 +  a load with open goals answers them (their numbers, types and spans,
    the `?` shown as a goal, the module checked), and carries no verdict;
 +  a goal's type and context;
@@ -350,19 +438,30 @@ Agda's builtins only.  The scenarios are as follows:
 +  positions in a text whose line ends are CR LF, and two gives in it;
 +  a literate module: a goal in its code, none in its prose, and a give
    that computes;
++  a verdict, conditional on the batch lane: where the engine has one, the
+   goals open exit 42 (`UnsolvedInteractionMetas`), the goals filled exit
+   0, a type error exits 42 (`UnequalTypes` at its position), and the file
+   holds its own text again after; where it has none, the refusal names
+   the issue that adds it;
 +  an abort with nothing running.
 
 Each scenario returns a transcript of the values it asserted on (goals,
 types, contexts, edits, Agda's errors, refusals, normal forms, digests), with
 the engine's root path and the session's name replaced by placeholders.  The
 first scenario and the last check the session's own contract, so their
-transcripts cannot differ between engines; the other ten compare what Agda
-answered.  The runners add the checks of what they own: natively, a missing
-executable, an Agda that exits at once, a deadline Agda answers, a child
-stopped with SIGSTOP that the kill ladder ends, a child killed mid-command,
-and a disposal that leaves no process; in the browser, a missing compiler, a
-compiler that is not one, a deadline Agda answers, a worker that dies without
-a word (which the deadline ends), and a disposal.
+transcripts cannot differ between engines; the verdict scenario records the
+batch lane's capability in its transcript; the other ten compare what Agda
+answered.  The native runner opens each scenario's session as an editor host
+does, through a lane registry with the root and the Agda resolved.  The
+runners add the checks of what they own: natively, a missing executable, an
+Agda that exits at once, a deadline Agda answers, a child stopped with
+SIGSTOP that the kill ladder ends, a child killed mid-command, a disposal
+that leaves no process, and the registry's rules against the real Agda (one
+lane per root, a crash told once and a new lane next, an idle lane closed by
+its input, every lane closed at disposal), options Agda refuses refused
+before a lane starts, and a verdict stopped at its deadline; in the browser,
+a missing compiler, a compiler that is not one, a deadline Agda answers, a
+worker that dies without a word (which the deadline ends), and a disposal.
 
 ```sh
 nix develop .#vscode --command make conformance-native  # node, native Agda
@@ -373,16 +472,19 @@ nix develop --command make conformance-compare          # the two runs, field by
 Each writes its record into `conformance/` (`CONFORMANCE=` moves it), and
 each runner removes its own record before it starts.  The comparison takes
 the scenarios' names from the suite, so a scenario missing from either run is
-a difference.  The native runner stops its Agda on SIGINT, SIGTERM and
-SIGHUP, which Agda's own process group does not get.  CI runs the native
-suite in the companion's workflow, which builds native Agda, and the browser
-suite in the site's browser job.
+a difference.  A scenario that depends on a capability two engines declare
+differently (the batch lane: the native engine has it, the page's not yet)
+is reported as declared, not compared, once each run passed its own branch;
+every other scenario must answer identically.  The native runner stops its
+Agda on SIGINT, SIGTERM and SIGHUP, which Agda's own process group does not
+get.  CI runs the native suite in the companion's workflow, which builds
+native Agda, and the browser suite in the site's browser job.
 
 ## What is not here yet
 
-+  **The batch lane**: both engines refuse a verdict.  The page's is issue
-   30; the native one, with the project's own Agda and libraries and one
-   interaction lane per project root, is issue 64.
++  **The page's batch lane**: the page refuses a verdict; issue 30.  The
+   native engine has one (issue 64).
++  **The tools as an MCP server and as VS Code's LM tools**: issue 65.
 +  **The rest of the tool surface**, and its searches: issue 29.
 +  **The plugin loader** and its format: issue 24.
 +  **The theory and proof views**, and the webview's message protocol:
