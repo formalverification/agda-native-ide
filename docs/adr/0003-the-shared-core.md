@@ -83,7 +83,8 @@ Firefox.
 verdict is a type of its own; a lane registry keeps one interaction lane per
 project root with agda-native-air's rules; a host resolves the Agda a
 project uses; and the companion hosts both lanes, running agda-mode-vscode's
-Agda with its options, so that the two share a checkout's interfaces.  The
+Agda with its options unless a setting of its own names another, so that the
+two share a checkout's interfaces.  The
 suite, now 13 scenarios, passes natively through the registry and the
 resolution, and in the browser; the comparison finds 12 identical, and the
 verdict scenario different by the batch lane the native engine declares and
@@ -109,12 +110,18 @@ package ([#70]), and Windows (§ 16).
    check, whose exit code is the **verdict**.
 +  **Session**: one running Agda, with the state the engine keeps about
    it.  **Transport**: the part of an engine that reaches its Agda.
++  **Native entry**: the engine package's `./native` export
+   (`packages/engine/src/native/`), its only modules that import node: the
+   native transport, and since [#64] the lane registry and the resolution.
 +  **Project root**: the directory of the nearest `.agda-lib` above a file,
    where Agda finds the project's library and writes its interfaces (the
    `.agdai` files under `_build/`).  **Lane registry**: the native entry's
    `LaneRegistry`, which keeps one interaction lane per project root
    (§ 12).  **Resolution**: a host's choice of the Agda, and its options,
    that a project's lanes run (§ 13).
++  **air**: agda-native-air, whose agda-mcp server runs the same two lanes
+   for agents; its ADR 0002 and its interaction lane note are cited by
+   section.
 +  **Basis**: what an answer is about: the session, the file, the digest
    of the text Agda read, and the load's **generation** (the session's
    count of loads).
@@ -201,7 +208,8 @@ interface".)
 
 **Decision**.  The engine's interface is a session over a transport, whose
 operations each return one of three types: Agda's answer, the engine's
-refusal, or a failure to get an answer.
+refusal, or a failure to get an answer; and since [#64] a verdict, a fourth
+type, which only the batch lane's operation returns.
 
 +  **Operations**: load, check (the give rule), a goal's type and context,
    give, refine, case split, infer and normalize (at a goal or at the top
@@ -431,7 +439,8 @@ it, and tells the host its plan synchronously, before anything is sent.
 +  After a give or a refine Agda reports positions in the loaded text, so
    the session moves the goals' spans by each edit itself, and reports
    each edit for the host; a `?` that Agda reports as a goal is recorded
-   as `{!  !}`.
+   as `{!  !}`, by default (a lane registry's sessions record it as
+   written, § 12).
 +  A case split's clauses replace the goal's clause as Agda's Emacs mode
    replaces it (`agda2-mode.el`'s `agda2-make-case-action` and
    `agda2-make-case-action-extendlam`): a function's line after its
@@ -598,9 +607,10 @@ persistence and editor; the views own nothing but display.
    fork); the fixed page loads it again (2 goals, 4 keyword marks), the page
    before the fix showed none (0 and 0) ([the probes record][probes],
    `pageScope`, `pageReturn`, with their controls).
-+  The companion's real suite passes in the workspace, with native Agda
-   2.9.0 and agda-mode-vscode 0.10.4, including the reloads of a normal
-   window, visible and hidden.
++  The companion's real suite passed in the workspace at [#62], with native
+   Agda 2.9.0 and agda-mode-vscode 0.10.4, including the reloads of a normal
+   window, visible and hidden.  Since [#64], the hidden reload fails on this
+   machine at the base revision as well (§ 15).
 +  The views type-check with none of the page's aliases.  The contrast check
    reads the views' styles: it derives the text colors it measures from its
    style sources, and its report counts 5,318 pairs with the views' styles
@@ -729,7 +739,11 @@ at that revision), recorded in [the native engine's record][native-record]:
 **Status**.  Adopted.  [#64]'s acceptance, that this suite pass against its
 native engine once that engine resolves the Agda and the libraries a project
 pins and keeps one interaction lane per project root, is met: natively it
-passes through the registry and the resolution an editor host uses.
+passes through the registry and the resolution an editor host uses, the
+root found by the fixture's `.agda-lib` and the Agda checked for its
+version.  The libraries reach a lane through its Agda's options, which the
+runner has none of and the companion's real suite takes from the mode
+(§§ 13, 15).
 
 ---
 
@@ -759,8 +773,8 @@ engine on 2026-10-12.  Open: [#30].
 
 **Decision**.  A verdict is its own outcome: the exit code of a fresh `agda
 <options> <file>`, which the native transport runs in the project's root and
-the session queues with the interaction lane's commands, and never a reading
-of Agda's messages.
+the session queues with the interaction lane's commands.  Its `success` is
+that exit code alone, never a reading of Agda's messages.
 
 +  **The type**: `kind: "verdict"`, `lane: "batch"`; Agda's exit code;
    `success`, which is that code being 0 and nothing else; Agda's
@@ -777,26 +791,33 @@ of Agda's messages.
    to load.
 +  **Queued with the lane**: a verdict waits for the lane's command in
    progress, and the lane's next command waits for it, so the two never
-   write a checkout's interfaces at once.  Its deadline is a load's (ten
-   minutes); at it, at an abort, or at the session's end, its Agda is
-   stopped by SIGTERM and then SIGKILL to its process group, and the
-   operation settles once that Agda is gone and the file is back.
-+  **No exit code, no verdict**: a run that a signal the engine did not send
-   ended is a failure (`no-exit-code`), and so is a run that could not
-   start.
+   write a checkout's interfaces at once.  A third writer, the mode's own
+   Agda in the companion, is not in the queue: two Agdas writing one
+   interface at once is not prevented, and was not probed.  A verdict's
+   deadline is a load's (ten minutes); at it, at an abort, or at the
+   session's end, its Agda is stopped by SIGTERM and then SIGKILL to its
+   process group, and the operation settles once that Agda is gone and the
+   file is back.
++  **No exit code, no verdict**: a run ended by a signal the engine did not
+   send has no exit code, and is a failure (`no-exit-code`); so is a run
+   that could not start.
 +  **The tools**: `check_file` and `fill_hole` answer with it (§ 8), with
    `equivalentTo`, a command line that reproduces the run, and
    agda-native-air's sentences for what `success` and `status` mean, less
    the clause that its server has no interaction mode (this one has) and
-   with its dashes made commas; `fill_hole` is `ok` when the run exits 0, or
-   42 with nothing but `UnsolvedInteractionMetas`.
+   with its dashes made commas.  `fill_hole`'s status is `ok` when the run
+   exits 0, or exits 42 with nothing but `UnsolvedInteractionMetas` errors
+   (the file's other goals, and the candidate's own new ones), as air's is.
+   That status reads the errors' codes, in the safe direction only: output
+   with no code it can read leaves a failed run `type_error`, never `ok`.
 
 **Evidence**.
 
 +  Probed on 2026-10-11 with batch Agda 2.9.0 `da66a8c7` ([the native
    engine's record][native-record], `probes.batchExitCodes`): exit 0 for a
-   module that checks, and for one whose only message is a warning, printed
-   twice, around the banner "All done; warnings encountered"; 42 for an open
+   module that checks, and for one whose only message is a warning, which
+   Agda printed twice, once before the banner "All done; warnings
+   encountered" and once after it; 42 for an open
    goal (`UnsolvedInteractionMetas`, its range from the first goal to the
    last), a type error (`UnequalTypes`), unsolved metas
    (`UnsolvedMetaVariables`) and a termination problem (`TerminationIssue`);
@@ -804,8 +825,8 @@ of Agda's messages.
    is on standard output.
 +  The verdict scenario natively: the goals open, 42 with
    `UnsolvedInteractionMetas`; the goals filled, 0 with no diagnostic; a
-   type error, 42 with `UnequalTypes` at line 7, column 14; and the lane's
-   next load of the file reads its own text again.
+   type error, 42 with `UnequalTypes` at line 7, column 14; and it asserts
+   that the lane's next load of the file reads the file's own text again.
 +  Unit tests over a scripted transport, among them: the verdict from the
    exit code; a given text written and put back; `expect` refused with
    nothing written; a signal with no verdict; a file changed during the run;
@@ -813,9 +834,10 @@ of Agda's messages.
    putting the file back; the run queued between two lane commands.  With
    the put-back removed, five of them fail; with the deadline's stop
    removed, the deadline's fails.
-+  The runner's check: a verdict on a module whose check takes a billion
-   reductions, under a deadline of 1,500 ms, failed as a timeout after
-   1,505 ms, its process gone, and the lane answered next.
++  The runner's check: a verdict on a module whose check counts down from a
+   billion, under a deadline of 1,500 ms, failed as a timeout after 1,505
+   ms; the check asserts that the run's process was gone, and that the lane
+   answered next.
 +  In the companion, after agda-mode-vscode's own load of the fixture, the
    batch run type-checked only `Overture.Basic` (§ 15).
 
@@ -834,21 +856,24 @@ listing; the diagnostics here are Agda's messages split by header.
 lane per project root, with agda-native-air's persistence rules, except
 where this engine's session lets it do better.
 
-+  **A registry per resolved root**: the host resolves each request's file
-   to a root and an Agda on every request (§ 13); the root keys the lane,
-   and a resolution that changes replaces it.
++  **A lane per resolved root**: the host resolves each request's file to
+   a root and an Agda on every request (§ 13); the root keys the lane, and a
+   resolution that changes replaces it.
 +  **Requests serialized per lane**: a request holds its lane from making
    sure its file is loaded until its own operations end, so no other
    request's load comes between; the session's queue orders its commands.
-+  **Ensure-loaded by stamp**: a request loads its file only when the lane
-   holds no file or another, or the file's text is not the session's
-   snapshot, or the file's last load failed, or the request asks; it says
-   why, in air's words (`first`, `switch`, `changed`, `retry`,
++  **Ensure-loaded by stamp** (the stamp is what decides whether the file
+   changed since the lane loaded it): a request loads its file only when
+   the lane holds no file or another, or the file's text is not the
+   session's snapshot, or the file's last load failed, or the request asks;
+   it says why, in air's words (`first`, `switch`, `changed`, `retry`,
    `requested`, else `reused`).  The stamp is the text itself, where air's
    is the modification time, the size and a fingerprint; and since it is
    compared with the snapshot, a file that holds the lane's own give is not
-   loaded again, where air reloads after every give (its issue 163),
-   having no snapshot to compare with.
+   loaded again, where air's lane, having no snapshot, reloads after a give
+   (its `giveCandidate`, from air's [issue 163][air-163]).  An edit inside a
+   goal is a change like any other: the registry loads the file, and never
+   gives on a host's behalf.
 +  **A crash surfaced once**: the request it interrupts fails with the
    session's failure, and the host is told once (`onLaneEnded`), whether
    the lane was busy or idle (air replaces a lane found dead between
@@ -869,13 +894,13 @@ where this engine's session lets it do better.
 +  Unit tests with a stand-in `agda`, one per rule; each of four mutations
    (the text ignored in the reuse decision, no idle close, a starting lane
    kept after disposal, no serialization) fails its rule's test.
-+  The runner's checks against Agda 2.9.0 ([the native engine's
++  Four of the runner's checks against Agda 2.9.0 ([the native engine's
    record][native-record]): the loads `first`, `reused`, `switch`, `first`
    (another root, another process), `changed` (a rewrite of the same
    length) and `requested`; a lane killed with SIGKILL, told once, a new
-   process at the next request; an idle lane closed after 300 ms, exit code
-   0, no signal; two lanes disposed, both processes gone, a later request
-   refused.
+   process at the next request; an idle lane closed at its bound (300 ms in
+   the check), exit code 0, no signal; two lanes disposed, both processes
+   gone, a later request refused.
 
 **Status**.  Adopted (2026-10-12, [#64]).
 
@@ -888,28 +913,36 @@ where this engine's session lets it do better.
 **Decision**.  A host resolves the Agda a project uses from its
 configuration, in its order; the first candidate that names an executable
 decides, and is refused, naming the setting it came from, unless it answers
-`--numeric-version` with the version the project expects.
+`--numeric-version` with the version the host expects (in the companion, a
+setting that stands in for the project's pin).
 
 +  **The root**: the directory of the nearest `.agda-lib` above the file;
    with none, the host's fallback (the workspace folder) around the file,
    else the file's directory.
 +  **The companion's order**: `agdaWorkbench.agda.path` with
-   `agdaWorkbench.agda.commandLineOptions`, when the path is set, and
-   nothing else; else agda-mode-vscode's `agdaMode.connection.paths` from
-   the last entry to the first, as the mode tries them, passing over a URL
-   and a language server, with `agdaMode.connection.commandLineOptions`
-   split as the mode splits them; else `agda` on PATH, with the mode's
-   options.  A wrapper, such as agda-algebras' dev-shell `agda` that adds
-   its library flags, is an executable like any other.
+   `agdaWorkbench.agda.commandLineOptions`, when the path is set, and then
+   no other candidate is tried; else agda-mode-vscode's
+   `agdaMode.connection.paths` from the last entry to the first, as the
+   mode tries them, passing over a URL and a language server, with
+   `agdaMode.connection.commandLineOptions` split as the mode splits them;
+   else `agda` on PATH, with the mode's options.  A wrapper, such as
+   agda-algebras' dev-shell `agda` that adds its library flags, is an
+   executable like any other.
 +  **The version**: `agdaWorkbench.agda.version`, 2.9.0 by default.  No file
    a project keeps names its Agda's version in a form a host can read
    (agda-algebras pins it in its flake), so the setting stands in for it.
-   The probe passes the candidate's options, so options Agda refuses are
-   refused before any lane starts.
-+  **The options ride the process's arguments**, before `--interaction-json`
-   and before the file in a batch run, as the mode passes them to its own
-   Agda; every `Cmd_load` inherits them.  agda-native-air sends them with
-   each load instead, since its flags vary by file.
+   The version check passes the candidate's options, so options Agda
+   refuses are refused before any lane starts.
++  **The options ride the process's arguments**, after `--interaction-json`
+   (as the mode puts them after `--interaction`) and before the file in a
+   batch run; every `Cmd_load` inherits them.  air sends them with each load
+   instead, since it resolves them for each file.
++  **Shared interfaces**: when the companion has no Agda setting of its own
+   and the mode runs an Agda, not its language server, the lanes run the
+   mode's Agda with the mode's options, and read and write the interfaces
+   the mode's Agda does.  With a setting of its own, or with the mode on its
+   language server (its default `connection.paths` tries `als` before
+   `agda`), they may not.
 +  **Not the language server**: the issue's third candidate, the Agda
    Language Server that agda-mode-vscode can download, speaks LSP, not
    `--interaction-json` on its standard streams, and the engine's only LSP
@@ -923,7 +956,9 @@ decides, and is refused, naming the setting it came from, unless it answers
    reach a `Cmd_load` with none; on the load's alone, the same; the load's
    `--no-libraries` beside the process's paths, the same; with neither,
    `FileNotFound`; one path on each, both apply.  A load's arguments are
-   added to the process's.
+   added to the process's.  Each probe sent one load; in the companion's
+   real suite a lane loaded twice with the mode's include paths on its
+   command line alone, and both loads found the standard library.
 +  agda-mode-vscode 0.10.4, read in its bundle (`probes.agdaModeVscode`):
    it spawns `agda --interaction <commandLineOptions>`, sends `Cmd_load
    "<file>" []` to Agda 2.5.0 and later, splits the options on single
@@ -980,7 +1015,7 @@ status bar, and every lane closed at deactivation.
 +  **The bundle**: each entry point a CommonJS bundle, with the engine, its
    native entry, zod and the tool surface inside it, and only VS Code's API
    and node's built-in modules outside.  rolldown 1.2.6 is already locked,
-   as Vite 8's bundler, so no package is added.  The other ways were
+   as Vite 8's bundler, so the bundler adds no package.  The other ways were
    `require()` of the engine's ECMAScript modules, which the extension host
    of VS Code 1.141.0 (node 24.21.0) allows but the manifest's floor
    (`^1.100.0`) was never tested for, and which leaves the workspace's
@@ -991,10 +1026,12 @@ status bar, and every lane closed at deactivation.
    of the term written in the goal, and the batch verdict of the active
    module.  The answers come through the tool surface, as [#65]'s will; the
    delegated commands to the mode are as [#63] left them.
-+  **Interfaces shared by construction**: the lanes run the mode's Agda with
-   the mode's options (§ 13).
++  **Interfaces shared by construction**, when the lanes run the mode's
+   Agda with the mode's options (§ 13).
 +  **The lockfile**: the companion's manifest declares its three
-   dependencies, and the flake's `npmDepsHash` changes with the lockfile,
+   dependencies (`@agda-native-ide/engine`, `@agda-native-ide/tools` and
+   `rolldown`), which the lockfile already held, so no package is fetched
+   that was not before; the flake's `npmDepsHash` changes all the same,
    since `fetchNpmDeps` keeps the lockfile in its output.
 
 **Evidence**.  The real suite under VS Code 1.141.0, agda-mode-vscode 0.10.4
@@ -1011,19 +1048,29 @@ record][native-record], `companion`), after the mode's own first load of
 | A give of `0ℓ`, after a load of the edited module | 63 ms load, 1.4 ms give | 88 ms |
 | The verdict, the module checking (exit 0) | 331 ms | 338 ms |
 
++  A verdict rides its root's lane (it is queued there), so the first
+   verdict started the interaction lane too; the batch run is a process of
+   its own.  The give needed a load first: the term was written into the
+   goal and saved, so the file was no longer the lane's text, and the
+   registry loads such a file rather than give on the host's behalf (§ 12).
 +  The batch run and the lane's first load each type-checked only
    `Overture.Basic`.  These are single observations on a machine other
    sessions were using (load average 3.3), not benchmarks.  The issue's
-   figure of 5.1 s, natively, for a `Main` importing `Setoid.Varieties.HSP`
-   was Agda 2.8.0's; under 2.9.0 the same native check took 2.09 to 2.11 s
-   ([ADR 0002][adr-0002] § 2), and the page has not been measured under
-   2.9.0.
+   premise, native speed, rested on a figure of 5.1 s for a native check of
+   a `Main` importing `Setoid.Varieties.HSP` (314 modules), which was Agda
+   2.8.0's; under 2.9.0 the same native check took 2.09 to 2.11 s ([ADR
+   0002][adr-0002] § 2).  This run measured only `Overture.Basic`, and the
+   page has not been measured under 2.9.0.
 +  The bundle requires `vscode` and node's built-in modules alone.
 +  In the same run the window-reload check that follows failed in its
-   hidden case, as it did at the base revision `d301045` the same night; a
-   probe traced it to VS Code making another Agda editor active for about
-   15 ms, which the companion follows (`probes.hiddenReload`).  CI's last
-   twelve runs of the workflow passed.
+   hidden case.  It failed in four of five runs on this machine that night
+   (the first passed), one of them at the base revision `d301045`, while
+   CI's last twelve runs of the workflow passed.  A probe traced it to VS
+   Code making another Agda editor active for about 15 ms, which the
+   companion follows (`probes.hiddenReload`).
++  The Nix site failed with "npmDepsHash is out of date", the two lockfiles'
+   diff being the companion's five new lines, until the hash changed; with
+   the new hash it built.
 
 **Status**.  Adopted for Linux (2026-10-12, [#64]).  Open: the views in the
 webview ([#66]); the package ([#70]), which can ship `out/` and `media/` as
@@ -1052,6 +1099,11 @@ What would have to change is the following:
 +  the `.#vscode` shell, which is Linux only, and the real suite's runner,
    which needs Xvfb and xdotool.
 
+**Evidence**.  None run: the list is read from the code (the transport's
+`detached` spawn and `process.kill(-pid)`, the resolution's PATH search)
+and from node's documentation of `detached` on Windows (a console of its
+own, no process group).
+
 **Status**.  A gap, stated here and in the companion's README.
 
 ---
@@ -1079,14 +1131,14 @@ What would have to change is the following:
 | 17 | A verdict is its own outcome: a fresh Agda's exit code, `success` that code being 0, Agda's diagnostics read from its output and never deciding it | Adopted ([#64], 2026-10-12) | The probed exit codes; the verdict scenario; unit tests (§ 11) |
 | 18 | A verdict is queued with the lane's commands; a given text is written over the file and put back on every path; a deadline, an abort or the session's end stops its Agda, and it settles once that Agda is gone | Adopted ([#64]) | Unit tests and two mutations; a deadline of 1,500 ms ended at 1,505 ms (§ 11) |
 | 19 | `check_file` and `fill_hole` answer from the batch lane, with agda-native-air's meaning sentences, and refuse where there is none | Adopted ([#64]); [#65] registers them | The tool surface's tests (§§ 8, 11) |
-| 20 | One lane per project root, with agda-native-air's persistence rules; the stamp is the text, compared with the snapshot, so a lane's own give is not loaded again; a crash is told once, busy or idle | Adopted ([#64]) | Unit tests and four mutations; six checks against Agda (§ 12) |
+| 20 | One lane per project root, with agda-native-air's persistence rules; the stamp is the text, compared with the snapshot, so a lane's own give is not loaded again; a crash is told once, busy or idle; a lane's sessions record a `?` as written | Adopted ([#64]) | Unit tests and four mutations; four checks against Agda (§ 12) |
 | 21 | A scenario may be conditional on a capability; the comparison reports a declared difference only once each run passed its own branch | Adopted ([#64]) | 12 identical and 1 declared; three controls each fail the comparison (§ 9) |
 | 22 | The Agda: a host's candidates in order, the first that names an executable deciding, refused unless its `--numeric-version` is the expected version; in the companion, its own setting, then the mode's paths from the last, then PATH; the language server is passed over | Adopted ([#64]) | The mode's bundle; unit tests; the runner's check (§ 13) |
-| 23 | Options ride the process's arguments, as the mode passes them, and every load inherits them | Adopted ([#64]); proposed as `Cmd_load`'s, as air's lane sends them, until the probe | Five probes of process and load arguments (§ 13) |
+| 23 | Options ride the process's arguments, as the mode passes them, and every load inherits them | Adopted ([#64]); proposed as `Cmd_load`'s, as air's lane sends them, until the probe | Five probes of process and load arguments; a lane's two loads in the real suite (§ 13) |
 | 24 | An editor host saves the module and loads the file as it is; a buffer is never sent; a give's edit is applied and saved | Adopted ([#64]) | The real suite (§ 14) |
-| 25 | The companion is bundled with rolldown, the engine and the tools inside its CommonJS main; its lanes run the mode's Agda, so the two share interfaces | Adopted ([#64]) | The bundle's externals; the real suite's lanes, each run checking only the module (§ 15) |
+| 25 | The companion is bundled with rolldown, the engine and the tools inside its CommonJS main; without a setting of its own its lanes run the mode's Agda, so the two share interfaces | Adopted ([#64]) | The bundle's externals; the real suite's lanes, each run checking only the module (§ 15) |
 | 26 | The companion's manifest declares its dependencies, at the cost of the flake's `npmDepsHash` | Adopted ([#64]) | The Nix site failed until the hash changed, then built (§ 15) |
-| 27 | Windows is a stated gap | Adopted ([#64]) | (§ 16) |
+| 27 | Windows is a stated gap | Adopted ([#64]) | Read from the code and node's documentation, not run (§ 16) |
 
 ---
 
@@ -1145,5 +1197,6 @@ What would have to change is the following:
 [companion]: ../../vscode/README.md
 [air-adr-0002]: https://github.com/formalverification/agda-native-air/blob/3de85b40bf08f84debf413b8fe3f4efb92aec21b/docs/adr/0002-agda-mcp.md
 [air-lane]: https://github.com/formalverification/agda-native-air/blob/3de85b40bf08f84debf413b8fe3f4efb92aec21b/docs/agda-mcp/agda-mcp-interaction-lane.md
+[air-163]: https://github.com/formalverification/agda-native-air/issues/163
 [als-v8]: https://github.com/agda/agda-language-server/tree/v8
 [agda-da66a8c]: https://github.com/agda/agda/tree/da66a8c75f11d10699a6b38b261efdf244b66f2a

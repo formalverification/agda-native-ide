@@ -36,7 +36,7 @@ export interface AgdaCandidate {
   source: string;
   /** An absolute path, or a name to look up on PATH. */
   executable: string;
-  /** Arguments every run of it takes (before `--interaction-json`, before
+  /** Arguments every run of it takes (after `--interaction-json`, before
    * the file in a batch run). */
   args?: readonly string[];
   /** Where the arguments came from, when not from `source`. */

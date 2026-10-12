@@ -136,6 +136,8 @@ the panel names the setting to change.  The options are passed on the
 process's command line, as the mode passes them to its own Agda, so
 without a setting of its own the companion runs the mode's Agda with the
 mode's options, and the two read and write the same `_build/` interfaces.
+That holds while the mode runs an Agda: its default `connection.paths`
+tries `als`, its language server, first, and the lanes never run that.
 Launched from agda-algebras' dev shell, as above, both find its wrapper,
 `.agda/bin/agda`, which adds the library flags itself.  The Agda Language
 Server that the mode can download is not a candidate: it speaks LSP, not

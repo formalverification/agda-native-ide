@@ -338,9 +338,11 @@ is refused, naming the setting it came from, unless it answers
 expects.  The arguments go on the process's command line, and every
 `Cmd_load` inherits them (Agda adds a load's own arguments to the
 process's).  The companion's order is its own setting, then
-agda-mode-vscode's connection paths from the last, then `agda` on PATH,
-so it runs the mode's Agda with the mode's options and the two share the
-checkout's interfaces; `vscode/README.md` has the settings.
+agda-mode-vscode's connection paths from the last, then `agda` on PATH, so
+without a setting of its own it runs the mode's Agda with the mode's
+options, and the two share the checkout's interfaces (when the mode runs an
+Agda rather than its language server); `vscode/README.md` has the
+settings.
 
 **What the companion loads**.  A lane command saves the module first, as
 the mode's own load does, and the lane loads the file as it is: a buffer
