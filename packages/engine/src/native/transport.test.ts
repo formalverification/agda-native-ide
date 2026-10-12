@@ -1,4 +1,4 @@
-// File: packages/engine/src/native/index.test.ts
+// File: packages/engine/src/native/transport.test.ts
 //
 // The native transport against small stand-ins for `agda`: node scripts
 // that print what a test needs, to make output and faults a real Agda
@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { TransportEvent } from "../core/transport.js";
-import { NativeTransport, startBatch, startNativeTransport } from "./index.js";
+import { NativeTransport, startBatch, startNativeTransport } from "./transport.js";
 
 let dir: string;
 
