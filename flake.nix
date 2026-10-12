@@ -221,7 +221,11 @@
       revision = self.rev or self.dirtyRev or "unknown";
 
       # What the site's build reads, and nothing else, so that a change
-      # to the documentation or the plan does not change its source.
+      # to the documentation or the plan does not change its source.  The
+      # repository is an npm workspace (issue 62): the page builds the
+      # shared packages it imports (packages/), and npm installs every
+      # workspace the lockfile names, the companion's (vscode/) included,
+      # which needs only its manifest for that.
       siteSource = lib.fileset.toSource {
         root = ./.;
         fileset = lib.fileset.unions [
@@ -231,11 +235,14 @@
           ./upstream/assets.sha256
           ./package.json
           ./package-lock.json
+          ./packages
+          ./vscode/package.json
           ./svelte.config.js
           ./vite.config.js
           ./tsconfig.json
           ./tsconfigs
           ./scripts/asset-manifest.mjs
+          ./scripts/check-bundle.mjs
           ./scripts/prepare-cloudflare-assets.mjs
           ./src
           ./static
@@ -246,7 +253,7 @@
       # every platform, fetched once by hash.  After a change to the
       # lockfile, set npmDepsHash to lib.fakeHash, build, and copy the
       # hash the failure reports.
-      npmDepsHash = "sha256-sj6GxUNeMYL2c1i9Q0FgMjigSexmZVYWSYFsOhN7hUM=";
+      npmDepsHash = "sha256-tDg/0bxNBvI9SrKxkcp9gLsHWjw+09GaYVD4nU1CcxA=";
       npmDeps = pkgs: pkgs.fetchNpmDeps {
         name = "agda-native-ide-npm-deps";
         src = lib.fileset.toSource {
@@ -390,6 +397,19 @@
             "Check Main.agda in a built site, in headless Chromium";
           browser-check-notices = checkApp "browser-check-notices" "notices.mjs"
             "Check a built site's notices for a browser it cannot run in, and for a compiler that fails, in headless Chromium";
+          # `nix run .#conformance-browser -- <site> --harness DIR [--out
+          # DIR]`: the engine's conformance suite in headless Chromium,
+          # against a built site's reactor (scripts/conformance/browser.mjs,
+          # which `make conformance-browser` runs after building the
+          # harness; issue 62).
+          conformance-browser = {
+            type = "app";
+            program = toString (pkgs.writeShellScript "conformance-browser" ''
+              export CHROME=${lib.getExe pkgs.chromium}
+              exec ${lib.getExe pkgs.nodejs_22} ${./scripts}/conformance/browser.mjs "$@"
+            '');
+            meta.description = "Run the engine's conformance suite in headless Chromium, against a built site's reactor";
+          };
         });
     };
 }

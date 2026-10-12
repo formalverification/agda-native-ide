@@ -6,9 +6,10 @@ File: `agda-native-ide/docs/adr/0002-where-the-workbench-lives.md`
 
 +  **Status**: Accepted when the pull request that adds it merges.  The
    decisions are William's of 2026-10-05, adopted in the plan by merging PR
-   [#75] (2026-10-06); none is built yet.  Isolation (§ 6) was proposed
-   pending [#59], and adopted on 2026-10-08 ([ADR 0001][adr-0001] § 8);
-   § 7 records what is deliberately left open.
+   [#75] (2026-10-06), when none was built; the shared core was built on
+   2026-10-11 (§ 3).  Isolation (§ 6) was proposed pending [#59], and adopted
+   on 2026-10-08 ([ADR 0001][adr-0001] § 8); § 7 records what is deliberately
+   left open.
 +  **Date**: 2026-10-06 (the decision 2026-10-05).
 +  **Tracking**: [#60] (this record); [#58] (Agda 2.9.0), [#59] (the reactor
    and the drive), [#61] (the library under 2.9.0), [#62] (the shared core);
@@ -348,6 +349,11 @@ and native child processes in the editor.
 3), then [#64] and [#66] (Milestone 7).  [#62] records the interface and what
 each shell owns in an ADR of its own.
 
+**Built, 2026-10-11** ([#62]): [ADR 0003][adr-0003] records the workspace,
+the engine's interface with its browser and native transports, what each
+host owns, and one conformance suite that both pass, with identical
+answers.  Open: [#64] and [#66].
+
 ---
 
 ## 4.  Agda 2.9.0 as the compiler
@@ -591,9 +597,10 @@ then the host sends the two headers ([#6]).
 +  **Why it matters for hosting**: GitHub Pages cannot send the two headers;
    the fork's fallback for such a host, a service worker that adds them, costs
    a reload on a first visit and had a race that left some first visits
-   unisolated, which two guards fix; and while this repository is private, the
-   organization's free plan serves no GitHub Pages site from it at all ([#6]'s
-   findings, 2026-10-04).  A page that needs no isolation can be served by any
+   unisolated, which two guards fix; and while this repository was private,
+   the organization's free plan served no GitHub Pages site from it at all
+   ([#6]'s findings, 2026-10-04; the repository has been public since
+   2026-10-11).  A page that needs no isolation can be served by any
    static host.  That is why isolation belongs in this record: it is the
    browser's one hosting constraint in the brief's matrix, and the reason
    Milestone 0 weighs hosts by their headers.
@@ -629,12 +636,16 @@ will answer it.
 +  **The Emacs view** is [#74]'s experiment: one benchmark proof drawn as a
    static SVG with a hot-spot per leaf, measured for render time, legibility
    and interaction, and kept only if it is useful.
-+  **Where the 2.9.0 binaries are served from** is open on [#58] and [#4].
-   [#58] proposes a release of this organization, pinned by hash in the flake;
-   this repository is private for now, so its releases are not a public URL for
-   the page or for a clean `nix build`; and [#4] asks for a mirror the
-   organization controls, since today's compiler has one source, a personal
-   repository.
++  **Where the 2.9.0 binaries are served from** was open on [#58] and [#4]
+   when this record was written.  [#58] proposed a release of this
+   organization, pinned by hash in the flake; this repository was private
+   then, so its releases were not a public URL for the page or for a clean
+   `nix build`; and [#4] asked for a mirror the organization controls, since
+   the compiler had one source, a personal repository.  William settled it
+   on 2026-10-07: the binaries live in releases of
+   formalverification/agda-wasm-builds, a public repository of this
+   organization, and the flake fetches them by hash ([ADR 0001][adr-0001]
+   § 7, decision 19).
 
 **Evidence**.
 
@@ -653,7 +664,8 @@ will answer it.
    source is upstream's git tree) and [#58]'s acceptance
    (`nix build .#compiler` from the pinned commits, the hashes recorded).
 
-**Status**.  Open by design: [#68], [#74], [#58] and [#4].
+**Status**.  Open by design: [#68] and [#74].  Where the binaries are
+served from was settled on 2026-10-07 ([#58]); [#4] is still open.
 
 ---
 
@@ -663,7 +675,7 @@ will answer it.
 |---|---|---|---|
 | 1 | Three platforms with different jobs: the browser for the reader and the views' first host, VS Code for the author, Emacs for the agent half and a picker | Adopted (William, 2026-10-05; PR [#75]) | Only the browser reaches a reader with nothing installed; native HSP check 5.10 to 5.23 s against 11 to 22 s in the page with its drive indexed; 54,294,820 bytes gzipped per reader ([#60], [#50]) |
 | 2 | An Emacs milestone, beyond the brief's recommendation to build nothing for Emacs, scoped to agents and a picker | Adopted (William, 2026-10-05) | Overrides the brief's "Emacs needs nothing built"; the views only as an experiment ([#74]) |
-| 3 | The engine client, tool surface, views and manifest as TypeScript packages over one engine interface, with a WebAssembly and a native implementation and one suite run against both | Adopted; to build ([#62]) | The fork's command path is already behind CodeMirror's `Transport`; its startup and rings are not; agda-mode-vscode's three connections; no cost measured |
+| 3 | The engine client, tool surface, views and manifest as TypeScript packages over one engine interface, with a WebAssembly and a native implementation and one suite run against both | Adopted; built ([#62], [ADR 0003][adr-0003]) | The fork's command path is already behind CodeMirror's `Transport`; its startup and rings are not; agda-mode-vscode's three connections; no cost measured |
 | 4 | The page's Agda is 2.9.0, built here from Agda's own flake with no agda-web patch, pinned to a nightly commit and moved to the release; the libraries it ships are carried to 2.9.0; the editors run the Agda the author's project pins | Adopted; to build ([#58], [#61], [#64]) | PR 8205 is not in 2.8.0.x; risks on 2026-10-06: unreleased, no language-server target, the WebAssembly workflow's last full pass 2026-09-06, no released standard library checks (a patched 2.3 does, [#61]); the HSP closure's interfaces 23 % smaller gzipped |
 | 5 | Keep the 2.8.0 compiler buildable until the 2.9.0 one passes [#13]'s gate | Adopted ([#58]) | The risks of row 4 |
 | 6 | Agents attach through local processes: `agda-mcp` and the companion's registrations in VS Code and Emacs; in the browser a bridge first and the in-page model last | Adopted (PR [#75]; [#38], [#35], [#36], [#65], [#71], [#72]) | Every agent-facing prover integration found is a local MCP server; MCP's transports are a subprocess's stdio and Streamable HTTP; no agents in vscode.dev |
@@ -671,7 +683,7 @@ will answer it.
 | 8 | No isolation: the reactor build, with the drive in the server's worker | Proposed ([#59]); adopted 2026-10-08 | Two shared-memory channels; the reactor replaces one (ALS PR 48); built and measured in [#59] ([ADR 0001][adr-0001] § 8) |
 | 9 | The VS Code web build is verified, not promised | Open ([#68]) | No agents on the web; CORS on every fetch under `require-corp` |
 | 10 | The Emacs view is an experiment, kept only if useful | Open ([#74]) | One image per SVG; the WebKit widget uneven |
-| 11 | Where the 2.9.0 binaries are served from | Open ([#58], [#4]) | A private repository's releases are not public; today's compiler has one source |
+| 11 | Where the 2.9.0 binaries are served from | Settled 2026-10-07 ([#58]; [ADR 0001][adr-0001] decision 19); [#4] open | The binaries live in releases of formalverification/agda-wasm-builds, a public repository of this organization; when this record was written, this repository was private, so its releases were not public, and the compiler had one source, a personal repository |
 
 ---
 
@@ -740,6 +752,7 @@ attributed to the brief (2026-10-05).
 [proposal]: ../notes/browser-ide-proposal.md
 [runtime]: ../notes/runtime.md
 [adr-0001]: 0001-runtime.md
+[adr-0003]: 0003-the-shared-core.md
 [plan]: ../GITHUB_PROJECT.md
 [plfa-playground]: https://github.com/SeungheonOh/plfa-playground
 [air-adr-0002]: https://github.com/formalverification/agda-native-air/blob/7a05012794b604bcd8ad3995930ab7993e7f9588/docs/adr/0002-agda-mcp.md

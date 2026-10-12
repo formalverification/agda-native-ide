@@ -1,4 +1,4 @@
-// File: src/lib/worker/drive.ts
+// File: packages/engine/src/browser/worker/drive.ts
 //
 // Changed from upstream: this is SeungheonOh/plfa-playground's
 // src/lib/worker/drive.ts at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
@@ -21,12 +21,16 @@
 // after startup (Main's interface, a mounted archive's) are persisted too.
 // A browser that refuses IndexedDB, by an error or by throwing at once,
 // leaves the drive uncached.
+//
+// It moved from the page into the engine package's browser transport with
+// the worker (issue 62), and reads a source back as Agda would read it,
+// which the engine compares with what it wrote.
 
 import * as Runno from "@runno/wasi";
 import JSZip from "jszip";
 
-import { indexDrive } from "./drive-index";
-import type { DriveArchives } from "./types";
+import { indexDrive } from "./drive-index.js";
+import type { DriveArchives } from "./protocol.js";
 
 let lastTimestamp = Date.now();
 
@@ -320,6 +324,17 @@ export function attachDrive(
         driveIndex.sync(path);
         dirtyCachePaths.add(path);
       }
+    },
+
+    /** A file's text as it was written, or undefined.  A byte order mark
+     * is kept, as node's reading keeps it: the session compares this text
+     * with the one it sent, and Agda counts the mark as a position. */
+    readFile(path: string): string | undefined {
+      const file = drive.fs[path];
+      if (!file) return undefined;
+      return typeof file.content === "string"
+        ? file.content
+        : new TextDecoder("utf-8", { ignoreBOM: true }).decode(file.content);
     },
 
     /** Extract a zip at the root (interface archives, more libraries). */

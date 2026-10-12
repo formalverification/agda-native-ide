@@ -1,0 +1,14 @@
+{
+  // The native transport: node, and nothing of the browser's.
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../../dist/native",
+    "tsBuildInfoFile": "../../dist/native.tsbuildinfo",
+    "lib": ["ES2022"],
+    "types": ["node"]
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["./**/*.test.ts"],
+  "references": [{ "path": "../core" }]
+}

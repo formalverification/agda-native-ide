@@ -62,6 +62,17 @@
     literateAgdaLanguage,
   } from "$lib/codemirror/agda-language";
   import { agdaSupport } from "$lib/agda";
+  import { GoalList, ProblemList, ResultView } from "@agda-native-ide/views";
+  import {
+    archiveUrls,
+    chapters as corpusChapters,
+    parseCorpusManifest,
+    parseInterfaceManifest,
+    planChapterArchives,
+    type Chapter,
+    type CorpusManifest,
+    type InterfaceManifest,
+  } from "@agda-native-ide/manifest";
 
   const DEFAULT_SOURCE = `module Main where
 
@@ -84,33 +95,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   type WorkspaceMode = "playground" | "plfa";
   type ActiveResource = "markdown" | "agda";
 
-  interface PlfaChapter {
-    id: string;
-    name: string;
-    title: string;
-    sourcePath: string;
-    modulePath: string;
-  }
-
-  interface PlfaGroup {
-    id: string;
-    title: string;
-    chapters: PlfaChapter[];
-  }
-
-  interface PlfaManifest {
-    title: string;
-    source: string;
-    license: string;
-    commit: string;
-    revisionDate: string;
-    groups: PlfaGroup[];
-  }
-
-  interface PlfaInterfaceManifest {
-    version: number;
-    chapters: Record<string, string[]>;
-  }
+  type PlfaChapter = Chapter;
 
   const controller = new AgdaController({
     agdaVersion: "2.9.0",
@@ -127,10 +112,11 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   let activeResource = $state<ActiveResource>("agda");
   let plfaExpanded = $state(true);
   let expandedGroups = $state<Record<string, boolean>>({ part1: true });
-  let plfaManifest = $state<PlfaManifest | null>(null);
-  let plfaInterfaceManifest = $state<PlfaInterfaceManifest | null>(null);
-  let plfaInterfaceManifestPromise: Promise<PlfaInterfaceManifest | null> | null =
+  let plfaManifest = $state<CorpusManifest | null>(null);
+  let plfaInterfaceManifest = $state<InterfaceManifest | null>(null);
+  let plfaInterfaceManifestPromise: Promise<InterfaceManifest | null> | null =
     null;
+  let plfaManifestPromise: Promise<CorpusManifest | null> = Promise.resolve(null);
   let selectedChapterId = $state("part1/Naturals");
   let plfaMarkdown = $state("");
   let plfaLoading = $state(false);
@@ -152,7 +138,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   let chapterRequest = 0;
 
   const plfaChapters = $derived(
-    plfaManifest?.groups.flatMap((group) => group.chapters) ?? [],
+    plfaManifest ? corpusChapters(plfaManifest) : [],
   );
   const selectedChapter = $derived(
     plfaChapters.find((chapter) => chapter.id === selectedChapterId),
@@ -179,10 +165,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
       : "Main.agda",
   );
 
-  const isAgdaBusy = $derived(
-    controller.iotcmStatus === "requested" ||
-      controller.iotcmStatus === "processing",
-  );
+  const isAgdaBusy = $derived(controller.iotcmStatus === "processing");
   const isBusy = $derived(isAgdaBusy || controller.driveArchiveLoading);
   const compilerReady = $derived(
     controller.alsWorkerStatus === "active" &&
@@ -462,13 +445,21 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     };
     window.addEventListener("keydown", globalKeydown, { capture: true });
 
-    void fetch("/plfa/manifest.json")
+    plfaManifestPromise = fetch("/plfa/manifest.json")
       .then((response) => {
         if (!response.ok) throw new Error("Could not load the PLFA index");
-        return response.json() as Promise<PlfaManifest>;
+        return response.json();
       })
-      .then((manifest) => (plfaManifest = manifest))
-      .catch((error) => (plfaError = readableError(error)));
+      .then((json) => {
+        const parsed = parseCorpusManifest(json);
+        if (!parsed.ok) throw new Error(`Could not read the PLFA index: ${parsed.error}`);
+        plfaManifest = parsed.value;
+        return parsed.value;
+      })
+      .catch((error) => {
+        plfaError = readableError(error);
+        return null;
+      });
 
     void loadPlfaInterfaceManifest();
 
@@ -491,13 +482,20 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
       .then((response) => {
         if (!response.ok)
           throw new Error("Could not load the PLFA cache index");
-        return response.json() as Promise<PlfaInterfaceManifest>;
+        return response.json();
       })
-      .then((manifest) => {
-        plfaInterfaceManifest = manifest;
-        return manifest;
+      .then(async (json) => {
+        // Checked against the chapters it names, so a chapter's archive
+        // that is not a chapter is refused rather than fetched.
+        const corpus = await plfaManifestPromise;
+        const parsed = parseInterfaceManifest(json, corpus ?? undefined);
+        if (!parsed.ok) throw new Error(parsed.error);
+        plfaInterfaceManifest = parsed.value;
+        return parsed.value;
       })
-      .catch(() => {
+      .catch((error) => {
+        // Without it, a chapter mounts every chapter's archives up to it.
+        console.warn("The PLFA cache index is not used:", readableError(error));
         plfaInterfaceManifest = null;
         return null;
       });
@@ -667,16 +665,11 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
   }
 
   function plfaInterfaceUrls(chapter: PlfaChapter) {
-    const index = plfaChapters.findIndex(
-      (candidate) => candidate.id === chapter.id,
-    );
-    if (index < 0) return [];
-    const archives =
-      plfaInterfaceManifest?.chapters[chapter.id] ??
-      plfaChapters.slice(0, index + 1).map((candidate) => candidate.id);
-    return archives.map(
-      (archive) =>
-        `/plfa/interfaces/${archive}.zip?cache=${cacheTokens.plfaInterfaces}`,
+    if (!plfaManifest) return [];
+    return archiveUrls(
+      planChapterArchives(plfaManifest, plfaInterfaceManifest, chapter.id),
+      "/plfa/interfaces",
+      cacheTokens.plfaInterfaces,
     );
   }
 
@@ -686,12 +679,15 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     await controller.mountDriveArchives(plfaInterfaceUrls(chapter));
   }
 
+  async function checkCurrentFile() {
+    if (workspaceMode === "plfa") await ensurePlfaInterfaces();
+    await controller.loadAgdaFile();
+  }
+  controller.checkCurrentFile = checkCurrentFile;
+
   function runCheck() {
     if (!compilerReady || isBusy) return true;
-    void runAction(async () => {
-      if (workspaceMode === "plfa") await ensurePlfaInterfaces();
-      await controller.loadAgdaFile();
-    });
+    void runAction(checkCurrentFile);
     return true;
   }
 
@@ -1196,54 +1192,20 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
       </div>
       <div class="inspector-content">
         {#if inspectorMode === "goals"}
-          {#if currentGoals.length}
-            <div class="goal-list">
-              {#each currentGoals as goal}<button
-                  class:active={controller.activeGoalId === goal.id}
-                  class="goal-card"
-                  onclick={() => selectGoal(goal.id)}
-                  ><span class="goal-number">{goal.id}</span><span
-                    class="goal-content"><code>{goal.type ?? "?"}</code></span
-                  ><ChevronDown size={15} class="goal-chevron" /></button
-                >{/each}
-            </div>
-            {@const active =
-              controller.activeGoalId == null
-                ? undefined
-                : controller.goalInfo[controller.activeGoalId]}
-            {#if active?.context.length}<section class="context-panel">
-                <h3>Context</h3>
-                {#each active.context as entry}<div class="context-row">
-                    <code class="context-name">{entry.name}</code><span>:</span
-                    ><code>{entry.type}</code>
-                  </div>{/each}
-              </section>{/if}
-          {/if}
+          <GoalList
+            goals={currentGoals}
+            active={controller.activeGoalId}
+            context={controller.activeGoalId == null
+              ? []
+              : (controller.goalInfo[controller.activeGoalId]?.context ?? [])}
+            onselect={selectGoal}
+          />
         {:else if inspectorMode === "result"}
-          {#if controller.lastResult}<div class="result-card">
-              <span class="result-kind">{controller.lastResult.kind}</span>
-              <h2>{controller.lastResult.title}</h2>
-              <pre>{controller.lastResult.body}</pre>
-            </div>{/if}
-          {#if controller.runningMessages.length}<section class="compiler-log">
-              <h3>Compiler log</h3>
-              <pre>{controller.runningMessages.join("")}</pre>
-            </section>{/if}
-        {:else}<div class="problem-list">
-            {#each controller.problems as problem}<article
-                class:error={problem.severity === "error"}
-                class:warning={problem.severity === "warning"}
-                class="problem-card"
-              >
-                {#if problem.severity === "error"}<CircleAlert
-                    size={17}
-                  />{:else}<TriangleAlert size={17} />{/if}
-                <div>
-                  <strong>{problem.severity}</strong>
-                  <pre>{problem.message}</pre>
-                </div>
-              </article>{/each}
-          </div>{/if}
+          <ResultView
+            result={controller.lastResult}
+            log={controller.runningMessages}
+          />
+        {:else}<ProblemList problems={controller.problems} />{/if}
       </div>
       {#if actionError}<div class="action-error">
           <CircleAlert size={15} /><span>{actionError}</span><button
@@ -1969,164 +1931,6 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     min-height: 0;
     overflow: auto;
     padding: 14px;
-  }
-  .goal-list {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-  }
-  .goal-card {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    width: 100%;
-    padding: 11px;
-    border: 1px solid var(--line);
-    border-radius: 0;
-    background: var(--card-surface);
-    text-align: left;
-  }
-  .goal-card:hover {
-    border-color: var(--card-hover-line);
-  }
-  .goal-card.active {
-    border-color: var(--card-active-line);
-    border-left: 3px solid var(--accent);
-  }
-  .goal-number {
-    display: grid;
-    place-items: center;
-    flex: none;
-    width: 24px;
-    height: 24px;
-    border-radius: 0;
-    background: var(--accent-soft);
-    color: var(--accent-strong);
-    font:
-      700 11px JuliaMono,
-      monospace;
-  }
-  .goal-content {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-  .goal-content code {
-    overflow-wrap: anywhere;
-    color: var(--goal-text);
-    font:
-      11px/1.5 JuliaMono,
-      monospace;
-  }
-  :global(.goal-chevron) {
-    flex: none;
-    margin-left: auto;
-    color: var(--faint);
-    transform: rotate(-90deg);
-  }
-  .context-panel,
-  .compiler-log {
-    margin-top: 14px;
-    padding-top: 12px;
-    border-top: 1px solid var(--line);
-  }
-  .context-panel h3,
-  .compiler-log h3 {
-    margin: 0 0 8px;
-    color: var(--inspector-heading);
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-  }
-  .context-row {
-    display: grid;
-    grid-template-columns: auto auto 1fr;
-    gap: 6px;
-    padding: 7px 4px;
-    border-bottom: 1px solid var(--editor-line);
-    color: var(--muted);
-    font-size: 10px;
-  }
-  .context-row code {
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    font:
-      10px/1.5 JuliaMono,
-      monospace;
-    color: var(--context-text);
-  }
-  .context-row .context-name {
-    color: var(--accent-strong);
-    font-weight: 700;
-  }
-  .result-card {
-    border: 1px solid var(--line);
-    border-radius: 0;
-    background: var(--card-surface);
-    padding: 14px;
-  }
-  .result-kind {
-    padding: 3px 6px;
-    border-radius: 0;
-    background: var(--accent-soft);
-    color: var(--accent-strong);
-    font-size: 8px;
-    font-weight: 700;
-    text-transform: uppercase;
-  }
-  .result-card h2 {
-    margin: 12px 0 8px;
-    font-size: 13px;
-  }
-  pre {
-    margin: 0;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    font:
-      11px/1.65 JuliaMono,
-      monospace;
-  }
-  .compiler-log pre {
-    max-height: 220px;
-    overflow: auto;
-    color: var(--muted);
-    font-size: 10px;
-  }
-  .problem-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .problem-card {
-    display: flex;
-    align-items: flex-start;
-    gap: 9px;
-    padding: 11px;
-    border: 1px solid;
-    border-radius: 0;
-    background: var(--card-surface);
-  }
-  .problem-card.error {
-    border-color: var(--error-card-line);
-    color: var(--error);
-  }
-  .problem-card.warning {
-    border-color: var(--warning-card-line);
-    color: var(--warning);
-  }
-  .problem-card :global(svg) {
-    flex: none;
-  }
-  .problem-card strong {
-    display: block;
-    margin-bottom: 6px;
-    font-size: 9px;
-    text-transform: uppercase;
-  }
-  .problem-card pre {
-    color: var(--problem-text);
-    font-size: 10px;
   }
   .action-error {
     display: flex;

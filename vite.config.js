@@ -11,12 +11,15 @@
 // dev and preview servers no longer send the two headers that made the
 // page cross-origin isolated, which it no longer needs (issue 59).  The dev
 // server serves the compiler gzipped, compressing the raw file in static/,
-// since the page fetches only the gzip the build writes (issue 8).
+// since the page fetches only the gzip the build writes (issue 8).  The
+// build refuses node's built-in modules in what runs in the browser
+// (issue 62).
 
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vitest/config";
 import { exec } from "child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
+import { builtinModules } from "node:module";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { constants, gzipSync } from "node:zlib";
@@ -36,6 +39,27 @@ const requireAssets = () => ({
     assetManifest(staticDir);
   },
 });
+
+/** Node's built-in modules, which Vite replaces with an empty module in a
+ * browser bundle, with no more than a warning: a dependency that needs one
+ * would fail in the reader's tab.  The build refuses them instead, in the
+ * page and in its worker; the server's build, which prerenders the page
+ * under node, may use them.
+ * @returns {import('vite').Plugin<unknown>} */
+const refuseNodeBuiltins = () => {
+  const builtins = new Set(builtinModules.flatMap((name) => [name, `node:${name}`]));
+  return {
+    name: "refuse-node-builtins",
+    apply: "build",
+    enforce: "pre",
+    applyToEnvironment: (environment) => environment.name === "client",
+    resolveId(id, importer) {
+      if (builtins.has(id) || id.startsWith("node:"))
+        this.error(`${importer ?? "the page"} imports ${id}, one of node's modules, which the browser does not have`);
+      return null;
+    },
+  };
+};
 
 /** The dev server answers the compiler's gzip, which only the build writes
  * (scripts/prepare-cloudflare-assets.mjs), with the raw compiler in
@@ -113,17 +137,21 @@ export default defineConfig(async ({ command }) => {
       include: ["@runno/wasi", "jszip"],
     },
     clearScreen: false,
-    plugins: [requireAssets(), serveCompilerGzip(), sveltekit()],
+    plugins: [requireAssets(), refuseNodeBuiltins(), serveCompilerGzip(), sveltekit()],
     build: {
       // bumped for TLA
       target: ["es2022", "edge89", "firefox89", "chrome89", "safari15"],
     },
     worker: {
       format: "es",
+      plugins: () => [refuseNodeBuiltins()],
     },
     test: {
       globals: true,
-      include: ["src/**/*.{test,spec}.{js,ts}"],
+      include: [
+        "src/**/*.{test,spec}.{js,ts}",
+        "packages/*/src/**/*.{test,spec}.{js,ts}",
+      ],
     },
   };
 });

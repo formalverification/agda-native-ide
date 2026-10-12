@@ -1,0 +1,13 @@
+{
+  // The core: no DOM and no node types, so a use of either does not compile.
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../../dist/core",
+    "tsBuildInfoFile": "../../dist/core.tsbuildinfo",
+    "lib": ["ES2022"],
+    "types": []
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["./**/*.test.ts"]
+}

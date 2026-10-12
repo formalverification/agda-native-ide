@@ -59,7 +59,8 @@ endif
 .PHONY: help populate-dry populate update update-check lint init \
         guard-gh guard-engine engine-mode \
         assets assets-check dev build test check browser-check \
-        browser-check-notices provenance-check
+        browser-check-notices provenance-check packages \
+        conformance-native conformance-browser conformance-compare
 # The companion's targets are separate from the browser app's gates.
 
 .PHONY: vscode-check vscode-build vscode-test vscode-unit
@@ -144,21 +145,61 @@ guard-gh:
 	  exit 1; \
 	}
 
-# The companion stays standalone until the shared workspace (issue 62).
-vscode/node_modules/.package-lock.json: vscode/package.json vscode/package-lock.json
-	npm ci --prefix vscode
+# The repository is an npm workspace (issue 62): the page at the root, the
+# shared packages under packages/, and the companion in vscode/, installed
+# together from the one package-lock.json.  npm ci writes
+# node_modules/.package-lock.json, so this reinstalls only after a
+# manifest or the lockfile changes.
+WORKSPACE_MANIFESTS := package.json package-lock.json vscode/package.json \
+  $(wildcard packages/*/package.json)
+node_modules/.package-lock.json: $(WORKSPACE_MANIFESTS)
+	npm ci
 
-vscode-check: vscode/node_modules/.package-lock.json ## Type-check the VS Code companion
-	npm --prefix vscode run check
+# The shared packages TypeScript builds (packages/*/dist), in the order
+# their project references give: the engine, then the tool surface and
+# the manifest, which import it.  The views are Svelte source, which the
+# page compiles.
+PACKAGES := packages/engine packages/tools packages/manifest
 
-vscode-build: vscode/node_modules/.package-lock.json ## Compile the VS Code companion
-	npm --prefix vscode run build
+packages: node_modules/.package-lock.json ## Build the shared packages (the engine, the tools, the manifest)
+	npx tsc -b $(PACKAGES)
+
+vscode-check: node_modules/.package-lock.json ## Type-check the VS Code companion
+	npm --workspace vscode run check
+
+vscode-build: node_modules/.package-lock.json ## Compile the VS Code companion
+	npm --workspace vscode run build
 
 vscode-unit: vscode-build ## Check version policy and serialized state
-	npm --prefix vscode run test:unit
+	npm --workspace vscode run test:unit
 
 vscode-test: vscode-check vscode-unit ## Run the real companion and Agda mode under Xvfb (nix develop .#vscode)
-	timeout 300s npm --prefix vscode test
+	timeout 300s npm --workspace vscode test
+
+# ---------------------------------------------------------------------
+# The engine's conformance suite (issue 62): one suite, two runners, each
+# against a real Agda.  conformance-native runs it under node against the
+# native agda that AGDA names (nix develop .#vscode sets it, at the
+# compiler's own Agda commit); conformance-browser builds the harness page
+# (scripts/conformance/browser/) and runs it in headless Chromium against
+# $(SITE)'s reactor, served without the isolation headers;
+# conformance-compare compares the two runs' answers field by field.  Each
+# writes its record into $(CONFORMANCE).
+
+CONFORMANCE ?= conformance
+CONFORMANCE_HARNESS := .build-tmp/conformance-harness
+
+conformance-native: packages ## Run the engine's conformance suite against native Agda (nix develop .#vscode)
+	timeout 600s node scripts/conformance/native.mjs --out $(CONFORMANCE)
+
+conformance-browser: packages ## Run the engine's conformance suite in headless Chromium against $(SITE)
+	CONFORMANCE_OUT=$(abspath $(CONFORMANCE_HARNESS)) npx vite build \
+	  --config scripts/conformance/browser/vite.config.js
+	timeout 600s nix run .#conformance-browser -- $(SITE) \
+	  --harness $(CONFORMANCE_HARNESS) --out $(CONFORMANCE)
+
+conformance-compare: packages ## Compare the browser's and the native engine's answers, field by field
+	node scripts/conformance/compare.mjs $(CONFORMANCE)/browser.json $(CONFORMANCE)/native.json
 
 # ---------------------------------------------------------------------
 # The app: its binaries, and the build
@@ -181,8 +222,8 @@ vscode-test: vscode-check vscode-unit ## Run the real companion and Agda mode un
 # and licenses/ in build/.
 #
 # dev, build, test and check install the locked npm dependencies first
-# (`npm ci`) when package.json or package-lock.json is newer than the
-# last install.
+# (`npm ci`) when a workspace manifest or package-lock.json is newer than
+# the last install, and build the shared packages (`make packages`).
 #
 #   PINS           the pinned binaries (default: upstream/assets.sha256)
 #   UNCHANGED      the imported files that are still upstream's, byte for
@@ -205,11 +246,6 @@ OWN_ASSETS := agda-data.zip als-reactor-2.9.0.wasm als-reactor-2.9.0.js \
 UNCHANGED ?= upstream/unchanged.sha256
 SITE_REVISION ?= $(shell rev=$$(git rev-parse HEAD 2>/dev/null) && \
   if [ -n "$$(git status --porcelain 2>/dev/null)" ]; then echo $$rev-dirty; else echo $$rev; fi)
-
-# npm ci writes node_modules/.package-lock.json, so this reinstalls only
-# after the manifest or the lockfile changes.
-node_modules/.package-lock.json: package.json package-lock.json
-	npm ci
 
 assets: ## Fetch the pinned binaries, build the flake's own (nix build .#assets) into static/
 	@out=$$(nix build .#assets --no-link --print-out-paths) && \
@@ -237,19 +273,21 @@ assets-check: ## Check the pinned binaries in static/, and that the flake's own 
 	  done; \
 	fi
 
-dev: node_modules/.package-lock.json assets-check ## Serve the app at http://localhost:5173, reloading on change
+dev: packages assets-check ## Serve the app at http://localhost:5173, reloading on change
 	npm run dev
 
-build: node_modules/.package-lock.json assets-check ## Build the site into build/, after checking the pins
+build: packages assets-check ## Build the site into build/, after checking the pins
 	SITE_REVISION=$(SITE_REVISION) npm run build
+	node scripts/check-bundle.mjs build
 	install -m 644 NOTICE build/NOTICE.txt
 	cp -R licenses build/licenses
 
-test: node_modules/.package-lock.json ## Run the app's unit tests (vitest)
+test: packages ## Run the unit tests of the app and the packages (vitest)
 	npm test
 
-check: node_modules/.package-lock.json ## Type-check the app (svelte-check)
+check: packages ## Type-check the app and the packages (svelte-check, tsc)
 	npm run check
+	npx svelte-check --tsconfig $(abspath packages/views/tsconfig.json) --workspace packages/views
 
 SITE ?= build
 

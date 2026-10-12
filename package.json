@@ -4,6 +4,13 @@
   "description": "A complete Agda 2.8 editor and interaction environment running in the browser through WebAssembly.",
   "type": "module",
   "private": true,
+  "workspaces": [
+    "packages/engine",
+    "packages/tools",
+    "packages/manifest",
+    "packages/views",
+    "vscode"
+  ],
   "scripts": {
     "dev": "vite dev",
     "build": "vite build && node scripts/prepare-cloudflare-assets.mjs",
@@ -38,7 +45,10 @@
     "node": ">=20.19.0 <25.0.0"
   },
   "dependencies": {
-    "@andy0130tw/vscode-jsonrpc-esm": "^9.0.0-next-esm.9",
+    "@agda-native-ide/engine": "0.1.0",
+    "@agda-native-ide/manifest": "0.1.0",
+    "@agda-native-ide/tools": "0.1.0",
+    "@agda-native-ide/views": "0.1.0",
     "@codemirror/autocomplete": "^6.20.1",
     "@codemirror/commands": "^6.10.2",
     "@codemirror/lang-markdown": "^6.5.2",
