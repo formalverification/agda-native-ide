@@ -30,7 +30,7 @@
 // Parts are the fork's: the startup and its failure messages from
 // src/lib/controller.svelte.ts and src/lib/index.js, the router's
 // acknowledgements from src/lib/agda/transport.js (plfa-playground
-// ae0aa84c, with this repository's changes for issues 8, 58 and 59).
+// ae0aa84c, with this repository's changes for issues 8, 13, 58 and 59).
 
 import * as Comlink from "comlink";
 
@@ -62,11 +62,12 @@ export interface BrowserConfig {
    * imports it as it is. */
   glueUrl: string;
   /** The archives the drive is laid out from: Agda's builtin library, the
-   * standard library, and a project at the root. */
-  archives: { builtin?: string | null; stdlib?: string | null; project?: string | null };
-  /** What a failure to fetch the project's archive calls it (default "the
-   * project's archive"; the page's is "PLFA"). */
-  projectName?: string;
+   * standard library, and more libraries, in order. */
+  archives: {
+    builtin?: string | null;
+    stdlib?: string | null;
+    libraries?: readonly LibraryArchive[];
+  };
   /** The namespace of the drive's IndexedDB cache. */
   cacheNamespace: string;
   /** The server's arguments after its name; `--raw` is required. */
@@ -81,6 +82,21 @@ export interface BrowserConfig {
   /** Aborting it stops the engine, during its startup or after, and the
    * downloads it started. */
   signal?: AbortSignal;
+}
+
+/** A library on the drive (issue 13): a zip whose entries are at their
+ * paths on the drive, extracted at its root, as agda-algebras' sources
+ * archive is, or PLFA's.  Agda's libraries file names its `.agda-lib`, and
+ * the defaults file its name, after the standard library's. */
+export interface LibraryArchive {
+  url: string;
+  /** Its `.agda-lib` on the drive. */
+  agdaLib: string;
+  /** Its name, as a `depend:` line names it. */
+  name: string;
+  /** What a failure to fetch it calls it (default "the library NAME"; the
+   * page calls PLFA's "PLFA"). */
+  what?: string;
 }
 
 export type BrowserProgress =
@@ -451,23 +467,29 @@ export class BrowserTransport implements EngineTransport {
       url ? fetchOrFail(url, what, signal).then((response) => readOrFail(response, what)) : Promise.resolve(null);
 
     // The worker compiles the compiler while the page fetches the archives.
-    const [drive, builtin, stdlib, project] = await until(Promise.all([
+    const listed = config.archives.libraries ?? [];
+    const [drive, builtin, stdlib, ...data] = await until(Promise.all([
       step("the compiler could not be loaded", initPromise),
       archive(config.archives.builtin, "Agda's builtin library"),
       archive(config.archives.stdlib, "the standard library"),
-      archive(config.archives.project, config.projectName ?? "the project's archive"),
+      ...listed.map((library) => archive(library.url, library.what ?? `the library ${library.name}`)),
     ]));
     this.drive = drive;
     if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
     this.objectUrl = undefined;
     config.onProgress?.({ phase: "starting" });
 
-    const buffers = [builtin, stdlib, project].filter((x): x is ArrayBuffer => x != null);
+    const libraries = listed.map(({ agdaLib, name }, index) => ({
+      data: data[index] as ArrayBuffer,
+      agdaLib,
+      name,
+    }));
+    const buffers = [builtin, stdlib, ...data].filter((x): x is ArrayBuffer => x != null);
     await until(step(
       "the drive could not be set up",
       drive.mount(
         Comlink.transfer(
-          { builtin, stdlib, plfa: project, cacheNamespace: config.cacheNamespace },
+          { builtin, stdlib, libraries, cacheNamespace: config.cacheNamespace },
           buffers,
         ),
       ),

@@ -157,15 +157,19 @@ carry it on.
    token that the build derives from the file's content
    (`src/lib/assets.ts`), so a changed file is never served from a cache
    under its old URL.
-2. **The drive**.  The worker lays out the drive from the three archives
-   (`layOutDrive`, `drive.ts:119`): the builtins at `/lib/prim`, whose
-   interfaces the archive already holds under
+2. **The drive**.  The worker lays out the drive from the archives
+   (`layOutDrive`, in `packages/engine/src/browser/worker/drive.ts`): the
+   builtins at `/lib/prim`, whose interfaces the archive already holds under
    `/lib/prim/_build/<version>/agda/`, where Agda looks (the flake builds it
    from an Agda's own `lib/prim`, [#49], with the compiler's own plain
    `agda` run under wasmtime, below); the standard library's sources at
-   `/stdlib`; PLFA at the root.  It writes Agda's library registry,
+   `/stdlib`; and a list of libraries, each a zip extracted at the root with
+   its `.agda-lib` path and its name (the engine's
+   `BrowserConfig.archives.libraries`, [#13]), where the page passes one,
+   PLFA, at the root.  It writes Agda's library registry,
    `/home/root/.config/agda/libraries` and `defaults`, naming the standard
-   library and PLFA, and restores what an earlier visit persisted (below).
+   library and then each library of the list, and restores what an earlier
+   visit persisted (below).
 3. **The reactor**.  The worker instantiates the reactor over that drive,
    with `{ wasi_snapshot_preview1, ghc_wasm_jsffi: glue(exports) }` and the
    exports filled in afterwards, and Runno's `initialize` runs its
@@ -385,10 +389,12 @@ runs of the browser check ([#59]).
    a worker without it the page checks and reloads, uncached (2026-10-08,
    headless Chromium 149, with `indexedDB` removed from the worker's global
    before it ran; no database was made).
-+  **More libraries**: `mountDriveArchives(urls)`
-   (`controller.svelte.ts:741-781`) fetches zips and extracts them at `/`;
-   it does not touch the library registry, which the drive writes once at
-   startup.
++  **More libraries**: the registry is written once, at startup, from the
+   engine's list of libraries ([#13]), so a library the page will use is
+   named in that list, its sources archive fetched with the standard
+   library's.  `mountDriveArchives(urls)` (`controller.svelte.ts`, through
+   the transport's `mountArchives`) fetches zips and extracts them at `/`,
+   which is how interface archives arrive; it does not touch the registry.
 
 ## The checks
 

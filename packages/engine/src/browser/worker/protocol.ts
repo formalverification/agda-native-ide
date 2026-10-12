@@ -8,7 +8,8 @@
 // input, standard output and the drive, and the drive worker's own types
 // are gone with it.  The file moved with the worker into the engine
 // package's browser transport (issue 62), whose main thread and worker
-// share it, and gained the drive's readFile.
+// share it, and gained the drive's readFile.  The drive takes a list of
+// libraries where it took PLFA's archive alone (issue 13).
 
 export type WASMSource =
   | { type: "stream"; stream: ReadableStream<Uint8Array> }
@@ -34,11 +35,21 @@ export interface ALSWorkerInitObject {
   port: MessagePort;
 }
 
+/** A library the drive is laid out with: an archive whose entries are at
+ * their paths on the drive, and its `.agda-lib` there (issue 13). */
+export interface DriveLibrary {
+  data: ArrayBuffer;
+  /** Its `.agda-lib` on the drive, which the libraries file names. */
+  agdaLib: string;
+  /** Its name, as a `depend:` line names it, and the defaults file. */
+  name: string;
+}
+
 /** The archives the drive is laid out from (./drive.ts, layOutDrive). */
 export interface DriveArchives {
   builtin: ArrayBuffer | null;
   stdlib: ArrayBuffer | null;
-  plfa: ArrayBuffer | null;
+  libraries: DriveLibrary[];
 }
 
 export interface DriveMount extends DriveArchives {
