@@ -1718,7 +1718,7 @@ Shared; the lane it uses is whichever engine implementation the host has ([M3-7]
 
 ---
 
-### Issue M3-7: The shared core as packages: the engine interface with a wasm and a native implementation (#62)
+### Issue M3-7: The shared core as packages: the engine interface with a wasm and a native implementation (#62, closed)
 
 **Labels:** `milestone-3-tool-server`, `runtime`, `tool-server`, `adr`, `core`
 
