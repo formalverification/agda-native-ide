@@ -330,7 +330,7 @@ These came in with the import; they are text, so they are in git, unchanged.
 | `static/plfa/content/**/*.lagda.md` | PLFA's chapters at `870f9bb1` (`scripts/sync-plfa.mjs`) | CC BY 4.0 |
 | `static/plfa/LICENSE` | Byte-identical to plfa/plfa.github.io's `LICENSE` at `870f9bb1` | The CC BY 4.0 text |
 | `static/favicon.svg` | Upstream's adaptation of agda/agda's `doc/user-manual/agda.svg` (its own comment says so) | MIT |
-| `src/`, `scripts/`, `packages/engine/src/browser/worker/`, the rest | Upstream's own code; its `NOTICE.md` says the WASI worker, the virtual filesystem, the highlighting, the input method and the transport began from [agda-web/als-demo], whose `LICENSE` is byte-identical to upstream's | MIT |
+| `src/`, `scripts/`, `packages/engine/src/browser/worker/`; in part `packages/engine/src/browser/index.ts` (the startup and the acknowledgement of the server's requests), `packages/engine/src/core/give-rule.ts` (the give rule) and `packages/views/src/*.svelte` (the inspector's components); the rest | Upstream's own code; its `NOTICE.md` says the WASI worker, the virtual filesystem, the highlighting, the input method and the transport began from [agda-web/als-demo], whose `LICENSE` is byte-identical to upstream's | MIT |
 
 ## Changes to upstream files
 
@@ -387,6 +387,10 @@ Each change is its own commit, named here by its subject.
 | `vite.config.js` | The unit tests include the packages' ([#62]) | "Make the repository a workspace, and run the page on its packages" |
 | `src/routes/+page.svelte` | The PLFA interface manifest is checked against the corpus the page loaded, so a chapter's archive that is not a chapter refuses the manifest, naming the field, and a chapter then mounts every chapter's archives up to it, where the page requested the missing archive and failed ([#62]'s review) | "Check the PLFA interface manifest against the loaded corpus" |
 | `package.json`, `package-lock.json` | The repository is an npm workspace of the page, the four packages and the companion, whose own lockfile is folded into this one; `@andy0130tw/vscode-jsonrpc-esm`, which only the removed router used, is removed.  npm 10 dropped the `libc` field of ten platform bindings from the lockfile it rewrote, and those fields are restored as they were, so the lockfile only gains entries, but for the one removed ([#62]).  JSON carries no comment, so this row is the record. | "Make the repository a workspace, and run the page on its packages" |
+| `packages/engine/src/browser/worker/drive.ts` | Reading a source back keeps its byte order mark, as node's reading does, so a source that starts with one loads in the page as natively ([#62]'s self-review) | "Keep a source's byte order mark when the drive reads it back" |
+| `src/lib/agda/handlers.js` | A case split's edit is the engine's `caseSplitEdit`, which keeps the line's indentation for every clause and in an extended lambda replaces only the goal's clause, as Agda's Emacs mode does ([#62]'s self-review) | "Close the session's corners a self-review found" |
+| `src/lib/controller.svelte.ts`, `src/routes/+page.svelte` | Infer and Normalize check the file on screen first when Agda holds another; replacing the editor's text makes the next check a load, and an answer about another file is not applied; the drive is ready for archives once the session has opened; a mount counts and flags only the archives it lacks; the inspector asks about the goal named ([#62]'s self-review) | "Answer Infer and Normalize in the file on screen, and keep the page's state its own" |
+| `vite.config.js` | The build refuses node's built-in modules in the page and in its worker, which Vite would replace with empty ones ([#62]'s self-review) | "Refuse node's built-in modules in the browser's bundle" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground

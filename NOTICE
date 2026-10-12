@@ -31,8 +31,10 @@ Contents
                app's code includes this repository's own workspace
                packages, packages/engine, packages/tools,
                packages/manifest and packages/views (MIT, under
-               LICENSE); the engine's worker and drive, and its startup,
-               began as plfa-playground's, under the license below.
+               LICENSE); the engine's worker and drive, its startup, its
+               acknowledgement of the language server's requests and its
+               give rule, and the views' components, began as
+               plfa-playground's, under the license below.
     Source:    https://github.com/SeungheonOh/plfa-playground, commit
                ae0aa84c24363a8d6dadc292b6eb8f88f7f38705 (2026-08-31).
     Copyright: Copyright 2026 Andy Pan.  Every commit of plfa-playground

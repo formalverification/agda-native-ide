@@ -2,8 +2,10 @@
   // File: packages/views/src/ProblemList.svelte
   //
   // Agda's errors and warnings, in its words: the inspector's problem
-  // list, moved from the page (src/routes/+page.svelte, as changed for
-  // issue 17) into the views package (issue 62).
+  // list, moved from the page into the views package (issue 62).  Changed
+  // from upstream: it began in SeungheonOh/plfa-playground's
+  // src/routes/+page.svelte at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705, as
+  // changed here for issue 17 (docs/provenance.md).
 
   import { CircleAlert, TriangleAlert } from "@lucide/svelte";
   import type { Problem } from "./types";

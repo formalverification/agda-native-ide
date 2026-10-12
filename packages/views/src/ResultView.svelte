@@ -3,8 +3,10 @@
   //
   // Agda's answer to the last question (a type, a normal form, a context,
   // an error), and its running info, the compiler log: the inspector's
-  // result, moved from the page (src/routes/+page.svelte, as changed for
-  // issue 17) into the views package (issue 62).
+  // result, moved from the page into the views package (issue 62).
+  // Changed from upstream: it began in SeungheonOh/plfa-playground's
+  // src/routes/+page.svelte at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705, as
+  // changed here for issue 17 (docs/provenance.md).
 
   import type { Result } from "./types";
 
