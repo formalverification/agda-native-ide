@@ -1,11 +1,16 @@
 // File: scripts/check-bundle.mjs
 //
 // The built site's JavaScript must not carry the engine's native
-// transport, node's process API, or VS Code's API (issue 62): those belong
-// to the editor's host.  The engine package exports its native transport
-// under the `node` condition alone, so a browser bundle cannot resolve it;
-// this check reads what the build wrote, so that neither a new export nor
-// a new import can carry them in unseen.  `make build` runs it on build/.
+// transport, node's APIs, or VS Code's API (issue 62): those belong to the
+// editor's host.  The engine package exports its native transport under
+// the `node` condition alone, so a browser bundle cannot resolve it, and
+// the build refuses node's built-in modules (vite.config.js), which Vite
+// would otherwise replace with empty ones, so that their names never reach
+// the bundle.  This check reads what the build wrote for the markers that
+// would remain (the native transport's command line, VS Code's API, and
+// node's module names in code the build did not bundle), so that neither
+// a new export nor a new import can carry them in unseen.  `make build`
+// runs it on build/.
 //
 //   node scripts/check-bundle.mjs <site>
 
@@ -26,7 +31,7 @@ function* files(directory) {
   for (const name of readdirSync(directory)) {
     const path = join(directory, name);
     if (statSync(path).isDirectory()) yield* files(path);
-    else if (/\.(m?js)$/.test(name)) yield path;
+    else if (/\.[mc]?js$/.test(name)) yield path;
   }
 }
 
@@ -47,4 +52,4 @@ if (found.length) {
   console.error(`check-bundle: the browser bundle carries what belongs to the editor's host:\n  ${found.join("\n  ")}`);
   process.exit(1);
 }
-console.log(`check-bundle: ${scanned} scripts, none with the native transport, node's APIs or VS Code's`);
+console.log(`check-bundle: ${scanned} scripts, none with a marker of the native transport, node's APIs or VS Code's`);
