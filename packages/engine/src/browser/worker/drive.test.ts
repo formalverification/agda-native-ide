@@ -87,6 +87,16 @@ describe("the drive's libraries", () => {
     expect(text(withPlfa, "/home/root/.config/agda/defaults")).toBe("standard-library\nplfa\n");
   });
 
+  it("names only the libraries it has, with no standard library", async () => {
+    const fs = await layOutDrive({
+      builtin: null,
+      stdlib: null,
+      libraries: [{ data: await zip({ "plfa.agda-lib": "name: plfa\n" }), agdaLib: "/plfa.agda-lib", name: "plfa" }],
+    });
+    expect(text(fs, "/home/root/.config/agda/libraries")).toBe("/plfa.agda-lib\n");
+    expect(text(fs, "/home/root/.config/agda/defaults")).toBe("plfa\n");
+  });
+
   it("writes no registry when it has no library", async () => {
     const fs = await layOutDrive({ builtin: null, stdlib: null, libraries: [] });
     expect(fs["/home/root/.config/agda/libraries"]).toBeUndefined();

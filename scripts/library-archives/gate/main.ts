@@ -74,7 +74,8 @@ interface Result {
   mountMs?: number;
   loadMs?: number;
   totalMs: number;
-  /** The reactor's linear memory when the check ended: its peak. */
+  /** The reactor's linear memory when the check ended: its peak, or with
+   * `sessions: "shared"` the session's peak so far. */
   memoryBytes: number | null;
   job: number;
   startedAt: number;
@@ -150,7 +151,13 @@ async function open(plan: Plan, name: string) {
   if (started.kind !== "session") throw new Error(`the engine did not start: ${started.message}`);
   const { session, transport } = started;
   state.agdaVersion ??= session.agdaVersion;
-  await transport.writeSource(plan.play.agdaLib, plan.play.text);
+  try {
+    await transport.writeSource(plan.play.agdaLib, plan.play.text);
+  } catch (error) {
+    // The caller has no session to dispose of yet.
+    await session.dispose();
+    throw error;
+  }
   return { session, transport, worker };
 }
 
@@ -230,7 +237,7 @@ function report(result: Result) {
 }
 
 /** A check that could not run to its load. */
-function failed(item: Check, job: number, started: number, error: unknown): Result {
+function failed(item: Check, job: number, started: number, error: unknown, startMs?: number): Result {
   return {
     name: item.name,
     root: item.root,
@@ -247,6 +254,7 @@ function failed(item: Check, job: number, started: number, error: unknown): Resu
     memoryBytes: null,
     job,
     startedAt: Math.round(started),
+    ...(startMs === undefined ? {} : { startMs }),
   };
 }
 
@@ -254,12 +262,13 @@ function failed(item: Check, job: number, started: number, error: unknown): Resu
 async function fresh(plan: Plan, item: Check, job: number) {
   const started = performance.now();
   let target: Awaited<ReturnType<typeof open>> | undefined;
+  let startMs: number | undefined;
   try {
     target = await open(plan, item.name);
-    const startMs = Math.round(performance.now() - started);
+    startMs = Math.round(performance.now() - started);
     report(await check(plan, target, item, job, started, startMs));
   } catch (error) {
-    report(failed(item, job, started, error));
+    report(failed(item, job, started, error, startMs));
   } finally {
     await target?.session.dispose();
   }

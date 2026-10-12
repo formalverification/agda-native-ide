@@ -29,7 +29,8 @@
 //             each check otherwise has a fresh one: what the choice between
 //             them measured (docs/notes/library-archives.md), and a quick
 //             run while iterating, which does not prove the criterion
-//   env: CONTROL_ROOT, the controls' root (default Overture.Basic)
+//   env: CONTROL_ROOT, the controls' root, a module of agda-algebras
+//        (default Overture.Basic)
 
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -50,21 +51,30 @@ const CONTROL_ROOT = process.env.CONTROL_ROOT ?? "Overture.Basic";
  * every load has its own deadline (LOAD_DEADLINE_MS) well under it. */
 const STALL_MS = 20 * 60_000;
 const LOAD_DEADLINE_MS = 10 * 60_000;
+/** How long the page may take to report at all once it is opened. */
+const PAGE_START_MS = 2 * 60_000;
 
-const { values: options, positionals } = parseArgs({
-  allowPositionals: true,
-  options: {
-    harness: { type: "string" },
-    archives: { type: "string" },
-    out: { type: "string", default: "library-gate" },
-    root: { type: "string", multiple: true },
-    jobs: { type: "string", default: "4" },
-    "no-controls": { type: "boolean", default: false },
-    shared: { type: "boolean", default: false },
-  },
-});
 const usage =
   "usage: CHROME=<chromium> node gate.mjs <site> --harness DIR --archives DIR [--out DIR] [--root ROOT]... [--jobs N] [--no-controls] [--shared]";
+let parsed;
+try {
+  parsed = parseArgs({
+    allowPositionals: true,
+    options: {
+      harness: { type: "string" },
+      archives: { type: "string" },
+      out: { type: "string", default: "library-gate" },
+      root: { type: "string", multiple: true },
+      jobs: { type: "string", default: "4" },
+      "no-controls": { type: "boolean", default: false },
+      shared: { type: "boolean", default: false },
+    },
+  });
+} catch (error) {
+  console.error(`${error.message}\n${usage}`);
+  process.exit(2);
+}
+const { values: options, positionals } = parsed;
 const jobs = Number(options.jobs);
 if (positionals.length !== 1 || !options.harness || !options.archives || !process.env.CHROME || !Number.isInteger(jobs) || jobs < 1) {
   console.error(usage);
@@ -82,7 +92,13 @@ for (const required of [join(site, "index.html"), join(harness, "index.html"), i
   }
 
 const sha256 = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
-const index = readIndex(indexPath);
+let index;
+try {
+  index = readIndex(indexPath);
+} catch (error) {
+  console.error(`${indexPath} cannot be read: ${error.message}`);
+  process.exit(2);
+}
 const builtins = index.libraries.builtins.sources;
 const stdlib = index.libraries["standard-library"].sources;
 const algebras = index.libraries["agda-algebras"];
@@ -101,6 +117,12 @@ const roots = options.root ?? index.roots;
 const unlisted = roots.filter((root) => !listed(index, root));
 if (unlisted.length || !listed(index, CONTROL_ROOT)) {
   console.error(`not in the index: ${[...unlisted, ...(listed(index, CONTROL_ROOT) ? [] : [CONTROL_ROOT])].join(" ")}`);
+  process.exit(2);
+}
+// The controls drop the root's own archive and change its source in
+// agda-algebras' sources archive, so the root must have both.
+if (!options["no-controls"] && (index.modules[CONTROL_ROOT].library !== "agda-algebras" || !index.modules[CONTROL_ROOT].archive)) {
+  console.error(`CONTROL_ROOT=${CONTROL_ROOT} is not a module of agda-algebras with an archive of its own`);
   process.exit(2);
 }
 const checkOf = (root) => {
@@ -185,6 +207,12 @@ const started = new Date();
 let chrome;
 let state;
 let failure = null;
+// A signal ends the run as a failure, and takes Chromium with it.
+for (const [signal, code] of [["SIGINT", 130], ["SIGTERM", 143]])
+  process.once(signal, () => {
+    console.error(`gate: stopped by ${signal}`);
+    Promise.allSettled([chrome?.close(), server.close()]).then(() => process.exit(code));
+  });
 try {
   chrome = await cdp.launch(process.env.CHROME);
   const page = chrome.page;
@@ -195,7 +223,8 @@ try {
       `${checks.length} checks, ${jobs} at once, sessions ${plan.sessions}`,
   );
   let printed = 0;
-  let lastProgress = performance.now();
+  const opened = performance.now();
+  let lastProgress = opened;
   for (;;) {
     state = await page
       .eval(
@@ -213,21 +242,33 @@ try {
         },
         [results.length, printed],
       )
-      .catch(() => null);
+      .catch((error) => {
+        // A command that timed out may answer next time; a renderer that
+        // crashed, or a browser or socket that closed, never will.
+        if (/had no answer in/.test(error?.message)) return null;
+        throw error;
+      });
     for (const line of state?.log ?? []) console.log(line);
     printed += state?.log?.length ?? 0;
     if (state?.results?.length) {
       results.push(...state.results);
       lastProgress = performance.now();
     }
-    if (state?.done) break;
     const thrown = consoleLog.find((entry) => entry.type === "exception");
     if (thrown) throw new Error(`the page threw: ${thrown.text}`);
+    if (state?.done) break;
+    if (!state && performance.now() - opened > PAGE_START_MS)
+      throw new Error(`the page did not start in ${PAGE_START_MS / 60_000} minutes`);
     if (performance.now() - lastProgress > STALL_MS)
       throw new Error(`no check finished in ${STALL_MS / 60_000} minutes`);
     await new Promise((done) => setTimeout(done, 1_000));
   }
   if (state.fatal) throw new Error(`the page failed: ${state.fatal}`);
+  // An exception thrown as the page finished reaches the console a moment
+  // after the report that says it is done.
+  await new Promise((done) => setTimeout(done, 1_000));
+  const late = consoleLog.find((entry) => entry.type === "exception");
+  if (late) throw new Error(`the page threw: ${late.text}`);
 } catch (error) {
   failure = String(error?.message ?? error);
   console.error(failure);

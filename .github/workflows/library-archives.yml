@@ -84,6 +84,7 @@ on:
       - packages/engine/src/browser/**
       - packages/engine/package.json
       - packages/engine/tsconfig.json
+      - packages/tsconfig.base.json
       - scripts/browser-check/cdp.mjs
       - scripts/browser-check/serve.mjs
       - package-lock.json
@@ -100,6 +101,7 @@ on:
       - packages/engine/src/browser/**
       - packages/engine/package.json
       - packages/engine/tsconfig.json
+      - packages/tsconfig.base.json
       - scripts/browser-check/cdp.mjs
       - scripts/browser-check/serve.mjs
       - package-lock.json
@@ -164,7 +166,8 @@ jobs:
             if [ "$gate_head" = "$gate_base" ] && git diff --quiet "$BASE" HEAD -- \
                 packages/engine/src/core packages/engine/src/browser \
                 packages/engine/package.json packages/engine/tsconfig.json \
-                scripts/library-archives/gate package-lock.json Makefile; then
+                packages/tsconfig.base.json scripts/library-archives/gate \
+                package-lock.json Makefile; then
               echo "Nor did the gate's code change: no gate." | tee -a "$GITHUB_STEP_SUMMARY"
               echo gate=false >> "$GITHUB_OUTPUT"
             else

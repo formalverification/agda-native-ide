@@ -472,7 +472,11 @@ export class BrowserTransport implements EngineTransport {
       step("the compiler could not be loaded", initPromise),
       archive(config.archives.builtin, "Agda's builtin library"),
       archive(config.archives.stdlib, "the standard library"),
-      ...listed.map((library) => archive(library.url, library.what ?? `the library ${library.name}`)),
+      ...listed.map((library) => {
+        const what = library.what ?? `the library ${library.name}`;
+        // A library is on the drive, or the start fails: none is skipped.
+        return library.url ? archive(library.url, what) : Promise.reject(new Error(`${what} has no URL`));
+      }),
     ]));
     this.drive = drive;
     if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
@@ -480,6 +484,7 @@ export class BrowserTransport implements EngineTransport {
     config.onProgress?.({ phase: "starting" });
 
     const libraries = listed.map(({ agdaLib, name }, index) => ({
+      // Fetched above: a library without a URL has already failed the start.
       data: data[index] as ArrayBuffer,
       agdaLib,
       name,
