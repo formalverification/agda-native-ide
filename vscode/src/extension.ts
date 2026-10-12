@@ -91,8 +91,11 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
   private readonly registry: LaneRegistry;
   /** The Agda versions already asked, by executable. */
   private readonly probes = new Map<string, string>();
-  /** The last native lane answer, as the panel shows it. */
-  private answer: string | null = null;
+  /** The last native lane answer, as the panel shows it, and the module it
+   * is about: shown only while the panel follows that module. */
+  private answer: { uri: string; text: string } | null = null;
+  /** The last verdict's module, which the status bar shows it beside. */
+  private verdictUri: string | null = null;
   private readonly verdictItem: vscode.StatusBarItem;
   private shuttingDown: Promise<void> | undefined;
 
@@ -134,9 +137,14 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
   getPersistedState(): PanelState | undefined { return this.persisted; }
   getSnapshot(): DocumentSnapshot | undefined { return this.snapshot; }
   getCompatibility(): Compatibility { return this.modeCompatibility; }
-  getAnswer(): string | null { return this.answer; }
-  getVerdictStatus(): { text: string; tooltip: string } {
-    return { text: this.verdictItem.text, tooltip: typeof this.verdictItem.tooltip === 'string' ? this.verdictItem.tooltip : '' };
+  /** The answer the panel shows: the last one, if it is about the module
+   * the panel follows. */
+  getAnswer(): string | null { return this.answer?.uri === this.state.uri ? this.answer.text : null; }
+  getVerdictStatus(): { text: string; tooltip: string; visible: boolean } {
+    return {
+      text: this.verdictItem.text, tooltip: typeof this.verdictItem.tooltip === 'string' ? this.verdictItem.tooltip : '',
+      visible: this.verdictUri !== null && this.verdictUri === this.state.uri,
+    };
   }
   getLanes(): Array<{ root: string; pid: number | undefined; busy: boolean }> { return this.registry.lanes(); }
 
@@ -220,6 +228,9 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
   }
 
   private publish(): void {
+    // The verdict is shown beside its own module only.
+    if (this.verdictUri !== null && this.verdictUri === this.state.uri) this.verdictItem.show();
+    else this.verdictItem.hide();
     const document = this.document();
     if (document) {
       this.snapshot = { uri: document.uri.toString(), version: document.version, text: document.getText() };
@@ -239,7 +250,7 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
       }
     }
     void this.panel?.webview.postMessage({
-      type: 'snapshot', state: this.state, busy: this.busy, error: this.error, answer: this.answer,
+      type: 'snapshot', state: this.state, busy: this.busy, error: this.error, answer: this.getAnswer(),
       module: document ? vscode.workspace.asRelativePath(document.uri) : null,
       version: document?.version, dirty: document?.isDirty,
       compatibility: this.modeCompatibility,
@@ -378,7 +389,8 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
         if (exitCode !== undefined) report.exitCode = exitCode;
         this.state.lastCommand = report;
       }
-      this.answer = describeResult(result);
+      // About the module the command ran on, whichever the panel follows now.
+      this.answer = { uri: document.uri.toString(), text: describeResult(result) };
       if (result.status === 'verdict') this.showVerdict(document, result.verdict.exitCode, result.elapsedMs);
       const answered: LaneResult = {
         uri: document.uri.toString(), version: document.version, text: document.getText(),
@@ -460,9 +472,9 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
 
   private showVerdict(document: vscode.TextDocument, exitCode: number, elapsedMs: number): void {
     this.verdictItem.text = `${exitCode === 0 ? '$(pass)' : '$(error)'} Agda: exit ${exitCode}`;
+    this.verdictUri = document.uri.toString();
     this.verdictItem.tooltip = `Batch verdict on ${vscode.workspace.asRelativePath(document.uri)}: exit ${exitCode}, ` +
       `${exitCode === 0 ? 'it checks' : 'it does not check'} (${Math.round(elapsedMs)} ms)`;
-    this.verdictItem.show();
   }
 
   private clearPanelSubscriptions(): void {

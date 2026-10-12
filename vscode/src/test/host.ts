@@ -85,6 +85,19 @@ async function nativeLanes(companion: Companion, document: vscode.TextDocument):
   await editor.edit(edit => edit.replace(new vscode.Range(document.positionAt(given), document.positionAt(given + '0ℓ'.length)), '{!   !}'));
   await document.save();
 
+  // The answer and the verdict are about their module, and are not shown
+  // beside another.
+  assert.ok(companion.getAnswer() && companion.getVerdictStatus().visible);
+  const otherUri = vscode.Uri.joinPath(vscode.workspace.workspaceFolders![0]!.uri, 'LaneOther.agda');
+  await vscode.workspace.fs.writeFile(otherUri, Buffer.from('module LaneOther where\n'));
+  await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(otherUri), { viewColumn: vscode.ViewColumn.One });
+  await until(() => companion.getState().uri === otherUri.toString(), 'the panel follows the other module');
+  assert.equal(companion.getAnswer(), null);
+  assert.equal(companion.getVerdictStatus().visible, false);
+  await vscode.window.showTextDocument(document, { viewColumn: vscode.ViewColumn.One });
+  await until(() => companion.getState().uri === document.uri.toString(), 'the panel follows the module again');
+  assert.ok(companion.getAnswer() && companion.getVerdictStatus().visible);
+
   const time = (result: LaneResult) => Math.round(result.elapsedMs * 10) / 10;
   const agda = (result: LaneResult) => Math.round((result.result as { elapsedMs: number }).elapsedMs * 10) / 10;
   const checked = (result: LaneResult) => (result.result as { result: { checking: string[] } }).result.checking;
