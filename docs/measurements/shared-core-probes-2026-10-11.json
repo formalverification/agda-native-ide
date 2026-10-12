@@ -1,0 +1,395 @@
+{
+  "date": "2026-10-11",
+  "revision": "f37cbb0b99168a6609cbcea272a2c70cf3bc40cb",
+  "machine": {
+    "platform": "linux",
+    "release": "7.0.0-31-generic",
+    "cpus": 20,
+    "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+    "memory": 67068481536
+  },
+  "scope": "The runs of the page and of native Agda that ADR 0003 cites besides the conformance suite: Agda's answer to Cmd_abort natively; the real page driven in headless Chromium (hover, case split, refine, STOP, a PLFA chapter's check, Infer in an unchecked chapter, coming back to a file Agda holds), with controls on the page's code before the self-review's fixes; the browser check in Firefox; and the contrast report with and without the views' styles.  Each is a single observation, not a benchmark.  Paths are shortened: <repository> is the worktree, <root> a probe's project directory, <scratch> the session's scratch directory.",
+  "loadAverageBefore": [
+    1.35,
+    1.77,
+    2.6
+  ],
+  "probes": {
+    "nativeAbort": {
+      "what": "agda --interaction-json at da66a8c7 (the flake's .#vscode shell): load Slow.agda, start a slow normalization, send Cmd_abort 500 ms after it, then ask a goal's type; each line of Agda's output with its time since the start (highlighting lines left out).",
+      "command": "cd <root> && nix develop <repository>#vscode --command node abort.mjs",
+      "script": "import { spawn } from \"node:child_process\";\nconst root = process.cwd();\nconst child = spawn(process.env.AGDA, [\"--interaction-json\", \"--no-libraries\", \"-i\", root], { cwd: root, env: { ...process.env, AGDA_DIR: root + \"/.agda-dir\" } });\nconst t0 = performance.now(); let out = \"\";\nchild.stdout.setEncoding(\"utf8\");\nchild.stdout.on(\"data\", (d) => { out += d; for (const l of d.split(\"\\n\")) if (l) process.stdout.write(`[${Math.round(performance.now()-t0)}ms] ${l.slice(0,160)}\\n`); });\nchild.stderr.on(\"data\", (d) => process.stdout.write(`[stderr ${JSON.stringify(String(d))}]\\n`));\nchild.on(\"exit\", (code, sig) => console.log(\"exit\", code, sig, Math.round(performance.now()-t0)));\nconst f = JSON.stringify(root + \"/Slow.agda\");\nlet deep = \"z\"; for (let i = 0; i < 40; i++) deep = `(s ${deep})`;\nconst cmds = [\n  `IOTCM ${f} NonInteractive Direct (Cmd_load ${f} [])`,\n  `IOTCM ${f} None Direct (Cmd_compute_toplevel DefaultCompute \"slow ${deep}\")`,\n  `IOTCM ${f} None Direct (Cmd_goal_type_context Normalised 0 noRange \"\")`,\n];\nlet i = 0, prompts = 0;\nconst send = () => { if (i < cmds.length) { console.log(\">>> \" + cmds[i].slice(0, 120)); child.stdin.write(cmds[i++] + \"\\n\"); if (i === 2) setTimeout(() => { console.log(\">>> abort\"); child.stdin.write(`IOTCM ${f} None Direct Cmd_abort\\n`); }, 500); } else child.stdin.end(); };\nchild.stdout.on(\"data\", () => { const n = (out.match(/(^|\\n)JSON> /g) || []).length; while (prompts < n) { prompts++; send(); } });\n",
+      "source": "module Slow where\n\ndata N : Set where\n  z : N\n  s : N → N\n\n_⊕_ : N → N → N\nz ⊕ n = n\ns m ⊕ n = s (m ⊕ n)\n\nslow : N → N\nslow z = s z\nslow (s n) = slow n ⊕ slow n\n\ngoal : N\ngoal = {! !}\n",
+      "observed": {
+        "normalizationSentMs": 37,
+        "abortSentMs": "500 after the normalization",
+        "doneAbortingStatusAndPromptMs": 592,
+        "nextGoalCommandCheckedTheFileAgain": true
+      },
+      "log": [
+        "[4ms] JSON> ",
+        ">>> IOTCM \"<scratch>…",
+        "[5ms] {\"kind\":\"Status\",\"status\":{\"checked\":false,\"showImplicitArguments\":false,\"showIrrelevantArguments\":false}}",
+        "[5ms] {\"kind\":\"ClearRunningInfo\"}",
+        "[5ms] {\"kind\":\"ClearHighlighting\",\"tokenBased\":\"NotOnlyTokenBased\"}",
+        "[35ms] {\"debugLevel\":1,\"kind\":\"RunningInfo\",\"message\":\"Checking Slow (<scratch>…",
+        "[37ms] {\"kind\":\"Status\",\"status\":{\"checked\":false,\"showImplicitArguments\":false,\"showIrrelevantArguments\":false}}",
+        "[37ms] {\"info\":{\"errors\":[],\"invisibleGoals\":[],\"kind\":\"AllGoalsWarnings\",\"visibleGoals\":[{\"constraintObj\":{\"id\":0,\"range\":[{\"end\":{\"col\":13,\"line\":16,\"pos\":184},\"star",
+        "[37ms] {\"interactionPoints\":[{\"id\":0,\"range\":[{\"end\":{\"col\":13,\"line\":16,\"pos\":184},\"start\":{\"col\":8,\"line\":16,\"pos\":179}}]}],\"kind\":\"InteractionPoints\"}",
+        "[37ms] JSON> ",
+        ">>> IOTCM \"<scratch>…",
+        ">>> abort",
+        "[592ms] {\"kind\":\"DoneAborting\"}",
+        "[592ms] {\"kind\":\"Status\",\"status\":{\"checked\":false,\"showImplicitArguments\":false,\"showIrrelevantArguments\":false}}",
+        "[592ms] JSON> ",
+        ">>> IOTCM \"<scratch>…",
+        "[593ms] {\"kind\":\"Status\",\"status\":{\"checked\":false,\"showImplicitArguments\":false,\"showIrrelevantArguments\":false}}",
+        "[593ms] {\"kind\":\"ClearRunningInfo\"}",
+        "[593ms] {\"kind\":\"ClearHighlighting\",\"tokenBased\":\"NotOnlyTokenBased\"}",
+        "[600ms] {\"debugLevel\":1,\"kind\":\"RunningInfo\",\"message\":\"Checking Slow (<scratch>…",
+        "[602ms] {\"kind\":\"Status\",\"status\":{\"checked\":false,\"showImplicitArguments\":false,\"showIrrelevantArguments\":false}}",
+        "[602ms] {\"info\":{\"goalInfo\":{\"boundary\":[],\"entries\":[],\"kind\":\"GoalType\",\"outputForms\":[],\"rewrite\":\"Normalised\",\"type\":\"N\",\"typeAux\":{\"kind\":\"GoalOnly\"}},\"interaction",
+        "[602ms] JSON> ",
+        "exit 0 null 608"
+      ]
+    },
+    "page": {
+      "what": "The built page (make build at this revision) in headless Chromium: the first check of Main, a hover, a case split and the check after it, a refine, STOP during a PLFA chapter's first check, and that chapter's check.",
+      "command": "CHROME=<chromium> nix develop --command node <scratch>/probe/page-probe.mjs",
+      "script": "// A scratch drive of the real page: hover, case split, refine, STOP, PLFA.\nconst repo = \"<repository>\";\nconst cdp = await import(repo + \"/scripts/browser-check/cdp.mjs\");\nconst { serve } = await import(repo + \"/scripts/browser-check/serve.mjs\");\nconst SOURCE = `module Main where\n\nopen import Agda.Builtin.Nat\n\nf : Nat → Nat\nf n = {! n !}\n\ng : Nat → Nat\ng n = {! !}\n`;\nconst server = await serve({ root: repo + \"/build\" });\nconst chrome = await cdp.launch(process.env.CHROME);\nconst page = chrome.page;\nconst log = [];\nawait page.onConsole((e) => log.push(e));\nawait page.setViewport(1440, 900);\nawait page.addInitScript(`localStorage.setItem(\"agda-web-ide-beta:doc\", ${JSON.stringify(SOURCE)});`);\nawait page.navigate(`${server.origin}/`);\nconst state = () => ({\n  status: document.querySelector(\".inspector-status\")?.textContent?.trim() ?? \"\",\n  bar: [...document.querySelectorAll(\".statusbar > span\")].map((s) => s.textContent?.replace(/\\s+/g, \" \").trim()).join(\" | \"),\n  busy: document.querySelector(\".spin\") !== null,\n  goals: [...document.querySelectorAll(\".goal-card .goal-number\")].map((g) => g.textContent?.trim()),\n  goalTypes: [...document.querySelectorAll(\".goal-card code\")].map((g) => g.textContent?.trim()),\n  context: [...document.querySelectorAll(\".context-row\")].map((r) => r.textContent?.replace(/\\s+/g, \" \").trim()),\n  problems: [...document.querySelectorAll(\".problem-card pre\")].map((p) => p.textContent),\n  result: document.querySelector(\".result-card pre\")?.textContent ?? null,\n  editor: [...document.querySelectorAll(\".cm-content .cm-line\")].map((l) => l.textContent),\n  minibuffer: document.querySelector(\"#command-input\") !== null,\n  tooltip: document.querySelector(\".cm-tooltip\")?.textContent ?? null,\n  failed: document.querySelector(\".action-error span\")?.textContent ?? null,\n  banner: document.querySelector(\".fatal-banner\")?.textContent ?? null,\n});\nconst sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nasync function waitFor(pred, what, ms = 120000) {\n  const t0 = performance.now(); let s;\n  while (performance.now() - t0 < ms) { s = await page.eval(state); if (s.banner) throw new Error(s.banner); if (pred(s)) return s; await sleep(100); }\n  throw new Error(`timeout: ${what}: ${JSON.stringify(s)}`);\n}\nconst click = (title) => page.eval((title) => { const b = [...document.querySelectorAll(\"button\")].find((b) => b.getAttribute(\"title\")?.startsWith(title)); if (!b || b.disabled) throw new Error(\"no \" + title); b.click(); }, title);\nconst submit = (value) => page.eval((value) => { const i = document.querySelector(\"#command-input\"); i.value = value; i.dispatchEvent(new Event(\"input\", { bubbles: true })); i.form.requestSubmit(); }, value);\nconst out = {};\ntry {\n  let s = await waitFor((s) => / · \\d/.test(s.status) && !s.busy, \"first check\");\n  out.first = { status: s.status, goals: s.goals, types: s.goalTypes };\n  // Hover over \"Nat\" on line 5.\n  const rect = await page.eval(() => {\n    const line = [...document.querySelectorAll(\".cm-line\")].find((l) => l.textContent.startsWith(\"f : Nat\"));\n    const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);\n    let node; while ((node = walker.nextNode())) { const i = node.textContent.indexOf(\"Nat\"); if (i >= 0) { const r = document.createRange(); r.setStart(node, i); r.setEnd(node, i + 2); const b = r.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; } }\n  });\n  await page.send(\"Input.dispatchMouseEvent\", { type: \"mouseMoved\", x: rect.x, y: rect.y });\n  s = await waitFor((s) => s.tooltip, \"a hover tooltip\", 20000).catch((e) => ({ tooltip: `none (${e.message.slice(0, 80)})` }));\n  out.hover = s.tooltip;\n  await page.send(\"Input.dispatchMouseEvent\", { type: \"mouseMoved\", x: 5, y: 5 });\n  // Case split goal 0 on n.\n  await page.eval(() => [...document.querySelectorAll(\".goal-card\")][0].click());\n  await waitFor((s) => !s.busy, \"goal 0 selected\");\n  await click(\"Case split\");\n  await waitFor((s) => s.minibuffer, \"case minibuffer\");\n  await submit(\"n\");\n  s = await waitFor((s) => !s.busy && !s.minibuffer && s.editor.some((l) => l.startsWith(\"f zero\")), \"the case split\");\n  out.caseSplit = s.editor.filter((l) => l.startsWith(\"f \"));\n  // Check: three goals.\n  await page.eval(() => document.querySelector(\".cm-content\").focus());\n  await page.press(\"Enter\", \"Enter\", 13, 2);\n  s = await waitFor((s) => !s.busy && / · \\d/.test(s.status) && s.goals.length === 3, \"the check after the split\");\n  out.afterSplit = { status: s.status, goals: s.goals, types: s.goalTypes };\n  // Refine the last goal with suc.\n  await page.eval(() => [...document.querySelectorAll(\".goal-card\")].at(-1).click());\n  await waitFor((s) => !s.busy, \"last goal selected\");\n  await click(\"Refine\");\n  await waitFor((s) => s.minibuffer, \"refine minibuffer\");\n  await submit(\"suc\");\n  s = await waitFor((s) => !s.busy && !s.minibuffer && s.editor.some((l) => l.startsWith(\"g n = suc\")), \"the refine\");\n  out.refine = s.editor.filter((l) => l.startsWith(\"g \"));\n  // Fast give: type a term inside the remaining goal and check.\n  await page.eval(() => document.querySelector(\".cm-content\").focus());\n  // PLFA, STOP, then a whole check.\n  await page.eval(() => [...document.querySelectorAll(\".chapter-row\")].find((r) => r.textContent.includes(\"Naturals\")).click());\n  await waitFor((s) => s.editor.some((l) => l.includes(\"module plfa.part1.Naturals\")), \"the chapter in the editor\");\n  // The chapter's interface archives mount first; a check waits for them.\n  await sleep(500);\n  await waitFor((s) => !s.busy, \"the chapter's archives\", 60000);\n  await page.eval(() => document.querySelector(\".cm-content\").focus());\n  await page.press(\"Enter\", \"Enter\", 13, 2);\n  const t1 = performance.now();\n  for (;;) { if (await page.eval(() => document.querySelector(\".abort-action\") !== null)) break; if (performance.now() - t1 > 30000) throw new Error(\"no STOP\"); await sleep(50); }\n  await sleep(1000);\n  const before = await page.eval(state);\n  await page.eval(() => document.querySelector(\".abort-action\").click());\n  const t0 = performance.now();\n  s = await waitFor((s) => !s.busy, \"the abort\", 30000);\n  out.abort = { busyBefore: before.busy, statusBefore: before.status, ms: Math.round(performance.now() - t0), status: s.status, bar: s.bar, failed: s.failed };\n  await page.eval(() => document.querySelector(\".cm-content\").focus());\n  await page.press(\"Enter\", \"Enter\", 13, 2);\n  s = await waitFor((s) => !s.busy && / · \\d/.test(s.status), \"the chapter's check\", 180000);\n  out.plfa = { status: s.status, goals: s.goals.length, problems: s.problems.length, bar: s.bar };\n} catch (e) { out.error = e.message; }\nout.exceptions = log.filter((e) => e.type === \"exception\" || e.type === \"error\").map((e) => e.text).slice(0, 10);\nconsole.log(JSON.stringify(out, null, 1));\nawait chrome.close(); await server.close();\n",
+      "output": {
+        "first": {
+          "status": "2 open goals · 182 ms",
+          "goals": [
+            "0",
+            "1"
+          ],
+          "types": [
+            "Nat",
+            "Nat"
+          ]
+        },
+        "hover": "Data type id=29",
+        "caseSplit": [
+          "f : Nat → Nat",
+          "f zero = ?",
+          "f (suc n) = ?"
+        ],
+        "afterSplit": {
+          "status": "3 open goals · 70 ms",
+          "goals": [
+            "0",
+            "1",
+            "2"
+          ],
+          "types": [
+            "Nat",
+            "Nat",
+            "Nat"
+          ]
+        },
+        "refine": [
+          "g : Nat → Nat",
+          "g n = suc ?"
+        ],
+        "abort": {
+          "busyBefore": true,
+          "statusBefore": "Checking source…",
+          "ms": 308,
+          "status": "Waiting for check",
+          "bar": "Agda ready | 0 goals |  | Agda 2.9.0 | WASI · local | UTF-8",
+          "failed": null
+        },
+        "plfa": {
+          "status": "Module checked · 9.85 s",
+          "goals": 0,
+          "problems": 0,
+          "bar": "Checked | 0 goals |  | Agda 2.9.0 | WASI · local | UTF-8"
+        },
+        "exceptions": []
+      }
+    },
+    "pageScope": {
+      "what": "A case split inside a where block; Infer of _+_ in a PLFA chapter that was opened but not checked; then back to the playground.",
+      "command": "CHROME=<chromium> nix develop --command node <scratch>/probe/page-probe-2.mjs",
+      "script": "// A scratch drive of the real page: hover, case split, refine, STOP, PLFA.\nconst repo = \"<repository>\";\nconst cdp = await import(repo + \"/scripts/browser-check/cdp.mjs\");\nconst { serve } = await import(repo + \"/scripts/browser-check/serve.mjs\");\nconst SOURCE = `module Main where\n\nopen import Agda.Builtin.Nat\n\nf : Nat → Nat\nf n = h n\n  where\n    h : Nat → Nat\n    h m = {! m !}\n\ng : Nat → Nat\ng n = {! !}\n`;\nconst server = await serve({ root: repo + \"/build\" });\nconst chrome = await cdp.launch(process.env.CHROME);\nconst page = chrome.page;\nconst log = [];\nawait page.onConsole((e) => log.push(e));\nawait page.setViewport(1440, 900);\nawait page.addInitScript(`localStorage.setItem(\"agda-web-ide-beta:doc\", ${JSON.stringify(SOURCE)});`);\nawait page.navigate(`${server.origin}/`);\nconst state = () => ({\n  status: document.querySelector(\".inspector-status\")?.textContent?.trim() ?? \"\",\n  bar: [...document.querySelectorAll(\".statusbar > span\")].map((s) => s.textContent?.replace(/\\s+/g, \" \").trim()).join(\" | \"),\n  busy: document.querySelector(\".spin\") !== null,\n  goals: [...document.querySelectorAll(\".goal-card .goal-number\")].map((g) => g.textContent?.trim()),\n  goalTypes: [...document.querySelectorAll(\".goal-card code\")].map((g) => g.textContent?.trim()),\n  context: [...document.querySelectorAll(\".context-row\")].map((r) => r.textContent?.replace(/\\s+/g, \" \").trim()),\n  problems: [...document.querySelectorAll(\".problem-card pre\")].map((p) => p.textContent),\n  result: document.querySelector(\".result-card pre\")?.textContent ?? null,\n  editor: [...document.querySelectorAll(\".cm-content .cm-line\")].map((l) => l.textContent),\n  minibuffer: document.querySelector(\"#command-input\") !== null,\n  tooltip: document.querySelector(\".cm-tooltip\")?.textContent ?? null,\n  failed: document.querySelector(\".action-error span\")?.textContent ?? null,\n  banner: document.querySelector(\".fatal-banner\")?.textContent ?? null,\n});\nconst sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nasync function waitFor(pred, what, ms = 120000) {\n  const t0 = performance.now(); let s;\n  while (performance.now() - t0 < ms) { s = await page.eval(state); if (s.banner) throw new Error(s.banner); if (pred(s)) return s; await sleep(100); }\n  throw new Error(`timeout: ${what}: ${JSON.stringify(s)}`);\n}\nconst click = (title) => page.eval((title) => { const b = [...document.querySelectorAll(\"button\")].find((b) => b.getAttribute(\"title\")?.startsWith(title)); if (!b || b.disabled) throw new Error(\"no \" + title); b.click(); }, title);\nconst submit = (value) => page.eval((value) => { const i = document.querySelector(\"#command-input\"); i.value = value; i.dispatchEvent(new Event(\"input\", { bubbles: true })); i.form.requestSubmit(); }, value);\nconst out = {};\ntry {\n  let s = await waitFor((s) => / · \\d/.test(s.status) && !s.busy, \"first check\");\n  out.first = { status: s.status, goals: s.goals, types: s.goalTypes };\n  // 1. Case split h's goal on m, inside the where block.\n  await page.eval(() => [...document.querySelectorAll(\".goal-card\")][0].click());\n  await waitFor((s) => !s.busy, \"goal 0 selected\");\n  await click(\"Case split\");\n  await waitFor((s) => s.minibuffer, \"case minibuffer\");\n  await submit(\"m\");\n  s = await waitFor((s) => !s.busy && !s.minibuffer && s.editor.some((l) => l.includes(\"h zero\")), \"the case split\");\n  out.caseSplit = s.editor.filter((l) => l.includes(\"h \"));\n  await page.eval(() => document.querySelector(\".cm-content\").focus());\n  await page.press(\"Enter\", \"Enter\", 13, 2);\n  s = await waitFor((s) => !s.busy && / · \\d/.test(s.status) && s.goals.length === 3, \"the check after the split\");\n  out.afterSplit = { status: s.status, goals: s.goals, problems: s.problems };\n  // 2. Open a chapter without checking it, and infer _+_ there.\n  await page.eval(() => [...document.querySelectorAll(\".chapter-row\")].find((r) => r.textContent.includes(\"Naturals\")).click());\n  await waitFor((s) => s.editor.some((l) => l.includes(\"module plfa.part1.Naturals\")), \"the chapter in the editor\");\n  await sleep(500);\n  await waitFor((s) => !s.busy, \"the chapter's archives\", 60000);\n  const t0 = performance.now();\n  await click(\"Infer type\");\n  await waitFor((s) => s.minibuffer, \"infer minibuffer\");\n  await submit(\"_+_\");\n  s = await waitFor((s) => !s.busy && !s.minibuffer && s.result !== null, \"the inference\", 180000);\n  out.infer = { ms: Math.round(performance.now() - t0), result: s.result, status: s.status, failed: s.failed, problems: s.problems.length };\n  // 3. Back to the playground: the check it runs must load, not say \"Already checked\".\n  await page.eval(() => [...document.querySelectorAll(\".file-row\")].find((r) => r.textContent.includes(\"Main.agda\")).click());\n  s = await waitFor((s) => !s.busy && s.editor.some((l) => l.includes(\"module Main\")) && s.goals.length > 0, \"the playground's check\", 60000);\n  out.back = { status: s.status, bar: s.bar, goals: s.goals, marked: await page.eval(() => document.querySelectorAll(\".cm-content [class*='agda']\").length) };\n} catch (e) { out.error = e.message; }\nout.exceptions = log.filter((e) => e.type === \"exception\" || e.type === \"error\").map((e) => e.text).slice(0, 10);\nconsole.log(JSON.stringify(out, null, 1));\nawait chrome.close(); await server.close();\n",
+      "output": {
+        "first": {
+          "status": "2 open goals · 201 ms",
+          "goals": [
+            "0",
+            "1"
+          ],
+          "types": [
+            "Nat",
+            "Nat"
+          ]
+        },
+        "caseSplit": [
+          "f n = h n",
+          "    h : Nat → Nat",
+          "    h zero = ?",
+          "    h (suc m) = ?"
+        ],
+        "afterSplit": {
+          "status": "3 open goals · 70 ms",
+          "goals": [
+            "0",
+            "1",
+            "2"
+          ],
+          "problems": []
+        },
+        "infer": {
+          "ms": 10557,
+          "result": "ℕ → ℕ → ℕ",
+          "status": "Inferred type",
+          "failed": null,
+          "problems": 0
+        },
+        "back": {
+          "status": "3 open goals · 42 ms",
+          "bar": "Agda ready | 3 goals |  | Agda 2.9.0 | WASI · local | UTF-8",
+          "goals": [
+            "0",
+            "1",
+            "2"
+          ],
+          "marked": 45
+        },
+        "exceptions": []
+      },
+      "control": {
+        "change": "src/lib/controller.svelte.ts and src/routes/+page.svelte as at 7543c7d (before the page's fixes), the rest at 1f4e5d2; built, probed, and restored by name.",
+        "output": {
+          "first": {
+            "status": "2 open goals · 185 ms",
+            "goals": [
+              "0",
+              "1"
+            ],
+            "types": [
+              "Nat",
+              "Nat"
+            ]
+          },
+          "caseSplit": [
+            "f n = h n",
+            "    h : Nat → Nat",
+            "    h zero = ?",
+            "    h (suc m) = ?"
+          ],
+          "afterSplit": {
+            "status": "3 open goals · 68 ms",
+            "goals": [
+              "0",
+              "1",
+              "2"
+            ],
+            "problems": []
+          },
+          "infer": {
+            "ms": 117,
+            "result": "Nat → Nat → Nat",
+            "status": "Inferred type",
+            "failed": null,
+            "problems": 0
+          },
+          "back": {
+            "status": "3 open goals · 47 ms",
+            "bar": "Agda ready | 3 goals |  | Agda 2.9.0 | WASI · local | UTF-8",
+            "goals": [
+              "0",
+              "1",
+              "2"
+            ],
+            "marked": 45
+          },
+          "exceptions": []
+        }
+      }
+    },
+    "pageReturn": {
+      "what": "Check Main, open a PLFA chapter without checking it, and come back: the page's state, and the editor's keyword marks (Agda's highlighting).",
+      "command": "CHROME=<chromium> nix develop --command node <scratch>/probe/page-probe-3.mjs",
+      "script": "// A scratch drive of the real page: hover, case split, refine, STOP, PLFA.\nconst repo = \"<repository>\";\nconst cdp = await import(repo + \"/scripts/browser-check/cdp.mjs\");\nconst { serve } = await import(repo + \"/scripts/browser-check/serve.mjs\");\nconst SOURCE = `module Main where\n\nopen import Agda.Builtin.Nat\n\nf : Nat → Nat\nf n = {! n !}\n\ng : Nat → Nat\ng n = {! !}\n`;\nconst server = await serve({ root: repo + \"/build\" });\nconst chrome = await cdp.launch(process.env.CHROME);\nconst page = chrome.page;\nconst log = [];\nawait page.onConsole((e) => log.push(e));\nawait page.setViewport(1440, 900);\nawait page.addInitScript(`localStorage.setItem(\"agda-web-ide-beta:doc\", ${JSON.stringify(SOURCE)});`);\nawait page.navigate(`${server.origin}/`);\nconst state = () => ({\n  status: document.querySelector(\".inspector-status\")?.textContent?.trim() ?? \"\",\n  bar: [...document.querySelectorAll(\".statusbar > span\")].map((s) => s.textContent?.replace(/\\s+/g, \" \").trim()).join(\" | \"),\n  busy: document.querySelector(\".spin\") !== null,\n  goals: [...document.querySelectorAll(\".goal-card .goal-number\")].map((g) => g.textContent?.trim()),\n  goalTypes: [...document.querySelectorAll(\".goal-card code\")].map((g) => g.textContent?.trim()),\n  context: [...document.querySelectorAll(\".context-row\")].map((r) => r.textContent?.replace(/\\s+/g, \" \").trim()),\n  problems: [...document.querySelectorAll(\".problem-card pre\")].map((p) => p.textContent),\n  result: document.querySelector(\".result-card pre\")?.textContent ?? null,\n  editor: [...document.querySelectorAll(\".cm-content .cm-line\")].map((l) => l.textContent),\n  minibuffer: document.querySelector(\"#command-input\") !== null,\n  tooltip: document.querySelector(\".cm-tooltip\")?.textContent ?? null,\n  failed: document.querySelector(\".action-error span\")?.textContent ?? null,\n  banner: document.querySelector(\".fatal-banner\")?.textContent ?? null,\n});\nconst sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nasync function waitFor(pred, what, ms = 120000) {\n  const t0 = performance.now(); let s;\n  while (performance.now() - t0 < ms) { s = await page.eval(state); if (s.banner) throw new Error(s.banner); if (pred(s)) return s; await sleep(100); }\n  throw new Error(`timeout: ${what}: ${JSON.stringify(s)}`);\n}\nconst click = (title) => page.eval((title) => { const b = [...document.querySelectorAll(\"button\")].find((b) => b.getAttribute(\"title\")?.startsWith(title)); if (!b || b.disabled) throw new Error(\"no \" + title); b.click(); }, title);\nconst submit = (value) => page.eval((value) => { const i = document.querySelector(\"#command-input\"); i.value = value; i.dispatchEvent(new Event(\"input\", { bubbles: true })); i.form.requestSubmit(); }, value);\nconst out = {};\nconst keywords = () => page.eval(() => document.querySelectorAll(\".cm-content .agda-keyword\").length);\ntry {\n  let s = await waitFor((s) => / · \\d/.test(s.status) && !s.busy, \"first check\");\n  out.first = { status: s.status, keywords: await keywords() };\n  await page.eval(() => [...document.querySelectorAll(\".chapter-row\")].find((r) => r.textContent.includes(\"Naturals\")).click());\n  await waitFor((s) => s.editor.some((l) => l.includes(\"module plfa.part1.Naturals\")), \"the chapter in the editor\");\n  await sleep(500);\n  await waitFor((s) => !s.busy, \"the chapter's archives\", 60000);\n  await page.eval(() => [...document.querySelectorAll(\".file-row\")].find((r) => r.textContent.includes(\"Main.agda\")).click());\n  await waitFor((s) => s.editor.some((l) => l.includes(\"module Main\")), \"Main in the editor\");\n  await sleep(3000);\n  s = await waitFor((s) => !s.busy, \"the playground's check\", 60000);\n  out.back = { status: s.status, goals: s.goals, keywords: await keywords(),\n    action: await page.eval(() => document.querySelector(\".statusbar\")?.textContent?.replace(/\\s+/g, \" \").trim()) };\n} catch (e) { out.error = e.message; }\nout.exceptions = log.filter((e) => e.type === \"exception\" || e.type === \"error\").map((e) => e.text).slice(0, 10);\nconsole.log(JSON.stringify(out, null, 1));\nawait chrome.close(); await server.close();\n",
+      "output": {
+        "first": {
+          "status": "2 open goals · 188 ms",
+          "keywords": 4
+        },
+        "back": {
+          "status": "2 open goals · 61 ms",
+          "goals": [
+            "0",
+            "1"
+          ],
+          "keywords": 4,
+          "action": "Agda ready2 goalsAgda 2.9.0WASI · localUTF-8"
+        },
+        "exceptions": []
+      },
+      "control": {
+        "change": "src/lib/controller.svelte.ts and src/routes/+page.svelte as at 7543c7d, the rest at 1f4e5d2; built, probed, and restored by name.  Its output is copied from the run's printed output.",
+        "output": {
+          "first": {
+            "status": "2 open goals · 185 ms",
+            "keywords": 4
+          },
+          "back": {
+            "status": "Waiting for check",
+            "goals": [],
+            "keywords": 0,
+            "action": "Agda ready0 goalsAgda 2.9.0WASI · localUTF-8"
+          },
+          "exceptions": []
+        }
+      }
+    },
+    "firefox": {
+      "what": "The browser check (scripts/browser-check/run.mjs) in Firefox, four times without and four times with the isolation headers.",
+      "command": "FIREFOX=/snap/bin/firefox timeout 300 node scripts/browser-check/run.mjs build --browser firefox [--isolated] --out <scratch>/evidence/firefox/<run>",
+      "runs": [
+        {
+          "run": 1,
+          "isolationHeaders": false,
+          "result": "passed",
+          "browser": "Firefox/157.0",
+          "steps": {
+            "Agda ready, since navigation": 990,
+            "first check done, since navigation": 1160,
+            "first check, as the page reports it": 119,
+            "first check": 1164,
+            "infer, and the first check's Checking lines": 132,
+            "give at goal 0": 477,
+            "check a type error": 260
+          },
+          "checking": "[\"Main\"]; goals: {\"before\":2,\"after\":1}; 27 requests, 16864024 bytes."
+        },
+        {
+          "run": 1,
+          "isolationHeaders": true,
+          "result": "passed",
+          "browser": "Firefox/157.0",
+          "steps": {
+            "Agda ready, since navigation": 874,
+            "first check done, since navigation": 1022,
+            "first check, as the page reports it": 96,
+            "first check": 966,
+            "infer, and the first check's Checking lines": 124,
+            "give at goal 0": 466,
+            "check a type error": 283
+          },
+          "checking": "[\"Main\"]; goals: {\"before\":2,\"after\":1}; 27 requests, 16864024 bytes."
+        },
+        {
+          "run": 2,
+          "isolationHeaders": false,
+          "result": "passed",
+          "browser": "Firefox/157.0",
+          "steps": {
+            "Agda ready, since navigation": 959,
+            "first check done, since navigation": 1123,
+            "first check, as the page reports it": 110,
+            "first check": 1122,
+            "infer, and the first check's Checking lines": 133,
+            "give at goal 0": 452,
+            "check a type error": 274
+          },
+          "checking": "[\"Main\"]; goals: {\"before\":2,\"after\":1}; 27 requests, 16864024 bytes."
+        },
+        {
+          "run": 2,
+          "isolationHeaders": true,
+          "result": "passed",
+          "browser": "Firefox/157.0",
+          "steps": {
+            "Agda ready, since navigation": 920,
+            "first check done, since navigation": 1066,
+            "first check, as the page reports it": 94,
+            "first check": 1015,
+            "infer, and the first check's Checking lines": 125,
+            "give at goal 0": 446,
+            "check a type error": 273
+          },
+          "checking": "[\"Main\"]; goals: {\"before\":2,\"after\":1}; 27 requests, 16864024 bytes."
+        },
+        {
+          "run": 3,
+          "isolationHeaders": false,
+          "result": "passed",
+          "browser": "Firefox/157.0",
+          "steps": {
+            "Agda ready, since navigation": 1024,
+            "first check done, since navigation": 1188,
+            "first check, as the page reports it": 113,
+            "first check": 1125,
+            "infer, and the first check's Checking lines": 122,
+            "give at goal 0": 452,
+            "check a type error": 262
+          },
+          "checking": "[\"Main\"]; goals: {\"before\":2,\"after\":1}; 27 requests, 16864024 bytes."
+        },
+        {
+          "run": 3,
+          "isolationHeaders": true,
+          "result": "passed",
+          "browser": "Firefox/157.0",
+          "steps": {
+            "Agda ready, since navigation": 959,
+            "first check done, since navigation": 1111,
+            "first check, as the page reports it": 101,
+            "first check": 1084,
+            "infer, and the first check's Checking lines": 134,
+            "give at goal 0": 479,
+            "check a type error": 267
+          },
+          "checking": "[\"Main\"]; goals: {\"before\":2,\"after\":1}; 27 requests, 16864024 bytes."
+        },
+        {
+          "run": 4,
+          "isolationHeaders": false,
+          "result": "passed",
+          "browser": "Firefox/157.0",
+          "steps": {
+            "Agda ready, since navigation": 944,
+            "first check done, since navigation": 1101,
+            "first check, as the page reports it": 106,
+            "first check": 1065,
+            "infer, and the first check's Checking lines": 129,
+            "give at goal 0": 467,
+            "check a type error": 272
+          },
+          "checking": "[\"Main\"]; goals: {\"before\":2,\"after\":1}; 27 requests, 16864024 bytes."
+        },
+        {
+          "run": 4,
+          "isolationHeaders": true,
+          "result": "passed",
+          "browser": "Firefox/157.0",
+          "steps": {
+            "Agda ready, since navigation": 955,
+            "first check done, since navigation": 1108,
+            "first check, as the page reports it": 101,
+            "first check": 1081,
+            "infer, and the first check's Checking lines": 130,
+            "give at goal 0": 471,
+            "check a type error": 287
+          },
+          "checking": "[\"Main\"]; goals: {\"before\":2,\"after\":1}; 27 requests, 16864024 bytes."
+        }
+      ]
+    },
+    "contrast": {
+      "what": "The contrast report (node scripts/browser-check/contrast.mjs), whose text colors come from the style sources it lists, with the views' components in that list and without them (the list edited, and restored by name).",
+      "pairs": {
+        "with": 5318,
+        "without": 4706
+      },
+      "failures": {
+        "with": 0,
+        "without": 0
+      }
+    }
+  }
+}

@@ -1,4 +1,9 @@
 # File: .github/workflows/vscode.yml
+#
+# The VS Code companion's checks with native Agda 2.9.0 (issue 63), in the
+# dev shell that builds that Agda (`nix develop .#vscode`); and, since the
+# shell has it, the engine's conformance suite against native Agda
+# (`make conformance-native`, issue 62), whose record is uploaded.
 name: vscode
 
 on:
@@ -25,9 +30,18 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libasound2t64 libgbm1 libgtk-3-0 libnss3
       - name: Type-check and test the companion with native Agda 2.9.0
         run: nix develop .#vscode --command make vscode-test
-      - uses: actions/upload-artifact@v4
+      - name: Run the engine's conformance suite against native Agda 2.9.0
+        if: ${{ !cancelled() }}
+        run: nix develop .#vscode --command make conformance-native CONFORMANCE=conformance
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: vscode-command-measurements
           path: vscode/test-output
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: conformance-native
+          path: conformance
           if-no-files-found: error

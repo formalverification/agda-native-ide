@@ -17,6 +17,42 @@ come from reading that source, and the measurements from the issues that
 record them (their findings sections condense the 2026-10-04 investigation
 of the fork).
 
+## Since the shared core, 2026-10-11
+
+The runtime works as this note says, but its code has moved into the
+shared packages ([#62]; [ADR 0003][adr-0003] and
+[`docs/engine/overview.md`][engine]), so the line references below are to
+commit `c18e3d6`, the last before that move.  Where each piece is now, as
+follows:
+
++  **The worker and the drive** (`als.ts`, `drive.ts`, `drive-index.ts`,
+   and `types.d.ts` as `protocol.ts`) are the engine package's browser
+   transport's, in `packages/engine/src/browser/worker/`;
+   `src/lib/worker/als.ts` is the page's one-line entry from which Vite
+   bundles it.  The drive also reads a source back.
++  **The startup** (the compiler's download and decompression, the
+   archives, the worker, the setup and the server, and the failures the
+   page shows after "Agda could not start:") is
+   `packages/engine/src/browser/index.ts`, which the controller gives its
+   URLs.
++  **The transport**: the router (`transport.js`), its framing (`lsp.js`,
+   and `createPortByteStreams` in `src/lib/index.js`) and its schemas of the
+   server's own forms (`schema.js`) are removed.  The browser transport
+   speaks to the worker one JSON message at a time, with no framing,
+   acknowledges each of the server's requests, and ends each command at
+   `ResponseEnd`; the engine's core validates Agda's answers.  CodeMirror's
+   language-server client, for hover, shares the server's session through
+   the transport's editor channel.
++  **The version query** is the engine's: a session asks Agda its version
+   when it opens.
++  **The give rule** is the engine's `planCheck`, which a session applies
+   to its snapshot; the page commits its offsets in the check's plan hook,
+   when the plan is a load, as before.  A check after a case split now
+   loads.
++  **The controller** keeps the page's state, its editor, its URLs, its
+   PLFA conversion and when to persist; `src/lib/agda/handlers.js` applies
+   each answer to the editor.
+
 ## The pieces
 
 The page runs two threads.
@@ -198,9 +234,10 @@ standard library.
 ## The transport
 
 The page speaks the Language Server Protocol to the server, and drives
-Agda through one custom method.  The router (`src/lib/agda/transport.js`,
-upstream's, unchanged) reads and writes `Content-Length`-framed bytes
-(`:47-73`), as it did over the rings; the reactor takes and gives one JSON
+Agda through one custom method.  The router
+(`src/lib/agda/transport.js`, upstream's, unchanged until [#62] removed
+it) reads and writes `Content-Length`-framed bytes (`:47-73`), as it did
+over the rings; the reactor takes and gives one JSON
 message per call, with no framing (its `prepareOutwards` is the identity,
 and its `parseInwards` takes the whole message).  So the page's end of a
 `MessageChannel` frames each message from the worker and unframes each one
@@ -433,3 +470,6 @@ acceptance is counted, never inferred: the running info prints one
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59
 [#61]: https://github.com/formalverification/agda-native-ide/issues/61
+[#62]: https://github.com/formalverification/agda-native-ide/issues/62
+[adr-0003]: ../adr/0003-the-shared-core.md
+[engine]: ../engine/overview.md

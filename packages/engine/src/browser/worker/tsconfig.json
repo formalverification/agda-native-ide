@@ -1,0 +1,13 @@
+{
+  // The worker: a WebWorker's globals, no DOM and no node.
+  "extends": "../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../../../dist/browser/worker",
+    "tsBuildInfoFile": "../../../dist/worker.tsbuildinfo",
+    "lib": ["ES2022", "WebWorker"],
+    "types": []
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["./**/*.test.ts"]
+}

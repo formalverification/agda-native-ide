@@ -1,4 +1,4 @@
-// File: src/lib/worker/drive-index.ts
+// File: packages/engine/src/browser/worker/drive-index.ts
 //
 // An index of the in-memory drive's paths (issue 50).  Runno's drive is a
 // flat record from absolute path to file, and its root directory answers
@@ -16,7 +16,8 @@
 // path and every state of the drive (drive-index.test.ts runs both side by
 // side).  It knows the drive through its record of files, its table of
 // open descriptors and the methods it wraps, so that it can move with the
-// drive (issue 59) or come to sit over another store.
+// drive (issue 59) or come to sit over another store.  It moved with the
+// drive into the engine package's browser transport (issue 62).
 
 import * as Runno from "@runno/wasi";
 

@@ -17,8 +17,9 @@
 #            notices (`nix run .#browser-check-notices`): a browser without
 #            DecompressionStream, a compiler request that fails, a compiler
 #            that does not decompress, and an archive whose transfer breaks
-#            off (issue 8).  The timings, records and screenshots are
-#            uploaded.
+#            off (issue 8); and the engine's conformance suite against the
+#            built site's reactor (`make conformance-browser`, issue 62).
+#            The timings, records and screenshots are uploaded.
 #
 # It replaces upstream's workflow (imported as app.yml), whose npm steps
 # are `make test` and `make check` here, and whose build is the Nix
@@ -55,7 +56,7 @@ jobs:
           diff -r "$out" "$out.check" > nondeterminism/diff.txt || true
           head -200 nondeterminism/diff.txt
           cp -R --no-preserve=mode,ownership "$out.check" nondeterminism/check
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: failure() && steps.rebuild.outcome == 'failure'
         with:
           name: nondeterminism
@@ -75,7 +76,7 @@ jobs:
           nix path-info --json .#site
       - name: Copy the site out of the store
         run: cp -R --no-preserve=mode,ownership result/. site
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: site
           path: site
@@ -99,7 +100,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v27
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: site
           path: site
@@ -111,9 +112,18 @@ jobs:
       - name: Check the page's notices in headless Chromium
         if: ${{ !cancelled() }}
         run: nix run .#browser-check-notices -- site --out browser-check/notices
-      - uses: actions/upload-artifact@v4
+      - name: Run the engine's conformance suite in headless Chromium, against the site's reactor
+        if: ${{ !cancelled() }}
+        run: nix develop --command make conformance-browser SITE=site CONFORMANCE=conformance
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: browser-check
           path: browser-check
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: conformance-browser
+          path: conformance
           if-no-files-found: error

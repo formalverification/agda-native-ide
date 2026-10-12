@@ -1,0 +1,14 @@
+{
+  // The browser transport, on the page's main thread: the DOM, no node.
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "../../dist/browser",
+    "tsBuildInfoFile": "../../dist/browser.tsbuildinfo",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": []
+  },
+  "include": ["./*.ts"],
+  "exclude": ["./**/*.test.ts"],
+  "references": [{ "path": "../core" }, { "path": "./worker" }]
+}

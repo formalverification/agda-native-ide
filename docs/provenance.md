@@ -50,7 +50,9 @@ upstream commit.
 | `src/lib/worker/proxy-wasi-drive.ts`, `src/lib/worker/patch-wasi.ts`, `src/lib/worker/wrap-poll-oneoff.ts`, `src/lib/worker/util-base64.js` | imported, then removed | They proxied the drive's calls to the drive worker through shared memory, and read the language server's standard input from it; the server's reactor build, with the drive in its worker, needs neither ([#59]). |
 | `src/lib/stdlib.ts` | imported, then removed | Its blocking reads and writes served only the rings in shared memory, which the page no longer has ([#59]). |
 | `static/coi-serviceworker.js` | imported, then removed | The service worker that isolated the page on a host that cannot send headers; the page shares no memory between threads, so it needs no isolation ([#59]). |
-| every other file (79) | same path, unchanged unless listed below | Listed in `upstream/unchanged.sha256`. |
+| `src/lib/worker/als.ts`, `src/lib/worker/drive.ts`, `src/lib/worker/types.d.ts` | `packages/engine/src/browser/worker/als.ts`, `drive.ts` and `protocol.ts`, changed | The worker and the drive are the engine package's browser transport's, which every host imports ([#62]); `src/lib/worker/als.ts` is now the page's one-line entry that bundles it. |
+| `src/lib/agda/transport.js`, `src/lib/agda/lsp.js`, `src/lib/agda/schema.js`, `src/lib/index.js` | imported, then removed | The engine package does what they did: its browser transport holds the language server's session, acknowledges the server's requests and starts the worker, and its core validates Agda's answers; the byte-stream framing they needed is gone with the byte streams ([#62]). |
+| every other file (72) | same path, unchanged unless listed below | Listed in `upstream/unchanged.sha256`. |
 
 Every change made here to an imported file is listed under [Changes to
 upstream files](#changes-to-upstream-files), and a file that can carry a
@@ -328,7 +330,7 @@ These came in with the import; they are text, so they are in git, unchanged.
 | `static/plfa/content/**/*.lagda.md` | PLFA's chapters at `870f9bb1` (`scripts/sync-plfa.mjs`) | CC BY 4.0 |
 | `static/plfa/LICENSE` | Byte-identical to plfa/plfa.github.io's `LICENSE` at `870f9bb1` | The CC BY 4.0 text |
 | `static/favicon.svg` | Upstream's adaptation of agda/agda's `doc/user-manual/agda.svg` (its own comment says so) | MIT |
-| `src/`, `scripts/`, the rest | Upstream's own code; its `NOTICE.md` says the WASI worker, the virtual filesystem, the highlighting, the input method and the transport began from [agda-web/als-demo], whose `LICENSE` is byte-identical to upstream's | MIT |
+| `src/`, `scripts/`, `packages/engine/src/browser/worker/`; in part `packages/engine/src/browser/index.ts` (the startup and the acknowledgement of the server's requests), `packages/engine/src/core/give-rule.ts` (the give rule) and `packages/views/src/*.svelte` (the inspector's components); the rest | Upstream's own code; its `NOTICE.md` says the WASI worker, the virtual filesystem, the highlighting, the input method and the transport began from [agda-web/als-demo], whose `LICENSE` is byte-identical to upstream's | MIT |
 
 ## Changes to upstream files
 
@@ -374,10 +376,21 @@ Each change is its own commit, named here by its subject.
 | `vite.config.js` | The dev server serves the compiler's gzip, compressing the raw compiler in `static/`, since the page no longer falls back to the raw file ([#8]) | "Say so when the page cannot run, or Agda cannot start" |
 | `src/lib/controller.svelte.ts` | The server starts without the fork's `+RTS -A64m -RTS`, which the reactor's runtime takes and which made no check faster while it grew the heap by 70 to 90 MiB ([#59]) | "Start the language server without +RTS -A64m -RTS" |
 | `src/lib/controller.svelte.ts`, `src/routes/+page.svelte`, `src/lib/worker/drive.ts` | A body that breaks off while an archive is read names the archive; a server that fails or exits of its own accord is reported ("Agda stopped"), where the page went on saying "Agda ready"; a browser that refuses IndexedDB by throwing leaves the drive uncached rather than failing the start ([#59]'s review) | "Report a broken archive, a stopped server and a refused cache" |
-
 | `src/app.css`, `src/app.html`, `src/routes/+page.svelte`, `src/lib/agda/color-scheme.js`, `src/lib/codemirror/theme.ts`, `src/lib/codemirror/symbol-input.js` | Literal colors become shared CSS tokens, preserving both system schemes during extraction ([#17]) | "Extract the workbench color tokens" |
-
 | `src/app.css`, `src/app.html`, `src/routes/+page.svelte`, `src/lib/agda/color-scheme.js`, `src/lib/agda/index.js`, `src/lib/codemirror/theme.ts`, `src/lib/codemirror/symbol-input.js` | The page and editor use the light and dark tokens in `static/theme.css`, follow the system or the saved theme choice, and share contrast-checked highlighting ([#17]) | "Follow the system or saved workbench theme" |
+| `src/lib/worker/als.ts`, `src/lib/worker/drive.ts`, `src/lib/worker/types.d.ts` | Moved into the engine package's browser transport, as `packages/engine/src/browser/worker/als.ts`, `drive.ts` and `protocol.ts`, with their imports named as node and TypeScript's NodeNext resolution need them; the drive also reads a source back, which the engine compares with what it wrote ([#62]) | "Add the engine package: Agda's interaction protocol behind one interface" |
+| `src/lib/controller.svelte.ts` | The page's host of the engine: it starts Agda through `@agda-native-ide/engine/browser`, checks the buffer through the engine's session (which sends each command, validates each answer, and decides by the give rule between a give and a load), asks the inspector's questions through `@agda-native-ide/tools`, and keeps the page's state, the editor, persistence and the PLFA conversion; its startup, the version query, the router and the give rule moved into the engine.  A check after a case split loads the module, where it said "Already checked" ([#62]) | "Make the repository a workspace, and run the page on its packages" |
+| `src/lib/agda/handlers.js` | Applies Agda's answers to the editor as the engine delivers them, validated, in Agda's own JSON; the decoding of the language server's own forms, which a server started with `--raw` never sends, is gone, and a give's and a case split's replacements are the engine's rule ([#62]) | "Make the repository a workspace, and run the page on its packages" |
+| `src/lib/agda/highlight.js` | Its highlighting item's type is the engine's ([#62]) | "Make the repository a workspace, and run the page on its packages" |
+| `src/lib/agda/transport.js`, `src/lib/agda/lsp.js`, `src/lib/agda/schema.js`, `src/lib/index.js` | Removed: the engine package does what they did ([#62]) | "Make the repository a workspace, and run the page on its packages" |
+| `src/routes/+page.svelte` | The PLFA manifests are read through `@agda-native-ide/manifest`, which validates them and plans a chapter's archives, and the inspector's goal list, result and problem list are `@agda-native-ide/views`' components, with their styles ([#62]) | "Make the repository a workspace, and run the page on its packages" |
+| `vite.config.js` | The unit tests include the packages' ([#62]) | "Make the repository a workspace, and run the page on its packages" |
+| `src/routes/+page.svelte` | The PLFA interface manifest is checked against the corpus the page loaded, so a chapter's archive that is not a chapter refuses the manifest, naming the field, and a chapter then mounts every chapter's archives up to it, where the page requested the missing archive and failed ([#62]'s review) | "Check the PLFA interface manifest against the loaded corpus" |
+| `package.json`, `package-lock.json` | The repository is an npm workspace of the page, the four packages and the companion, whose own lockfile is folded into this one; `@andy0130tw/vscode-jsonrpc-esm`, which only the removed router used, is removed.  npm 10 dropped the `libc` field of ten platform bindings from the lockfile it rewrote, and those fields are restored as they were, so the lockfile only gains entries, but for the one removed ([#62]).  JSON carries no comment, so this row is the record. | "Make the repository a workspace, and run the page on its packages" |
+| `packages/engine/src/browser/worker/drive.ts` | Reading a source back keeps its byte order mark, as node's reading does, so a source that starts with one loads in the page as natively ([#62]'s self-review) | "Keep a source's byte order mark when the drive reads it back" |
+| `src/lib/agda/handlers.js` | A case split's edit is the engine's `caseSplitEdit`, which keeps the line's indentation for every clause and in an extended lambda replaces only the goal's clause, as Agda's Emacs mode does ([#62]'s self-review) | "Close the session's corners a self-review found" |
+| `src/lib/controller.svelte.ts`, `src/routes/+page.svelte` | Infer and Normalize check the file on screen first when Agda holds another; replacing the editor's text makes the next check a load, and an answer about another file is not applied; the drive is ready for archives once the session has opened; a mount counts and flags only the archives it lacks; the inspector asks about the goal named ([#62]'s self-review) | "Answer Infer and Normalize in the file on screen, and keep the page's state its own" |
+| `vite.config.js` | The build refuses node's built-in modules in the page and in its worker, which Vite would replace with empty ones ([#62]'s self-review) | "Refuse node's built-in modules in the browser's bundle" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
@@ -396,6 +409,7 @@ Each change is its own commit, named here by its subject.
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
 [#61]: https://github.com/formalverification/agda-native-ide/issues/61
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59
+[#62]: https://github.com/formalverification/agda-native-ide/issues/62
 [agda-web/als-demo]: https://github.com/agda-web/als-demo
 [agda/agda]: https://github.com/agda/agda
 [cormullion/juliamono]: https://github.com/cormullion/juliamono

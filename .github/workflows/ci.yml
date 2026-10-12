@@ -28,9 +28,9 @@ jobs:
         # 3.11 is the documented floor; 3.12 the current default.
         python-version: ["3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -54,7 +54,7 @@ jobs:
 
       - name: Fetch the engine (detached consumer projects only)
         if: hashFiles('scripts/gh_project_populate.py') == ''
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: williamdemeo/github-project
           ref: ${{ steps.enginepin.outputs.ref }}
@@ -66,9 +66,9 @@ jobs:
   static:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -87,7 +87,7 @@ jobs:
   nix:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Detect a local engine flake
         id: engine

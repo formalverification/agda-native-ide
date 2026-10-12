@@ -1,3 +1,11 @@
+// File: src/lib/agda/highlight.js
+//
+// Changed from upstream: this is SeungheonOh/plfa-playground's
+// src/lib/agda/highlight.js at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
+// (docs/provenance.md).  The type of a highlighting item is the engine's
+// (@agda-native-ide/engine), which validates Agda's answers, where it was
+// the router's schema module's, which is gone (issue 62).
+
 import { StateField, StateEffect, EditorState, Prec } from '@codemirror/state'
 import { EditorView, Decoration, hoverTooltip } from '@codemirror/view'
 import { mapUtf8Range } from '$lib/codemirror/offsets'
@@ -8,7 +16,7 @@ import { setHighlight, removeHighlight, clearHighlight, setGoals } from './effec
 /** @import { Range } from '@codemirror/state' */
 /** @import { Tooltip } from '@codemirror/view' */
 
-/** @import { AgdaHighlightingInfoItem } from './schema' */
+/** @import { AgdaHighlightingItem as AgdaHighlightingInfoItem } from '@agda-native-ide/engine' */
 
 // note that the hole is deliberately excluded from the list
 /** @type {Readonly<Record<string, false | {name: string}>>} */
