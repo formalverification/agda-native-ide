@@ -427,10 +427,13 @@ It is 285,618 bytes, 42,353 gzipped.
    and the largest heap to the step summary and uploading its report and
    log with the records.  It runs when the check's derivation changed, and
    also when what the gate is made of did, which the derivation does not
-   cover: the engine (it lays out the drive and counts the `Checking`
-   lines), the gate's scripts and `index.mjs`, the DevTools driver and the
-   static server it shares with the browser check, and the lockfile; the
-   path filter names them, and the guard compares them with the base.  It
+   cover: the gate's app, whose store path holds its scripts (`gate.mjs`,
+   `index.mjs`, and the DevTools driver and static server it shares with
+   the browser check) and the node and Chromium it pins, which the guard
+   compares with the base's as it compares the derivation; and, by a diff
+   against the base, the engine (it lays out the drive and counts the
+   `Checking` lines), the gate's page, the lockfile, and the `Makefile`,
+   whose `library-gate` target CI runs.  The path filter names them.  It
    runs every root wherever it runs, pull requests included, since it runs
    only when what it proves may have changed.  On GitHub's runner (4 cores,
    an AMD EPYC 9V74, 15.6 GiB; 2026-10-12, run [38209105006][gate-run],

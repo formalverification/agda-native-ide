@@ -893,7 +893,8 @@ every module it imports, directly or not, itself included.
    holds earlier roots' archives and Agda keeps what it decoded, so it
    could not show that a root needs only its own.  The same job runs it,
    every root, when the archives' derivation changed or the gate's code
-   did (the engine, its scripts, the driver, the lockfile).
+   did (its app's store path, the engine, its page, the lockfile, the
+   `Makefile`).
 +  **The drive's libraries** ([#13]): the engine lays the drive out from a
    list of libraries (`BrowserConfig.archives.libraries`), each a zip
    extracted at the root with its `.agda-lib` path and its name, and writes
