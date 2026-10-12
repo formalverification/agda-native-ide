@@ -296,6 +296,10 @@ export interface CheckFileResult {
   /** `exitCode === 0`. */
   success: boolean;
   diagnostics: Diagnostic[];
+  /** The modules the run type-checked: those whose interfaces it did not
+   * accept, and the file (agda-native-air's `checkedFromSource`, by
+   * module). */
+  checking: string[];
 }
 
 export interface FillHoleResult {
@@ -422,6 +426,7 @@ export function createToolSurface(session: AgdaSession): ToolSurface {
     return fromVerdict("check_file", outcome, undefined, { meaning: CHECK_MEANING }, (verdict) => ({
       success: verdict.success,
       diagnostics: verdict.diagnostics,
+      checking: verdict.checking,
     }));
   };
 

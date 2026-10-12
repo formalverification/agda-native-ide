@@ -153,6 +153,9 @@ export interface Verdict {
    * build.  The diagnostics never change it. */
   success: boolean;
   diagnostics: Diagnostic[];
+  /** The modules the run type-checked, from its `Checking` lines: those
+   * whose interfaces it did not accept, and the file. */
+  checking: string[];
   /** The last of what Agda printed (its standard output, then its
    * standard error). */
   output: string;

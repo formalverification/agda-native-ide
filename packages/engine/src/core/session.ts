@@ -360,15 +360,15 @@ export function messagesOf(responses: readonly AgdaResponse[]): { errors: string
   return { errors, warnings };
 }
 
-/** The modules a load type-checked, from Agda's running info: one
- * `Checking M (path).` line each, indented when nested. */
+/** The modules Agda says it type-checks in `text`: one `Checking M
+ * (path).` line each, indented when nested. */
+function checkedIn(text: string): string[] {
+  return [...text.matchAll(/Checking (\S+) \(/g)].map((match) => match[1]);
+}
+
+/** The modules a load type-checked, from Agda's running info. */
 function checkingOf(responses: readonly AgdaResponse[]) {
-  const modules: string[] = [];
-  for (const response of responses) {
-    if (response.kind !== "RunningInfo") continue;
-    for (const match of response.message.matchAll(/Checking (\S+) \(/g)) modules.push(match[1]);
-  }
-  return modules;
+  return responses.flatMap((response) => (response.kind === "RunningInfo" ? checkedIn(response.message) : []));
 }
 
 function lastOf<K extends AgdaResponse["kind"]>(
@@ -810,6 +810,7 @@ export class AgdaSession {
         exitCode: run.exitCode,
         success: run.exitCode === 0,
         diagnostics: parseDiagnostics(output),
+        checking: checkedIn(run.stdout),
         output: tail(output),
         elapsedMs: run.elapsedMs,
       };

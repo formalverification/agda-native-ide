@@ -683,6 +683,7 @@ describe("the session's batch lane", () => {
       exitCode: 42,
       success: false,
       diagnostics: [{ severity: "error", code: "UnsolvedInteractionMetas", range: { startLine: 4, startCol: 14 } }],
+      checking: ["Goals"],
     });
     expect(verdict.kind === "verdict" && verdict.output).toBe(HOLE_OUTPUT);
     expect("value" in verdict || "basis" in verdict).toBe(false);

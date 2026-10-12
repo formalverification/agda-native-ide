@@ -39,6 +39,8 @@ export interface AgdaCandidate {
   /** Arguments every run of it takes (before `--interaction-json`, before
    * the file in a batch run). */
   args?: readonly string[];
+  /** Where the arguments came from, when not from `source`. */
+  argsSource?: string;
 }
 
 /** The Agda a project uses. */
@@ -147,7 +149,7 @@ export async function resolveAgda(
       if (!answered.ok)
         return refusal(
           "configuration",
-          `${candidate.source} names ${executable}, which did not answer \`${[executable, ...args, "--numeric-version"].join(" ")}\` (${answered.why}); set ${candidate.source} to an Agda ${options.expectedVersion}, or fix its options`,
+          `${candidate.source} names ${executable}, which did not answer \`${[executable, ...args, "--numeric-version"].join(" ")}\` (${answered.why}); set ${candidate.source} to an Agda ${options.expectedVersion}, or fix ${candidate.argsSource ?? "its options"}`,
         );
       version = answered.version;
       if (key !== undefined) options.cache?.set(key, version);
