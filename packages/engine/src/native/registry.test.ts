@@ -3,7 +3,7 @@
 // The lane registry's rules, one test each, against a stand-in for `agda`:
 // a node script that prints the prompt, answers `Cmd_show_version` and
 // `Cmd_load` (refusing a file that says BROKEN), never answers
-// `Cmd_infer_toplevel`, runs as a batch check without
+// `Cmd_infer_toplevel` nor `Cmd_abort`, runs as a batch check without
 // `--interaction-json`, and exits at the end of its input, as Agda does.
 // The conformance runner checks the same rules against the real Agda
 // (scripts/conformance/native.mjs).
@@ -14,6 +14,7 @@ import { join } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import type { SessionOptions } from "../core/index.js";
 import { LaneRegistry, type LaneConfig, type LaneEnded } from "./registry.js";
 
 let dir: string;
@@ -42,7 +43,7 @@ lines.on("line", (line) => {
     out({ kind: "RunningInfo", debugLevel: 1, message: "Checking M (" + load[1] + ").\\n" });
     if (text.includes("BROKEN")) out({ kind: "DisplayInfo", info: { kind: "Error", error: { message: "broken" }, warnings: [] } });
     out({ kind: "InteractionPoints", interactionPoints: [] });
-  } else if (line.includes("Cmd_infer_toplevel")) return;
+  } else if (line.includes("Cmd_infer_toplevel") || line.includes("Cmd_abort")) return;
   process.stdout.write("JSON> ");
 });
 lines.on("close", () => process.exit(0));
@@ -82,7 +83,12 @@ const until = async (condition: () => boolean, ms: number) => {
 };
 
 function registryWith(
-  options: { idleMs?: number; env?: Record<string, string>; config?: (path: string) => Partial<LaneConfig> } = {},
+  options: {
+    idleMs?: number;
+    env?: Record<string, string>;
+    config?: (path: string) => Partial<LaneConfig>;
+    session?: SessionOptions;
+  } = {},
 ) {
   const ended: LaneEnded[] = [];
   const registry = new LaneRegistry({
@@ -95,6 +101,7 @@ function registryWith(
     }),
     killGraceMs: 200,
     ...(options.idleMs !== undefined ? { idleMs: options.idleMs } : {}),
+    ...(options.session ? { session: options.session } : {}),
     onLaneEnded: (event) => ended.push(event),
   });
   return { registry, ended };
@@ -164,6 +171,19 @@ describe("the lane registry", () => {
     await until(() => ended.length === 2, 2_000);
     expect(ended.map((event) => event.reason)).toEqual(["crashed", "crashed"]);
     expect(await registry.withFile(one, async (use) => use.spawned)).toBe(true);
+    await registry.dispose();
+  });
+
+  it("tells of a lane a deadline stopped once it is gone, with the session's account", async () => {
+    const { registry, ended } = registryWith({ session: { deadlines: { infer: 100 }, abortGraceMs: 100 } });
+    const one = join(rootA, "One.agda");
+    const stuck = await registry.withFile(one, async ({ session }) => session.infer("anything"));
+    expect(stuck).toMatchObject({ kind: "failure", reason: "timeout", detail: { terminated: true } });
+    await until(() => ended.length > 0, 2_000);
+    expect(ended).toMatchObject([{ reason: "crashed", detail: { reason: "timeout", operation: "infer" } }]);
+    expect(await registry.withFile(one, async (use) => use.spawned)).toBe(true);
+    await new Promise((done) => setTimeout(done, 100));
+    expect(ended).toHaveLength(1);
     await registry.dispose();
   });
 

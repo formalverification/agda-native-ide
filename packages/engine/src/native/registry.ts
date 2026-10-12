@@ -238,7 +238,7 @@ export class LaneRegistry {
       const key = keyOf(config);
       let lane = slot.lane;
       if (lane && lane.session.status.state === "ended") {
-        this.ended(slot, lane);
+        this.forget(slot, lane);
         lane = undefined;
       }
       if (lane && lane.key !== key) {
@@ -289,11 +289,15 @@ export class LaneRegistry {
         pid: started.transport.pid,
         reported: false,
       };
-      // A lane the registry did not close has crashed (or a deadline
-      // stopped it); one it closes is reported once its Agda is gone.
+      // A lane the registry did not close has crashed, or a deadline
+      // stopped it: it is forgotten as soon as it is ending, and reported
+      // once its session has an account of the end.  One the registry
+      // closes is reported once its Agda is gone.
       started.session.onStatus((status) => {
         const slot = this.slots.get(root);
-        if (status.state === "ended" && !lane.closing && slot) this.ended(slot, lane);
+        if (status.state !== "ended" || lane.closing || !slot) return;
+        this.forget(slot, lane);
+        if (lane.session.ending) this.report(lane);
       });
       return lane;
     })();
@@ -301,10 +305,15 @@ export class LaneRegistry {
     return starting.finally(() => this.starting.delete(starting));
   }
 
-  /** A lane's end, told once; the root's next request starts another. */
-  private ended(slot: Slot, lane: Lane, exit?: LaneEnded["exit"]) {
+  /** A lane no request will hold again: the root's next request starts
+   * another. */
+  private forget(slot: Slot, lane: Lane) {
     if (slot.lane === lane) slot.lane = undefined;
     if (lane.idleTimer) clearTimeout(lane.idleTimer);
+  }
+
+  /** A lane's end, told once. */
+  private report(lane: Lane, exit?: LaneEnded["exit"]) {
     if (lane.reported) return;
     lane.reported = true;
     const detail = lane.session.ending;
@@ -323,13 +332,12 @@ export class LaneRegistry {
 
   private async close(slot: Slot, lane: Lane, reason: LaneEnded["reason"]) {
     lane.closing ??= reason;
-    if (slot.lane === lane) slot.lane = undefined;
-    if (lane.idleTimer) clearTimeout(lane.idleTimer);
+    this.forget(slot, lane);
     // The transport closes Agda's input first, which Agda answers by
     // exiting, code 0, when it is idle.
     await lane.session.dispose();
     const child = lane.transport.child;
-    this.ended(slot, lane, { code: child.exitCode, signal: child.signalCode });
+    this.report(lane, { code: child.exitCode, signal: child.signalCode });
   }
 
   /** Close a root's lane once it has been idle for the bound. */
