@@ -5,10 +5,14 @@
 //
 //   +  one command at a time, in order, each ended by the transport's
 //      verified boundary, from a queue of bounded length;
-//   +  a deadline for every operation: at its expiry the session sends
-//      `Cmd_abort` and, if Agda has not ended the command within a grace
-//      period, stops Agda; either way the operation fails, and nothing is
-//      left running or waiting;
+//   +  a deadline for every operation, from the moment it reaches the
+//      head of the queue until its answer is read: at its expiry an
+//      operation not yet sent fails unsent; one whose command Agda is
+//      running is aborted (`Cmd_abort`), and if Agda has not ended the
+//      command within a grace period, the session stops Agda; one whose
+//      answer is being read (a load reads its source back) fails, and its
+//      load is not taken; either way the operation fails, and nothing
+//      waits on it;
 //   +  the basis of every answer (the session, the file, the digest of
 //      the text Agda read, the load's generation), and the goals that are
 //      live in it, so a goal of another session, file or load is refused
@@ -21,7 +25,7 @@
 //
 // It reads no file and runs no process itself: the transport does.
 
-import { iotcm, type Command, type HighlightingLevel, type Rewrite } from "./commands.js";
+import { iotcm, isRewrite, type Command, type HighlightingLevel, type Rewrite } from "./commands.js";
 import { planCheck, type CheckPlan, type GoalSpan } from "./give-rule.js";
 import {
   failure,
@@ -187,16 +191,53 @@ export function giveReplacement(expression: string, result: { str: string } | { 
   return "str" in result ? result.str : result.paren ? `(${expression})` : expression;
 }
 
-/** What replaces the line a case split's goal is on: the clauses, each
- * after the first indented as that line is. */
-export function caseSplitText(line: string, clauses: readonly string[]): string {
-  const indentation = /^\s*/.exec(line)?.[0] ?? "";
-  return clauses.map((clause, index) => (index ? indentation + clause : clause)).join("\n");
+/** The edit a case split makes in `text`, whose goal is at `span`: the
+ * clauses Agda proposed replace the goal's clause, as Agda's Emacs mode
+ * replaces it (agda2-mode.el's agda2-make-case-action and
+ * agda2-make-case-action-extendlam), as follows:
+ *
+ *   +  a function's clause: the goal's line, after its indentation, gives
+ *      way to the clauses, each on a line of its own with that
+ *      indentation;
+ *   +  an extended lambda's clause (`λ { x → {! !} }`): the text from the
+ *      `;` or the unmatched `{` before the goal to the goal's end gives
+ *      way to the clauses, after a space, joined by ` ; `; when nothing
+ *      but the indentation is before it on its line (a `λ where`), the
+ *      clauses go on lines of their own, as a function's do.
+ *
+ * Undefined when Agda proposed no clause. */
+export function caseSplitEdit(
+  text: string,
+  span: { from: number; to: number },
+  clauses: readonly string[],
+  variant: string,
+): TextEdit | undefined {
+  if (!clauses.length) return undefined;
+  const lineFrom = text.lastIndexOf("\n", span.from - 1) + 1;
+  const indentation = /^[ \t]*/.exec(text.slice(lineFrom, span.from))![0];
+  const start = lineFrom + indentation.length;
+  const onLines = clauses.join(`\n${indentation}`);
+  if (variant !== "ExtendedLambda") {
+    const newline = text.indexOf("\n", span.from);
+    return { from: start, to: newline < 0 ? text.length : newline, insert: onLines };
+  }
+  let at = span.from;
+  let depth = 0;
+  while (text[at - 1] !== ";" && depth >= 0 && at > start) {
+    at -= 1;
+    if (text[at - 1] === "}") depth += 1;
+    if (text[at - 1] === "{") depth -= 1;
+  }
+  return at === start
+    ? { from: start, to: span.to, insert: onLines }
+    : { from: at, to: span.to, insert: ` ${clauses.join(" ; ")}` };
 }
 
-/** What a check is about to send, told synchronously, before anything is
- * sent: a host that takes its text as Agda's on a load (the page's
- * offsets) does so here, in the tick it read the text. */
+/** What a check is about to send, told synchronously once the session has
+ * taken it, before anything is sent: a host that takes its text as Agda's
+ * on a load (the page's offsets) does so here, in the tick it read the
+ * text.  A check refused at once (a full queue, a conversion that moves
+ * positions) tells nothing. */
 export interface CheckHooks {
   onPlan?: (plan: CheckPlan) => void;
 }
@@ -214,7 +255,9 @@ interface Loaded {
   text: string;
   snapshot: string;
   goals: Map<number, LiveGoal>;
-  /** The load reported an error, so Agda holds no file. */
+  /** Agda refused the file (an `Error`, not the errors it reports among
+   * its warnings, such as a termination problem, after which it keeps the
+   * file), so it holds none. */
   failed: boolean;
   /** Counts the snapshot's changes, so a plan made against one snapshot is
    * not carried out against another. */
@@ -237,11 +280,17 @@ interface Operation<T> {
    * a failed load has replaced it by the time the operation reaches the
    * head of the queue, the operation is refused unsent. */
   requires?: Loaded;
-  finish: (responses: AgdaResponse[], elapsedMs: number) => Promise<Outcome<T>> | Outcome<T>;
+  /** The goal it was asked about, which must still be open then. */
+  goal?: number;
+  /** Reads Agda's answer; `live` says whether the operation is still the
+   * session's (its deadline or the session's end can settle it first). */
+  finish: (responses: AgdaResponse[], elapsedMs: number, live: () => boolean) => Promise<Outcome<T>> | Outcome<T>;
   resolve: (outcome: Outcome<T>) => void;
   responses: AgdaResponse[];
   problems: string[];
   sent: boolean;
+  /** Agda has ended the command, and its answer is being read. */
+  reading: boolean;
   startedAt: number;
   timer?: unknown;
   graceTimer?: unknown;
@@ -305,6 +354,16 @@ function lastOf<K extends AgdaResponse["kind"]>(
   return undefined;
 }
 
+/** Tell a host's listener, which must not stop the session if it throws:
+ * the queue would stall, or the transport's delivery would. */
+function heard(tell: () => void) {
+  try {
+    tell();
+  } catch (error) {
+    console.error("A session listener failed:", error);
+  }
+}
+
 function shiftAfter(goals: Map<number, LiveGoal>, at: number, delta: number) {
   if (!delta) return;
   for (const goal of goals.values())
@@ -355,7 +414,9 @@ export class AgdaSession {
       expandQuestionMarks: options.expandQuestionMarks ?? true,
       loadArgs: options.loadArgs ?? [],
       convertSource: options.convertSource,
-      deadlines: { ...DEFAULT_DEADLINES, ...options.deadlines },
+      deadlines: Object.fromEntries(
+        Object.entries(DEFAULT_DEADLINES).map(([kind, ms]) => [kind, options.deadlines?.[kind as OperationKind] ?? ms]),
+      ) as Record<OperationKind, number>,
     };
     this.unsubscribe = transport.subscribe((event) => this.onEvent(event));
   }
@@ -381,7 +442,7 @@ export class AgdaSession {
 
   get status(): SessionStatus {
     return {
-      state: this.ended ? "ended" : this.current ? "busy" : "ready",
+      state: this.ended || this.stopping ? "ended" : this.current ? "busy" : "ready",
       ...(this.current ? { operation: this.current.kind } : {}),
       queued: this.queue.length,
     };
@@ -415,8 +476,10 @@ export class AgdaSession {
     const path = this.loaded?.basis.path ?? this.transport.resolvePath("Main.agda");
     return this.enqueue<{ version: string }>("version", path, { kind: "showVersion" }, (responses, elapsedMs) => {
       for (const response of responses)
-        if (response.kind === "DisplayInfo" && response.info.kind === "Version")
+        if (response.kind === "DisplayInfo" && response.info.kind === "Version") {
+          this.agdaVersion ||= response.info.version;
           return this.answer({ version: response.info.version }, responses, elapsedMs, undefined);
+        }
       return failure("protocol", "Agda did not report its version", { responses });
     });
   }
@@ -424,13 +487,29 @@ export class AgdaSession {
   /** Load a file, as `text` when given (written where Agda reads it, after
    * the host's conversion), or as it is on disk. */
   load(path: string, text?: string): Promise<Outcome<LoadValue>> {
+    return this.loadText(path, text);
+  }
+
+  /** A load; `accepted` runs in the same tick, once the load is queued. */
+  private loadText(path: string, text?: string, accepted?: () => void): Promise<Outcome<LoadValue>> {
     if (typeof path !== "string" || !path)
       return Promise.resolve(refusal("invalid-input", "a load needs a path"));
     if (text !== undefined && typeof text !== "string")
       return Promise.resolve(refusal("invalid-input", "a load's text must be a string"));
+    // The conversion runs now, so that one that moves positions is refused
+    // before the load is queued or a host is told of it.
+    const converted =
+      text !== undefined && this.options.convertSource ? this.options.convertSource(path, text) : text;
+    if (text !== undefined && converted !== undefined && !preservesPositions(text, converted))
+      return Promise.resolve(
+        refusal(
+          "position-shift",
+          `the conversion of ${path} moves positions, so Agda's answers could not be placed in the text`,
+        ),
+      );
     let read = { text: "", converted: "" };
     const prepare = async (): Promise<Refusal | Failure | undefined> => {
-      if (text === undefined) {
+      if (text === undefined || converted === undefined) {
         let found: string | undefined;
         try {
           found = await this.transport.readSource(path);
@@ -441,12 +520,6 @@ export class AgdaSession {
         read = { text: found, converted: found };
         return undefined;
       }
-      const converted = this.options.convertSource ? this.options.convertSource(path, text) : text;
-      if (!preservesPositions(text, converted))
-        return refusal(
-          "position-shift",
-          `the conversion of ${path} moves positions, so Agda's answers could not be placed in the text`,
-        );
       try {
         await this.transport.writeSource(path, converted);
       } catch (error) {
@@ -459,8 +532,8 @@ export class AgdaSession {
       "load",
       path,
       { kind: "load", path, args: this.options.loadArgs },
-      async (responses, elapsedMs) => this.finishLoad(path, read, responses, elapsedMs),
-      prepare,
+      (responses, elapsedMs, live) => this.finishLoad(path, read, responses, elapsedMs, live),
+      { prepare, accepted },
     );
   }
 
@@ -470,18 +543,25 @@ export class AgdaSession {
   async check(path: string, text: string, hooks: CheckHooks = {}): Promise<Outcome<CheckValue>> {
     if (typeof text !== "string") return refusal("invalid-input", "a check needs the text");
     const plan = this.plan(path, text);
-    hooks.onPlan?.(plan);
+    // The host hears of the plan only once it is taken (a full queue or a
+    // conversion that moves positions refuses it first).
+    const told = () => hooks.onPlan?.(plan);
     const loaded = this.loaded;
-    if (plan.kind === "unchanged") return this.answer({ plan: "unchanged" }, [], 0, loaded!.basis);
+    if (plan.kind === "unchanged") {
+      told();
+      return this.answer({ plan: "unchanged" }, [], 0, loaded!.basis);
+    }
     if (plan.kind === "give") {
-      const give = await this.giveAt(loaded!, plan.goal, plan.expression, {
-        text,
-        span: plan.span,
-        version: loaded!.version,
-      });
+      const give = await this.giveAt(
+        loaded!,
+        plan.goal,
+        plan.expression,
+        { text, span: plan.span, version: loaded!.version },
+        told,
+      );
       return give.kind === "answer" ? { ...give, value: { plan: "give", give: give.value } } : give;
     }
-    const load = await this.load(path, text);
+    const load = await this.loadText(path, text, told);
     return load.kind === "answer"
       ? { ...load, value: { plan: "load", reason: plan.reason, load: load.value } }
       : load;
@@ -520,8 +600,7 @@ export class AgdaSession {
       loaded.basis.path,
       { kind: "refine", goal: ref.id, expression: value },
       (responses, elapsedMs) => this.finishGive(loaded, ref.id, value, responses, elapsedMs),
-      undefined,
-      loaded,
+      { requires: loaded, goal: ref.id },
     );
   }
 
@@ -536,8 +615,7 @@ export class AgdaSession {
       loaded.basis.path,
       { kind: "makeCase", goal: ref.id, patterns: patterns.trim() },
       (responses, elapsedMs) => this.finishMakeCase(loaded, ref.id, responses, elapsedMs),
-      undefined,
-      loaded,
+      { requires: loaded, goal: ref.id },
     );
   }
 
@@ -545,6 +623,7 @@ export class AgdaSession {
   goal(ref: GoalRef, rewrite: Rewrite = "Normalised"): Promise<Outcome<GoalValue>> {
     const checked = this.checkRef(ref);
     if (checked) return Promise.resolve(checked);
+    if (!isRewrite(rewrite)) return Promise.resolve(refusal("invalid-input", `${String(rewrite)} is not a rewrite mode`));
     const loaded = this.loaded!;
     return this.enqueue<GoalValue>(
       "goal",
@@ -568,14 +647,14 @@ export class AgdaSession {
         if (errors.length) return failure("protocol", `Agda answered goal ${ref.id} with an error: ${errors[0]}`, { responses });
         return failure("protocol", `Agda did not report goal ${ref.id}`, { responses });
       },
-      undefined,
-      loaded,
+      { requires: loaded, goal: ref.id },
     );
   }
 
   /** An expression's type, at a goal or at the top level of the loaded
    * file. */
   infer(expression: string, at?: GoalRef, rewrite: Rewrite = "Normalised"): Promise<Outcome<ExpressionValue>> {
+    if (!isRewrite(rewrite)) return Promise.resolve(refusal("invalid-input", `${String(rewrite)} is not a rewrite mode`));
     return this.expression("infer", expression, at, (goal) =>
       goal === undefined
         ? { kind: "inferToplevel", expression: expression.trim(), rewrite }
@@ -606,7 +685,7 @@ export class AgdaSession {
    * `DoneAborting`, and forgets the loaded file. */
   abort(): { aborting: OperationKind | undefined } {
     const op = this.current;
-    if (!op || !op.sent || op.abortCause || this.ended) return { aborting: undefined };
+    if (!op || !op.sent || op.reading || op.abortCause || this.ended || this.stopping) return { aborting: undefined };
     op.abortCause = "caller";
     this.transport.abort(iotcm(op.path, { kind: "abort" }, "None"));
     return { aborting: op.kind };
@@ -690,7 +769,7 @@ export class AgdaSession {
           return this.answer({ ...value, error: info.error.message }, responses, elapsedMs, loaded.basis);
       }
       return failure("protocol", `Agda gave no ${kind === "infer" ? "type" : "normal form"}`, { responses });
-    }, undefined, loaded);
+    }, { requires: loaded, goal: at?.id });
   }
 
   private giveAt(
@@ -698,6 +777,7 @@ export class AgdaSession {
     goal: number,
     expression: string,
     inGoalEdit?: { text: string; span: GoalSpan; version: number },
+    accepted?: () => void,
   ): Promise<Outcome<GiveValue>> {
     const prepare = inGoalEdit
       ? async () =>
@@ -710,8 +790,7 @@ export class AgdaSession {
       loaded.basis.path,
       { kind: "give", goal, expression },
       (responses, elapsedMs) => this.finishGive(loaded, goal, expression, responses, elapsedMs, inGoalEdit),
-      prepare,
-      loaded,
+      { prepare, requires: loaded, goal, accepted },
     );
   }
 
@@ -778,21 +857,16 @@ export class AgdaSession {
       value.clauses = action.clauses;
       value.variant = action.variant;
       const live = loaded.goals.get(goal);
-      if (live?.span && action.clauses.length) {
-        // The clauses replace the line the goal is on, each after the first
-        // indented as that line is.
+      const edit = live?.span && caseSplitEdit(loaded.snapshot, live.span, action.clauses, action.variant);
+      if (edit) {
         const text = loaded.snapshot;
-        const lineFrom = text.lastIndexOf("\n", live.span.from - 1) + 1;
-        const newline = text.indexOf("\n", live.span.from);
-        const lineTo = newline < 0 ? text.length : newline;
-        const insert = caseSplitText(text.slice(lineFrom, lineTo), action.clauses);
-        loaded.snapshot = text.slice(0, lineFrom) + insert + text.slice(lineTo);
+        loaded.snapshot = text.slice(0, edit.from) + edit.insert + text.slice(edit.to);
         loaded.version += 1;
         loaded.unchecked = `goal ${goal}'s case split rewrote its clauses, which Agda checks only when it loads them`;
         for (const other of [...loaded.goals.values()])
-          if (other.span && other.span.from >= lineFrom && other.span.to <= lineTo) loaded.goals.delete(other.id);
-        shiftAfter(loaded.goals, lineTo, insert.length - (lineTo - lineFrom));
-        value.edit = { from: lineFrom, to: lineTo, insert };
+          if (other.span && other.span.from >= edit.from && other.span.to <= edit.to) loaded.goals.delete(other.id);
+        shiftAfter(loaded.goals, edit.to, edit.insert.length - (edit.to - edit.from));
+        value.edit = edit;
       }
       loaded.goals.delete(goal);
     }
@@ -815,6 +889,7 @@ export class AgdaSession {
     read: { text: string; converted: string },
     responses: AgdaResponse[],
     elapsedMs: number,
+    live: () => boolean,
   ): Promise<Outcome<LoadValue>> {
     this.generation += 1;
     const digest = sourceDigest(read.converted);
@@ -832,23 +907,22 @@ export class AgdaSession {
       text: read.text,
       snapshot: read.text,
       goals: new Map(),
-      failed: errors.length > 0,
+      failed: responses.some((response) => response.kind === "DisplayInfo" && response.info.kind === "Error"),
       version: 0,
     };
-    this.loaded = loaded;
 
     // The text must be the one Agda read: a source rewritten while Agda
-    // read it leaves no basis to place answers in.
+    // read it leaves no basis to place answers in.  Until it is read back,
+    // and unless the load is still the session's then, no load holds.
     let after: string | undefined;
     try {
       after = await this.transport.readSource(path);
     } catch {
       after = undefined;
     }
-    if (after === undefined || sourceDigest(after) !== digest) {
-      if (this.loaded === loaded) this.loaded = undefined;
+    if (!live()) return failure("session-ended", `the load of ${path} ended before its source was read back`, { responses });
+    if (after === undefined || sourceDigest(after) !== digest)
       return failure("source-changed", `${path} changed while Agda read it; load it again`, { responses });
-    }
 
     const table = new OffsetTable(read.text);
     const points = lastOf(responses, "InteractionPoints");
@@ -883,6 +957,7 @@ export class AgdaSession {
       }
     }
 
+    this.loaded = loaded;
     const status = lastOf(responses, "Status")?.status;
     const value: LoadValue = {
       goals: [...loaded.goals.values()].map(view),
@@ -900,15 +975,26 @@ export class AgdaSession {
     path: string,
     command: Command,
     finish: Operation<T>["finish"],
-    prepare?: Operation<T>["prepare"],
-    requires?: Loaded,
+    {
+      prepare,
+      requires,
+      goal,
+      accepted,
+    }: {
+      prepare?: Operation<T>["prepare"];
+      requires?: Loaded;
+      goal?: number;
+      /** Runs in this tick once the operation is queued. */
+      accepted?: () => void;
+    } = {},
   ): Promise<Outcome<T>> {
     if (this.ended || this.stopping) return Promise.resolve(refusal("session-ended", "the session has ended"));
-    if (this.queue.length >= this.options.maxQueue)
+    // The bound is on what waits behind a running operation.
+    if (this.current && this.queue.length >= this.options.maxQueue)
       return Promise.resolve(
         refusal("busy", `${this.queue.length} operations are already waiting; try again when they have run`),
       );
-    return new Promise<Outcome<T>>((resolve) => {
+    const outcome = new Promise<Outcome<T>>((resolve) => {
       this.operationCounter += 1;
       const op: Operation<T> = {
         id: this.operationCounter,
@@ -918,18 +1004,22 @@ export class AgdaSession {
         deadlineMs: this.options.deadlines[kind],
         prepare,
         requires,
+        goal,
         finish,
         resolve,
         responses: [],
         problems: [],
         sent: false,
+        reading: false,
         startedAt: 0,
         settled: false,
       };
       this.queue.push(op as Operation<unknown>);
-      this.emitStatus();
-      void this.pump();
     });
+    accepted?.();
+    this.emitStatus();
+    void this.pump();
+    return outcome;
   }
 
   private async pump() {
@@ -953,6 +1043,8 @@ export class AgdaSession {
           } while it waited; ask again`,
         ),
       );
+    if (op.requires && op.goal !== undefined && !op.requires.goals.has(op.goal))
+      return this.settle(op, refusal("unknown-goal", `goal ${op.goal} was closed while the ${op.kind} waited`));
     if (op.prepare) {
       let stop: Refusal | Failure | undefined;
       try {
@@ -963,7 +1055,10 @@ export class AgdaSession {
       if (op.settled) return;
       if (stop) return this.settle(op, stop);
     }
-    if (this.ended || op.settled) return;
+    if (this.ended || this.stopping || op.settled) return;
+    // From here Agda's state is the new load's, whatever comes of it: no
+    // load holds until its answer is read.
+    if (op.kind === "load") this.loaded = undefined;
     op.sent = true;
     try {
       this.transport.send(iotcm(op.path, op.command, this.options.highlighting));
@@ -986,7 +1081,19 @@ export class AgdaSession {
   private expire(op: Operation<unknown>) {
     if (op.settled || this.current !== op) return;
     if (!op.sent) {
+      // A source still being written may yet be; the next load's read-back
+      // would see it.
       this.settle(op, failure("timeout", `the ${op.kind} did not start within ${op.deadlineMs} ms`));
+      return;
+    }
+    if (op.reading) {
+      // Agda has ended the command; the host has not read its answer back.
+      this.settle(
+        op,
+        failure("timeout", `the answer to the ${op.kind} was not read within its deadline of ${op.deadlineMs} ms`, {
+          responses: op.responses,
+        }),
+      );
       return;
     }
     op.abortCause = "timeout";
@@ -997,7 +1104,9 @@ export class AgdaSession {
       // once it is gone.
       this.stopping = true;
       this.stopCause = { reason: "timeout", operation: op.kind };
-      void this.transport.terminate().then(() => this.end(this.stopCause!));
+      this.emitStatus();
+      const stopped = () => this.end(this.stopCause!);
+      void this.transport.terminate().then(stopped, stopped);
     }, this.options.abortGraceMs);
   }
 
@@ -1008,20 +1117,27 @@ export class AgdaSession {
     this.loaded = undefined;
     const current = this.current;
     const waiting = this.queue.splice(0);
+    // Who ended it: the session at a deadline, the host, or Agda itself.
+    const killed = this.stopCause?.reason === "timeout";
+    const disposed = detail.reason === "disposed";
+    const ended = disposed ? "the session was closed" : "Agda stopped";
     if (current) {
-      const timedOut = current.abortCause === "timeout";
       this.settle(
         current,
-        timedOut
+        killed && current.abortCause === "timeout"
           ? failure("timeout", `the ${current.kind} outran its deadline of ${current.deadlineMs} ms, and Agda was stopped`, {
               responses: current.responses,
               detail: { terminated: true, ...detail },
             })
-          : failure("session-ended", `Agda stopped during the ${current.kind}`, { responses: current.responses, detail }),
+          : current.abortCause === "timeout"
+            ? failure("timeout", `the ${current.kind} outran its deadline of ${current.deadlineMs} ms, and ${ended} while it was aborted`, {
+                responses: current.responses,
+                detail: { terminated: false, ...detail },
+              })
+            : failure("session-ended", `${ended} during the ${current.kind}`, { responses: current.responses, detail }),
       );
     }
-    for (const op of waiting)
-      this.settle(op, failure("session-ended", `Agda stopped before the ${op.kind} ran`, { detail }));
+    for (const op of waiting) this.settle(op, failure("session-ended", `${ended} before the ${op.kind} ran`, { detail }));
     this.emitStatus();
   }
 
@@ -1036,18 +1152,19 @@ export class AgdaSession {
           return;
         }
         op.responses.push(parsed.response);
-        for (const listener of this.responseListeners)
-          listener({
-            operation: { id: op.id, kind: op.kind, path: op.path, command: op.command },
-            response: parsed.response,
-          });
+        const answered = {
+          operation: { id: op.id, kind: op.kind, path: op.path, command: op.command },
+          response: parsed.response,
+        };
+        for (const listener of this.responseListeners) heard(() => listener(answered));
         return;
       }
       case "noise":
         if (op?.sent) op.problems.push(`unexpected output: ${event.text}`);
         return;
       case "end":
-        if (op?.sent) void this.complete(op);
+        // Once Agda is being stopped, its exit ends the operation.
+        if (op?.sent && !this.stopping) void this.complete(op);
         return;
       case "exit":
         this.end({
@@ -1063,7 +1180,8 @@ export class AgdaSession {
   }
 
   private async complete(op: Operation<unknown>) {
-    if (op.settled) return;
+    // An end while the answer is read is not this command's.
+    if (op.settled || op.reading) return;
     const elapsedMs = performance.now() - op.startedAt;
     const aborted = op.abortCause !== undefined || op.responses.some((response) => response.kind === "DoneAborting");
     if (aborted) {
@@ -1079,19 +1197,23 @@ export class AgdaSession {
           : failure("aborted", `the ${op.kind} was aborted`, { responses: op.responses }),
       );
     }
-    if (op.problems.length)
+    if (op.problems.length) {
+      this.forgetAfter(op);
       return this.settle(
         op,
         failure("protocol", `Agda's answer to the ${op.kind} was malformed: ${op.problems.join("; ")}`, {
           responses: op.responses,
         }),
       );
-    // The command is over: stop its deadline while its answer is read.
-    clearTimeout(op.timer);
+    }
+    // The command is over; its deadline still bounds reading the answer.
+    op.reading = true;
+    const live = () => !op.settled && this.current === op && !this.ended;
     let outcome: Outcome<unknown>;
     try {
-      outcome = await op.finish(op.responses, elapsedMs);
+      outcome = await op.finish(op.responses, elapsedMs, live);
     } catch (error) {
+      this.forgetAfter(op);
       outcome = failure("protocol", `Agda's answer to the ${op.kind} could not be read (${String(error)})`, {
         responses: op.responses,
       });
@@ -1099,9 +1221,16 @@ export class AgdaSession {
     this.settle(op, outcome);
   }
 
+  /** An operation that changes Agda's file and whose answer could not be
+   * read leaves the snapshot unknown: no load holds. */
+  private forgetAfter(op: Operation<unknown>) {
+    if (op.kind === "load" || op.kind === "give" || op.kind === "refine" || op.kind === "makeCase")
+      this.loaded = undefined;
+  }
+
   private emitStatus() {
     const status = this.status;
-    for (const listener of this.statusListeners) listener(status);
+    for (const listener of this.statusListeners) heard(() => listener(status));
   }
 
   /** Why the session ended, once it has. */

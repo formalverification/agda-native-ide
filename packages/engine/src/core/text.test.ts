@@ -65,6 +65,23 @@ describe("text", () => {
     expect(table.fromAgdaPos(1)).toBe(1);
   });
 
+  it("counts a CR LF once, as Agda reads it", () => {
+    const text = "module C where\r\n\r\nf : Set → Set\r\nf x = {! !}\r\n";
+    const table = new OffsetTable(text);
+    // Agda reads "module C where\n\nf : Set → Set\nf x = {! !}\n": the
+    // goal's brace is its 37th code point, and the text's 40th.
+    expect(table.fromAgdaPos(37)).toBe(text.indexOf("{! !}"));
+    expect(table.fromAgdaPos(42)).toBe(text.indexOf("{! !}") + 5);
+    // A line end is Agda's at its CR; the text's end is Agda's end.
+    expect(table.fromAgdaPos(15)).toBe(text.indexOf("\r"));
+    expect(table.fromAgdaPos(42)).toBe(text.lastIndexOf("\r"));
+    expect(table.fromAgdaPos(43)).toBe(text.length);
+    expect(() => table.fromAgdaPos(44)).toThrow(RangeError);
+    // With a mark, an astral character and a lone CR, which is one for one.
+    const mixed = "﻿𝔹\r\nx\ry\r\n{! !}";
+    expect(new OffsetTable(mixed).fromAgdaPos(7)).toBe(mixed.indexOf("{! !}"));
+  });
+
   it("finds a conversion that moves positions", () => {
     expect(preservesPositions("import Data.Nat\nx", "import plfa.Nat\nx")).toBe(true);
     expect(preservesPositions("import Data.Nat\nx", "import plfa.Nat \nx")).toBe(false);
@@ -137,6 +154,14 @@ describe("the give rule", () => {
 
   it("loads an edit across two goals", () => {
     expect(planCheck(previous, goals, "f = {! x !}\ng = {! b !}\n").kind).toBe("load");
+  });
+
+  it("loads an edit that writes a hole's or a comment's delimiter in a goal", () => {
+    const previous = "f = {! ab !}";
+    const spans = [{ id: 0, from: 4, to: 12 }];
+    for (const next of ["f = {! a !} {! b !}", "f = {! {- ab !}", "f = {! a -} b !}", "f = {! a -- b !}", "f = {! {! a !}"])
+      expect(planCheck(previous, spans, next).kind).toBe("load");
+    expect(planCheck(previous, spans, "f = {! a - b !}")).toMatchObject({ kind: "give", expression: "a - b" });
   });
 
   it("loads an edit that empties a goal", () => {

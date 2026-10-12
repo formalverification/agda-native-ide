@@ -1,9 +1,12 @@
 // File: packages/engine/src/core/text.ts
 //
 // Source texts and their coordinates.  Agda counts positions in code
-// points (its `pos` is 1-based, after a leading byte-order mark it drops),
-// and JavaScript strings, CodeMirror and VS Code count UTF-16 code units;
-// the two differ at every character outside the Basic Multilingual Plane.
+// points (its `pos` is 1-based, after a leading byte-order mark it drops,
+// in the text it reads with each CR LF made one LF: Agda.Utils.IO.UTF8's
+// convertLineEndings, which turns the other line endings into LF one for
+// one), and JavaScript strings, CodeMirror and VS Code count UTF-16 code
+// units; the two differ at every character outside the Basic Multilingual
+// Plane, and at every CR LF.
 // The digest names the exact text Agda read: the SHA-256 of its UTF-8
 // encoding, computed here so that the core needs no platform API.
 
@@ -32,10 +35,14 @@ export function codePointLength(text: string): number {
 }
 
 /** The UTF-16 offsets of a text's astral characters, by which code point
- * offsets and UTF-16 offsets convert in either direction. */
+ * offsets and UTF-16 offsets convert in either direction, and the places
+ * of its CR LFs, by which Agda's positions convert to either. */
 export class OffsetTable {
   /** UTF-16 offsets of the high surrogates, ascending. */
   private readonly astral: number[] = [];
+  /** Agda's 0-based indexes of the line ends that are CR LF in the text,
+   * ascending: Agda reads each as one LF, at its CR's place. */
+  private readonly crlf: number[] = [];
   /** 1 when the text starts with a byte-order mark, which Agda drops
    * before it counts positions. */
   readonly bom: number;
@@ -43,16 +50,17 @@ export class OffsetTable {
   readonly codePoints: number;
 
   constructor(text: string) {
-    for (let index = 0; index < text.length; index++) {
-      if (
-        isHighSurrogate(text.charCodeAt(index)) &&
-        isLowSurrogate(text.charCodeAt(index + 1))
-      ) {
+    this.bom = text.charCodeAt(0) === BOM ? 1 : 0;
+    let codePoint = 0;
+    for (let index = 0; index < text.length; index++, codePoint++) {
+      const unit = text.charCodeAt(index);
+      if (isHighSurrogate(unit) && isLowSurrogate(text.charCodeAt(index + 1))) {
         this.astral.push(index);
         index++;
+      } else if (unit === 0x0d && text.charCodeAt(index + 1) === 0x0a) {
+        this.crlf.push(codePoint - this.bom - this.crlf.length);
       }
     }
-    this.bom = text.charCodeAt(0) === BOM ? 1 : 0;
     this.utf16Length = text.length;
     this.codePoints = text.length - this.astral.length;
   }
@@ -92,7 +100,17 @@ export class OffsetTable {
 
   /** The UTF-16 offset of Agda's 1-based `pos`. */
   fromAgdaPos(pos: number): number {
-    return this.toUtf16(pos - 1 + this.bom);
+    const index = pos - 1;
+    // Every CR LF before it is one code point more in the text than in
+    // Agda's count.
+    let low = 0;
+    let high = this.crlf.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (this.crlf[middle] < index) low = middle + 1;
+      else high = middle;
+    }
+    return this.toUtf16(index + this.bom + low);
   }
 }
 

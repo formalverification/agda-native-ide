@@ -33,6 +33,14 @@ export type HighlightingLevel = "None" | "NonInteractive" | "Interactive";
 /** How Agda normalizes a type or a term it shows. */
 export type Rewrite = "AsIs" | "Instantiated" | "HeadNormal" | "Simplified" | "Normalised";
 
+const REWRITES: readonly string[] = ["AsIs", "Instantiated", "HeadNormal", "Simplified", "Normalised"];
+
+/** Whether a value is one of Agda's rewrite modes: it is written into the
+ * command line as it is, so nothing else may be. */
+export function isRewrite(value: unknown): value is Rewrite {
+  return typeof value === "string" && REWRITES.includes(value);
+}
+
 /** One interaction command, before it is written for a file. */
 export type Command =
   | { kind: "load"; path: string; args?: readonly string[] }

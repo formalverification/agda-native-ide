@@ -13,7 +13,7 @@
 // makes is the engine's rule, so the editor and the engine's snapshot
 // make the same edit.
 
-import { caseSplitText, giveReplacement } from "@agda-native-ide/engine";
+import { caseSplitEdit, giveReplacement } from "@agda-native-ide/engine";
 
 import { clearHighlight, clearRunningInfo, emitRunningInfo } from "./effects";
 import { buildHighlightEffects } from "./highlight";
@@ -82,12 +82,12 @@ export function applyAgdaResponse(view, response, command) {
     }
     case "MakeCase": {
       const goal = getAgdaGoalById(view.state, response.interactionPoint.id);
-      if (!goal || response.clauses.length === 0) return;
-      const line = view.state.doc.lineAt(goal.from);
-      const source = caseSplitText(line.text, response.clauses);
+      if (!goal) return;
+      const edit = caseSplitEdit(view.state.doc.toString(), goal, response.clauses, response.variant);
+      if (!edit) return;
       view.dispatch({
-        changes: { from: line.from, to: line.to, insert: source },
-        selection: { anchor: line.from + source.length },
+        changes: edit,
+        selection: { anchor: edit.from + edit.insert.length },
       });
       return;
     }

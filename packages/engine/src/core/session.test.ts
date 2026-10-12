@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { AgdaSession, openSession } from "./session.js";
+import { AgdaSession, caseSplitEdit, openSession } from "./session.js";
 import type { EngineTransport, TransportEvent } from "./transport.js";
 
 const PATH = "/work/Goals.agda";
@@ -47,6 +47,10 @@ class FakeTransport implements EngineTransport {
   terminated = 0;
   /** What reading a file returns after a load, if not the file. */
   readBack: string | undefined;
+  /** Reading a file waits for this, when set. */
+  readHold: Promise<void> | undefined;
+  /** What terminate does instead of exiting, when set. */
+  onTerminate: (() => Promise<void>) | undefined;
   private readonly listeners = new Set<(event: TransportEvent) => void>();
 
   constructor(private readonly script: Script) {}
@@ -76,10 +80,12 @@ class FakeTransport implements EngineTransport {
     this.files.set(path, text);
   }
   async readSource(path: string) {
+    if (this.readHold) await this.readHold;
     return this.readBack ?? this.files.get(path);
   }
   async terminate() {
     this.terminated += 1;
+    if (this.onTerminate) return this.onTerminate();
     this.emit({ type: "exit", code: null, signal: "SIGKILL" });
   }
 }
@@ -352,5 +358,250 @@ describe("the session", () => {
     const session = new AgdaSession(new FakeTransport(agda));
     expect(session.id).toMatch(/^native-\d+-[0-9a-f]{8}$/);
     expect(session.capabilities.batch.supported).toBe(false);
+  });
+});
+
+const never = new Promise<void>(() => {});
+const tick = (ms = 0) => new Promise((done) => setTimeout(done, ms));
+
+describe("the session's corners", () => {
+  it("holds no load once a load's answer is malformed, and refuses the old goals unsent", async () => {
+    const { session, transport } = await started((line, transport) => {
+      if (line.includes("Cmd_load") && transport.sent.filter((l) => l.includes("Cmd_load")).length === 2)
+        return transport.answer([{ kind: "InteractionPoints", interactionPoints: "not a list" }]);
+      agda(line, transport);
+    });
+    await session.load(PATH, TEXT);
+    const old = session.goalRef(0)!;
+    expect(await session.load("/work/Other.agda", TEXT)).toMatchObject({ kind: "failure", reason: "protocol" });
+    expect(session.basis).toBeUndefined();
+    expect(await session.give(old, "x")).toMatchObject({ kind: "refusal", reason: "stale-goal" });
+    expect(transport.sent.filter((line) => line.includes("Cmd_give"))).toEqual([]);
+  });
+
+  it("holds no load while a load's source is read back", async () => {
+    const { session, transport } = await started();
+    await session.load(PATH, TEXT);
+    let release!: () => void;
+    transport.readHold = new Promise((done) => (release = done));
+    const reload = session.load(PATH, TEXT);
+    await tick(10);
+    expect(session.basis).toBeUndefined();
+    expect(session.plan(PATH, TEXT)).toMatchObject({ kind: "load", reason: "nothing is loaded" });
+    release();
+    expect(await reload).toMatchObject({ kind: "answer", basis: { generation: 2 } });
+    expect(session.basis?.generation).toBe(2);
+  });
+
+  it("fails a load whose source is not read back by its deadline, and runs the next", async () => {
+    const { session, transport } = await started(agda, { deadlines: { load: 40 } });
+    transport.readHold = never;
+    const load = await session.load(PATH, TEXT);
+    expect(load).toMatchObject({ kind: "failure", reason: "timeout" });
+    expect((load as { message: string }).message).toMatch(/was not read within its deadline of 40 ms/);
+    expect(session.basis).toBeUndefined();
+    expect((await session.version()).kind).toBe("answer");
+    expect(transport.aborts).toEqual([]);
+    expect(transport.terminated).toBe(0);
+  });
+
+  it("fails, unsent, an operation that cannot start by its deadline", async () => {
+    const { session, transport } = await started(agda, { deadlines: { load: 40 } });
+    transport.writeSource = () => never;
+    expect(await session.load(PATH, TEXT)).toMatchObject({ kind: "failure", reason: "timeout" });
+    expect(transport.sent.filter((line) => line.includes("Cmd_load"))).toEqual([]);
+    expect((await session.version()).kind).toBe("answer");
+  });
+
+  it("is not stopped by a listener that throws", async () => {
+    const { session } = await started();
+    const quiet = console.error;
+    console.error = () => {};
+    try {
+      session.onStatus(() => {
+        throw new Error("a status listener failed");
+      });
+      session.onResponse(() => {
+        throw new Error("a response listener failed");
+      });
+      const [load, version] = await Promise.all([session.load(PATH, TEXT), session.version()]);
+      expect(load.kind).toBe("answer");
+      expect(version.kind).toBe("answer");
+    } finally {
+      console.error = quiet;
+    }
+  });
+
+  it("keeps a file Agda reported errors among its warnings for, and refuses after a refused one", async () => {
+    const termination = [
+      ...LOADED.slice(0, 3),
+      {
+        kind: "DisplayInfo",
+        info: {
+          kind: "AllGoalsWarnings",
+          visibleGoals: [{ kind: "OfType", constraintObj: { id: 0, range: goalRange }, type: "A" }],
+          invisibleGoals: [],
+          warnings: [],
+          errors: [{ message: "Termination checking failed for identity" }],
+        },
+      },
+      LOADED[4],
+    ];
+    const refused = [{ kind: "DisplayInfo", info: { kind: "Error", error: { message: "Set is not a type" }, warnings: [] } }];
+    let answer = termination;
+    const { session } = await started((line, transport) => {
+      if (line.includes("Cmd_load")) return transport.answer(answer);
+      if (line.includes("Cmd_infer_toplevel"))
+        return transport.answer([{ kind: "DisplayInfo", info: { kind: "InferredType", expr: "A → A" } }]);
+      agda(line, transport);
+    });
+    const load = await session.load(PATH, TEXT);
+    expect(load).toMatchObject({ kind: "answer", value: { errors: ["Termination checking failed for identity"] } });
+    expect(session.plan(PATH, TEXT.replace("{! !}", "{! x !}"))).toMatchObject({ kind: "give" });
+    expect(await session.infer("identity")).toMatchObject({ kind: "answer", value: { expression: "A → A" } });
+    answer = refused;
+    await session.load(PATH, TEXT);
+    expect(await session.infer("identity")).toMatchObject({ kind: "refusal", reason: "no-loaded-file" });
+  });
+
+  it("tells a check's plan only once it is taken", async () => {
+    const plans: string[] = [];
+    const shifted = await started(agda, { convertSource: (_path: string, text: string) => `${text}\n` });
+    expect(await shifted.session.check(PATH, TEXT, { onPlan: (plan) => plans.push(plan.kind) })).toMatchObject({
+      kind: "refusal",
+      reason: "position-shift",
+    });
+    // Agda answers the session's opening, then runs the next command on.
+    const { session } = await started((line, transport) => {
+      if (transport.sent.length === 1) transport.answer(VERSION);
+    }, { maxQueue: 0 });
+    void session.version();
+    expect(await session.check(PATH, TEXT, { onPlan: (plan) => plans.push(plan.kind) })).toMatchObject({
+      kind: "refusal",
+      reason: "busy",
+    });
+    expect(plans).toEqual([]);
+    const taken = await started();
+    await taken.session.check(PATH, TEXT, { onPlan: (plan) => plans.push(plan.kind) });
+    expect(plans).toEqual(["load"]);
+  });
+
+  it("refuses, unsent, a goal operation whose goal closed while it waited", async () => {
+    const { session, transport } = await started();
+    await session.load(PATH, TEXT);
+    const ref = session.goalRef(0)!;
+    const [give, goal] = await Promise.all([session.give(ref, "x"), session.goal(ref)]);
+    expect(give.kind).toBe("answer");
+    expect(goal).toMatchObject({ kind: "refusal", reason: "unknown-goal" });
+    expect(transport.sent.filter((line) => line.includes("Cmd_goal_type_context"))).toEqual([]);
+  });
+
+  it("says who ended a command it was aborting", async () => {
+    // Agda exits by itself during the grace period: nothing stopped it.
+    const exits = await started((line, transport) => {
+      if (line.includes("Cmd_show_version")) return transport.answer(VERSION);
+    }, { deadlines: { load: 20 }, abortGraceMs: 5_000 });
+    const load = exits.session.load(PATH, TEXT);
+    await tick(40);
+    exits.transport.emit({ type: "exit", code: 1 });
+    const exited = await load;
+    expect(exited).toMatchObject({ kind: "failure", reason: "timeout", detail: { terminated: false } });
+    expect((exited as { message: string }).message).toMatch(/Agda stopped while it was aborted/);
+    expect(exits.transport.terminated).toBe(0);
+
+    // The session stops Agda, which ends the command as it goes: the kill
+    // is what ended it.
+    const late = await started((line, transport) => {
+      if (line.includes("Cmd_show_version")) return transport.answer(VERSION);
+    }, { deadlines: { load: 20 }, abortGraceMs: 20 });
+    late.transport.onTerminate = async () => {
+      late.transport.answer([{ kind: "DoneAborting" }]);
+      late.transport.emit({ type: "exit", code: null, signal: "SIGTERM" });
+    };
+    expect(await late.session.load(PATH, TEXT)).toMatchObject({
+      kind: "failure",
+      reason: "timeout",
+      detail: { terminated: true },
+    });
+
+    // A terminate that rejects still ends the operation.
+    const rejects = await started((line, transport) => {
+      if (line.includes("Cmd_show_version")) return transport.answer(VERSION);
+    }, { deadlines: { load: 20 }, abortGraceMs: 20 });
+    rejects.transport.onTerminate = () => Promise.reject(new Error("no such process"));
+    expect(await rejects.session.load(PATH, TEXT)).toMatchObject({ kind: "failure", reason: "timeout" });
+    expect(rejects.session.status.state).toBe("ended");
+  });
+
+  it("says a closed session was closed, and has nothing to abort while it reads an answer", async () => {
+    const { session, transport } = await started((line, transport) => {
+      if (line.includes("Cmd_show_version")) return transport.answer(VERSION);
+    });
+    const load = session.load(PATH, TEXT);
+    await tick(10);
+    await session.dispose();
+    expect((await load as { message: string }).message).toBe("the session was closed during the load");
+
+    const reading = await started();
+    let release!: () => void;
+    reading.transport.readHold = new Promise((done) => (release = done));
+    const pending = reading.session.load(PATH, TEXT);
+    await tick(10);
+    expect(reading.session.abort()).toEqual({ aborting: undefined });
+    release();
+    expect((await pending).kind).toBe("answer");
+    expect(transport.aborts).toEqual([]);
+  });
+
+  it("ignores an end while a load's answer is read", async () => {
+    const { session, transport } = await started();
+    let release!: () => void;
+    transport.readHold = new Promise((done) => (release = done));
+    const load = session.load(PATH, TEXT);
+    await tick(10);
+    transport.emit({ type: "end" });
+    release();
+    const answer = await load;
+    expect(answer).toMatchObject({ kind: "answer", basis: { generation: 1 } });
+    expect(session.goalRef(0)).toBeDefined();
+  });
+
+  it("takes its options as given, and the defaults for the rest", async () => {
+    const { session } = await started(agda, { deadlines: { load: undefined }, maxQueue: 0 });
+    expect(session.agdaVersion).toBe("2.9.0");
+    expect((await session.load(PATH, TEXT)).kind).toBe("answer");
+    expect(await session.infer("identity", undefined, "Normalised\nIOTCM" as never)).toMatchObject({
+      kind: "refusal",
+      reason: "invalid-input",
+    });
+    const opened = await openSession(new FakeTransport(agda));
+    expect(opened.kind === "session" && (await opened.session.start())).toMatchObject({ agdaVersion: "2.9.0" });
+  });
+});
+
+describe("a case split's edit", () => {
+  it("keeps the line's indentation for every clause", () => {
+    const text = "f : ℕ → ℕ\nf n = g n\n  where\n    g : ℕ → ℕ\n    g n = {! !}\n";
+    const span = { from: text.indexOf("{! !}"), to: text.indexOf("{! !}") + 5 };
+    const edit = caseSplitEdit(text, span, ["g zero = ?", "g (suc n) = ?"], "Function")!;
+    const after = text.slice(0, edit.from) + edit.insert + text.slice(edit.to);
+    expect(after).toBe("f : ℕ → ℕ\nf n = g n\n  where\n    g : ℕ → ℕ\n    g zero = ?\n    g (suc n) = ?\n");
+  });
+
+  it("replaces only an extended lambda's clause, as Emacs mode does", () => {
+    const apply = (text: string, clauses: string[]) => {
+      const from = text.indexOf("{!");
+      const span = { from, to: text.indexOf("!}", from) + 2 };
+      const edit = caseSplitEdit(text, span, clauses, "ExtendedLambda")!;
+      return text.slice(0, edit.from) + edit.insert + text.slice(edit.to);
+    };
+    expect(apply("f = λ { x → {! x !} }", ["true → ?", "false → ?"])).toBe("f = λ { true → ? ; false → ? }");
+    expect(apply("f = λ { zero → 0 ; (suc n) → {! n !} }", ["(suc zero) → ?", "(suc (suc n)) → ?"])).toBe(
+      "f = λ { zero → 0 ; (suc zero) → ? ; (suc (suc n)) → ? }",
+    );
+    expect(apply("f = λ where\n  x → {! x !}\n", ["true → ?", "false → ?"])).toBe(
+      "f = λ where\n  true → ?\n  false → ?\n",
+    );
+    expect(caseSplitEdit("f = {! !}", { from: 4, to: 9 }, [], "Function")).toBeUndefined();
   });
 });

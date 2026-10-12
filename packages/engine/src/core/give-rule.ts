@@ -6,8 +6,13 @@
 // after, that leaves the goal non-empty, is checked by Agda's
 // `Cmd_give WithoutForce` for that goal; anything else (a declaration, an
 // import, an edit spanning two goals, an edit outside every goal, a goal
-// emptied) reloads the module.  The rule is conservative by construction:
-// a give stands for exactly the edit it was taken for.
+// emptied, a goal's text that holds a hole's or a comment's delimiter)
+// reloads the module.  The rule is conservative by construction: a give
+// stands for exactly the edit it was taken for.
+
+/** What a goal's text cannot hold for a give to stand for the edit: a
+ * load would read these as new goals or comments, a give as a term. */
+const DELIMITERS = ["{!", "!}", "{-", "-}", "--"];
 
 /** A goal's span in a text, in UTF-16 offsets, braces included. */
 export interface GoalSpan {
@@ -58,6 +63,8 @@ export function planCheck(previous: string, goals: readonly GoalSpan[], next: st
       continue;
     const expression = next.slice(innerFrom, nextInnerTo).trim();
     if (!expression) return { kind: "load", reason: `the edit empties goal ${goal.id}` };
+    const delimiter = DELIMITERS.find((mark) => expression.includes(mark));
+    if (delimiter) return { kind: "load", reason: `goal ${goal.id}'s text holds ${delimiter}` };
     return { kind: "give", goal: goal.id, expression, span: { id: goal.id, from: goal.from, to: nextTo } };
   }
   return { kind: "load", reason: "the edit is not wholly inside one live goal" };

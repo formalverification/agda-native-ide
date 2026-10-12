@@ -31,7 +31,7 @@ export type {
 } from "./responses.js";
 export {
   AgdaSession,
-  caseSplitText,
+  caseSplitEdit,
   giveReplacement,
   messagesOf,
   openSession,
