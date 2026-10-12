@@ -1144,7 +1144,7 @@ The scratch project depends on the standard-library version that checks under Ag
 
 ---
 
-### Issue M1-4: Per-closure library archives, indexed by Agda's own dependency graph (#12)
+### Issue M1-4: Per-closure library archives, indexed by Agda's own dependency graph (#12, closed)
 
 **Labels:** `milestone-1-library-ide`, `libraries`, `build`
 
