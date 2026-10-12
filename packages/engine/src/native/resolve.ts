@@ -9,8 +9,10 @@
 //      workspace folder) when the file is inside it, else the file's own
 //      directory.
 //   +  The Agda is the first of the host's candidates, in its order, that
-//      names an executable that exists: an explicit path, or a name looked
-//      up on PATH.  A candidate that names nothing is passed over; the first
+//      names an executable that exists: a path, or a name looked up on
+//      PATH, each as a spawn in the project's root would find it (a
+//      relative path, and a relative or empty PATH entry, against the
+//      root).  A candidate that names nothing is passed over; the first
 //      that names something decides, and is refused, naming where it came
 //      from, when it does not answer `--numeric-version` with the version
 //      the project expects.  A different version is never used: the
@@ -62,6 +64,11 @@ export interface ResolveOptions {
   /** The environment the probe and the lanes run in (default: this
    * process's); its PATH is searched. */
   env?: Record<string, string | undefined>;
+  /** The directory the lanes run in, the project's root: a relative
+   * executable, and a relative or empty PATH entry, are resolved against
+   * it, as a spawn there resolves them, and the version is asked there
+   * (default: this process's). */
+  cwd?: string;
   /** How long the version probe may take, in ms (default 30 s). */
   timeoutMs?: number;
   /** Probes already made, by executable, arguments and modification time;
@@ -79,19 +86,23 @@ async function isExecutableFile(path: string): Promise<boolean> {
   }
 }
 
-/** The executable a candidate names, as an absolute path, or undefined. */
+/** The executable a candidate names, as an absolute path, or undefined:
+ * what a spawn in `cwd` would run.  A relative path, and a relative PATH
+ * entry, are resolved against `cwd`, and an empty entry is `cwd` itself,
+ * as POSIX and node's spawn have it. */
 export async function locateExecutable(
   executable: string,
   env: Record<string, string | undefined> = process.env,
+  cwd: string = process.cwd(),
 ): Promise<string | undefined> {
   if (!executable) return undefined;
   if (executable.includes("/") || executable.includes(sep)) {
-    const path = resolve(executable);
+    const path = resolve(cwd, executable);
     return (await isExecutableFile(path)) ? path : undefined;
   }
-  for (const directory of (env.PATH ?? "").split(delimiter)) {
-    if (!directory || !isAbsolute(directory)) continue;
-    const path = join(directory, executable);
+  if (env.PATH === undefined) return undefined;
+  for (const directory of env.PATH.split(delimiter)) {
+    const path = resolve(cwd, directory, executable);
     if (await isExecutableFile(path)) return path;
   }
   return undefined;
@@ -101,13 +112,14 @@ function probe(
   executable: string,
   args: readonly string[],
   env: Record<string, string | undefined>,
+  cwd: string,
   timeoutMs: number,
 ): Promise<{ ok: true; version: string } | { ok: false; why: string }> {
   return new Promise((done) => {
     execFile(
       executable,
       [...args, "--numeric-version"],
-      { env, timeout: timeoutMs, encoding: "utf8", maxBuffer: 1 << 16 },
+      { env, cwd, timeout: timeoutMs, encoding: "utf8", maxBuffer: 1 << 16 },
       (error, stdout, stderr) => {
         const said = `${stdout}${stderr}`.trim();
         if (error)
@@ -129,9 +141,10 @@ export async function resolveAgda(
   options: ResolveOptions,
 ): Promise<ResolvedAgda | Refusal> {
   const env = options.env ?? process.env;
+  const cwd = options.cwd ?? process.cwd();
   const passed: string[] = [];
   for (const candidate of candidates) {
-    const executable = await locateExecutable(candidate.executable, env);
+    const executable = await locateExecutable(candidate.executable, env, cwd);
     if (!executable) {
       passed.push(`${candidate.source} names ${candidate.executable || "nothing"}, which is not an executable${candidate.executable.includes("/") ? "" : " on PATH"}`);
       continue;
@@ -145,7 +158,7 @@ export async function resolveAgda(
     }
     let version = key === undefined ? undefined : options.cache?.get(key);
     if (version === undefined) {
-      const answered = await probe(executable, args, env, options.timeoutMs ?? 30_000);
+      const answered = await probe(executable, args, env, cwd, options.timeoutMs ?? 30_000);
       if (!answered.ok)
         return refusal(
           "configuration",

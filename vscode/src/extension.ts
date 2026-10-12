@@ -314,16 +314,15 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
     const workbench = vscode.workspace.getConfiguration('agdaWorkbench', uri);
     const mode = vscode.workspace.getConfiguration('agdaMode', uri);
     const folder = vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath;
-    const [project, resolved] = await Promise.all([
-      findProjectRoot(path, folder),
-      resolveAgda(agdaCandidates({
-        workbenchPath: workbench.get('agda.path'), workbenchOptions: workbench.get('agda.commandLineOptions'),
-        modePaths: mode.get('connection.paths'), modeOptions: mode.get('connection.commandLineOptions'),
-      }), {
-        expectedVersion: workbench.get<string>('agda.version') || '2.9.0',
-        versionSource: 'agdaWorkbench.agda.version', cache: this.probes,
-      }),
-    ]);
+    const project = await findProjectRoot(path, folder);
+    // Resolved in the root, where the lanes run, as their spawn would.
+    const resolved = await resolveAgda(agdaCandidates({
+      workbenchPath: workbench.get('agda.path'), workbenchOptions: workbench.get('agda.commandLineOptions'),
+      modePaths: mode.get('connection.paths'), modeOptions: mode.get('connection.commandLineOptions'),
+    }), {
+      expectedVersion: workbench.get<string>('agda.version') || '2.9.0',
+      versionSource: 'agdaWorkbench.agda.version', cache: this.probes, cwd: project.root,
+    });
     if ('kind' in resolved) return resolved;
     return { root: project.root, executable: resolved.executable, args: resolved.args };
   }

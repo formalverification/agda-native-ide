@@ -69,6 +69,7 @@ function registryFor(env, { sessionOptions = {}, args = [], ...options } = {}) {
       const resolved = await resolveAgda([{ source: "AGDA", executable: agda, args }], {
         expectedVersion: "2.9.0",
         env,
+        cwd: project.root,
         cache: probes,
       });
       if ("kind" in resolved) return resolved;

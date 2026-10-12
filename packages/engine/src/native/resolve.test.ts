@@ -51,6 +51,27 @@ describe("which Agda a project uses", () => {
     expect(await locateExecutable("no-such-agda", env())).toBeUndefined();
   });
 
+  it("finds what a spawn in the project's root would: relative paths and PATH entries, and an empty entry", async () => {
+    const root = join(dir, "project");
+    mkdirSync(join(root, "tools", "bin"), { recursive: true });
+    const inTools = join(root, "tools", "bin", "agda-tools");
+    const inRoot = join(root, "agda-here");
+    for (const file of [inTools, inRoot]) {
+      writeFileSync(file, `#!${process.execPath}\nprocess.stdout.write("2.9.0\\n");`);
+      chmodSync(file, 0o755);
+    }
+    const env = { ...process.env, PATH: `tools/bin::${bin}` };
+    expect(await locateExecutable("agda-tools", env, root)).toBe(inTools);
+    expect(await locateExecutable("agda-here", env, root)).toBe(inRoot);
+    expect(await locateExecutable("./tools/bin/agda-tools", env, root)).toBe(inTools);
+    expect(await locateExecutable("agda-tools", env, dir)).toBeUndefined();
+    expect(await locateExecutable("agda", { PATH: undefined }, root)).toBeUndefined();
+    expect(await resolveAgda([{ source: "PATH", executable: "agda-tools" }], { expectedVersion: "2.9.0", env, cwd: root })).toMatchObject({
+      executable: inTools,
+      version: "2.9.0",
+    });
+  });
+
   it("takes the first candidate that names an executable, with its arguments", async () => {
     const resolved = await resolveAgda(
       [
