@@ -99,22 +99,22 @@ the check does not rebuild the interfaces.
    a time, so its order does not depend on the filesystem
    (`Agda.Interaction.BuildLibrary` at the pin), and no generated
    `Everything.agda` is needed (agda-algebras' own Makefile writes two, which
-   are not tracked).  It took 6 min 59 s here on a quiet machine (a 1-minute
-   load of 0.82 before the build), 10 min 27 s to 12 min 27 s in three builds
-   while other sessions loaded it (2.1 to 3.5), and 10 min 33 s on GitHub's
-   runner: this workstation's cores fall to 2.2 GHz under load, from a peak of
-   5 GHz, so its times move with its load.
+   are not tracked).  It took 5 min 54 s to 6 min 59 s in three builds here
+   with the machine quieter, 10 min 27 s to 12 min 27 s in three while other
+   sessions loaded it (1-minute loads of 2.1 to 3.5 before them), and 10 min
+   33 s on GitHub's runner: this workstation's cores fall to 2.2 GHz under
+   load, from a peak of 5 GHz, so its times move with its load.
 +  **The graph**: a module `All` in `/play`, importing every module of
    agda-algebras, checked with `--dependency-graph` over the built stage, so
-   that only `All` is checked (15.3 to 22.5 s here).  Agda builds the graph
+   that only `All` is checked (11.2 to 22.5 s here).  Agda builds the graph
    from each interface's own list of imports and reduces it transitively
    (`Agda.Interaction.Highlighting.Dot.Backend`): reachability in it is exact,
    though its edges are not a module's imports.  The index takes every closure
    from it, never from the sources: the fork's PLFA index reads imports with a
    regular expression, which misses an `open import` inside a parameterized or
    nested module ([#12]'s finding of 2026-10-04).
-+  **wasmtime compiles `agda.wasm` before it runs it**: 21.9 to 22.9 s and 4.4
-   GiB of resident memory here (4,554,164 to 4,568,428 KiB), and 1 min 12 s on
++  **wasmtime compiles `agda.wasm` before it runs it**: 13.6 to 22.9 s and 4.4
+   GiB of resident memory here (4,549,816 to 4,568,428 KiB), and 1 min 12 s on
    the runner's two cores.  It caches the result under `$HOME/.cache`, so each
    derivation gives it a writable `HOME` and pays the compile once; without
    the cache every run pays it.  The 4.4 GiB at once is the build's peak, on a
@@ -133,16 +133,17 @@ the check does not rebuild the interfaces.
 
 ## Reproducibility
 
-+  **The bytes reproduce**: four builds of the interfaces here wrote the
-   same output (the third by `nix build .#agda-algebras-interfaces
-   --rebuild`, which builds again and fails if a byte differs), and
-   `--rebuild` of the archives passes.  The control shows that the
-   comparison can fail: with a timestamp written into the archives' output
-   (an uncommitted line in `pack.mjs`), `--rebuild` stopped with "may not be
-   deterministic: output ... differs", and `diff -r` named the file.
-   On GitHub's runner the same `--rebuild` passed, and the index it wrote,
-   which holds every archive's SHA-256, is byte for byte the one built here
-   (run [38153481044][run]): all 395 archives reproduce across machines.
++  **The bytes reproduce**: six builds of the interfaces here wrote the same
+   output (the third by `nix build .#agda-algebras-interfaces --rebuild`,
+   which builds again and fails if a byte differs, and the fifth by `build.sh`
+   outside the sandbox, at a host path), and `--rebuild` of the archives
+   passes.  The control shows that the comparison can fail: with a timestamp
+   written into the archives' output (an uncommitted line in `pack.mjs`),
+   `--rebuild` stopped with "may not be deterministic: output ... differs",
+   and `diff -r` named the file.  On GitHub's runner the same `--rebuild`
+   passed, and the index it wrote, which holds every archive's SHA-256, is
+   byte for byte the one built here (run [38153481044][run]): all 395 archives
+   reproduce across machines.
 +  **One fixed procedure**: how many deprecation warnings an interface
    stores depends on the order the build checks the modules in.  The probe
    of 2026-10-10 built the same inputs through a generated `Everything.agda`

@@ -133,14 +133,15 @@ how).
 `nix build .#agda-algebras-archives` builds agda-algebras' archives for
 the page ([#12]), from the commit `flake.nix` pins: the library's
 interfaces and those of the standard-library modules it imports, built by
-the compiler's own `agda.wasm` under wasmtime in the Nix sandbox (7 to 13
+the compiler's own `agda.wasm` under wasmtime in the Nix sandbox (6 to 13
 minutes on a 20-core workstation, by its load), packed so that an import
 fetches its closure's interfaces and nothing else, with an index of every
-module and archive and the sources as one archive.  `nix build .#agda-algebras-check`
-checks every module of the library, cold, from the archives the index
-names for it, and CI's [`library-archives.yml`][archives-ci] runs both when
-what they are built from changes.  The page does not mount them yet
-([#14]); [`docs/notes/library-archives.md`][archives-note] explains them.
+module and archive and the sources as one archive.  `nix build
+.#agda-algebras-check` checks every module of the library, cold, from the
+archives the index names for it, and CI's
+[`library-archives.yml`][archives-ci] runs both when what they are built
+from changes.  The page does not mount them yet ([#14]);
+[`docs/notes/library-archives.md`][archives-note] explains them.
 
 `make browser-check` (or `nix run .#browser-check -- <site>`, for any
 built site, such as `nix build .#site`'s `result`) serves the site and uses

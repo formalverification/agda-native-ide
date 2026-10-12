@@ -113,10 +113,58 @@
    },
    "checked": "checked 350 of agda-algebras' 350 modules, 251 of the standard library's, 0 builtins",
    "loadBefore": [0.82, 1.1, 1.3]
+  },
+  {
+   "started": "20:36 MDT",
+   "how": "scripts/library-archives/build.sh outside the Nix sandbox, at a host path (OUT and WORK in a scratch directory), from a clean clone at 602c69c",
+   "wasmtimeFirstRun": {
+    "seconds": 15.53,
+    "peakKiB": 4559412
+   },
+   "build-library": {
+    "loadAtStart": 7.93,
+    "seconds": 354.48,
+    "peakKiB": 1353764,
+    "ghcTotalMemoryInUseMiB": 995,
+    "ghcMaximumResidencyBytes": 584345808
+   },
+   "dependency-graph": {
+    "loadAtStart": 2.04,
+    "seconds": 11.43,
+    "peakKiB": 1078084,
+    "ghcTotalMemoryInUseMiB": 736,
+    "ghcMaximumResidencyBytes": 381493488
+   },
+   "checked": "checked 350 of agda-algebras' 350 modules, 251 of the standard library's, 0 builtins",
+   "loadBefore": [3.87, 1.99, 1.44]
+  },
+  {
+   "started": "20:43 MDT",
+   "how": "nix build .#agda-algebras-interfaces after the self-review's fixes (c0e7d6d)",
+   "wasmtimeFirstRun": {
+    "seconds": 14.65,
+    "peakKiB": 4562424
+   },
+   "build-library": {
+    "loadAtStart": 4.65,
+    "seconds": 375.91,
+    "peakKiB": 1342576,
+    "ghcTotalMemoryInUseMiB": 995,
+    "ghcMaximumResidencyBytes": 584345808
+   },
+   "dependency-graph": {
+    "loadAtStart": 2.47,
+    "seconds": 11.16,
+    "peakKiB": 1076772,
+    "ghcTotalMemoryInUseMiB": 736,
+    "ghcMaximumResidencyBytes": 381493488
+   },
+   "checked": "checked 350 of agda-algebras' 350 modules, 251 of the standard library's, 0 builtins",
+   "loadBefore": [1.64, 2.2, 1.87]
   }
  ],
  "reproducibility": {
-  "builds": "All four builds wrote the same output: the first, second and fourth compared with diff -r, the third by --rebuild, which compares byte for byte and passed (exit 0).",
+  "builds": "All six builds wrote the same output: the third by --rebuild, which compares byte for byte and passed (exit 0), the others compared with diff -r; the fifth ran outside the Nix sandbox, at a host path.",
   "archivesRebuild": "nix build .#agda-algebras-archives --rebuild passed (exit 0).",
   "control": "With a line added to pack.mjs that writes Date.now() into the output, --rebuild failed: 'may not be deterministic: output ... differs from ....check' (exit 1); diff -r named built-at.txt.  pack.mjs restored by filename afterward.",
   "acrossOrders": {

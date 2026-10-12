@@ -892,20 +892,20 @@ Linux 7.0.0-31-generic) and on GitHub's runner; [#12]'s findings of that
 date have the runs, and `docs/measurements/library-archives-2026-10-11.json`
 the local ones.
 
-+  **The build**: in the sandbox, `--build-library` checked all 350 modules
-   of agda-algebras and 251 of the standard library, and no builtin (their
-   interfaces from `agda-data.zip` were accepted), in 6 min 59 s on a quiet
-   machine and 10 min 27 s to 12 min 27 s on a loaded one, holding 995 MiB
-   of GHC's total memory in use, a quarter of a wasm32 heap's 4 GiB.
-   wasmtime's compile of `agda.wasm`, once per derivation, is the peak: 4.4
-   GiB for 22 s.
-+  **Reproducible**: four builds wrote the same bytes, the third by
-   `--rebuild`, and `--rebuild` of the archives passes; a timestamp written
-   into the output makes it fail.  Every build sees the guest's paths, but
-   the order still matters: built through a generated `Everything.agda`, the
-   same inputs gave 600 of 601 interfaces identical and the umbrella module
-   `agda-algebras` with 70 more deprecation warnings stored (314,087 bytes
-   against 284,544).
++  **The build**: in the sandbox, `--build-library` checked all 350 modules of
+   agda-algebras and 251 of the standard library, and no builtin (their
+   interfaces from `agda-data.zip` were accepted), in 5 min 54 s to 6 min 59 s
+   on a quieter machine and 10 min 27 s to 12 min 27 s on a loaded one,
+   holding 995 MiB of GHC's total memory in use, a quarter of a wasm32 heap's
+   4 GiB.  wasmtime's compile of `agda.wasm`, once per derivation, is the
+   peak: 4.4 GiB for 14 to 23 s.
++  **Reproducible**: six builds wrote the same bytes, one of them outside the
+   sandbox at a host path, the third by `--rebuild`, and `--rebuild` of the
+   archives passes; a timestamp written into the output makes it fail.  Every
+   build sees the guest's paths, but the order still matters: built through a
+   generated `Everything.agda`, the same inputs gave 600 of 601 interfaces
+   identical and the umbrella module `agda-algebras` with 70 more deprecation
+   warnings stored (314,087 bytes against 284,544).
 +  **The packing**: 395 archives, 70,104,812 bytes, the largest 6,965,690.
    `Setoid.Varieties.HSP` needs 128 of them, 39,251,541 bytes against a floor
    of 39,186,131; [#12]'s 2.8.0 tiers, on the same interfaces, fetch
