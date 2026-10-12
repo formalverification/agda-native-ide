@@ -226,6 +226,8 @@ export class AgdaController {
           stdlib: `${asset("/agda-stdlib-2.3-patched.zip")}?cache=${cacheTokens.stdlib}`,
           project: `${asset("/plfa/project.zip")}?cache=${cacheTokens.plfaProject}`,
         },
+        // What a failure to fetch the project's archive calls it.
+        projectName: "PLFA",
         cacheNamespace: driveCacheNamespace,
         // --raw: the server answers in Agda's own JSON (ResponseJSONRaw),
         // which the engine reads.  ALS drives Agda through its interactive
