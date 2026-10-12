@@ -27,6 +27,9 @@
 // which the engine compares with what it wrote.  It is laid out with a list
 // of libraries, each an archive, its `.agda-lib` and its name, where it took
 // PLFA's archive alone, and writes the registry from that list (issue 13).
+// It starts with the files the host names, a project's own `.agda-lib`,
+// where it held an empty /Main.agda for the page's buffer: the host writes
+// its sources where it keeps them (issue 11).
 
 import * as Runno from "@runno/wasi";
 import JSZip from "jszip";
@@ -116,18 +119,13 @@ async function extractZip(
   return Promise.all(filePromises);
 }
 
-// TODO: make this changable dynamically
-const userSourceFilePath = "/Main.agda";
-
-/** The drive's first record: the user's buffer, Agda's builtin library
- * (with its interfaces), the standard library's sources at /stdlib, each
- * library extracted at the root in order, and Agda's library registry
- * naming them: the libraries file their `.agda-lib` files, and the
- * defaults file their names. */
-export async function layOutDrive({ builtin, stdlib, libraries }: DriveArchives) {
-  const fs: Record<string, Runno.WASIFile> = Object.fromEntries([
-    createFileEntry(userSourceFilePath, ""),
-  ]);
+/** The drive's first record: Agda's builtin library (with its
+ * interfaces), the standard library's sources at /stdlib, each library
+ * extracted at the root in order, the host's files, and Agda's library
+ * registry naming the libraries: the libraries file their `.agda-lib`
+ * files, and the defaults file their names. */
+export async function layOutDrive({ builtin, stdlib, libraries, files }: DriveArchives) {
+  const fs: Record<string, Runno.WASIFile> = {};
   const registered: { agdaLib: string; name: string }[] = [];
 
   if (builtin) {
@@ -154,6 +152,9 @@ export async function layOutDrive({ builtin, stdlib, libraries }: DriveArchives)
     await extractZip(library.data, "/", fs);
     registered.push(library);
   }
+
+  // After the archives, so that a host's file is never an archive's.
+  for (const file of files) fsAssign(file.path, file.text, fs);
 
   if (registered.length) {
     const lines = (field: "agdaLib" | "name") =>

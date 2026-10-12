@@ -146,6 +146,29 @@ describe("the browser transport when the engine fails", () => {
     expect(started).toMatchObject({ kind: "failure", reason: "startup", message: "the library agda-algebras has no URL" });
   });
 
+  it("refuses a file the drive starts with outside its root, before it fetches anything", async () => {
+    const fetched: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => {
+      fetched.push(url);
+      return new Response(gzipSync(Buffer.alloc(64, 1)));
+    });
+    const started = await startBrowserSession({
+      createWorker: () => {
+        throw new Error("no worker in this test");
+      },
+      compiler: { url: "compiler.wasm.gz" },
+      glueUrl: "glue.js",
+      archives: {},
+      files: [{ path: "/stdlib/standard-library.agda-lib", text: "name: other\n" }],
+      cacheNamespace: "test",
+      args: ["--raw"],
+      root: "/play/",
+    });
+    expect(started).toMatchObject({ kind: "failure", reason: "startup" });
+    expect((started as { message: string }).message).toMatch(/outside the project's root on the drive, \/play\//);
+    expect(fetched).toEqual([]);
+  });
+
   it("ends a command the server fails, rather than waiting for its deadline", async () => {
     const { t, port2, server, events } = wired();
     port2.onmessage = (event: MessageEvent<string>) => {

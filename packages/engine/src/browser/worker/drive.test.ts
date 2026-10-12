@@ -4,7 +4,7 @@
 // The drive gives back the text it was given, as the native engine's
 // filesystem does: the session compares the two after every load.  And it
 // is laid out with a list of libraries, whose registry it writes (issue
-// 13).
+// 13), and the host's files (issue 11).
 
 import * as Runno from "@runno/wasi";
 import JSZip from "jszip";
@@ -60,6 +60,7 @@ describe("the drive's libraries", () => {
           name: "plfa",
         },
       ],
+      files: [],
     });
     expect(text(fs, "/home/root/.config/agda/libraries")).toBe(
       "/stdlib/standard-library.agda-lib\n/agda-algebras/agda-algebras.agda-lib\n/plfa.agda-lib\n",
@@ -68,18 +69,20 @@ describe("the drive's libraries", () => {
     expect(text(fs, "/agda-algebras/src/Overture/Basic.lagda.md")).toBe("# Overture.Basic\n");
     expect(text(fs, "/stdlib/src/Data/Nat.agda")).toBe("module Data.Nat where\n");
     expect(fs["/stdlib/README.md"]).toBeUndefined();
-    expect(text(fs, "/Main.agda")).toBe("");
+    // The page's buffer is the host's to write, where it keeps it.
+    expect(fs["/Main.agda"]).toBeUndefined();
   });
 
   it("writes the registry as the page's drive had it, for the standard library and PLFA", async () => {
     const stdlib = await zip({ "agda-stdlib-2.3/standard-library.agda-lib": "name: standard-library-2.3\n" });
-    const alone = await layOutDrive({ builtin: null, stdlib, libraries: [] });
+    const alone = await layOutDrive({ builtin: null, stdlib, libraries: [], files: [] });
     expect(text(alone, "/home/root/.config/agda/libraries")).toBe("/stdlib/standard-library.agda-lib\n");
     expect(text(alone, "/home/root/.config/agda/defaults")).toBe("standard-library\n");
     const withPlfa = await layOutDrive({
       builtin: null,
       stdlib: await zip({ "agda-stdlib-2.3/standard-library.agda-lib": "name: standard-library-2.3\n" }),
       libraries: [{ data: await zip({ "plfa.agda-lib": "name: plfa\n" }), agdaLib: "/plfa.agda-lib", name: "plfa" }],
+      files: [],
     });
     expect(text(withPlfa, "/home/root/.config/agda/libraries")).toBe(
       "/stdlib/standard-library.agda-lib\n/plfa.agda-lib\n",
@@ -92,14 +95,39 @@ describe("the drive's libraries", () => {
       builtin: null,
       stdlib: null,
       libraries: [{ data: await zip({ "plfa.agda-lib": "name: plfa\n" }), agdaLib: "/plfa.agda-lib", name: "plfa" }],
+      files: [],
     });
     expect(text(fs, "/home/root/.config/agda/libraries")).toBe("/plfa.agda-lib\n");
     expect(text(fs, "/home/root/.config/agda/defaults")).toBe("plfa\n");
   });
 
   it("writes no registry when it has no library", async () => {
-    const fs = await layOutDrive({ builtin: null, stdlib: null, libraries: [] });
+    const fs = await layOutDrive({ builtin: null, stdlib: null, libraries: [], files: [] });
     expect(fs["/home/root/.config/agda/libraries"]).toBeUndefined();
     expect(fs["/home/root/.config/agda/defaults"]).toBeUndefined();
+  });
+
+  it("starts with the host's files, after the archives, and registers none of them", async () => {
+    const play = "name: play\ndepend: standard-library-2.3 agda-algebras\ninclude: .\n";
+    const fs = await layOutDrive({
+      builtin: null,
+      stdlib: await zip({ "agda-stdlib-2.3/standard-library.agda-lib": "name: standard-library-2.3\n" }),
+      libraries: [
+        {
+          data: await zip({
+            "agda-algebras/agda-algebras.agda-lib": "name: agda-algebras\n",
+            "play/play.agda-lib": "an archive's copy\n",
+          }),
+          agdaLib: "/agda-algebras/agda-algebras.agda-lib",
+          name: "agda-algebras",
+        },
+      ],
+      files: [{ path: "/play/play.agda-lib", text: play }],
+    });
+    expect(text(fs, "/play/play.agda-lib")).toBe(play);
+    expect(text(fs, "/home/root/.config/agda/libraries")).toBe(
+      "/stdlib/standard-library.agda-lib\n/agda-algebras/agda-algebras.agda-lib\n",
+    );
+    expect(text(fs, "/home/root/.config/agda/defaults")).toBe("standard-library\nagda-algebras\n");
   });
 });

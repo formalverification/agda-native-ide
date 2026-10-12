@@ -11,7 +11,8 @@ import { serve } from "./serve.mjs";
 import { palettes, resolveColor, rgba } from "./contrast.mjs";
 
 const THEME_KEY = "agda-web-ide-beta:theme";
-const DOC_KEY = "agda-web-ide-beta:doc";
+// The playground's buffer, by its path (src/lib/controller.svelte.ts).
+const DOC_KEY = "agda-web-ide-beta:doc:/play/Main.agda";
 const rgb = (hex) => `rgb(${rgba(hex).slice(0, 3).map((c) => Math.round(c * 255)).join(", ")})`;
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
 

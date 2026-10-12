@@ -30,6 +30,15 @@
 // hover, to the engine's editor channel.  PLFA's archive is one library in
 // the engine's list of the drive's libraries (issue 13).
 //
+// The playground's Main.agda is a project of its own (issue 11): it lives
+// at /play/Main.agda, beside /play/play.agda-lib, a library that depends
+// on the standard library and agda-algebras, whose sources archive is in
+// the list beside PLFA's, as agda-algebras' archives are built and checked
+// (scripts/library-archives/stage.sh).  The page writes that library file
+// as one of the drive's first files, and keeps the buffer in localStorage
+// under a key named by its path, so a document stored for /Main.agda, a
+// module of PLFA's library, is not shown in its place.
+//
 // The editor takes its text as the one Agda's positions refer to (the
 // offsets' commit) when the engine is about to load it, and only then,
 // in the tick the text was read: after a give or a case split, Agda goes
@@ -125,7 +134,22 @@ export const agdaVersionMap: Record<SupportedAgdaVersion, AgdaVersionSpec> = {
   },
 };
 
-export const LS_DOC_KEY = "agda-web-ide-beta:doc";
+/** The playground: Main.agda in its own project, whose library depends
+ * on the standard library the page ships (its `.agda-lib` names it
+ * standard-library-2.3) and agda-algebras, as stage.sh writes it. */
+export const PLAYGROUND = {
+  file: "/play/Main.agda",
+  library: {
+    path: "/play/play.agda-lib",
+    text: "name: play\ndepend: standard-library-2.3 agda-algebras\ninclude: .\n",
+  },
+} as const;
+
+/** Where the editor keeps the playground's buffer: a key named by its path
+ * on the drive.  It was "agda-web-ide-beta:doc" while the buffer was
+ * /Main.agda, a module of PLFA's library; nothing is deployed, so only a
+ * developer's browser holds a document there, and it stays, unread. */
+export const LS_DOC_KEY = `agda-web-ide-beta:doc:${PLAYGROUND.file}`;
 
 function makeLspClient(rootUri: string = "/") {
   const lspExtsWithoutHover = languageServerExtensions().filter(
@@ -161,7 +185,7 @@ export class AgdaController {
   reportedAgdaVersion = $state<string | undefined>();
   driveIsCreated = $state(false);
   driveArchiveLoading = $state(false);
-  currentFilePath = $state("/Main.agda");
+  currentFilePath = $state<string>(PLAYGROUND.file);
   currentStorageKey = LS_DOC_KEY;
   iotcmStatus = $state<AgdaIOTCMStatus>("init");
   checked = $state(false);
@@ -225,8 +249,15 @@ export class AgdaController {
         archives: {
           builtin: spec.dataPath,
           stdlib: `${asset("/agda-stdlib-2.3-patched.zip")}?cache=${cacheTokens.stdlib}`,
-          // PLFA at the root, where Main.agda is: one library on the drive.
+          // agda-algebras at /agda-algebras, which the playground's project
+          // depends on; PLFA at the root, where its chapters are.
           libraries: [
+            {
+              url: `${asset("/agda-algebras-sources.zip")}?cache=${cacheTokens.agdaAlgebras}`,
+              agdaLib: "/agda-algebras/agda-algebras.agda-lib",
+              name: "agda-algebras",
+              what: "agda-algebras",
+            },
             {
               url: `${asset("/plfa/project.zip")}?cache=${cacheTokens.plfaProject}`,
               agdaLib: "/plfa.agda-lib",
@@ -235,6 +266,7 @@ export class AgdaController {
             },
           ],
         },
+        files: [PLAYGROUND.library],
         cacheNamespace: driveCacheNamespace,
         // --raw: the server answers in Agda's own JSON (ResponseJSONRaw),
         // which the engine reads.  ALS drives Agda through its interactive
@@ -682,7 +714,7 @@ export class AgdaController {
 
   setDocument(
     source: string,
-    filePath = "/Main.agda",
+    filePath: string = PLAYGROUND.file,
     storageKey = LS_DOC_KEY,
   ) {
     if (!this.editorView) return;

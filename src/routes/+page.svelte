@@ -17,7 +17,9 @@
   // or its server stops of its own accord, the page says why, in the
   // banner, the inspector's heading and the status bar, rather than "Agda
   // ready" (issue 8).  Colors use the shared tokens in static/theme.css
-  // (issue 17).
+  // (issue 17).  The playground's Main.agda is /play/Main.agda, a module of
+  // a project of its own over the standard library and agda-algebras
+  // ($lib/controller.svelte, PLAYGROUND; issue 11).
 
   import { onDestroy, onMount } from "svelte";
   import { setThemePreference, watchTheme, type ThemePreference } from "$lib/theme";
@@ -51,7 +53,7 @@
     Zap,
   } from "@lucide/svelte";
 
-  import { AgdaController, LS_DOC_KEY } from "$lib/controller.svelte";
+  import { AgdaController, LS_DOC_KEY, PLAYGROUND } from "$lib/controller.svelte";
   import { missingFeatures, unsupportedBrowserNotice } from "$lib/support";
   import { cacheTokens } from "$lib/assets";
   import { myCodeMirrorTheme } from "$lib/codemirror/theme";
@@ -805,7 +807,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     editor?.dispatch({
       effects: sourceLanguageCompartment.reconfigure(agdaSourceLanguage()),
     });
-    controller.setDocument(source, "/Main.agda", LS_DOC_KEY);
+    controller.setDocument(source, PLAYGROUND.file, LS_DOC_KEY);
     setTimeout(() => editor?.focus());
     if (compilerReady)
       setTimeout(() => void runAction(() => controller.loadAgdaFile()), 50);

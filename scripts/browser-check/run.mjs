@@ -44,6 +44,10 @@ import * as bidi from "./bidi.mjs";
 import { serve } from "./serve.mjs";
 import { checkThemes } from "./themes.mjs";
 
+/** The playground's Main.agda on the drive: a module of a project of its
+ * own, beside /play/play.agda-lib (issue 11). */
+const MAIN = "/play/Main.agda";
+
 /** The modules a fresh profile's first check of the default Main.agda
  * type-checks, one `Checking` line each: Main alone, since every
  * interface the site ships is accepted.  A builtin here means the shipped
@@ -417,7 +421,7 @@ try {
       "the type error",
     );
     const error = failed.problems.find((p) => p.error)?.message.trim() ?? "";
-    const expected = `/Main.agda:${line}.${TYPE_ERROR.columns}${TYPE_ERROR.message}`;
+    const expected = `${MAIN}:${line}.${TYPE_ERROR.columns}${TYPE_ERROR.message}`;
     results.typeError = error;
     assert(
       error === expected,

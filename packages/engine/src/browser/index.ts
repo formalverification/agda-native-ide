@@ -26,7 +26,10 @@
 //
 // The host supplies what is its own: the URLs (nothing is fetched that
 // the host has not named), the worker (which the host's bundler builds
-// from `@agda-native-ide/engine/browser/worker`), and when to persist.
+// from `@agda-native-ide/engine/browser/worker`), the sources the drive
+// starts with (its project's own `.agda-lib`, issue 11), and when to
+// persist.
+//
 // Parts are the fork's: the startup and its failure messages from
 // src/lib/controller.svelte.ts and src/lib/index.js, the router's
 // acknowledgements from src/lib/agda/transport.js (plfa-playground
@@ -68,6 +71,12 @@ export interface BrowserConfig {
     stdlib?: string | null;
     libraries?: readonly LibraryArchive[];
   };
+  /** Sources the drive starts with, at their paths under the root: a
+   * project's own `.agda-lib`, which Agda finds beside the module it checks
+   * (issue 11).  Written after the archives, before Agda starts; the drive
+   * persists one only once the host writes it again, so a restored cache
+   * never stands in for it until then. */
+  files?: readonly { path: string; text: string }[];
   /** The namespace of the drive's IndexedDB cache. */
   cacheNamespace: string;
   /** The server's arguments after its name; `--raw` is required. */
@@ -402,6 +411,8 @@ export class BrowserTransport implements EngineTransport {
     const { config } = this;
     const until = <T>(promise: Promise<T>) => this.until(promise);
     const signal = this.downloads.signal;
+    // A file outside the root is refused before anything is fetched.
+    const files = (config.files ?? []).map(({ path, text }) => ({ path: this.inside(path), text }));
     const compressed = await until(fetchOrFail(config.compiler.url, "the compiler", signal));
     if (!compressed.body) throw new Error("the compiler could not be downloaded (an empty response)");
     // Some static servers attach Content-Encoding to .gz files, so fetch
@@ -494,7 +505,7 @@ export class BrowserTransport implements EngineTransport {
       "the drive could not be set up",
       drive.mount(
         Comlink.transfer(
-          { builtin, stdlib, libraries, cacheNamespace: config.cacheNamespace },
+          { builtin, stdlib, libraries, files, cacheNamespace: config.cacheNamespace },
           buffers,
         ),
       ),
