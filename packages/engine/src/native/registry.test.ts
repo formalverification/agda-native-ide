@@ -46,7 +46,7 @@ lines.on("line", (line) => {
   } else if (line.includes("Cmd_infer_toplevel") || line.includes("Cmd_abort")) return;
   process.stdout.write("JSON> ");
 });
-lines.on("close", () => process.exit(0));
+lines.on("close", () => setTimeout(() => process.exit(0), Number(process.env.FAKE_EXIT_DELAY ?? 0)));
 `;
 
 beforeAll(() => {
@@ -195,6 +195,18 @@ describe("the lane registry", () => {
     expect(alive(pid)).toBe(false);
     expect(registry.lanes()).toEqual([]);
     expect(await registry.withFile(join(rootA, "One.agda"), async (use) => use.spawned)).toBe(true);
+    await registry.dispose();
+  });
+
+  it("starts no lane for a root until its idle lane's Agda is gone", async () => {
+    const { registry, ended } = registryWith({ idleMs: 100, env: { FAKE_EXIT_DELAY: "150" } });
+    const one = join(rootA, "One.agda");
+    const before = (await registry.withFile(one, async (use) => use.pid)) as number;
+    // The idle close begins at 100 ms, and the old Agda exits 150 ms later.
+    await new Promise((done) => setTimeout(done, 150));
+    const overlap = await registry.withFile(one, async (use) => ({ spawned: use.spawned, oldAlive: alive(before) }));
+    expect(overlap).toEqual({ spawned: true, oldAlive: false });
+    expect(ended).toMatchObject([{ pid: before, reason: "idle", exit: { code: 0 } }]);
     await registry.dispose();
   });
 

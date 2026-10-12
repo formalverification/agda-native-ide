@@ -340,13 +340,22 @@ export class LaneRegistry {
     this.report(lane, { code: child.exitCode, signal: child.signalCode });
   }
 
-  /** Close a root's lane once it has been idle for the bound. */
+  /** Close a root's lane once it has been idle for the bound.  The close
+   * takes its turn in the root's line as a request does, so a request that
+   * comes meanwhile starts a new lane only once the old Agda is gone. */
   private arm(slot: Slot) {
     const lane = slot.lane;
     if (!lane || slot.holders > 0 || this.closed) return;
     if (lane.idleTimer) clearTimeout(lane.idleTimer);
     lane.idleTimer = setTimeout(() => {
-      if (slot.holders === 0 && slot.lane === lane) void this.close(slot, lane, "idle");
+      if (slot.holders !== 0 || slot.lane !== lane) return;
+      let release!: () => void;
+      const turn = new Promise<void>((done) => (release = done));
+      const before = slot.tail;
+      slot.tail = before.then(() => turn);
+      void before
+        .then(() => (slot.lane === lane ? this.close(slot, lane, "idle") : undefined))
+        .finally(release);
     }, this.options.idleMs ?? DEFAULT_IDLE_MS);
     lane.idleTimer.unref?.();
   }
