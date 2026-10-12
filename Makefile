@@ -241,11 +241,12 @@ library-gate: packages ## Check agda-algebras' archives under $(SITE)'s language
 # als-reactor-2.9.0.wasm with its glue als-reactor-2.9.0.js (`nix build
 # .#compiler`, fetched by its pins in compiler/agda-2.9.0.sha256), and
 # the standard library, agda-stdlib-2.3-patched.zip (`nix build
-# .#stdlib`).  `make assets` copies the set into static/, and `make build`
-# refuses to build unless every pinned file there still matches its pin
-# and those four are the flake's.  (Inside the Nix sandbox, where `nix
-# build .#site` runs the same `make build`, there is no nix to ask, and
-# the site's derivation copies them in itself.)  docs/provenance.md
+# .#stdlib`), and agda-algebras' sources, agda-algebras-sources.zip, for
+# the playground's project (issue 11).  `make assets` copies the set into
+# static/, and `make build` refuses to build unless every pinned file there
+# still matches its pin and those five are the flake's.  (Inside the Nix
+# sandbox, where `nix build .#site` runs the same `make build`, there is
+# no nix to ask, and the site's derivation copies them in itself.)  docs/provenance.md
 # records them all.  `make build` also publishes NOTICE (as NOTICE.txt)
 # and licenses/ in build/.
 #
@@ -270,7 +271,7 @@ PINS      ?= upstream/assets.sha256
 # The files in static/ that are the flake's own (built, or pinned by
 # compiler/agda-2.9.0.sha256) rather than upstream's.
 OWN_ASSETS := agda-data.zip als-reactor-2.9.0.wasm als-reactor-2.9.0.js \
-              agda-stdlib-2.3-patched.zip
+              agda-stdlib-2.3-patched.zip agda-algebras-sources.zip
 UNCHANGED ?= upstream/unchanged.sha256
 SITE_REVISION ?= $(shell rev=$$(git rev-parse HEAD 2>/dev/null) && \
   if [ -n "$$(git status --porcelain 2>/dev/null)" ]; then echo $$rev-dirty; else echo $$rev; fi)

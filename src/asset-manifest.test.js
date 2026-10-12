@@ -4,7 +4,8 @@
 // The values the build derives from the assets it ships
 // (scripts/asset-manifest.mjs, issue 3): each token follows its own
 // asset's content and nothing else, and the build refuses to run without
-// an asset.
+// an asset.  agda-algebras' sources are among them, since Agda reads them
+// (issue 11).
 
 import { createHash } from "node:crypto";
 import {
@@ -33,6 +34,7 @@ beforeEach(() => {
   write("als-reactor-2.9.0.js", "glue v1");
   write("agda-data.zip", "builtins v1");
   write("agda-stdlib-2.3-patched.zip", "stdlib v1");
+  write("agda-algebras-sources.zip", "agda-algebras v1");
   write("plfa/project.zip", "plfa v1");
   write(
     "plfa/interfaces/manifest.json",
@@ -52,19 +54,25 @@ describe("the asset manifest", () => {
     expect(manifest.tokens.compiler).toBe(sha256("compiler v1").slice(0, 16));
     expect(manifest.tokens.glue).toBe(sha256("glue v1").slice(0, 16));
     expect(manifest.tokens.stdlib).toBe(sha256("stdlib v1").slice(0, 16));
+    expect(manifest.tokens.agdaAlgebras).toBe(sha256("agda-algebras v1").slice(0, 16));
     expect(manifest.compilerBytes).toBe("compiler v1".length);
     expect(assetManifest(dir)).toEqual(manifest);
   });
 
   it("changes one token, and the namespace, when one asset changes", () => {
-    const before = assetManifest(dir);
-    write("agda-data.zip", "builtins v2");
-    const after = assetManifest(dir);
-    for (const name of Object.keys(before.tokens))
-      if (name === "builtins")
-        expect(after.tokens[name]).not.toBe(before.tokens[name]);
-      else expect(after.tokens[name]).toBe(before.tokens[name]);
-    expect(after.driveCacheNamespace).not.toBe(before.driveCacheNamespace);
+    for (const [name, path] of [
+      ["builtins", "agda-data.zip"],
+      ["agdaAlgebras", "agda-algebras-sources.zip"],
+    ]) {
+      const before = assetManifest(dir);
+      write(path, `${name} v2`);
+      const after = assetManifest(dir);
+      for (const other of Object.keys(before.tokens))
+        if (other === name)
+          expect(after.tokens[other]).not.toBe(before.tokens[other]);
+        else expect(after.tokens[other]).toBe(before.tokens[other]);
+      expect(after.driveCacheNamespace).not.toBe(before.driveCacheNamespace);
+    }
   });
 
   it("changes a directory's token when a file in it changes, appears or moves", () => {

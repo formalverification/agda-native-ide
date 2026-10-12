@@ -16,11 +16,12 @@
 # compiler/agda-2.9.0.sha256 (`nix develop .#compiler` is the dev shell
 # that builds it, compiler/build-agda-2.9.0.sh); Agda's builtin library,
 # agda-data.zip, which `nix build .#agda-data` builds from the compiler's
-# own lib/prim (mkAgdaData, below); and the standard library, which `nix
-# build .#stdlib` builds patched.  `make assets` copies the result into
-# static/, and `make build` checks the files there against their pins
-# before it builds.  docs/provenance.md records where each file comes
-# from and its license.
+# own lib/prim (mkAgdaData, below); the standard library, which `nix
+# build .#stdlib` builds patched; and agda-algebras' sources, zipped from
+# its pinned commit (mkAgdaAlgebrasSources).  `make assets` copies the
+# result into static/, and `make build` checks the files there against
+# their pins before it builds.  docs/provenance.md records where each file
+# comes from and its license.
 #
 # `nix build .#site` builds the static site: the npm dependencies are
 # one fixed-output fetch of everything package-lock.json names (pinned
@@ -220,9 +221,11 @@
         fileset = lib.fileset.unions files;
       };
 
-      # The sources, as the page will mount them (at /, so under
+      # The sources, as the page mounts them (at /, so under
       # agda-algebras/): the library file, src/, and the license texts its
       # NOTICE names for them; a zip whose bytes depend on its input alone.
+      # The site ships it (`assets`, below), for the playground's project
+      # (issue 11).
       mkAgdaAlgebrasSources = pkgs:
         pkgs.runCommand "agda-algebras-sources" { nativeBuildInputs = [ pkgs.zip ]; } ''
           src=${agdaAlgebrasSource pkgs}
@@ -409,10 +412,12 @@
 
         # Every binary the app ships at its path in the tree (static/...):
         # upstream's pinned ones, agda-data.zip, the compiler's language
-        # server and the standard library.  The server is its reactor
-        # build, as als-reactor-2.9.0.wasm, with its JavaScript glue as
-        # als-reactor-2.9.0.js (issue 59); the command build, als.wasm,
-        # stays pinned for the compiler's records and is not shipped.
+        # server, the standard library, and agda-algebras' sources, which
+        # the playground's project depends on (issue 11).  The server is
+        # its reactor build, as als-reactor-2.9.0.wasm, with its JavaScript
+        # glue as als-reactor-2.9.0.js (issue 59); the command build,
+        # als.wasm, stays pinned for the compiler's records and is not
+        # shipped.
         assets = pkgs.runCommand "plfa-playground-assets" { } (
           lib.concatMapStrings (pin: ''
             install -D -m 444 ${fetchPin pkgs pin} "$out/${pin.path}"
@@ -421,6 +426,7 @@
             install -D -m 444 ${compiler}/als-reactor.wasm "$out/static/als-reactor-2.9.0.wasm"
             install -D -m 444 ${compiler}/als-reactor.js "$out/static/als-reactor-2.9.0.js"
             install -D -m 444 ${stdlib}/agda-stdlib-2.3-patched.zip "$out/static/agda-stdlib-2.3-patched.zip"
+            install -D -m 444 ${agdaAlgebrasSources}/agda-algebras-sources.zip "$out/static/agda-algebras-sources.zip"
           '');
 
         # The static site, as `make build` writes it into build/.

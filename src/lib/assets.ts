@@ -3,7 +3,8 @@
 // What the page knows about the files it fetches, derived from the files
 // when the site is built (scripts/asset-manifest.mjs, which vite.config.js
 // hands to the page as AGDA_ASSETS), where upstream maintained each value
-// by hand (issue 3).
+// by hand (issue 3).  agda-algebras' sources joined them with the
+// playground's project (issue 11).
 
 declare const AGDA_ASSETS: {
   tokens: {
@@ -11,6 +12,7 @@ declare const AGDA_ASSETS: {
     glue: string;
     builtins: string;
     stdlib: string;
+    agdaAlgebras: string;
     plfaProject: string;
     plfaInterfaces: string;
   };

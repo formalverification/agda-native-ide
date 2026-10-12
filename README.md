@@ -98,9 +98,10 @@ together from one `package-lock.json`.
 Everything here runs in the dev shell (`nix develop`), which carries node
 22.22.2, make, gh and the plan file's engine.  The binaries the app ships
 (the compiler, the archives, the fonts and one icon) are not in git: `make
-assets` fetches them by hash into `static/`, with Agda's builtin library and
-the patched standard library, which the flake builds (`nix build
-.#agda-data`, `nix build .#stdlib`).  The compiler is fetched by the hashes
+assets` fetches them by hash into `static/`, with Agda's builtin library,
+the patched standard library and agda-algebras' sources, which the flake
+builds (`nix build .#agda-data`, `nix build .#stdlib`, and
+`mkAgdaAlgebrasSources`, from the commit it pins).  The compiler is fetched by the hashes
 in `compiler/agda-2.9.0.sha256` (`nix build .#compiler`) from the release
 `agda-2.9.0-da66a8c-als-8` of [formalverification/agda-wasm-builds]
 ([#58]); the site ships its reactor build and that build's JavaScript glue
