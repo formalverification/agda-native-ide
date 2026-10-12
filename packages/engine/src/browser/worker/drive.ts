@@ -326,13 +326,15 @@ export function attachDrive(
       }
     },
 
-    /** A file's text as Agda would read it, or undefined. */
+    /** A file's text as it was written, or undefined.  A byte order mark
+     * is kept, as node's reading keeps it: the session compares this text
+     * with the one it sent, and Agda counts the mark as a position. */
     readFile(path: string): string | undefined {
       const file = drive.fs[path];
       if (!file) return undefined;
       return typeof file.content === "string"
         ? file.content
-        : new TextDecoder().decode(file.content);
+        : new TextDecoder("utf-8", { ignoreBOM: true }).decode(file.content);
     },
 
     /** Extract a zip at the root (interface archives, more libraries). */
