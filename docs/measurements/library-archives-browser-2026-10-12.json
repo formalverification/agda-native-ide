@@ -4,6 +4,7 @@
  "date": "2026-10-12",
  "clock": "Times are UTC; the workstation's clock read MDT (UTC-6), 2026-10-11 evening.",
  "revision": "e891c84dc0187017497dcbed4d4333d2341b1915",
+ "rebase": "The branch was rebased onto main at 999c4a4 (PR 87, issue 64's native engine, whose session.ts counts the Checking lines) on 2026-10-12; e891c84 became 608a145, and the head was 495a793.  The runs below are at e891c84 unless afterRebase says otherwise.",
  "machine": {
   "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
   "logicalCpus": 20,
@@ -615,7 +616,40 @@
   ],
   "exit": 1
  },
- "againstWasmtime": "The 2026-10-11 check of every root under agda.wasm (docs/measurements/library-archives-2026-10-11.json): 3,271 s summed over the roots, eight at once at a load of 5 to 9.5, the umbrella module 16.2 s and 1,029,252 KiB resident (the runtime's resident set, not Agda's heap).",
+ "againstWasmtime": "Like for like, on one runner at four at once, see runner.againstWasmtime: the browser took 1.35 times wasmtime's time (1.56 with starts and mounts).  The local runs do not compare: the 2026-10-11 check under agda.wasm (docs/measurements/library-archives-2026-10-11.json) summed 3,271 s eight at once, at a 1-minute load of 8.1 to 9.5, against this gate's 3,020 s four at once; its umbrella module was 16.2 s at 1,029,252 KiB resident (the runtime's resident set, not Agda's heap).",
+ "afterRebase": {
+  "what": "the same gate at the rebased head, 495a793, every root four at once and the controls",
+  "started": "2026-10-12T12:43:05.486Z",
+  "finished": "2026-10-12T12:58:05.298Z",
+  "wallSeconds": 900,
+  "load": {
+   "start": [
+    5.52,
+    4.84,
+    3.89
+   ],
+   "end": [
+    6.98,
+    8.22,
+    6.95
+   ]
+  },
+  "browser": "Chrome/149.0.7827.200",
+  "agdaVersion": "2.9.0",
+  "passed": 350,
+  "roots": 350,
+  "controls": [
+   2,
+   2
+  ],
+  "secondsSummed": {
+   "start": 367.5,
+   "mount": 101.7,
+   "load": 3064.2,
+   "total": 3534.7
+  },
+  "note": "Other sessions loaded the machine more than during the archival run; the counts are the finding."
+ },
  "runner": {
   "run": 38209105006,
   "url": "https://github.com/formalverification/agda-native-ide/actions/runs/38209105006",
@@ -631,7 +665,7 @@
    "check of every root under agda.wasm, four at once": "11 min 45 s",
    "site (nix build .#site)": "29 s",
    "gate step (npm ci, the page's build, the gate)": "17 min 18 s",
-   "job": "48 min 56 s"
+   "job": "49 min 0 s (the jobs API's start and end)"
   },
   "gate": {
    "started": "2026-10-12T06:14:38.789Z",
@@ -761,6 +795,73 @@
     "agda-stdlib-2.3-patched.zip": "sha256:773c59515bf4cd2ebf6d86aed6d57ec4493333538b28c1ace55509ece7e7aacd"
    },
    "sameReactorGzipAsLocal": true
+  },
+  "wasmtimeCheck": {
+   "how": "the archives' own check in the same run, check.sh under agda.wasm, four at once (its log, check.log, in the run's artifact)",
+   "rootsSummedSeconds": 2497.65,
+   "umbrellaSeconds": 14.51,
+   "examplesSeconds": 16.9
+  },
+  "againstWasmtime": "Same runner, four at once each: the gate's loads summed 3,369.4 s and its checks in all 3,908.4 s, against 2,497.65 s for the check under agda.wasm: 1.35 and 1.56 times; the umbrella module 19.13 s against 14.51 s.",
+  "otherRuns": {
+   "columns": [
+    "run",
+    "event",
+    "commit",
+    "interfaces",
+    "--rebuild",
+    "check under agda.wasm",
+    "site",
+    "gate step",
+    "job (jobs API)"
+   ],
+   "rows": [
+    [
+     38205710923,
+     "push to main",
+     "d301045",
+     "6 min 32 s",
+     "5 min 58 s",
+     "8 min 39 s",
+     null,
+     null,
+     "21 min 47 s"
+    ],
+    [
+     38209105006,
+     "workflow_dispatch",
+     "e891c84",
+     "9 min 47 s",
+     "9 min 6 s",
+     "11 min 45 s",
+     "29 s",
+     "17 min 18 s",
+     "49 min 0 s"
+    ],
+    [
+     38213187621,
+     "pull_request",
+     "6ce9ddd",
+     "12 min 29 s",
+     "12 min 9 s",
+     "15 min 18 s",
+     "37 s",
+     "21 min 5 s (gate 1,223 s)",
+     "62 min 23 s"
+    ],
+    [
+     38243413321,
+     "pull_request",
+     "7cdba8e",
+     "12 min 39 s",
+     "12 min 7 s",
+     "16 min 24 s",
+     "39 s",
+     "23 min 56 s (gate 1,403 s)",
+     "66 min 28 s"
+    ]
+   ],
+   "note": "Every run passed: 350 of 350 under agda.wasm and, where the gate ran, under the reactor, the controls 2 and 2.  The commits are the branch's before its rebase."
   }
  }
 }

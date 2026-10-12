@@ -329,14 +329,18 @@ It is 285,618 bytes, 42,353 gzipped.
    agda-algebras'.  A list rather than a slot for agda-algebras, since the
    engine is every host's, and [#14] and [#11] mount the same library.
 +  **Every root, every time**: 350 of 350 on 2026-10-12 here (headless
-   Chromium 149, four at once, a 1-minute load of 3.0 at the start and 8.4
+   Chromium 149, four at once, a 1-minute load of 3.0 at the start and 6.1
    at the end, from other sessions' builds), in 12 min 49 s.  Per root,
    the engine's start took 0.53 to 2.19 s (median 0.86 s), the mount
    median 0.23 s, and Agda's load median 7.9 s, the slowest 16.8 s
    (`Classical.Structures.Group.SubgroupClassification`); summed over the
    roots, 3,020 s, of which the starts are 313 s.  An earlier run, before
-   the gate's last edits, gave the same counts in 13 min 36 s at a load of
-   6 to 8.5.  The fixed roots:
+   the gate's last edits, gave the same counts in 13 min 36 s at a 1-minute
+   load of 6.3 to 8.3.  These runs were at e891c84, before the branch was
+   rebased onto `main` at 999c4a4, which brought [#64]'s engine, whose
+   session counts the `Checking` lines; at the rebased head, 495a793, the
+   gate gave the same counts again, 350 of 350 and the controls 2 and 2,
+   in 15 min (a 1-minute load of 5.5 to 7.0).  The fixed roots:
 
 | Imports | Archives | Bytes mounted | Load | Heap |
 |---|---:|---:|---:|---:|
@@ -352,12 +356,14 @@ It is 285,618 bytes, 42,353 gzipped.
    of a wasm32 heap's 4 GiB; wasmtime's 1,029,252 KiB for the same check
    is its process's resident set, the runtime's and the compiled code's
    with Agda's.
-+  **Against wasmtime**: the check's own times summed to 3,271 s eight at
-   once, the gate's to 3,020 s four at once, under different loads; the
-   umbrella module took 16.2 s there and 15.0 s here.  So in this
-   measurement the browser is not slower than wasmtime once the drive is
-   indexed, where [#50]'s figures had put it at two to five times; the
-   counts, not these times, are the finding.
++  **Against wasmtime**: on one runner, four at once each (run
+   [38209105006][gate-run]), the check under `agda.wasm` summed 2,498 s
+   over the roots and the gate's loads 3,369 s, 3,908 s with the starts
+   and the mounts: the browser takes 1.3 to 1.6 times wasmtime's time, and
+   the umbrella module 19.1 s against 14.5 s.  The local runs (3,020 s
+   four at once here, 3,271 s eight at once on 2026-10-11) ran under
+   different loads and do not compare.  The counts, not these times, are
+   the finding.
 +  **Two controls**, after the roots, each in a fresh session, on
    `Overture.Basic`, each of which must type-check more than `Main`: its
    own archive left out, and the first byte of its source changed under
@@ -365,8 +371,9 @@ It is 285,618 bytes, 42,353 gzipped.
    archives).  Each type-checked `Main` and `Overture.Basic`, 2 lines, in
    2.0 and 2.2 s; here the drive is writable, so Agda writes the new
    interface and reports no error, where `check.sh`'s read-only stage made
-   it exit 42.  And the gate's own exit: over a copy of the archives whose
-   `Overture.Basic.zip` holds nothing, both `Overture.Basic` and `Overture`,
+   the changed-source control exit 42.  And the gate's own exit: over a
+   copy of the archives whose `Overture.Basic.zip` holds no interface,
+   both `Overture.Basic` and `Overture`,
    which imports it, type-checked 2 modules, and the gate exited 1.
 +  **A fresh session per root, not one per job**: with `--shared`, each of
    four sessions checks its roots in turn, mounting each root's archives as
@@ -380,8 +387,9 @@ It is 285,618 bytes, 42,353 gzipped.
    not read from the drive again.  So the gate opens a session per root,
    and pays its start, a tenth of its time, and the decoding of every
    closure; `--shared` stays as a quick run while iterating.
-+  **What the record holds**: per root, its `Checking` lines, the archives
-   mounted and their bytes, the three times, and the heap; the controls;
++  **What the record holds**: per root, how many `Checking` lines it
+   printed and how many archives it mounted, their bytes, the three times,
+   and the heap; the controls;
    the site's and the archives' digests and Agda's version as the server
    reports it; the machine and its load
    ([`docs/measurements/library-archives-browser-2026-10-12.json`][gate-record]).
@@ -401,10 +409,12 @@ It is 285,618 bytes, 42,353 gzipped.
    what the archives are built from (the flake and its lock, the standard
    library's patches, the compiler's hashes, the scripts, the workflow), as a
    path filter; and then only if the check's derivation differs from the
-   base's, or the workflow changed.  The job evaluates
+   base's, or the workflow changed, or what the gate is made of did (the
+   gate, below, which also widens the path filter).  The job evaluates
    `.#agda-algebras-check.drvPath` at the base (the pull request's base, or
    the commit before a push) and at the head, in seconds, and builds nothing
-   when they are equal, since that derivation is the one the base proved.
+   when they are equal and the gate's code is unchanged, since that
+   derivation is the one the base proved.
    Nearly every change touches `flake.nix`, so without the guard an
    unrelated change would build everything (58 minutes on a 2-core runner);
    with it, a push that changed nothing the archives are built from took
@@ -431,21 +441,27 @@ It is 285,618 bytes, 42,353 gzipped.
    `index.mjs`, and the DevTools driver and static server it shares with
    the browser check) and the node and Chromium it pins, which the guard
    compares with the base's as it compares the derivation; and, by a diff
-   against the base, the engine (it lays out the drive and counts the
-   `Checking` lines), the gate's page, the lockfile, and the `Makefile`,
-   whose `library-gate` target CI runs.  The path filter names them.  It
-   runs every root wherever it runs, pull requests included, since it runs
-   only when what it proves may have changed.  On GitHub's runner (4 cores,
+   against the base, the engine's core and browser transport (they lay out
+   the drive and count the `Checking` lines; the gate's page imports
+   nothing else of the engine), the gate's page, the lockfile, and the
+   `Makefile`, whose `library-gate` target CI runs.  The path filter names
+   them.  It runs every root wherever it runs, pull requests included,
+   since it runs only when one of its own inputs changed.  On GitHub's
+   runner (4 cores,
    an AMD EPYC 9V74, 15.6 GiB; 2026-10-12, run [38209105006][gate-run],
    dispatched on [#13]'s branch, so everything was built): 350 of 350 and
    the controls 2 and 2, the gate itself in 16 min 33 s and its step,
    with `npm ci` and the page's build, in 17 min 18 s; Agda's load a median
    10.3 s and at most 23.7 s (`Examples`), the umbrella module 19.1 s at
-   768,081,920 bytes.  The whole job took 48 min 56 s: the interfaces 9
+   768,081,920 bytes.  The whole job took 49 min 0 s: the interfaces 9
    min 47 s, their `--rebuild` 9 min 6 s, the check under `agda.wasm` four
-   at once 11 min 45 s, the site 29 s.  A change to the gate alone builds
-   the interfaces once, without the `--rebuild`, and runs the gate: about
-   half an hour while nothing is cached.
+   at once 11 min 45 s, the site 29 s.  The pull request's own two runs, on
+   slower runners, took 62 min 23 s and 66 min 28 s, the gate's step 21
+   min 5 s and 23 min 56 s (runs 38213187621 and 38243413321; the record
+   has all four runs of the day).  A change to the gate alone builds the
+   interfaces once, without the `--rebuild`, and runs the gate: from these
+   steps, about 25 to 40 minutes while nothing is cached, an estimate,
+   since no run has changed the gate alone yet.
 +  **Not in the site**: the site's build carries none of this until [#14]
    mounts the archives, since 71 MB the page never reads would cost every
    build and deploy.
@@ -520,6 +536,6 @@ kept "so that the HTML and LaTeX backends can generate their output";
 [#12]: https://github.com/formalverification/agda-native-ide/issues/12
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
 [#14]: https://github.com/formalverification/agda-native-ide/issues/14
-[#50]: https://github.com/formalverification/agda-native-ide/issues/50
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
 [#61]: https://github.com/formalverification/agda-native-ide/issues/61
+[#64]: https://github.com/formalverification/agda-native-ide/issues/64

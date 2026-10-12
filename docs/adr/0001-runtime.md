@@ -652,7 +652,8 @@ built the pinned bytes on GitHub's runner.  The public repository for
 the binaries exists since 2026-10-07, and CI fetches from it; the page has
 run the reactor since 2026-10-08 (§ 8).  [#13]'s gate passes under 2.9.0
 since 2026-10-12, on archives built by a wasm32 Agda (§ 10): the server
-accepts every interface of agda-algebras' 350 roots.  Open: the move to
+accepts every interface that agda-algebras' 350 roots (its modules, each
+of which a reader may import) need.  Open: the move to
 Agda's 2.9.0 release; the 2.8.0 compiler's pin, which row 22 kept until
 that gate passed.
 
@@ -880,21 +881,25 @@ every module it imports, directly or not, itself included.
    the index names for it, type-checks a `Main` importing it with exactly
    one `Checking` line; two controls must print more.
 +  **CI**: a job of its own, path-filtered on what the archives are built
-   from, which builds nothing when the check's derivation is the base's,
-   and otherwise builds, rebuilds, packs and checks; it reads the public
+   from and what the gate below is made of, which builds nothing when the
+   check's derivation is the base's and the gate's code is unchanged; it
+   builds, rebuilds, packs and checks when the derivation changed, and
+   builds the archives and runs the gate alone when only the gate's code
+   did.  It reads the public
    `formalverification` Cachix cache and pushes to it from `main` only.
    The site carries none of it until [#14] mounts the archives.
 +  **The gate** ([#13]): the check again under the language server the
    site ships, its reactor, in headless Chromium, through the engine's
    browser transport: every root in a fresh session holding only the
    archives the index names for it must type-check `Main` alone, with no
-   error, and the same two controls must type-check more.  A session per
-   root, not one shared by many roots, since a shared session's drive
-   holds earlier roots' archives and Agda keeps what it decoded, so it
-   could not show that a root needs only its own.  The same job runs it,
-   every root, when the archives' derivation changed or the gate's code
-   did (its app's store path, the engine, its page, the lockfile, the
-   `Makefile`).
+   error, and the same two controls must type-check more.  A *session*
+   (one engine: a worker, its drive and its reactor) per root, not one
+   shared by the roots that each of the checks run at once takes in turn,
+   since a shared session's drive holds earlier roots' archives and Agda
+   keeps what it decoded, so it could not show that a root needs only its
+   own.  The same job runs it, every root, when the archives' derivation
+   changed or the gate's code did (its app's store path, the engine's core
+   and browser transport, its page, the lockfile, the `Makefile`).
 +  **The drive's libraries** ([#13]): the engine lays the drive out from a
    list of libraries (`BrowserConfig.archives.libraries`), each a zip
    extracted at the root with its `.agda-lib` path and its name, and writes
@@ -947,13 +952,25 @@ the local ones.
    importer, exit 1.  Agda's load took a median 7.9 s, the slowest 16.8 s;
    the umbrella module 15.0 s at a heap of 735,248,384 bytes, a sixth of a
    wasm32 heap.  Summed over the roots, 3,020 s, of which the sessions'
-   starts were 313 s; against 3,271 s for the check under wasmtime, eight
-   at once.  One session per job instead took 85 s, its heaps ending at
-   844,693,504 to 906,166,272 bytes, so the heap did not decide between
-   them.  On GitHub's runner (4 cores; run 38209105006, dispatched on
-   [#13]'s branch), 350 of 350 and the controls 2 and 2, the gate's step
-   in 17 min 18 s, the whole job, from the interfaces to the gate, in 48
-   min 56 s.
+   starts were 313 s.  A session shared by each of the four checks run at
+   once took 85 s, its heaps ending at 844,693,504 to 906,166,272 bytes,
+   so the heap did not decide between them.  On GitHub's runner (4 cores;
+   run 38209105006, dispatched on [#13]'s branch), 350 of 350 and the
+   controls 2 and 2; four at once each, the check under `agda.wasm` summed
+   2,498 s and the gate's loads 3,369 s (3,908 s with the starts and
+   mounts), so the browser takes 1.3 to 1.6 times wasmtime's time.  Over
+   that run and the pull request's two, the gate's step took 17 min 18 s
+   to 23 min 56 s, and the whole job 49 min 0 s to 66 min 28 s (runs
+   38209105006, 38213187621, 38243413321).  After the branch was rebased
+   onto [#64]'s engine, the gate gave the same counts at 495a793.
++  **The drive's libraries** (2026-10-12): unit tests pin the registry the
+   drive writes (the standard library alone, with PLFA as the page has it,
+   with two libraries, with none) and a failed fetch's words; the page's
+   browser check, both ways, its notices and the browser's conformance
+   suite passed in `site.yml` on this branch (run 38243413314), and the
+   suite on both engines here; with the PLFA archive removed from a copy
+   of the site, the page still says "PLFA could not be downloaded (HTTP
+   404 Not Found)".
 
 **Status**.  Adopted 2026-10-11 in [#12]'s pull request; the gate and the
 drive's list of libraries 2026-10-12 in [#13]'s.  Open: mounting the
@@ -1003,11 +1020,11 @@ the gate alone builds the interfaces again.
 | 32 | One archive per agda-algebras module; standard-library modules grouped by the agda-algebras modules that reach them; stored zips, each under 25 MiB | Adopted ([#12]); supersedes [#12]'s 2.8.0 tiers | Any set of agda-algebras imports fetches its closure and zip headers: the HSP root 39,251,541 bytes against 39,186,131; the 2.8.0 tiers fetch 15.9 MB for `Overture.Basic` against 4.3 MB (§ 10) |
 | 33 | The index is JSON beside the archives, schema 1, its closures from Agda's `--dependency-graph` | Adopted ([#12]) | Agda's graph is built from the interfaces' imports and reduced transitively, so reachability is exact; a regular expression misses nested imports ([#12], 2026-10-04) (§ 10) |
 | 34 | Every root is checked cold from the archives the index names, exactly one `Checking` line, with two controls that must fail | Adopted ([#12]) | 350 of 350, here and on GitHub's runner; the controls print 2 lines each (§ 10) |
-| 35 | CI builds, rebuilds, packs and checks them in a job of its own, path-filtered, and skipped when the check's derivation is the base's; it reads the `formalverification` Cachix cache and writes it from `main`; the site does not carry them until [#14] | Adopted ([#12]; the cache and the rebuild on pull requests, William, 2026-10-11, the repository public) | 58 minutes on a 2-core runner, uncached; 21 s when nothing changed (§ 10) |
+| 35 | CI builds, rebuilds, packs and checks them in a job of its own, path-filtered, and skipped when the check's derivation is the base's and the gate's code is unchanged (row 39); it reads the `formalverification` Cachix cache and writes it from `main`; the site does not carry them until [#14] | Adopted ([#12]; the cache and the rebuild on pull requests, William, 2026-10-11, the repository public) | 58 minutes on a 2-core runner, uncached; 21 s when nothing changed (§ 10) |
 | 36 | agda-algebras' interfaces are Apache-2.0 like its sources, not `LICENSE-data`'s extracted data; the index is `LICENSE-data`'s | Adopted (William, 2026-10-11, on the session's recommendation) | A 2.9.0 interface holds its module's source text (`iSource`); `LICENSE-data` excludes the sources in whole or in part (§ 10) |
-| 37 | The engine lays the drive out from a list of libraries (archive, `.agda-lib`, name) and writes Agda's registry from it; the page passes PLFA as one; a root library is the host's | Adopted ([#13]) | One registry written at startup held only the standard library and PLFA ([#11], 2026-10-04); the page's drive and notices unchanged, the conformance suite 12 of 12 on both engines and identical (§ 10) |
+| 37 | The engine lays the drive out from a list of libraries (archive, `.agda-lib`, name) and writes Agda's registry from it; the page passes PLFA as one; a root library is the host's | Adopted ([#13]) | One registry written at startup held only the standard library and PLFA ([#11], 2026-10-04); the registry pinned by unit tests, and the page's browser check, notices and conformance suite passing on it (§ 10) |
 | 38 | Every root of agda-algebras is checked under the site's reactor in headless Chromium, each in a fresh session with only its archives, exactly one `Checking` line, with two controls that must fail | Adopted ([#13]) | 350 of 350, 12 min 49 s four at once here; the controls 2 and 2; a shared session per job took 85 s but cannot show a root needs only its own archives (§ 10) |
-| 39 | CI runs the gate in the archives' job, every root, when the archives' derivation or the gate's code changes | Adopted ([#13]) | On the 4-core runner the gate's step took 17 min 18 s, 350 of 350, in a job of 48 min 56 s (run 38209105006), and it runs only when what it proves may have changed, so no sample is needed (§ 10) |
+| 39 | CI runs the gate in the archives' job, every root, when the archives' derivation or the gate's code changes | Adopted ([#13]) | On the 4-core runner the gate's step took 17 min 18 s to 23 min 56 s, 350 of 350, in jobs of 49 to 66 minutes (runs 38209105006, 38213187621, 38243413321); it runs only when its own inputs change, so pull requests need no subset of the roots (§ 10) |
 
 ---
 
@@ -1021,14 +1038,16 @@ the gate alone builds the interfaces again.
    [#20] (PLFA's removal), [#30] (the second lane), [#48] (the notice),
    [#49] (the builtins), [#50] (the drive), [#53] (the license review
    before going public), [#58] (the 2.9.0 compiler), [#59] (the reactor),
-   [#61] (the library under 2.9.0), [#62] (the shared core).
+   [#61] (the library under 2.9.0), [#62] (the shared core), [#64] (the
+   native engine).
 +  **Elsewhere**: agda-algebras PR [585][pr-585] and its [ADR-011][adr-011];
    agda-native-air's [browser IDE proposal][proposal]; [plfa-playground][upstream]
    at `ae0aa84c`.
 +  **Documents**: [`docs/notes/runtime.md`][note] (how the runtime works),
    [`docs/notes/library-archives.md`][archives-note] (the library
    archives), `docs/measurements/library-archives-2026-10-11.json` (their
-   runs), [`docs/provenance.md`][provenance] (the record),
+   runs) and `docs/measurements/library-archives-browser-2026-10-12.json`
+   (the gate's), [`docs/provenance.md`][provenance] (the record),
    [`NOTICE`][notice].
 +  **Code**: `flake.nix` (`packages.assets`, the pins; `packages.site`;
    `apps.browser-check`; `packages.compiler`, `packages.stdlib`,
@@ -1037,7 +1056,8 @@ the gate alone builds the interfaces again.
    `compiler/agda-2.9.0.sha256`, `stdlib/patches/`,
    `.github/workflows/compiler.yml`, `Makefile` (`assets`, `assets-check`,
    `dev`, `build`, `test`, `check`, `browser-check`,
-   `browser-check-notices`, `provenance-check`), `upstream/` (the records),
+   `browser-check-notices`, `provenance-check`, `library-gate`),
+   `upstream/` (the records),
    `scripts/upstream-record.sh`, `scripts/asset-manifest.mjs` and
    `src/lib/assets.ts` (the derived cache tokens),
    `packages/engine/src/browser/worker/als.ts` and `drive.ts` (the reactor
@@ -1073,6 +1093,7 @@ the gate alone builds the interfaces again.
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59
 [#61]: https://github.com/formalverification/agda-native-ide/issues/61
 [#62]: https://github.com/formalverification/agda-native-ide/issues/62
+[#64]: https://github.com/formalverification/agda-native-ide/issues/64
 [pr-585]: https://github.com/ualib/agda-algebras/pull/585
 [adr-011]: https://github.com/ualib/agda-algebras/blob/577-an-interactive-agda-proof-environment/docs/adr/011-interactive-playground.md
 [proposal]: ../notes/browser-ide-proposal.md

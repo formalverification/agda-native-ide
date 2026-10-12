@@ -171,7 +171,8 @@ library-gate` checks them again under the language server the site ships,
 its reactor, in headless Chromium ([#13]): every root, each in a fresh
 session holding only its archives, must type-check `Main` alone, and two
 controls must not.  CI's [`library-archives.yml`][archives-ci] runs all
-three when what they are built from, or what the gate is made of, changes.
+three when what they are built from changes, and the gate alone (building
+the archives it mounts) when only what the gate is made of does.
 The page does not mount them yet ([#14]);
 [`docs/notes/library-archives.md`][archives-note] explains them.
 
