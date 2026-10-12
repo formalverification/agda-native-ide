@@ -340,7 +340,9 @@ It is 285,618 bytes, 42,353 gzipped.
    rebased onto `main` at 999c4a4, which brought [#64]'s engine, whose
    session counts the `Checking` lines; at the rebased head, 495a793, the
    gate gave the same counts again, 350 of 350 and the controls 2 and 2,
-   in 15 min (a 1-minute load of 5.5 to 7.0).  The fixed roots:
+   in 15 min (a 1-minute load of 5.5 to 7.0), and once more at 6f275c2,
+   after the self-review's fixes, in 8 min 55 s on a quieter machine (a
+   1-minute load of 1.4 to 4.0).  The fixed roots:
 
 | Imports | Archives | Bytes mounted | Load | Heap |
 |---|---:|---:|---:|---:|

@@ -863,5 +863,56 @@
    ],
    "note": "Every run passed: 350 of 350 under agda.wasm and, where the gate ran, under the reactor, the controls 2 and 2.  The commits are the branch's before its rebase."
   }
+ },
+ "afterReview": {
+  "what": "the gate at the final head, 6f275c2, after the self-review's fixes, every root four at once and the controls",
+  "started": "2026-10-12T13:10:19.132Z",
+  "finished": "2026-10-12T13:19:14.622Z",
+  "wallSeconds": 535,
+  "load": {
+   "start": [
+    1.38,
+    2.57,
+    4.53
+   ],
+   "end": [
+    4.04,
+    4.82,
+    4.98
+   ]
+  },
+  "passed": 350,
+  "roots": 350,
+  "controls": [
+   2,
+   2
+  ],
+  "secondsSummed": {
+   "start": 225.3,
+   "mount": 54.7,
+   "load": 1811.6,
+   "total": 2092.5
+  },
+  "slowest": [
+   {
+    "root": "agda-algebras",
+    "loadSeconds": 12.311
+   },
+   {
+    "root": "Examples",
+    "loadSeconds": 11.795
+   },
+   {
+    "root": "Classical.Structures",
+    "loadSeconds": 10.201
+   }
+  ],
+  "largestMemory": [
+   {
+    "root": "agda-algebras",
+    "memoryBytes": 759103488
+   }
+  ],
+  "note": "The machine was quieter than in any other run (a 1-minute load of 1.4 at the start), which is why it took 535 s where the archival run took 769 s."
  }
 }
