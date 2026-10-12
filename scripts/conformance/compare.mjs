@@ -12,13 +12,20 @@
 // would otherwise agree, and the names come from the suite, so two empty
 // runs cannot.
 //
+// A scenario that depends on a capability (the suite's
+// scenarioRequirements: the batch lane) records it in its transcript as
+// `capability`.  Where the two engines declare it differently, the
+// scenario's transcripts differ by that declaration: each run must have
+// passed its own branch, and the difference is reported as declared, not
+// compared.  Every other scenario must answer identically.
+//
 //   node scripts/conformance/compare.mjs <browser.json> <native.json> [--out DIR]
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
-import { scenarioNames } from "@agda-native-ide/engine/conformance";
+import { scenarioNames, scenarioRequirements } from "@agda-native-ide/engine/conformance";
 
 const { values: options, positionals } = parseArgs({
   allowPositionals: true,
@@ -47,24 +54,35 @@ const scenarios = names.map((name) => {
   const right = native.scenarios.find((scenario) => scenario.name === name);
   if (!scenarioNames.includes(name)) return { name, unknown: true, differences: [] };
   if (!left || !right) return { name, missing: !left && !right ? "either" : !left ? "browser" : "native", differences: [] };
-  return {
-    name,
-    passed: { browser: left.ok, native: right.ok },
-    differences: differences(left.transcript, right.transcript),
-  };
+  const passed = { browser: left.ok, native: right.ok };
+  const capability = scenarioRequirements[name];
+  if (capability && left.ok && right.ok) {
+    const declared = {
+      browser: left.transcript?.capability?.[capability],
+      native: right.transcript?.capability?.[capability],
+    };
+    if (typeof declared.browser !== "boolean" || typeof declared.native !== "boolean")
+      return { name, passed, differences: [{ path: `/capability/${capability}`, ...declared }] };
+    if (declared.browser !== declared.native) return { name, passed, declared: { capability, ...declared }, differences: [] };
+  }
+  return { name, passed, differences: differences(left.transcript, right.transcript) };
 });
 const fixturesAgree = JSON.stringify(browser.fixtures) === JSON.stringify(native.fixtures);
 const failed = (scenario) => scenario.passed && !(scenario.passed.browser && scenario.passed.native);
 const differing = scenarios.filter(
   (scenario) => scenario.missing || scenario.unknown || failed(scenario) || scenario.differences.length,
 );
+const declared = scenarios.filter((scenario) => scenario.declared);
 const comparison = {
   date: new Date().toISOString(),
   runs: { browser: browser.date, native: native.date },
   agda: { browser: browser.agdaVersion, native: native.agdaVersion },
   fixturesAgree,
   scenarios,
+  // Every scenario passed in both runs, and answered identically except
+  // where a capability is declared differently.
   identical: differing.length === 0 && fixturesAgree,
+  declared: declared.map((scenario) => ({ name: scenario.name, ...scenario.declared })),
 };
 for (const scenario of scenarios) {
   if (scenario.missing)
@@ -72,7 +90,11 @@ for (const scenario of scenarios) {
   else if (scenario.unknown) console.log(`UNKNOWN ${scenario.name}: not a scenario of the suite`);
   else if (failed(scenario))
     console.log(`FAILED  ${scenario.name}: in ${["browser", "native"].filter((run) => !scenario.passed[run]).join(" and ")}`);
-  else if (!scenario.differences.length) console.log(`same    ${scenario.name}`);
+  else if (scenario.declared) {
+    const { capability, browser: inBrowser, native: inNative } = scenario.declared;
+    const has = (engine, value) => `the ${engine} engine ${value ? "has" : "lacks"} it`;
+    console.log(`declared ${scenario.name}: ${capability}: ${has("browser", inBrowser)}, ${has("native", inNative)}`);
+  } else if (!scenario.differences.length) console.log(`same    ${scenario.name}`);
   else {
     console.log(`DIFFER  ${scenario.name}`);
     for (const difference of scenario.differences)
@@ -81,8 +103,10 @@ for (const scenario of scenarios) {
 }
 const out = options.out ? resolve(options.out) : dirname(resolve(positionals[0]));
 writeFileSync(join(out, "comparison.json"), `${JSON.stringify(comparison, null, 2)}\n`);
+const same = scenarios.length - differing.length - declared.length;
 console.log(
-  `${scenarios.length - differing.length} of ${scenarios.length} scenarios passed in both runs and answered identically` +
+  `${same} of ${scenarios.length} scenarios passed in both runs and answered identically` +
+    `${declared.length ? `, and ${declared.length} ${declared.length === 1 ? "differs" : "differ"} only by a declared capability` : ""}` +
     `${fixturesAgree ? "" : "; the fixtures differ"}; ${join(out, "comparison.json")}`,
 );
 process.exit(comparison.identical ? 0 : 1);

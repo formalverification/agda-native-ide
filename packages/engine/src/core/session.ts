@@ -21,11 +21,16 @@
 //      with the edits Agda's own answers made (a give, a refine, a case
 //      split, a `?` shown as a goal), whose positions Agda still reports
 //      in the loaded text's coordinates until the next load;
-//   +  the give rule (./give-rule.ts).
+//   +  the give rule (./give-rule.ts);
+//   +  the batch lane's verdicts, where the transport has one: a fresh Agda
+//      per check, queued with the lane's commands so that the two never
+//      write a checkout's interfaces at once, whose exit code the session
+//      reads into a verdict, with the text it ran on.
 //
 // It reads no file and runs no process itself: the transport does.
 
 import { iotcm, isRewrite, type Command, type HighlightingLevel, type Rewrite } from "./commands.js";
+import { parseDiagnostics } from "./diagnostics.js";
 import { planCheck, type CheckPlan, type GoalSpan } from "./give-rule.js";
 import {
   failure,
@@ -35,6 +40,8 @@ import {
   type Outcome,
   type Refusal,
   type SourceBasis,
+  type Verdict,
+  type VerdictOutcome,
 } from "./outcome.js";
 import {
   parseResponse,
@@ -43,7 +50,7 @@ import {
   type AgdaResponse,
 } from "./responses.js";
 import { OffsetTable, preservesPositions, sourceDigest } from "./text.js";
-import type { Capabilities, EngineTransport, TransportEvent } from "./transport.js";
+import type { BatchHandle, BatchRun, Capabilities, EngineTransport, TransportEvent } from "./transport.js";
 
 /** What a `?` becomes when Agda reports it as a goal, as editors write it. */
 export const QUESTION_MARK_GOAL = "{!  !}";
@@ -56,7 +63,8 @@ export type OperationKind =
   | "makeCase"
   | "goal"
   | "infer"
-  | "normalize";
+  | "normalize"
+  | "verdict";
 
 export interface SessionOptions {
   /** The highlighting Agda sends with each answer (default
@@ -89,7 +97,11 @@ const DEFAULT_DEADLINES: Record<OperationKind, number> = {
   goal: 120_000,
   infer: 120_000,
   normalize: 120_000,
+  verdict: 600_000,
 };
+
+/** How much of a batch run's output a verdict keeps. */
+const VERDICT_OUTPUT = 65_536;
 
 /** A goal as an answer reports it. */
 export interface GoalView {
@@ -267,11 +279,25 @@ interface Loaded {
   unchecked?: string;
 }
 
+/** A batch run as an operation: started when the operation reaches the
+ * head of the queue, and read once its Agda is gone. */
+interface BatchOperation {
+  /** Reads the file (and writes a given text over it), then starts the
+   * run; or says why it could not, having put back anything it wrote. */
+  start(): Promise<BatchHandle | Failure>;
+  handle?: BatchHandle;
+  /** Reads the run into its verdict, after putting back a text it wrote;
+   * runs however the operation ended, so the file is always put back. */
+  finish(run: BatchRun): Promise<VerdictOutcome>;
+}
+
 interface Operation<T> {
   id: number;
   kind: OperationKind;
   path: string;
-  command: Command;
+  /** The command it sends; none for a batch run. */
+  command?: Command;
+  batch?: BatchOperation;
   deadlineMs: number;
   /** Runs when the operation reaches the head of the queue, before its
    * command is sent; an outcome here ends it unsent. */
@@ -285,7 +311,7 @@ interface Operation<T> {
   /** Reads Agda's answer; `live` says whether the operation is still the
    * session's (its deadline or the session's end can settle it first). */
   finish: (responses: AgdaResponse[], elapsedMs: number, live: () => boolean) => Promise<Outcome<T>> | Outcome<T>;
-  resolve: (outcome: Outcome<T>) => void;
+  resolve: (outcome: Outcome<T> | Verdict) => void;
   responses: AgdaResponse[];
   problems: string[];
   sent: boolean;
@@ -334,15 +360,15 @@ export function messagesOf(responses: readonly AgdaResponse[]): { errors: string
   return { errors, warnings };
 }
 
-/** The modules a load type-checked, from Agda's running info: one
- * `Checking M (path).` line each, indented when nested. */
+/** The modules Agda says it type-checks in `text`: one `Checking M
+ * (path).` line each, indented when nested. */
+function checkedIn(text: string): string[] {
+  return [...text.matchAll(/Checking (\S+) \(/g)].map((match) => match[1]);
+}
+
+/** The modules a load type-checked, from Agda's running info. */
 function checkingOf(responses: readonly AgdaResponse[]) {
-  const modules: string[] = [];
-  for (const response of responses) {
-    if (response.kind !== "RunningInfo") continue;
-    for (const match of response.message.matchAll(/Checking (\S+) \(/g)) modules.push(match[1]);
-  }
-  return modules;
+  return responses.flatMap((response) => (response.kind === "RunningInfo" ? checkedIn(response.message) : []));
 }
 
 function lastOf<K extends AgdaResponse["kind"]>(
@@ -362,6 +388,11 @@ function heard(tell: () => void) {
   } catch (error) {
     console.error("A session listener failed:", error);
   }
+}
+
+/** The last of a batch run's output. */
+function tail(text: string): string {
+  return text.length > VERDICT_OUTPUT ? text.slice(-VERDICT_OUTPUT) : text;
 }
 
 function shiftAfter(goals: Map<number, LiveGoal>, at: number, delta: number) {
@@ -401,6 +432,9 @@ export class AgdaSession {
   private readonly responseListeners = new Set<(event: ResponseEvent) => void>();
   private readonly statusListeners = new Set<(status: SessionStatus) => void>();
   private readonly unsubscribe: () => void;
+  /** The batch run in progress, until its Agda is gone and its file put
+   * back. */
+  private batchRunning: Promise<void> | undefined;
 
   constructor(transport: EngineTransport, options: SessionOptions = {}) {
     this.transport = transport;
@@ -671,14 +705,141 @@ export class AgdaSession {
     );
   }
 
-  /** A verdict on the file: the batch lane's, which no engine here has. */
-  async checkFile(): Promise<Refusal> {
+  /** A verdict on a file: a fresh Agda's exit code (the batch lane), on
+   * the file as it is, or on `text` written over it and put back
+   * afterwards, whatever comes of the run.  `expect`, a digest, is the text
+   * the file must hold before the run (the text a candidate was made from).
+   * Refused where the engine has no batch lane.  The run is queued with the
+   * lane's commands, so the two never write the checkout's interfaces at
+   * once. */
+  async checkFile(path?: string, options: { text?: string; expect?: string } = {}): Promise<VerdictOutcome> {
     const batch = this.capabilities.batch;
-    return refusal(
-      "unsupported-capability",
-      batch.reason ?? "this engine has no batch lane, so it cannot give a verdict",
-      "batch",
-    );
+    const runBatch = this.transport.runBatch?.bind(this.transport);
+    if (!batch.supported || !runBatch)
+      return refusal(
+        "unsupported-capability",
+        batch.reason ?? "this engine has no batch lane, so it cannot give a verdict",
+        "batch",
+      );
+    if (typeof path !== "string" || !path) return refusal("invalid-input", "a verdict needs the file's path");
+    const { text, expect } = options ?? {};
+    if (text !== undefined && typeof text !== "string")
+      return refusal("invalid-input", "a verdict's text must be a string");
+    const converted = text !== undefined && this.options.convertSource ? this.options.convertSource(path, text) : text;
+    if (text !== undefined && converted !== undefined && !preservesPositions(text, converted))
+      return refusal("position-shift", `the conversion of ${path} moves positions, so Agda's messages could not be placed in the text`);
+    if (this.ended || this.stopping) return refusal("session-ended", "the session has ended");
+
+    // What the file held before a given text was written over it, to put
+    // back; and the digest of the text the run is to read.
+    let original: string | undefined;
+    let digest = "";
+    const restore = async (): Promise<Failure | undefined> => {
+      if (original === undefined) return undefined;
+      const back = original;
+      original = undefined;
+      try {
+        await this.transport.writeSource(path, back);
+        return undefined;
+      } catch (error) {
+        return failure(
+          "io",
+          `${path} could not be put back (${String(error)}); it holds the text the verdict was asked about, and the text it held before is this failure's detail`,
+          { detail: { original: back } },
+        );
+      }
+    };
+    const start = async (): Promise<BatchHandle | Failure> => {
+      let current: string | undefined;
+      try {
+        current = await this.transport.readSource(path);
+      } catch (error) {
+        return failure("io", `${path} could not be read (${String(error)})`);
+      }
+      if (current === undefined) return failure("io", `there is no source at ${path}`);
+      if (expect !== undefined && sourceDigest(current) !== expect)
+        return failure("source-changed", `${path} no longer holds the text the verdict was asked about; ask again`);
+      if (converted !== undefined) {
+        original = current;
+        try {
+          await this.transport.writeSource(path, converted);
+        } catch (error) {
+          return (await restore()) ?? failure("io", `${path} could not be written (${String(error)})`);
+        }
+        digest = sourceDigest(converted);
+      } else digest = sourceDigest(current);
+      try {
+        return runBatch(path);
+      } catch (error) {
+        return (await restore()) ?? failure("startup", `the batch run could not be started (${String(error)})`);
+      }
+    };
+    const finish = async (run: BatchRun): Promise<VerdictOutcome> => {
+      // The text the run read is the text the file holds after it, before
+      // anything is put back.
+      let after: string | undefined;
+      try {
+        after = await this.transport.readSource(path);
+      } catch {
+        after = undefined;
+      }
+      if (original !== undefined) {
+        // Only the text the check wrote is put back: a file another writer
+        // changed meanwhile keeps the newer text.
+        if (after !== undefined && sourceDigest(after) === digest) {
+          const unrestored = await restore();
+          if (unrestored) return unrestored;
+        } else {
+          const before = original;
+          original = undefined;
+          return failure(
+            "source-changed",
+            `${path} changed while the batch run read it, so it was not put back: it keeps the newer text, and the text it held before the check is this failure's detail`,
+            { detail: { original: before } },
+          );
+        }
+      }
+      const ran = (handle: BatchHandle | undefined) => handle?.command;
+      if (run.startError)
+        return failure("startup", `the batch run could not be started (${run.startError})`, {
+          detail: { command: ran(operation.handle), stderr: run.stderr },
+        });
+      if (run.exitCode === null)
+        return failure(
+          "no-exit-code",
+          `the batch run of ${path} ended by ${run.signal ?? "a signal"}, with no exit code, so it has no verdict`,
+          { detail: { signal: run.signal ?? null, output: tail(run.stdout + run.stderr) } },
+        );
+      if (after === undefined || sourceDigest(after) !== digest)
+        return failure("source-changed", `${path} changed while the batch run read it; ask again`);
+      const output = run.stderr ? `${run.stdout}${run.stdout.endsWith("\n") ? "" : "\n"}${run.stderr}` : run.stdout;
+      // A long run's two ends are read apart, each in whole lines.
+      const texts = run.stdoutHead === undefined ? [output] : [run.stdoutHead, output];
+      const seen = new Set<string>();
+      const diagnostics = texts.flatMap(parseDiagnostics).filter((diagnostic) => {
+        const key = JSON.stringify(diagnostic);
+        return !seen.has(key) && Boolean(seen.add(key));
+      });
+      const verdict: Verdict = {
+        kind: "verdict",
+        lane: "batch",
+        engine: this.engine,
+        agdaVersion: this.agdaVersion,
+        path,
+        digest,
+        command: operation.handle!.command,
+        exitCode: run.exitCode,
+        success: run.exitCode === 0,
+        diagnostics,
+        checking: [...(run.stdoutHead === undefined ? [] : checkedIn(run.stdoutHead)), ...checkedIn(run.stdout)],
+        output: tail(output),
+        ...(run.omitted ? { omitted: run.omitted } : {}),
+        elapsedMs: run.elapsedMs,
+      };
+      return verdict;
+    };
+    const operation: BatchOperation = { start, finish };
+    return this.enqueueBatch(path, operation);
   }
 
   /** The host no longer shows what Agda holds (it replaced its text, and
@@ -694,7 +855,9 @@ export class AgdaSession {
     const op = this.current;
     if (!op || !op.sent || op.reading || op.abortCause || this.ended || this.stopping) return { aborting: undefined };
     op.abortCause = "caller";
-    this.transport.abort(iotcm(op.path, { kind: "abort" }, "None"));
+    // A batch run is its own Agda: it is stopped, and the lane is not told.
+    if (op.batch) void op.batch.handle?.stop();
+    else this.transport.abort(iotcm(op.path, { kind: "abort" }, "None"));
     return { aborting: op.kind };
   }
 
@@ -705,6 +868,8 @@ export class AgdaSession {
     if (!this.ended) this.end({ reason: "disposed" });
     this.unsubscribe();
     await this.transport.terminate();
+    // A batch run's text is put back before the session is gone.
+    await this.batchRunning;
   }
 
   // ---- Internals ---------------------------------------------------------
@@ -1013,7 +1178,8 @@ export class AgdaSession {
         requires,
         goal,
         finish,
-        resolve,
+        // Only a batch operation settles with a verdict.
+        resolve: resolve as Operation<T>["resolve"],
         responses: [],
         problems: [],
         sent: false,
@@ -1027,6 +1193,61 @@ export class AgdaSession {
     this.emitStatus();
     void this.pump();
     return outcome;
+  }
+
+  private enqueueBatch(path: string, batch: BatchOperation): Promise<VerdictOutcome> {
+    if (this.ended || this.stopping) return Promise.resolve(refusal("session-ended", "the session has ended"));
+    if (this.current && this.queue.length >= this.options.maxQueue)
+      return Promise.resolve(
+        refusal("busy", `${this.queue.length} operations are already waiting; try again when they have run`),
+      );
+    const outcome = new Promise<VerdictOutcome>((resolve) => {
+      this.operationCounter += 1;
+      const op: Operation<unknown> = {
+        id: this.operationCounter,
+        kind: "verdict",
+        path,
+        batch,
+        deadlineMs: this.options.deadlines.verdict,
+        finish: () => failure("protocol", "a batch run reads no responses"),
+        resolve: resolve as Operation<unknown>["resolve"],
+        responses: [],
+        problems: [],
+        sent: false,
+        reading: false,
+        startedAt: 0,
+        settled: false,
+      };
+      this.queue.push(op);
+    });
+    this.emitStatus();
+    void this.pump();
+    return outcome;
+  }
+
+  /** Run a batch operation that has reached the head of the queue: it
+   * stays the current operation until its Agda is gone and its file is
+   * put back, however it ends (a deadline or an abort stops its Agda; the
+   * session's end settles it at once and stops its Agda too). */
+  private async runBatch(op: Operation<unknown>) {
+    const batch = op.batch!;
+    const started = await batch.start();
+    if (!("done" in started)) return this.settle(op, started);
+    batch.handle = started;
+    // A deadline, an abort or the session's end while it started.
+    if (op.settled || op.abortCause) void started.stop();
+    const run = await started.done;
+    const outcome = await batch.finish(run);
+    if (op.settled) return;
+    if (op.abortCause === "timeout")
+      return this.settle(
+        op,
+        failure("timeout", `the verdict on ${op.path} outran its deadline of ${op.deadlineMs} ms, and its Agda was stopped`, {
+          detail: { terminated: true, lane: "batch" },
+        }),
+      );
+    if (op.abortCause === "caller") return this.settle(op, failure("aborted", `the verdict on ${op.path} was aborted`));
+    this.settle(op, outcome);
   }
 
   private async pump() {
@@ -1063,18 +1284,28 @@ export class AgdaSession {
       if (stop) return this.settle(op, stop);
     }
     if (this.ended || this.stopping || op.settled) return;
+    if (op.batch) {
+      op.sent = true;
+      const running: Promise<void> = this.runBatch(op)
+        .catch((error) => this.settle(op, failure("io", `the verdict on ${op.path} failed (${String(error)})`)))
+        .finally(() => {
+          if (this.batchRunning === running) this.batchRunning = undefined;
+        });
+      this.batchRunning = running;
+      return;
+    }
     // From here Agda's state is the new load's, whatever comes of it: no
     // load holds until its answer is read.
     if (op.kind === "load") this.loaded = undefined;
     op.sent = true;
     try {
-      this.transport.send(iotcm(op.path, op.command, this.options.highlighting));
+      this.transport.send(iotcm(op.path, op.command!, this.options.highlighting));
     } catch (error) {
       this.settle(op, failure("session-ended", `the command could not be sent (${String(error)})`));
     }
   }
 
-  private settle(op: Operation<unknown>, outcome: Outcome<unknown>) {
+  private settle(op: Operation<unknown>, outcome: Outcome<unknown> | Verdict) {
     if (op.settled) return;
     op.settled = true;
     clearTimeout(op.timer);
@@ -1091,6 +1322,13 @@ export class AgdaSession {
       // A source still being written may yet be; the next load's read-back
       // would see it.
       this.settle(op, failure("timeout", `the ${op.kind} did not start within ${op.deadlineMs} ms`));
+      return;
+    }
+    if (op.batch) {
+      // The run's Agda is stopped; the operation ends once it is gone and
+      // its file is put back.
+      op.abortCause = "timeout";
+      void op.batch.handle?.stop();
       return;
     }
     if (op.reading) {
@@ -1128,6 +1366,9 @@ export class AgdaSession {
     const killed = this.stopCause?.reason === "timeout";
     const disposed = detail.reason === "disposed";
     const ended = disposed ? "the session was closed" : "Agda stopped";
+    // A batch run outlives nothing: its Agda is stopped, and its file put
+    // back once that Agda is gone.
+    if (current?.batch) void current.batch.handle?.stop();
     if (current) {
       this.settle(
         current,
@@ -1149,7 +1390,8 @@ export class AgdaSession {
   }
 
   private onEvent(event: TransportEvent) {
-    const op = this.current;
+    // While a batch run is current, the lane has nothing in flight.
+    const op = this.current?.batch ? undefined : this.current;
     switch (event.type) {
       case "response": {
         const parsed = parseResponse(event.json);
@@ -1160,7 +1402,7 @@ export class AgdaSession {
         }
         op.responses.push(parsed.response);
         const answered = {
-          operation: { id: op.id, kind: op.kind, path: op.path, command: op.command },
+          operation: { id: op.id, kind: op.kind, path: op.path, command: op.command! },
           response: parsed.response,
         };
         for (const listener of this.responseListeners) heard(() => listener(answered));

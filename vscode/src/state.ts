@@ -1,10 +1,20 @@
 // File: vscode/src/state.ts
 
-export const actions = ['load', 'give', 'refine', 'goalContext', 'highlighting'] as const;
+/** The commands delegated to agda-mode-vscode, and the reading of its
+ * highlighting. */
+export const modeActions = ['load', 'give', 'refine', 'goalContext', 'highlighting'] as const;
+/** The commands the native lanes answer (issue 64). */
+export const laneActions = ['laneGoal', 'laneInfer', 'laneNormalize', 'laneGive', 'checkFile'] as const;
+export const actions = [...modeActions, ...laneActions] as const;
 export type Action = typeof actions[number];
+export type LaneAction = typeof laneActions[number];
 
 export function isAction(value: unknown): value is Action {
   return typeof value === 'string' && actions.some(action => action === value);
+}
+
+export function isLaneAction(value: unknown): value is LaneAction {
+  return typeof value === 'string' && laneActions.some(action => action === value);
 }
 
 export interface CommandReport {
@@ -12,6 +22,8 @@ export interface CommandReport {
   elapsedMs: number;
   documentChanged: boolean;
   tokenCount?: number;
+  /** A batch verdict's exit code. */
+  exitCode?: number;
 }
 
 export interface PanelState {
@@ -38,6 +50,8 @@ export function restoreState(value: unknown): PanelState {
       };
       if (typeof report.tokenCount === 'number' && Number.isSafeInteger(report.tokenCount) &&
           report.tokenCount >= 0) lastCommand.tokenCount = report.tokenCount;
+      if (report.action === 'checkFile' && typeof report.exitCode === 'number' &&
+          Number.isSafeInteger(report.exitCode)) lastCommand.exitCode = report.exitCode;
     }
   }
   return { schema: 1, uri, lastCommand };

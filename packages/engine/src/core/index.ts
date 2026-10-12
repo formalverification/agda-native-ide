@@ -8,15 +8,20 @@ export { haskellString, iotcm, commandText } from "./commands.js";
 export type { Command, HighlightingLevel, Rewrite } from "./commands.js";
 export { planCheck } from "./give-rule.js";
 export type { CheckPlan, GoalSpan } from "./give-rule.js";
+export { parseDiagnostics } from "./diagnostics.js";
 export { failure, refusal } from "./outcome.js";
 export type {
   Answer,
+  BatchCommand,
+  Diagnostic,
   Failure,
   FailureReason,
   Outcome,
   Refusal,
   RefusalReason,
   SourceBasis,
+  Verdict,
+  VerdictOutcome,
 } from "./outcome.js";
 export { parseResponse } from "./responses.js";
 export type {
@@ -61,6 +66,13 @@ export {
   sourceDigest,
   utf8,
 } from "./text.js";
-export type { Capabilities, Capability, EngineTransport, TransportEvent } from "./transport.js";
+export type {
+  BatchHandle,
+  BatchRun,
+  Capabilities,
+  Capability,
+  EngineTransport,
+  TransportEvent,
+} from "./transport.js";
 export { sourceKind, isSourcePath } from "./paths.js";
 export type { SourceKind } from "./paths.js";
