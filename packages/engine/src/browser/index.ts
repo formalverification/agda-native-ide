@@ -64,6 +64,9 @@ export interface BrowserConfig {
   /** The archives the drive is laid out from: Agda's builtin library, the
    * standard library, and a project at the root. */
   archives: { builtin?: string | null; stdlib?: string | null; project?: string | null };
+  /** What a failure to fetch the project's archive calls it (default "the
+   * project's archive"; the page's is "PLFA"). */
+  projectName?: string;
   /** The namespace of the drive's IndexedDB cache. */
   cacheNamespace: string;
   /** The server's arguments after its name; `--raw` is required. */
@@ -75,7 +78,8 @@ export interface BrowserConfig {
   /** Follows the startup: the compiler's bytes as they arrive, and each
    * phase. */
   onProgress?: (progress: BrowserProgress) => void;
-  /** Aborting it stops the engine, during its startup or after. */
+  /** Aborting it stops the engine, during its startup or after, and the
+   * downloads it started. */
   signal?: AbortSignal;
 }
 
@@ -111,10 +115,10 @@ export function describeError(error: unknown): string {
 }
 
 /** Fetch a file Agda needs, or fail saying which file and why. */
-async function fetchOrFail(url: string, what: string) {
+async function fetchOrFail(url: string, what: string, signal?: AbortSignal) {
   let response: Response;
   try {
-    response = await fetch(url);
+    response = await fetch(url, signal ? { signal } : undefined);
   } catch (error) {
     throw new Error(`${what} could not be downloaded (${describeError(error)})`, { cause: error });
   }
@@ -219,8 +223,6 @@ export class BrowserTransport implements EngineTransport {
   private readonly pending = new Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
   /** The editor's request ids, by the ids they travel under. */
   private readonly editorIds = new Map<string, JsonRpcId>();
-  /** The `agda` requests that carry an abort, whose refusal ends nothing. */
-  private readonly abortRequests = new Set<string>();
   private counter = 0;
   private initializeResult: unknown;
   private readonly initialized: Promise<void>;
@@ -230,11 +232,16 @@ export class BrowserTransport implements EngineTransport {
   private port: MessagePort | undefined;
   private drive: ALSWorkerInitResultProxied | undefined;
   private cancelDownload: (() => void) | undefined;
+  /** Stops every download the transport started. */
+  private readonly downloads = new AbortController();
+  /** The compiler's object URL, on Safari, until the worker has it. */
+  private objectUrl: string | undefined;
   private readonly mounted = new Set<string>();
   private mounting: Promise<void> | undefined;
   private readonly root: string;
-  /** Rejects when the transport is terminated, so a start in progress
-   * stops waiting on a worker that is gone. */
+  /** Rejects when the transport is terminated or the engine exits, so a
+   * start or a drive call in progress stops waiting on a worker that is
+   * gone (a call to a dead worker never settles). */
   private readonly stopped: Promise<never>;
   private stop!: (error: Error) => void;
 
@@ -273,14 +280,24 @@ export class BrowserTransport implements EngineTransport {
 
   async writeSource(path: string, text: string): Promise<void> {
     const target = this.inside(path);
-    if (!this.drive) throw new Error("the drive is not ready");
-    await this.drive.writeFile(target, text);
+    await this.until(this.ready().writeFile(target, text));
   }
 
   async readSource(path: string): Promise<string | undefined> {
     const target = this.inside(path);
+    return this.until(this.ready().readFile(target));
+  }
+
+  /** The drive, or why it cannot be asked. */
+  private ready(): ALSWorkerInitResultProxied {
+    if (this.exited) throw new Error("the language server has stopped");
     if (!this.drive) throw new Error("the drive is not ready");
-    return this.drive.readFile(target);
+    return this.drive;
+  }
+
+  /** A promise, unless the engine stops first. */
+  private until<T>(promise: Promise<T>): Promise<T> {
+    return Promise.race([promise, this.stopped]);
   }
 
   /** A path on the drive, normalized, if it lies under the root; a
@@ -294,12 +311,22 @@ export class BrowserTransport implements EngineTransport {
 
   async terminate(): Promise<void> {
     this.stop(new Error("the page stopped Agda"));
+    this.exit({ type: "exit", code: null, signal: "terminated", detail: "the language server was stopped" });
+  }
+
+  /** Release the worker, its port and the downloads. */
+  private release() {
     this.cancelDownload?.();
+    this.downloads.abort();
     this.worker?.terminate();
     this.worker = undefined;
     this.drive = undefined;
-    if (this.port) this.port.onmessage = null;
-    this.exit({ type: "exit", code: null, signal: "terminated", detail: "the language server was stopped" });
+    if (this.port) {
+      this.port.onmessage = null;
+      this.port.close();
+    }
+    if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
+    this.objectUrl = undefined;
   }
 
   // ---- What the page asks of the drive ------------------------------------
@@ -312,18 +339,21 @@ export class BrowserTransport implements EngineTransport {
     }
     const missing = urls.filter((url, index) => !this.mounted.has(url) && urls.indexOf(url) === index);
     if (!missing.length) return;
+    if (this.exited) throw new Error("the language server has stopped");
     const drive = this.drive;
     if (!drive) throw new Error("Agda's filesystem is not ready");
     const mount = async () => {
-      const archives = await Promise.all(
-        missing.map(async (url) => {
-          const response = await fetch(url);
-          if (!response.ok) throw new Error(`Could not load Agda cache: ${response.status}`);
-          return { url, data: await response.arrayBuffer() };
-        }),
+      const archives = await this.until(
+        Promise.all(
+          missing.map(async (url) => {
+            const response = await fetch(url, { signal: this.downloads.signal });
+            if (!response.ok) throw new Error(`Could not load Agda cache: ${response.status}`);
+            return { url, data: await response.arrayBuffer() };
+          }),
+        ),
       );
       for (const archive of archives) {
-        await drive.mountArchive(Comlink.transfer(archive.data, [archive.data]));
+        await this.until(drive.mountArchive(Comlink.transfer(archive.data, [archive.data])));
         this.mounted.add(archive.url);
       }
     };
@@ -338,19 +368,20 @@ export class BrowserTransport implements EngineTransport {
   /** Persist the sources written and the interfaces Agda wrote, in the
    * drive's IndexedDB cache. */
   async persist(): Promise<void> {
-    await this.drive?.persist();
+    if (this.drive && !this.exited) await this.until(this.drive.persist());
   }
 
   // ---- Startup ----------------------------------------------------------------
 
   /** Download the compiler and the archives, start the worker, lay out the
    * drive, run Agda's setup, start the server and open its session.
-   * Resolves with the server's exit as a promise, which settles when it
-   * stops. */
+   * Resolves once the server has answered `initialize`; when the server
+   * later stops, an exit event says so. */
   async start(): Promise<void> {
     const { config } = this;
-    const until = <T>(promise: Promise<T>) => Promise.race([promise, this.stopped]);
-    const compressed = await until(fetchOrFail(config.compiler.url, "the compiler"));
+    const until = <T>(promise: Promise<T>) => this.until(promise);
+    const signal = this.downloads.signal;
+    const compressed = await until(fetchOrFail(config.compiler.url, "the compiler", signal));
     if (!compressed.body) throw new Error("the compiler could not be downloaded (an empty response)");
     // Some static servers attach Content-Encoding to .gz files, so fetch
     // has already decoded the response body; others serve the gzip bytes
@@ -378,7 +409,8 @@ export class BrowserTransport implements EngineTransport {
             throw new Error(`the compiler could not be loaded (${describeError(error)})`, { cause: error });
           }),
       );
-      wasmSource = { type: "url", url: URL.createObjectURL(blob) };
+      this.objectUrl = URL.createObjectURL(blob);
+      wasmSource = { type: "url", url: this.objectUrl };
     } else {
       wasmSource = { type: "stream", stream: traced.stream };
     }
@@ -390,7 +422,9 @@ export class BrowserTransport implements EngineTransport {
     const worker = config.createWorker();
     this.worker = worker;
     worker.addEventListener("error", (event) => {
-      this.exit({ type: "exit", code: null, detail: `the worker failed (${event.message || "an error"})` });
+      const detail = `the worker failed (${event.message || "an error"})`;
+      this.stop(new Error(detail));
+      this.exit({ type: "exit", code: null, detail });
     });
     const endpoint = Comlink.wrap<{ init: (init: ALSWorkerInitObject) => ALSWorkerInitResultProxied }>(worker);
     const init: ALSWorkerInitObject = {
@@ -409,17 +443,18 @@ export class BrowserTransport implements EngineTransport {
         throw new Error(`${what} (${describeError(error)})`, { cause: error });
       });
     const archive = (url: string | null | undefined, what: string) =>
-      url ? fetchOrFail(url, what).then((response) => readOrFail(response, what)) : Promise.resolve(null);
+      url ? fetchOrFail(url, what, signal).then((response) => readOrFail(response, what)) : Promise.resolve(null);
 
     // The worker compiles the compiler while the page fetches the archives.
     const [drive, builtin, stdlib, project] = await until(Promise.all([
       step("the compiler could not be loaded", initPromise),
       archive(config.archives.builtin, "Agda's builtin library"),
       archive(config.archives.stdlib, "the standard library"),
-      archive(config.archives.project, "PLFA"),
+      archive(config.archives.project, config.projectName ?? "the project's archive"),
     ]));
     this.drive = drive;
-    if (wasmSource.type === "url" && wasmSource.url.startsWith("blob:")) URL.revokeObjectURL(wasmSource.url);
+    if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
+    this.objectUrl = undefined;
     config.onProgress?.({ phase: "starting" });
 
     const buffers = [builtin, stdlib, project].filter((x): x is ArrayBuffer => x != null);
@@ -480,12 +515,18 @@ export class BrowserTransport implements EngineTransport {
 
   private async agda(line: string, isAbort: boolean) {
     const id = `engine-${++this.counter}`;
-    if (isAbort) this.abortRequests.add(id);
-    const result = await new Promise<unknown>((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-      this.post({ id, method: "agda", params: { tag: "CmdReq", contents: line } });
-    }).catch(() => undefined);
-    this.abortRequests.delete(id);
+    let result: unknown;
+    try {
+      result = await new Promise<unknown>((resolve, reject) => {
+        this.pending.set(id, { resolve, reject });
+        this.post({ id, method: "agda", params: { tag: "CmdReq", contents: line } });
+      });
+    } catch (error) {
+      // The engine's exit ends what was in flight; anything else is the
+      // server failing the request, so Agda never ran the command.
+      if (this.exited) return;
+      result = { contents: describeError(error) };
+    }
     const refused = (result as { tag?: string; contents?: unknown } | undefined)?.contents;
     if (refused != null) {
       // The server could not read the command, so Agda never ran it.
@@ -546,7 +587,15 @@ export class BrowserTransport implements EngineTransport {
     if (message.method === undefined) return; // A reply to a server request: the engine acknowledged it.
     if (message.id === undefined || message.id === null) {
       if (message.method === "initialized" || message.method === "exit") return;
-      if (!this.exited) this.post(message);
+      if (this.exited) return;
+      if (message.method === "$/cancelRequest") {
+        // The server knows the request by the id it travels under.
+        const cancelled = (message.params as { id?: JsonRpcId } | undefined)?.id;
+        const travelling = [...this.editorIds].find(([, id]) => id === cancelled)?.[0];
+        if (travelling !== undefined) this.post({ ...message, params: { id: travelling } });
+        return;
+      }
+      this.post(message);
       return;
     }
     if (message.method === "initialize") {
@@ -564,11 +613,16 @@ export class BrowserTransport implements EngineTransport {
     for (const listener of this.listeners) listener(event);
   }
 
+  /** The engine is over, however it ended: stop what waits on it, release
+   * the worker, and say so once. */
   private exit(event: Extract<TransportEvent, { type: "exit" }>) {
     if (this.exited) return;
     this.exited = true;
+    this.stop(new Error(event.detail ?? "the language server has stopped"));
     for (const waiting of this.pending.values()) waiting.reject(new Error("the language server has stopped"));
     this.pending.clear();
+    this.editorIds.clear();
+    this.release();
     this.emit(event);
   }
 }
