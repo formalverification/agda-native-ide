@@ -161,7 +161,7 @@ export function startBatch(
     signalGroup(child, "SIGKILL");
     await goneWithin(killGraceMs * 5);
   };
-  return { command, done, stop };
+  return { command, ...(child.pid !== undefined ? { pid: child.pid } : {}), done, stop };
 }
 
 export class NativeTransport implements EngineTransport {

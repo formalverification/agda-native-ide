@@ -92,7 +92,7 @@ for (const scenario of scenarios) {
     console.log(`FAILED  ${scenario.name}: in ${["browser", "native"].filter((run) => !scenario.passed[run]).join(" and ")}`);
   else if (scenario.declared) {
     const { capability, browser: inBrowser, native: inNative } = scenario.declared;
-    const has = (engine, value) => `${engine} ${value ? "has" : "has not"} it`;
+    const has = (engine, value) => `the ${engine} engine ${value ? "has" : "lacks"} it`;
     console.log(`declared ${scenario.name}: ${capability}: ${has("browser", inBrowser)}, ${has("native", inNative)}`);
   } else if (!scenario.differences.length) console.log(`same    ${scenario.name}`);
   else {
@@ -106,7 +106,7 @@ writeFileSync(join(out, "comparison.json"), `${JSON.stringify(comparison, null, 
 const same = scenarios.length - differing.length - declared.length;
 console.log(
   `${same} of ${scenarios.length} scenarios passed in both runs and answered identically` +
-    `${declared.length ? `, and ${declared.length} differ only by a declared capability` : ""}` +
+    `${declared.length ? `, and ${declared.length} ${declared.length === 1 ? "differs" : "differ"} only by a declared capability` : ""}` +
     `${fixturesAgree ? "" : "; the fixtures differ"}; ${join(out, "comparison.json")}`,
 );
 process.exit(comparison.identical ? 0 : 1);

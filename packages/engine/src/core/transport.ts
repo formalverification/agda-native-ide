@@ -88,6 +88,8 @@ export interface EngineTransport {
 export interface BatchHandle {
   /** What ran. */
   readonly command: BatchCommand;
+  /** The run's process id, where it has one. */
+  readonly pid?: number;
   /** Settles once the run's Agda is gone, however it ended; never rejects
    * (a start that fails is a run with `startError`). */
   readonly done: Promise<BatchRun>;
