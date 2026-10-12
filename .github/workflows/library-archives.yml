@@ -16,8 +16,8 @@
 # patches, the compiler's hashes, the scripts, or this file; or what the
 # gate is made of (below).  The runner's memory is logged every two
 # minutes: wasmtime compiles the 34 MB agda.wasm once per derivation, at
-# about 4.3 GiB, on a runner with 15 GiB and 4 cores since the repository
-# went public (7.8 GiB and 2 cores before).
+# about 4.3 GiB, on a runner with 15.6 GiB and 4 cores since the
+# repository went public (7.8 GiB and 2 cores before).
 #
 # What it costs: measured 2026-10-11 on a 2-core runner, while the
 # repository was private (7.8 GiB, 3 GiB of swap, none of it used; run
@@ -26,8 +26,9 @@
 # at once, 31.5.  Nearly every change touches flake.nix, so the job first
 # evaluates the check's derivation at the base (the pull request's base,
 # or the commit before a push) and at the head, which takes seconds, and
-# builds nothing when the two are the same derivation and this file is
-# unchanged: that derivation is the one the base proved.
+# builds nothing when the two are the same derivation, this file is
+# unchanged and so is the gate's code (below): that derivation is the one
+# the base proved.
 #
 # The public formalverification Cachix cache, which agda-algebras' CI
 # also uses, is read on every run, so a derivation built before is
@@ -44,22 +45,26 @@
 # runs every root wherever it runs, when the archives' derivation changed
 # or what the gate is made of did: its app (`nix run .#library-gate`,
 # whose store path holds its scripts, the DevTools driver and the server
-# it shares with the browser check, and the node and Chromium it pins), the
-# engine (its drive and transport, and the session that counts the
-# Checking lines), the gate's page, the lockfile, which pins the drive's
-# dependencies, the Makefile, whose library-gate target CI runs, or this
-# file.  The site is
+# it shares with the browser check, and the node and Chromium it pins),
+# which the guard compares with the base's as it compares the derivation;
+# and, by a diff against the base, the engine's core and browser transport
+# (the drive, and the session that counts the Checking lines), the gate's
+# page, the lockfile, which pins the drive's dependencies, and the
+# Makefile, whose library-gate target CI runs.  The site is
 # `nix build .#site`.  When only the gate changed, the archives come from
 # the cache once main's runs push them; until the write token reaches the
-# action, main pushes nothing, and they are built again (6.5 and 9.8
-# minutes for the interfaces in two runs on a 4-core runner, 2026-10-12).  What the gate costs,
-# measured 2026-10-12
+# action, main pushes nothing, and they are built again, without the
+# --rebuild (the interfaces took 6.5 to 12.7 minutes in four runs on a
+# 4-core runner on 2026-10-12).
+#
+# What the gate costs, measured 2026-10-12
 # (docs/measurements/library-archives-browser-2026-10-12.json): on a
-# 4-core runner (run 38209105006, dispatched on issue 13's branch),
-# every root, four at once, in 16 min 33 s, and 17 min 18 s for its step,
-# in a job of 48 min 56 s from the interfaces to the gate; on a 20-core
-# workstation shared with other work, 12 min 49 s.  One session per job,
-# checking its roots in turn, took 85 s there but proves less
+# 4-core runner, every root four at once in 16.5 to 23.4 minutes, its step
+# with `npm ci` and the page's build 17.3 to 23.9, in jobs of 49 to 66
+# minutes from the interfaces to the gate (runs 38209105006, dispatched
+# on issue 13's branch, 38213187621 and 38243413321); on a 20-core
+# workstation shared with other work, 12.8 minutes.  One session per job,
+# checking its roots in turn, took 85 s there, but proves less
 # (docs/notes/library-archives.md).
 
 name: library-archives
@@ -75,7 +80,10 @@ on:
       - stdlib/patches/**
       - compiler/agda-2.9.0.sha256
       - scripts/library-archives/**
-      - packages/engine/**
+      - packages/engine/src/core/**
+      - packages/engine/src/browser/**
+      - packages/engine/package.json
+      - packages/engine/tsconfig.json
       - scripts/browser-check/cdp.mjs
       - scripts/browser-check/serve.mjs
       - package-lock.json
@@ -88,7 +96,10 @@ on:
       - stdlib/patches/**
       - compiler/agda-2.9.0.sha256
       - scripts/library-archives/**
-      - packages/engine/**
+      - packages/engine/src/core/**
+      - packages/engine/src/browser/**
+      - packages/engine/package.json
+      - packages/engine/tsconfig.json
       - scripts/browser-check/cdp.mjs
       - scripts/browser-check/serve.mjs
       - package-lock.json
@@ -151,8 +162,9 @@ jobs:
             # or the files the app does not carry.
             echo "gate app: head $gate_head, base $gate_base"
             if [ "$gate_head" = "$gate_base" ] && git diff --quiet "$BASE" HEAD -- \
-                packages/engine scripts/library-archives/gate \
-                package-lock.json Makefile; then
+                packages/engine/src/core packages/engine/src/browser \
+                packages/engine/package.json packages/engine/tsconfig.json \
+                scripts/library-archives/gate package-lock.json Makefile; then
               echo "Nor did the gate's code change: no gate." | tee -a "$GITHUB_STEP_SUMMARY"
               echo gate=false >> "$GITHUB_OUTPUT"
             else
