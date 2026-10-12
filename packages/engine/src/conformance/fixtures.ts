@@ -23,6 +23,16 @@ plus-zero zero = refl
 plus-zero (suc n) = ?
 `;
 
+/** GOALS with both goals filled: it checks. */
+export const GOALS_FILLED = GOALS.replace("identity x = {! !}", "identity x = x").replace(
+  "plus-zero (suc n) = ?",
+  "plus-zero (suc n) rewrite plus-zero n = refl",
+);
+
+/** GOALS with a term of the wrong type in its first goal (line 7, column
+ * 14). */
+export const GOALS_WRONG = GOALS.replace("identity x = {! !}", "identity x = zero");
+
 export const SECOND = `module Second where
 
 open import Agda.Builtin.Nat

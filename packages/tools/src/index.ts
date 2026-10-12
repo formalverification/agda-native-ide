@@ -16,20 +16,27 @@
 //   +  a refusal and a failure are not answers, and say why.
 //
 // This is the initial surface: the lane's three questions (get_goal,
-// type_of, normalize) and the two verdict tools, which refuse until an
-// engine has a batch lane (issues 30 and 64).  The rest of the table
+// type_of, normalize) and the two verdict tools, check_file and fill_hole,
+// which answer from the batch lane (a fresh Agda whose exit code is the
+// verdict) where the engine has one, natively (issue 64), and refuse where
+// it has none, in the page (issue 30).  The rest of the table
 // (resolve_name, exports_of, get_diagnostics, the searches, definition_of,
 // get_dependencies, check_project) is issue 29's.
 
 import { z } from "zod";
-import type {
-  AgdaSession,
-  ExpressionValue,
-  GoalRef,
-  GoalValue,
-  GoalView,
-  Outcome,
-  SourceBasis,
+import {
+  sourceDigest,
+  type AgdaSession,
+  type BatchCommand,
+  type Diagnostic,
+  type ExpressionValue,
+  type GoalRef,
+  type GoalValue,
+  type GoalView,
+  type Outcome,
+  type SourceBasis,
+  type Verdict,
+  type VerdictOutcome,
 } from "@agda-native-ide/engine";
 
 /** The tree an answer is about. */
@@ -51,15 +58,45 @@ export interface Addressed {
   resolvedBy: "number" | "span" | "only hole";
 }
 
+/** The tree a verdict is about: the file, and the text the run read. */
+export interface VerdictTree {
+  engine: "browser" | "native";
+  agdaVersion: string;
+  file: string;
+  digest: string;
+}
+
+/** What a verdict is, as agda-native-air's tools echo it. */
+export interface VerdictEcho {
+  /** Agda's own exit code. */
+  exitCode: number;
+  /** A command line that reproduces the run, in its directory. */
+  equivalentTo: string;
+  /** What `success` (check_file) or `status` (fill_hole) means. */
+  meaning: string;
+}
+
 export type ToolResult<T = unknown> =
   | {
       tool: string;
       status: "answer";
-      /** Never "batch": no tool here has a verdict to give. */
+      /** The interaction lane's: knowledge, never a verdict. */
       lane: "interaction";
       tree: Tree;
       elapsedMs: number;
       addressed?: Addressed;
+      result: T;
+    }
+  | {
+      tool: string;
+      status: "verdict";
+      /** The batch lane's: a fresh Agda's exit code. */
+      lane: "batch";
+      tree: VerdictTree;
+      command: BatchCommand;
+      elapsedMs: number;
+      addressed?: Addressed;
+      verdict: VerdictEcho;
       result: T;
     }
   | { tool: string; status: "refused"; reason: string; message: string; capability?: string }
@@ -86,7 +123,31 @@ const getGoalInput = z.object({ ...address, rewrite: rewrite.optional() }).stric
 const expressionInput = z
   .object({ expression: z.string().min(1).describe("An Agda expression."), ...address })
   .strict();
-const verdictInput = z.object({}).loose();
+const checkFileInput = z
+  .object({
+    file: z
+      .string()
+      .min(1)
+      .optional()
+      .describe("The file, as the engine knows it (default: the loaded file)."),
+  })
+  .strict();
+const fillHoleInput = z
+  .object({
+    candidate: z.string().min(1).describe("The term that replaces the goal, braces and all, as it is written."),
+    ...address,
+  })
+  .strict();
+
+/** What check_file's `success` means: agda-native-air's sentence, less its
+ * clause that its server has no interaction mode, which this surface has. */
+export const CHECK_MEANING =
+  "success is true if and only if that command exited 0, so it means exactly what green means in a batch build.  Unsolved metavariables, unsolved constraints, and open holes all make agda exit non-zero and so make success false.  The verdict is read from the exit code alone, never from the diagnostics text, so a change in Agda's message format can empty the diagnostics list but cannot turn a failing build green.";
+
+/** What fill_hole's `status` means: agda-native-air's sentence, with this
+ * surface's names for a run that outran its deadline or never started. */
+export const FILL_MEANING =
+  'status is "ok" if and only if that command exited 0, or failed with nothing but [UnsolvedInteractionMetas] (holes still open in the file), including any new sub-hole the candidate itself introduced, which is a successful refinement.  Every other failure is "type_error", including [UnsolvedMetaVariables] and [UnsolvedConstraints]: a candidate that leaves a meta unsolved does not pass the build and is not ok here either.  A run that outran its deadline, or an agda that could not be started, is a failure, not a status: the candidate was never judged.';
 
 const definitions = {
   get_goal: {
@@ -106,13 +167,13 @@ const definitions = {
   },
   fill_hole: {
     description:
-      "Whether a candidate fills a hole, by a fresh batch check of the file with the candidate in place, whose exit code is the verdict.  Refused until the engine has a batch lane: a give on the interaction lane is not a verdict.",
-    schema: verdictInput,
+      "Whether a candidate fills a goal: a fresh batch check of the loaded file with the candidate written over the goal (braces and all, as given), whose exit code is the verdict; the file is put back afterwards, byte for byte.  The goal is addressed as get_goal's is.  Refused where the engine has no batch lane: a give on the interaction lane is not a verdict.",
+    schema: fillHoleInput,
   },
   check_file: {
     description:
-      "Whether the file checks, by a fresh batch check whose exit code is the verdict.  Refused until the engine has a batch lane.",
-    schema: verdictInput,
+      "Whether a file checks: a fresh batch check of it as it is on disk, whose exit code is the verdict, with Agda's diagnostics.  The file defaults to the loaded one.  Refused where the engine has no batch lane.",
+    schema: checkFileInput,
   },
 } as const;
 
@@ -231,14 +292,68 @@ export interface ExpressionResult {
   error?: string;
 }
 
+export interface CheckFileResult {
+  /** `exitCode === 0`. */
+  success: boolean;
+  diagnostics: Diagnostic[];
+}
+
+export interface FillHoleResult {
+  status: "ok" | "type_error";
+  candidate: string;
+  /** `exitCode === 0`: the file checks with the candidate in place. */
+  success: boolean;
+  diagnostics: Diagnostic[];
+}
+
 export interface ToolSurface {
   tools: ToolDefinition[];
   call(name: string, input: unknown): Promise<ToolResult>;
   get_goal(input: z.input<typeof getGoalInput>): Promise<ToolResult<GoalResult>>;
   type_of(input: z.input<typeof expressionInput>): Promise<ToolResult<ExpressionResult>>;
   normalize(input: z.input<typeof expressionInput>): Promise<ToolResult<ExpressionResult>>;
-  fill_hole(input?: unknown): Promise<ToolResult<never>>;
-  check_file(input?: unknown): Promise<ToolResult<never>>;
+  fill_hole(input: z.input<typeof fillHoleInput>): Promise<ToolResult<FillHoleResult>>;
+  check_file(input?: z.input<typeof checkFileInput>): Promise<ToolResult<CheckFileResult>>;
+}
+
+/** A command line for a batch run, each word quoted for a POSIX shell
+ * where it needs it. */
+export function commandLine(command: BatchCommand): string {
+  const quote = (word: string) => (/^[\w@%+=:,./-]+$/.test(word) ? word : `'${word.replace(/'/g, `'\\''`)}'`);
+  return `cd ${quote(command.cwd)} && ${[command.executable, ...command.args].map(quote).join(" ")}`;
+}
+
+function fromVerdict<R>(
+  tool: string,
+  outcome: VerdictOutcome,
+  addressed: Addressed | undefined,
+  echo: { meaning: string; patched?: string },
+  result: (verdict: Verdict) => R,
+): ToolResult<R> {
+  if (outcome.kind === "refusal")
+    return outcome.capability === undefined
+      ? { tool, status: "refused", reason: outcome.reason, message: outcome.message }
+      : { tool, status: "refused", reason: outcome.reason, message: outcome.message, capability: outcome.capability };
+  if (outcome.kind === "failure") return { tool, status: "failed", reason: outcome.reason, message: outcome.message };
+  const line = commandLine(outcome.command);
+  const answer: ToolResult<R> = {
+    tool,
+    status: "verdict",
+    lane: "batch",
+    tree: { engine: outcome.engine, agdaVersion: outcome.agdaVersion, file: outcome.path, digest: outcome.digest },
+    command: outcome.command,
+    elapsedMs: Math.round(outcome.elapsedMs * 10) / 10,
+    verdict: {
+      exitCode: outcome.exitCode,
+      equivalentTo: echo.patched
+        ? `${line}, run against that file with ${echo.patched} (the file on disk is put back afterwards, byte for byte)`
+        : line,
+      meaning: echo.meaning,
+    },
+    result: result(outcome),
+  };
+  if (addressed) answer.addressed = addressed;
+  return answer;
 }
 
 /** The tool surface over one session. */
@@ -280,15 +395,73 @@ export function createToolSurface(session: AgdaSession): ToolSurface {
     });
   };
 
-  const verdict = async (tool: "fill_hole" | "check_file") => {
-    const refusal = await session.checkFile();
+  /** A tool's refusal for want of the batch lane, before anything else is
+   * asked of the input. */
+  const noBatch = (tool: "fill_hole" | "check_file"): ToolResult<never> | undefined => {
+    const batch = session.capabilities.batch;
+    if (batch.supported) return undefined;
+    const why = batch.reason ?? "this engine has no batch lane, so it cannot give a verdict";
     return refused(
       tool,
-      refusal.reason,
+      "unsupported-capability",
       tool === "fill_hole"
-        ? `fill_hole's answer is a verdict: a fresh batch check of the file with the candidate in place.  ${refusal.message}.  A give on the interaction lane is not a verdict.`
-        : `check_file's answer is a verdict: a fresh batch check of the file.  ${refusal.message}.`,
-      refusal.capability,
+        ? `fill_hole's answer is a verdict: a fresh batch check of the file with the candidate in place.  ${why}.  A give on the interaction lane is not a verdict.`
+        : `check_file's answer is a verdict: a fresh batch check of the file.  ${why}.`,
+      "batch",
+    );
+  };
+
+  const checkFile = async (input: unknown): Promise<ToolResult<CheckFileResult>> => {
+    const lacking = noBatch("check_file");
+    if (lacking) return lacking;
+    const parsed = parse("check_file", checkFileInput, input);
+    if (!parsed.ok) return parsed.refusal;
+    const file = parsed.value.file ?? session.basis?.path;
+    if (!file) return refused("check_file", "invalid-input", "name a file, or load one first");
+    const outcome = await session.checkFile(file);
+    return fromVerdict("check_file", outcome, undefined, { meaning: CHECK_MEANING }, (verdict) => ({
+      success: verdict.success,
+      diagnostics: verdict.diagnostics,
+    }));
+  };
+
+  const fillHole = async (input: unknown): Promise<ToolResult<FillHoleResult>> => {
+    const lacking = noBatch("fill_hole");
+    if (lacking) return lacking;
+    const parsed = parse("fill_hole", fillHoleInput, input);
+    if (!parsed.ok) return parsed.refusal;
+    const goal = resolveGoal("fill_hole", session, parsed.value, true);
+    if ("status" in goal) return goal;
+    const snapshot = session.snapshot;
+    const span = session.goals().find((candidate) => candidate.id === goal.ref!.id)?.span;
+    if (snapshot === undefined || !span)
+      return refused(
+        "fill_hole",
+        "unknown-goal",
+        `goal ${goal.ref!.id} has no place in the loaded text (a give made it); load the file again`,
+      );
+    const { candidate } = parsed.value;
+    const text = snapshot.slice(0, span.from) + candidate + snapshot.slice(span.to);
+    // The file must hold the text the goal was found in.
+    const outcome = await session.checkFile(goal.ref!.basis.path, { text, expect: sourceDigest(snapshot) });
+    return fromVerdict(
+      "fill_hole",
+      outcome,
+      goal.addressed,
+      { meaning: FILL_MEANING, patched: `the candidate written over goal ${goal.ref!.id}` },
+      (verdict) => {
+        const errors = verdict.diagnostics.filter((diagnostic) => diagnostic.severity === "error");
+        const onlyHoles =
+          verdict.exitCode === 42 &&
+          errors.length > 0 &&
+          errors.every((diagnostic) => diagnostic.code === "UnsolvedInteractionMetas");
+        return {
+          status: verdict.success || onlyHoles ? "ok" : "type_error",
+          candidate,
+          success: verdict.success,
+          diagnostics: verdict.diagnostics,
+        };
+      },
     );
   };
 
@@ -308,8 +481,8 @@ export function createToolSurface(session: AgdaSession): ToolSurface {
     },
     type_of: (input) => expression("type_of", input),
     normalize: (input) => expression("normalize", input),
-    fill_hole: () => verdict("fill_hole"),
-    check_file: () => verdict("check_file"),
+    fill_hole: (input) => fillHole(input),
+    check_file: (input) => checkFile(input),
     async call(name, input) {
       switch (name) {
         case "get_goal":
@@ -318,8 +491,9 @@ export function createToolSurface(session: AgdaSession): ToolSurface {
         case "normalize":
           return expression(name, input);
         case "fill_hole":
+          return fillHole(input);
         case "check_file":
-          return verdict(name);
+          return checkFile(input);
         default:
           return refused(
             name,

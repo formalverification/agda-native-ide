@@ -9,7 +9,8 @@
 import { describe, expect, it } from "vitest";
 
 import { AgdaSession, caseSplitEdit, openSession } from "./session.js";
-import type { EngineTransport, TransportEvent } from "./transport.js";
+import { sourceDigest } from "./text.js";
+import type { BatchHandle, BatchRun, Capabilities, EngineTransport, TransportEvent } from "./transport.js";
 
 const PATH = "/work/Goals.agda";
 const TEXT = "module Goals where\n\nidentity : {A : Set} → A → A\nidentity x = {! !}\n";
@@ -37,7 +38,7 @@ type Script = (line: string, transport: FakeTransport) => void;
 
 class FakeTransport implements EngineTransport {
   readonly engine = "native" as const;
-  readonly capabilities = {
+  capabilities: Capabilities = {
     interaction: { supported: true },
     batch: { supported: false, reason: "no batch lane here" },
   };
@@ -603,5 +604,199 @@ describe("a case split's edit", () => {
       "f = λ where\n  true → ?\n  false → ?\n",
     );
     expect(caseSplitEdit("f = {! !}", { from: 4, to: 9 }, [], "Function")).toBeUndefined();
+  });
+});
+
+/** What a scripted batch run does: its result, or a promise of it that the
+ * run's stop() overtakes. */
+type BatchScript = (text: string | undefined, transport: BatchTransport) => Partial<BatchRun> | Promise<Partial<BatchRun>>;
+
+/** A transport with the batch lane, whose runs a script answers. */
+class BatchTransport extends FakeTransport {
+  /** The file's text at the start of each run. */
+  readonly runs: Array<string | undefined> = [];
+  stops = 0;
+  /** What happened, in order: lane commands and runs. */
+  readonly log: string[] = [];
+
+  constructor(script: Script, private readonly batch: BatchScript) {
+    super(script);
+    this.capabilities = { interaction: { supported: true }, batch: { supported: true } };
+  }
+
+  override send(line: string) {
+    this.log.push(line.replace(/^IOTCM "[^"]*" \w+ Direct \((\w+).*$/, "$1"));
+    super.send(line);
+  }
+
+  runBatch(path: string): BatchHandle {
+    const text = this.files.get(path);
+    this.runs.push(text);
+    this.log.push("run");
+    let stopped!: () => void;
+    const stopping = new Promise<Partial<BatchRun>>((done) => (stopped = () => done({ exitCode: null, signal: "SIGTERM" })));
+    const done = Promise.race([Promise.resolve(this.batch(text, this)), stopping]).then((result): BatchRun => {
+      this.log.push("run ended");
+      return { exitCode: 0, stdout: "", stderr: "", elapsedMs: 5, ...result };
+    });
+    return {
+      command: { executable: "/bin/agda", args: [path], cwd: "/work" },
+      done,
+      stop: async () => {
+        this.stops += 1;
+        stopped();
+        await done;
+      },
+    };
+  }
+}
+
+async function batched(batch: BatchScript, options = {}, script: Script = agda) {
+  const transport = new BatchTransport(script, batch);
+  transport.files.set(PATH, TEXT);
+  const opened = await openSession(transport, options);
+  if (opened.kind !== "session") throw new Error(opened.message);
+  return { transport, session: opened.session };
+}
+
+const HOLE_OUTPUT = `Checking Goals (/work/Goals.agda).
+/work/Goals.agda:4.14-19: error: [UnsolvedInteractionMetas]
+Unsolved interaction metas at the following locations:
+  /work/Goals.agda:4.14-19
+`;
+const FILLED = TEXT.replace("{! !}", "x");
+
+describe("the session's batch lane", () => {
+  it("gives a verdict from a fresh run's exit code, on the file as it is", async () => {
+    const { session, transport } = await batched((text) =>
+      text?.includes("{!") ? { exitCode: 42, stdout: HOLE_OUTPUT } : { exitCode: 0 },
+    );
+    const verdict = await session.checkFile(PATH);
+    expect(verdict).toMatchObject({
+      kind: "verdict",
+      lane: "batch",
+      engine: "native",
+      agdaVersion: "2.9.0",
+      path: PATH,
+      digest: sourceDigest(TEXT),
+      command: { executable: "/bin/agda", args: [PATH], cwd: "/work" },
+      exitCode: 42,
+      success: false,
+      diagnostics: [{ severity: "error", code: "UnsolvedInteractionMetas", range: { startLine: 4, startCol: 14 } }],
+    });
+    expect(verdict.kind === "verdict" && verdict.output).toBe(HOLE_OUTPUT);
+    expect("value" in verdict || "basis" in verdict).toBe(false);
+    expect(transport.runs).toEqual([TEXT]);
+    // Nothing was asked of the lane.
+    expect(transport.sent.filter((line) => !line.includes("Cmd_show_version"))).toEqual([]);
+    transport.files.set(PATH, FILLED);
+    expect(await session.checkFile(PATH)).toMatchObject({ kind: "verdict", exitCode: 0, success: true, diagnostics: [] });
+  });
+
+  it("checks a text written over the file, and puts the file back", async () => {
+    const { session, transport } = await batched(() => ({ exitCode: 0 }));
+    const verdict = await session.checkFile(PATH, { text: FILLED, expect: sourceDigest(TEXT) });
+    expect(verdict).toMatchObject({ kind: "verdict", exitCode: 0, digest: sourceDigest(FILLED) });
+    expect(transport.runs).toEqual([FILLED]);
+    expect(transport.files.get(PATH)).toBe(TEXT);
+  });
+
+  it("refuses to run when the file is not the text expected, and writes nothing", async () => {
+    const { session, transport } = await batched(() => ({ exitCode: 0 }));
+    const verdict = await session.checkFile(PATH, { text: FILLED, expect: sourceDigest("another text") });
+    expect(verdict).toMatchObject({ kind: "failure", reason: "source-changed" });
+    expect(transport.runs).toEqual([]);
+    expect(transport.files.get(PATH)).toBe(TEXT);
+  });
+
+  it("has no verdict for a run a signal ended, or one that never started, and puts the file back", async () => {
+    const signalled = await batched(() => ({ exitCode: null, signal: "SIGKILL" }));
+    expect(await signalled.session.checkFile(PATH, { text: FILLED })).toMatchObject({
+      kind: "failure",
+      reason: "no-exit-code",
+      detail: { signal: "SIGKILL" },
+    });
+    expect(signalled.transport.files.get(PATH)).toBe(TEXT);
+    const unstarted = await batched(() => ({ exitCode: null, startError: "spawn /bin/agda ENOENT" }));
+    const failed = await unstarted.session.checkFile(PATH, { text: FILLED });
+    expect(failed).toMatchObject({ kind: "failure", reason: "startup" });
+    expect(failed.kind === "failure" && failed.message).toMatch(/ENOENT/);
+    expect(unstarted.transport.files.get(PATH)).toBe(TEXT);
+  });
+
+  it("fails a run whose file changed while it read it", async () => {
+    const { session } = await batched((_text, transport) => {
+      transport.files.set(PATH, `${TEXT}-- edited\n`);
+      return { exitCode: 0 };
+    });
+    expect(await session.checkFile(PATH)).toMatchObject({ kind: "failure", reason: "source-changed" });
+  });
+
+  it("refuses a verdict on no file, or on a missing one", async () => {
+    const { session, transport } = await batched(() => ({ exitCode: 0 }));
+    expect(await session.checkFile()).toMatchObject({ kind: "refusal", reason: "invalid-input" });
+    expect(await session.checkFile("/work/Missing.agda")).toMatchObject({ kind: "failure", reason: "io" });
+    expect(transport.runs).toEqual([]);
+  });
+
+  it("stops a run at its deadline, and reports it once the run is gone and the file is back", async () => {
+    const { session, transport } = await batched(() => never.then(() => ({})), { deadlines: { verdict: 40 } });
+    const verdict = await session.checkFile(PATH, { text: FILLED });
+    expect(verdict).toMatchObject({ kind: "failure", reason: "timeout", detail: { terminated: true } });
+    expect(transport.stops).toBe(1);
+    expect(transport.log.slice(-1)).toEqual(["run ended"]);
+    expect(transport.files.get(PATH)).toBe(TEXT);
+    // The lane goes on.
+    expect((await session.version()).kind).toBe("answer");
+    expect(transport.aborts).toEqual([]);
+  });
+
+  it("aborts a run by stopping it, and tells the lane nothing", async () => {
+    const { session, transport } = await batched(() => never.then(() => ({})));
+    const verdict = session.checkFile(PATH, { text: FILLED });
+    await tick(10);
+    expect(session.abort()).toEqual({ aborting: "verdict" });
+    expect(await verdict).toMatchObject({ kind: "failure", reason: "aborted" });
+    expect(transport.files.get(PATH)).toBe(TEXT);
+    expect(transport.aborts).toEqual([]);
+  });
+
+  it("queues a run with the lane's commands, so the two never run at once", async () => {
+    let release!: () => void;
+    const { session, transport } = await batched(async () => {
+      await tick(20);
+      return { exitCode: 42, stdout: HOLE_OUTPUT };
+    }, {}, (line, transport) => {
+      if (line.includes("Cmd_load") && !release) {
+        release = () => transport.answer(LOADED);
+        return;
+      }
+      agda(line, transport);
+    });
+    const load = session.load(PATH, TEXT);
+    const verdict = session.checkFile(PATH);
+    await tick(10);
+    expect(transport.runs).toEqual([]);
+    release();
+    await load;
+    const goal = session.goal(session.goalRef(0)!);
+    await Promise.all([verdict, goal]);
+    expect(transport.log.filter((entry) => entry !== "Cmd_show_version")).toEqual([
+      "Cmd_load",
+      "run",
+      "run ended",
+      "Cmd_goal_type_context",
+    ]);
+  });
+
+  it("stops a run when the session ends, and puts the file back before dispose resolves", async () => {
+    const { session, transport } = await batched(() => never.then(() => ({})));
+    const verdict = session.checkFile(PATH, { text: FILLED });
+    await tick(10);
+    expect(transport.files.get(PATH)).toBe(FILLED);
+    await session.dispose();
+    expect(transport.files.get(PATH)).toBe(TEXT);
+    expect(transport.stops).toBeGreaterThanOrEqual(1);
+    expect(await verdict).toMatchObject({ kind: "failure", reason: "session-ended" });
   });
 });

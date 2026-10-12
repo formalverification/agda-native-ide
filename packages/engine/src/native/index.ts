@@ -17,10 +17,13 @@
 // The transport owns the child and the files under the project's root.
 // Its configuration is explicit: the executable, the root (the child's
 // working directory, where Agda's project discovery anchors), and the
-// library arguments.  Resolving the Agda and the libraries a project pins,
-// and one lane per project root, are issue 64's.
+// library arguments.  It has the batch lane too: `runBatch` starts a fresh
+// `agda <args> <file>` in the same directory with the same arguments, whose
+// exit code is the verdict, in a process group of its own like the lane's.
+// Resolving the Agda and the libraries a project pins is ./resolve.ts's,
+// and one lane per project root is ./registry.ts's (issue 64).
 
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, type ChildProcess, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { statSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
@@ -29,6 +32,9 @@ import {
   failure,
   openSession,
   type AgdaSession,
+  type BatchCommand,
+  type BatchHandle,
+  type BatchRun,
   type Capabilities,
   type EngineTransport,
   type Failure,
@@ -44,8 +50,10 @@ export interface NativeConfig {
    * inside it is followed: the root keeps a host's mistakes in, not an
    * adversary's links out). */
   projectRoot: string;
-  /** Arguments after `--interaction-json`: the libraries, the include
-   * paths, the options (for example `--no-libraries -i <root>`). */
+  /** Arguments after `--interaction-json`, and before the file in a batch
+   * run: the libraries, the include paths, the options (for example
+   * `--no-libraries -i <root>`).  Every `Cmd_load` inherits them (probed at
+   * the pinned commit: a load's own arguments are added to the process's). */
   args?: readonly string[];
   /** The child's environment (default: this process's). */
   env?: Record<string, string | undefined>;
@@ -57,15 +65,103 @@ export interface NativeConfig {
 
 const PROMPT = "JSON> ";
 const STDERR_TAIL = 8192;
+/** How much of each of a batch run's streams is kept. */
+const BATCH_TAIL = 1 << 20;
 
 export const nativeCapabilities: Capabilities = {
   interaction: { supported: true },
-  batch: {
-    supported: false,
-    reason:
-      "the native batch lane (a fresh agda per check, whose exit code is the verdict) is issue #64; this engine has the interaction lane only",
-  },
+  batch: { supported: true },
 };
+
+/** Signal a child's process group, or the child alone where there is no
+ * group to reach. */
+function signalGroup(child: ChildProcess, signal: NodeJS.Signals) {
+  if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) return;
+  try {
+    process.kill(-child.pid, signal);
+  } catch {
+    try {
+      child.kill(signal);
+    } catch {
+      // Already gone.
+    }
+  }
+}
+
+/** Start a batch run: `command` in a process group of its own, its output
+ * kept, stopped by SIGTERM and then SIGKILL to the group. */
+export function startBatch(
+  command: BatchCommand,
+  env: Record<string, string | undefined>,
+  killGraceMs: number,
+): BatchHandle {
+  const started = performance.now();
+  let stdout = "";
+  let stderr = "";
+  let gone = false;
+  let child: ChildProcess;
+  try {
+    child = spawn(command.executable, command.args, {
+      cwd: command.cwd,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+      detached: true,
+    });
+  } catch (error) {
+    const run: BatchRun = { exitCode: null, startError: String(error), stdout: "", stderr: "", elapsedMs: 0 };
+    return { command, done: Promise.resolve(run), stop: async () => {} };
+  }
+  // Should this process exit first, take the run with it.
+  const onProcessExit = () => signalGroup(child, "SIGKILL");
+  process.once("exit", onProcessExit);
+  const keep = (kept: string, chunk: string) => {
+    const joined = kept + chunk;
+    return joined.length > BATCH_TAIL ? joined.slice(-BATCH_TAIL) : joined;
+  };
+  child.stdout!.setEncoding("utf8");
+  child.stdout!.on("data", (chunk: string) => (stdout = keep(stdout, chunk)));
+  child.stderr!.setEncoding("utf8");
+  child.stderr!.on("data", (chunk: string) => (stderr = keep(stderr, chunk)));
+  const done = new Promise<BatchRun>((resolveRun) => {
+    let startError: string | undefined;
+    const finish = (code: number | null, signal: NodeJS.Signals | null) => {
+      gone = true;
+      process.removeListener("exit", onProcessExit);
+      resolveRun({
+        exitCode: code,
+        signal,
+        ...(startError ? { startError } : {}),
+        stdout,
+        stderr,
+        elapsedMs: performance.now() - started,
+      });
+    };
+    child.once("error", (error) => {
+      startError = error.message;
+      // A child that never started has no close to wait for.
+      if (child.pid === undefined) finish(null, null);
+    });
+    // After the streams are drained: the output is whole.
+    child.once("close", finish);
+  });
+  const goneWithin = (ms: number) =>
+    new Promise<boolean>((resolveGone) => {
+      if (gone) return resolveGone(true);
+      const timer = setTimeout(() => resolveGone(gone), ms);
+      void done.then(() => {
+        clearTimeout(timer);
+        resolveGone(true);
+      });
+    });
+  const stop = async () => {
+    if (gone) return;
+    signalGroup(child, "SIGTERM");
+    if (await goneWithin(killGraceMs)) return;
+    signalGroup(child, "SIGKILL");
+    await goneWithin(killGraceMs * 5);
+  };
+  return { command, done, stop };
+}
 
 export class NativeTransport implements EngineTransport {
   readonly engine = "native" as const;
@@ -87,6 +183,11 @@ export class NativeTransport implements EngineTransport {
   private exited: { code: number | null; signal: NodeJS.Signals | null } | undefined;
   private readonly exitPromise: Promise<void>;
   private readonly killGraceMs: number;
+  private readonly executable: string;
+  private readonly args: readonly string[];
+  private readonly env: Record<string, string | undefined>;
+  /** The batch runs in progress. */
+  private readonly batches = new Set<BatchHandle>();
   private readonly onProcessExit: () => void;
   private readyResolve!: (ready: true | Failure) => void;
   readonly ready: Promise<true | Failure>;
@@ -94,10 +195,13 @@ export class NativeTransport implements EngineTransport {
   constructor(config: NativeConfig) {
     this.root = resolve(config.projectRoot);
     this.killGraceMs = config.killGraceMs ?? 2_000;
+    this.executable = config.executable;
+    this.args = config.args ?? [];
+    this.env = config.env ?? process.env;
     this.ready = new Promise((resolveReady) => (this.readyResolve = resolveReady));
-    this.child = spawn(config.executable, ["--interaction-json", ...(config.args ?? [])], {
+    this.child = spawn(config.executable, ["--interaction-json", ...this.args], {
       cwd: this.root,
-      env: config.env ?? process.env,
+      env: this.env,
       stdio: ["pipe", "pipe", "pipe"],
       // Its own process group, so the kill ladder reaches anything it runs.
       detached: true,
@@ -209,10 +313,30 @@ export class NativeTransport implements EngineTransport {
     }
   }
 
+  /** A batch run of `path`: the same Agda, arguments and directory as the
+   * lane's, and the file last. */
+  runBatch(path: string): BatchHandle {
+    const target = this.inside(path);
+    const handle = startBatch(
+      { executable: this.executable, args: [...this.args, target], cwd: this.root },
+      this.env,
+      this.killGraceMs,
+    );
+    this.batches.add(handle);
+    void handle.done.then(() => this.batches.delete(handle));
+    return handle;
+  }
+
   /** End Agda: close its input, which it answers by exiting once idle;
    * then SIGTERM and SIGKILL to its process group, each after a grace
-   * period. */
+   * period.  Any batch run is stopped too. */
   async terminate(): Promise<void> {
+    const batches = Promise.all([...this.batches].map((batch) => batch.stop()));
+    await this.terminateLane();
+    await batches;
+  }
+
+  private async terminateLane(): Promise<void> {
     if (this.exited) return;
     this.child.stdin.end();
     if (await this.exitWithin(this.killGraceMs)) return;

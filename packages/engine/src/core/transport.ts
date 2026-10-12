@@ -6,7 +6,11 @@
 // adapter has verified for its protocol (the language server's
 // `ResponseEnd`; the prompt `JSON> ` Agda prints before it reads the next
 // command).  The core sends one command at a time and never infers an end
-// from silence or a timer.
+// from silence or a timer.  A transport that has the batch lane also
+// starts a fresh Agda per verdict (`runBatch`), which the core queues with
+// the lane's commands.
+
+import type { BatchCommand } from "./outcome.js";
 
 /** Why a lane or a feature is or is not available on an engine. */
 export interface Capability {
@@ -70,6 +74,38 @@ export interface EngineTransport {
   readSource(path: string): Promise<string | undefined>;
 
   /** Stop Agda now and release everything the transport holds (the
-   * worker; the child, by a kill ladder).  Resolves once it is gone. */
+   * worker; the child, by a kill ladder; any batch run).  Resolves once it
+   * is gone. */
   terminate(): Promise<void>;
+
+  /** Start a fresh Agda on `path` (the batch lane), with the same
+   * executable, arguments and directory as the interaction lane's.  Only a
+   * transport whose `capabilities.batch` is supported has it. */
+  runBatch?(path: string): BatchHandle;
+}
+
+/** A batch run in progress. */
+export interface BatchHandle {
+  /** What ran. */
+  readonly command: BatchCommand;
+  /** Settles once the run's Agda is gone, however it ended; never rejects
+   * (a start that fails is a run with `startError`). */
+  readonly done: Promise<BatchRun>;
+  /** Stop the run's Agda (its process group, by a kill ladder); resolves
+   * once it is gone. */
+  stop(): Promise<void>;
+}
+
+/** How a batch run ended, as the transport saw it; the session reads it
+ * into a verdict. */
+export interface BatchRun {
+  /** Agda's exit code, or null when a signal ended it. */
+  exitCode: number | null;
+  signal?: string | null;
+  /** Why it could not be started, when it could not. */
+  startError?: string;
+  /** Its standard output and standard error, the last of each when long. */
+  stdout: string;
+  stderr: string;
+  elapsedMs: number;
 }

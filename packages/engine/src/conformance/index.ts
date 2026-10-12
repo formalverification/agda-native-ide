@@ -9,14 +9,21 @@
 // replaced by placeholders, so that two engines' runs can be compared
 // field by field, and the runners archive it.
 //
+// A scenario may be conditional on a capability that engines declare
+// differently (the batch lane: the native engine has it, the page's has not
+// yet, issue 30): it asserts the verdicts where the engine has the lane and
+// the refusal where it has none, and records which in its transcript, so
+// that a comparison can tell a declared difference from a disagreement.
+//
 // Faults whose resources a runner owns (a startup that fails, a deadline,
 // a crash, the disposal of a worker or a child) are the runners' own
 // checks, beside this suite (scripts/conformance/).
 
 import type { AgdaSession } from "../core/session.js";
-import type { Answer, Failure, Outcome } from "../core/outcome.js";
+import type { Answer, Failure, Outcome, Verdict, VerdictOutcome } from "../core/outcome.js";
 import { sourceDigest } from "../core/text.js";
-import { CRLF, FIXTURES, GOALS, LITERATE, SECOND, UNICODE } from "./fixtures.js";
+import type { Capabilities } from "../core/transport.js";
+import { CRLF, FIXTURES, GOALS, GOALS_FILLED, GOALS_WRONG, LITERATE, SECOND, UNICODE } from "./fixtures.js";
 
 export { FIXTURES, SLOW_TERM } from "./fixtures.js";
 
@@ -70,26 +77,31 @@ function answered<T>(outcome: Outcome<T>, what: string): Answer<T> {
   return outcome;
 }
 
+function judged(outcome: VerdictOutcome, what: string): Verdict {
+  check(outcome.kind === "verdict", `${what}: expected a verdict, got ${JSON.stringify(outcome)}`);
+  return outcome;
+}
+
 type Context = OpenedTarget & { normalize: (value: unknown) => unknown };
 
 interface Scenario {
   name: string;
+  /** The capability the scenario's assertions depend on, which it records
+   * in its transcript as `capability`. */
+  requires?: keyof Capabilities;
   run(context: Context): Promise<unknown>;
 }
 
 const scenarios: Scenario[] = [
   {
-    name: "a session names its engine and Agda, and has no verdict to give",
+    name: "a session names its engine, its Agda and its lanes",
     async run({ session }) {
       equal(session.agdaVersion, "2.9.0", "Agda's version");
       check(session.capabilities.interaction.supported, "the interaction lane is supported");
-      check(!session.capabilities.batch.supported, "the batch lane is not");
-      const verdict = await session.checkFile();
-      equal(verdict.kind, "refusal", "a verdict is refused");
-      equal(verdict.reason, "unsupported-capability", "for want of the batch lane");
-      check(!("verdict" in verdict), "a refusal carries no verdict field");
-      check(/#(30|64)\b/.test(verdict.message), `the refusal names the issue: ${verdict.message}`);
-      return { agdaVersion: session.agdaVersion, batch: session.capabilities.batch.supported };
+      const batch = session.capabilities.batch;
+      check(typeof batch.supported === "boolean", "the batch lane is declared");
+      check(batch.supported || /#\d+\b/.test(batch.reason ?? ""), `a lane it lacks names the issue: ${batch.reason}`);
+      return { agdaVersion: session.agdaVersion, interaction: true };
     },
   },
   {
@@ -292,6 +304,52 @@ const scenarios: Scenario[] = [
     },
   },
   {
+    name: "a verdict is a fresh Agda's exit code where the engine has a batch lane, and is refused where it has none",
+    requires: "batch",
+    async run({ session, path, normalize }) {
+      const file = path("Goals.agda");
+      if (!session.capabilities.batch.supported) {
+        const refused = await session.checkFile(file);
+        check(refused.kind === "refusal", `a verdict is refused: ${JSON.stringify(refused)}`);
+        equal(refused.reason, "unsupported-capability", "for want of the batch lane");
+        equal(refused.capability, "batch", "the capability");
+        check(!("exitCode" in refused) && !("verdict" in refused), "a refusal carries no verdict");
+        check(/#(30|64)\b/.test(refused.message), `the refusal names the issue: ${refused.message}`);
+        return { capability: { batch: false }, refusal: { reason: refused.reason, capability: refused.capability } };
+      }
+      // The lane writes the file; the batch run reads it from disk.
+      answered(await session.load(file, GOALS), "load");
+      const open = judged(await session.checkFile(file), "the verdict on open goals");
+      equal(open.lane, "batch", "the lane");
+      equal([open.exitCode, open.success], [42, false], "open goals exit 42");
+      equal(open.digest, sourceDigest(GOALS), "the verdict names the text it read");
+      equal(open.diagnostics.map((d) => [d.severity, d.code]), [["error", "UnsolvedInteractionMetas"]], "Agda's error");
+      const filled = judged(
+        await session.checkFile(file, { text: GOALS_FILLED, expect: sourceDigest(GOALS) }),
+        "the verdict on the goals filled",
+      );
+      equal([filled.exitCode, filled.success], [0, true], "a file that checks exits 0");
+      equal(filled.digest, sourceDigest(GOALS_FILLED), "the verdict names the text it was given");
+      equal(filled.diagnostics, [], "no diagnostics");
+      const wrong = judged(await session.checkFile(file, { text: GOALS_WRONG }), "the verdict on a type error");
+      equal([wrong.exitCode, wrong.success], [42, false], "a type error exits 42");
+      const [error] = wrong.diagnostics;
+      equal([error?.code, error?.range?.startLine, error?.range?.startCol], ["UnequalTypes", 7, 14], "the error and where");
+      // The file holds its own text again, and the lane loads it.
+      const again = answered(await session.load(file), "load the file as it is");
+      equal(again.basis?.digest, sourceDigest(GOALS), "the file was put back");
+      check(!("exitCode" in again) && !("verdict" in again.value), "the lane's answer is not a verdict");
+      const record = (verdict: Verdict) => ({
+        exitCode: verdict.exitCode,
+        success: verdict.success,
+        digest: verdict.digest,
+        file: verdict.command.args.at(-1),
+        diagnostics: verdict.diagnostics,
+      });
+      return normalize({ capability: { batch: true }, verdicts: [open, filled, wrong].map(record) });
+    },
+  },
+  {
     name: "an abort with nothing running is nothing",
     async run({ session }) {
       equal(session.abort(), { aborting: undefined }, "nothing to abort");
@@ -353,5 +411,12 @@ export async function runConformance(
 
 /** The scenarios' names, in order. */
 export const scenarioNames = scenarios.map((scenario) => scenario.name);
+
+/** The scenarios that depend on a capability, by name: their transcripts
+ * record it as `capability`, and two engines that declare it differently
+ * differ there by declaration. */
+export const scenarioRequirements: Record<string, keyof Capabilities> = Object.fromEntries(
+  scenarios.flatMap((scenario) => (scenario.requires ? [[scenario.name, scenario.requires]] : [])),
+);
 
 export { Mismatch };

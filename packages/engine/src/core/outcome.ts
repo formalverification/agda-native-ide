@@ -1,12 +1,13 @@
 // File: packages/engine/src/core/outcome.ts
 //
 // What every operation returns: Agda's answer, the engine's refusal to
-// ask, or a failure to get an answer.  The three are distinct types, so a
-// caller cannot read a refusal or a failure as something Agda said.  No
-// answer of the interaction lane carries a verdict: interaction-mode Agda
-// loads a file with open goals and succeeds, so "it loaded" is knowledge,
-// never "it checks"; the verdict of record is a batch run's exit code,
-// which no engine here has yet (Capabilities.batch).
+// ask, or a failure to get an answer; and, from the batch lane, a verdict.
+// The four are distinct types, so a caller cannot read a refusal or a
+// failure as something Agda said, nor an answer as a verdict.  No answer
+// of the interaction lane carries a verdict: interaction-mode Agda loads a
+// file with open goals and succeeds, so "it loaded" is knowledge, never
+// "it checks"; the verdict of record is a batch run's exit code, which only
+// a verdict carries (Capabilities.batch says which engines have one).
 
 import type { AgdaResponse } from "./responses.js";
 
@@ -61,7 +62,11 @@ export type RefusalReason =
   /** The session has ended. */
   | "session-ended"
   /** The host's conversion of a source moves Agda's positions. */
-  | "position-shift";
+  | "position-shift"
+  /** The host's configuration names no Agda that can be run, or one of
+   * another version than the project expects; the message names the
+   * setting. */
+  | "configuration";
 
 export interface Refusal {
   kind: "refusal";
@@ -86,7 +91,10 @@ export type FailureReason =
   /** A file could not be read or written. */
   | "io"
   /** Agda could not be started. */
-  | "startup";
+  | "startup"
+  /** A batch run ended without an exit code (a signal the engine did not
+   * send stopped it), so it has no verdict. */
+  | "no-exit-code";
 
 export interface Failure {
   kind: "failure";
@@ -97,6 +105,61 @@ export interface Failure {
 }
 
 export type Outcome<T> = Answer<T> | Refusal | Failure;
+
+/** One of Agda's messages in a batch run's output, as Agda printed it: a
+ * block that begins `<file>:<range>: error: [Code]` or `<file>:<range>:
+ * warning: -W[no]Code`.  The verdict is the exit code; these say why. */
+export interface Diagnostic {
+  severity: "error" | "warning";
+  /** Agda's name for it (`UnequalTypes`, `UnsolvedInteractionMetas`, a
+   * warning's `UnreachableClauses`), when its header names one. */
+  code?: string;
+  /** The file Agda names, as it names it. */
+  file?: string;
+  /** Where, 1-based, as Agda prints it (columns count code points). */
+  range?: { startLine: number; startCol: number; endLine: number; endCol: number };
+  /** The text after the header line. */
+  message: string;
+}
+
+/** What ran for a verdict: the executable, its arguments (the file last),
+ * and the directory it ran in. */
+export interface BatchCommand {
+  executable: string;
+  args: string[];
+  cwd: string;
+}
+
+/** The batch lane's verdict: a fresh Agda's exit code on a file.  Its own
+ * type, never an answer: it says whether the file checks, which nothing
+ * the interaction lane says can. */
+export interface Verdict {
+  kind: "verdict";
+  lane: "batch";
+  engine: "browser" | "native";
+  /** The version the lane's Agda reported. */
+  agdaVersion: string;
+  /** The file, as Agda knows it. */
+  path: string;
+  /** `sha256:` and the SHA-256 of the text the run read: the file before
+   * the run and after it held the same text. */
+  digest: string;
+  command: BatchCommand;
+  /** Agda's own exit code: 0 when the file checks with nothing open; 42
+   * for an error, an open goal or an unsolved meta; 71 for options Agda
+   * refused. */
+  exitCode: number;
+  /** `exitCode === 0`, and nothing else: what green means in a batch
+   * build.  The diagnostics never change it. */
+  success: boolean;
+  diagnostics: Diagnostic[];
+  /** The last of what Agda printed (its standard output, then its
+   * standard error). */
+  output: string;
+  elapsedMs: number;
+}
+
+export type VerdictOutcome = Verdict | Refusal | Failure;
 
 export function refusal(reason: RefusalReason, message: string, capability?: string): Refusal {
   return capability === undefined

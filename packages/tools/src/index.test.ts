@@ -5,9 +5,17 @@
 // a goal is addressed, what names the tree, and what is refused.
 
 import { describe, expect, it } from "vitest";
-import { openSession, type EngineTransport, type TransportEvent } from "@agda-native-ide/engine";
+import {
+  openSession,
+  sourceDigest,
+  type BatchHandle,
+  type BatchRun,
+  type Capabilities,
+  type EngineTransport,
+  type TransportEvent,
+} from "@agda-native-ide/engine";
 
-import { createToolSurface, tools } from "./index.js";
+import { CHECK_MEANING, FILL_MEANING, createToolSurface, tools } from "./index.js";
 
 const PATH = "/work/Two.agda";
 const TEXT = "module Two where\n\nf : Set → Set\nf x = {! !}\n\ng : Set\ng = {! !}\n";
@@ -20,14 +28,14 @@ const goals = [
 ];
 
 class Scripted implements EngineTransport {
-  readonly engine = "browser" as const;
-  readonly capabilities = {
+  readonly engine: "browser" | "native" = "browser";
+  capabilities: Capabilities = {
     interaction: { supported: true },
     batch: { supported: false, reason: "the page's batch lane is issue #30" },
   };
   readonly sent: string[] = [];
   private readonly listeners = new Set<(event: TransportEvent) => void>();
-  private files = new Map<string, string>();
+  files = new Map<string, string>();
   subscribe(listener: (event: TransportEvent) => void) {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -85,8 +93,29 @@ class Scripted implements EngineTransport {
   async terminate() {}
 }
 
-async function prepared() {
-  const transport = new Scripted();
+/** Scripted, with a batch lane that answers as Agda would: 0 for a text
+ * with no goal, 42 with the goals' error for one with goals, and 42 with a
+ * type error for a text that gives `Set` a term of another type. */
+class Batched extends Scripted {
+  override readonly engine = "native" as const;
+  readonly runs: string[] = [];
+  constructor() {
+    super();
+    this.capabilities = { interaction: { supported: true }, batch: { supported: true } };
+  }
+  runBatch(path: string): BatchHandle {
+    const text = this.files.get(path) ?? "";
+    this.runs.push(text);
+    const run: BatchRun = /\bzero\b/.test(text)
+      ? { exitCode: 42, stdout: `${path}:4.7-11: error: [UnequalTypes]\nNat !=< Set\n`, stderr: "", elapsedMs: 9 }
+      : text.includes("{!")
+        ? { exitCode: 42, stdout: `${path}:7.5-10: error: [UnsolvedInteractionMetas]\nUnsolved interaction metas at the following locations:\n  ${path}:7.5-10\n`, stderr: "", elapsedMs: 9 }
+        : { exitCode: 0, stdout: "", stderr: "", elapsedMs: 9 };
+    return { command: { executable: "/bin/agda", args: [path], cwd: "/work" }, done: Promise.resolve(run), stop: async () => {} };
+  }
+}
+
+async function prepared(transport: Scripted = new Scripted()) {
   const opened = await openSession(transport);
   if (opened.kind !== "session") throw new Error(opened.message);
   await opened.session.load(PATH, TEXT);
@@ -163,6 +192,52 @@ describe("the tool surface", () => {
       expect(answer.status === "refused" && answer.message).toMatch(/#30/);
       expect("verdict" in answer).toBe(false);
     }
+  });
+
+  it("answers check_file with the batch lane's verdict on the loaded file", async () => {
+    const transport = new Batched();
+    const { tools: surface } = await prepared(transport);
+    const answer = await surface.check_file();
+    expect(answer).toMatchObject({
+      tool: "check_file",
+      status: "verdict",
+      lane: "batch",
+      tree: { engine: "native", agdaVersion: "2.9.0", file: PATH, digest: sourceDigest(TEXT) },
+      command: { executable: "/bin/agda", args: [PATH], cwd: "/work" },
+      verdict: { exitCode: 42, equivalentTo: `cd /work && /bin/agda ${PATH}`, meaning: CHECK_MEANING },
+      result: { success: false, diagnostics: [{ code: "UnsolvedInteractionMetas" }] },
+    });
+    expect(CHECK_MEANING).not.toMatch(/\u2014/);
+    expect(await surface.call("check_file", { file: PATH, extra: 1 })).toMatchObject({ status: "refused", reason: "invalid-input" });
+  });
+
+  it("answers fill_hole with a verdict on the candidate in place, and puts the file back", async () => {
+    const transport = new Batched();
+    const { tools: surface } = await prepared(transport);
+    const ok = await surface.fill_hole({ goal: 0, candidate: "x" });
+    // Goal 1 is still open, which is all the run failed on: the candidate is ok.
+    expect(ok).toMatchObject({
+      status: "verdict",
+      lane: "batch",
+      addressed: { goal: 0, resolvedBy: "number" },
+      verdict: { exitCode: 42, meaning: FILL_MEANING },
+      result: { status: "ok", candidate: "x", success: false },
+    });
+    expect(ok.status === "verdict" && ok.verdict.equivalentTo).toMatch(/with the candidate written over goal 0 \(the file on disk is put back/);
+    expect(transport.runs.at(-1)).toBe(TEXT.replace("f x = {! !}", "f x = x"));
+    expect(transport.files.get(PATH)).toBe(TEXT);
+    const wrong = await surface.fill_hole({ line: 7, column: 6, candidate: "zero" });
+    expect(wrong).toMatchObject({ addressed: { goal: 1, resolvedBy: "span" }, result: { status: "type_error" } });
+    expect(transport.files.get(PATH)).toBe(TEXT);
+  });
+
+  it("refuses fill_hole when the file is not the text the goal was found in", async () => {
+    const transport = new Batched();
+    const { tools: surface } = await prepared(transport);
+    transport.files.set(PATH, `${TEXT}-- edited\n`);
+    expect(await surface.fill_hole({ goal: 0, candidate: "x" })).toMatchObject({ status: "failed", reason: "source-changed" });
+    expect(transport.runs).toEqual([]);
+    expect(await surface.call("fill_hole", { goal: 0 })).toMatchObject({ status: "refused", reason: "invalid-input" });
   });
 
   it("refuses a tool it does not have, naming the issue that adds the table", async () => {
