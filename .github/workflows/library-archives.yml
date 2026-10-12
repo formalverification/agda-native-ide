@@ -13,10 +13,11 @@
 # It runs on demand, and when a push to main or a pull request changes
 # what the archives are built from: the flake (the pins of agda-algebras,
 # the compiler, the standard library and wasmtime), the standard library's
-# patches, the compiler's hashes, the scripts, or this file.  The runner's
-# memory is logged every two minutes: wasmtime compiles the 34 MB
-# agda.wasm once per derivation, at about 4.3 GiB, on a runner with 7.8
-# GiB.
+# patches, the compiler's hashes, the scripts, or this file; or what the
+# gate is made of (below).  The runner's memory is logged every two
+# minutes: wasmtime compiles the 34 MB agda.wasm once per derivation, at
+# about 4.3 GiB, on a runner with 15 GiB and 4 cores since the repository
+# went public (7.8 GiB and 2 cores before).
 #
 # What it costs: measured 2026-10-11 on a 2-core runner, while the
 # repository was private (7.8 GiB, 3 GiB of swap, none of it used; run
@@ -35,6 +36,24 @@
 # pull request changed.  The second build is never fetched: --rebuild
 # builds again here and compares with what the first build gave, built or
 # fetched.
+#
+# Then the gate (issue 13): the same roots under the language server the
+# site ships, its reactor, in headless Chromium (`make library-gate`), each
+# in a fresh session with only the archives the index names for it, which
+# must type-check Main alone, and the two controls, which must not.  It
+# runs every root wherever it runs, when the archives' derivation changed
+# or what the gate is made of did: the engine (its drive and transport,
+# and the session that counts the Checking lines), the gate's scripts, the
+# DevTools driver and the server it shares with the browser check, the
+# lockfile, which pins the drive's dependencies, or this file.  The site is
+# `nix build .#site`.  When only the gate changed, the archives come from
+# the cache once main's runs push them; until the write token exists,
+# main pushes nothing, and they are built again (6.5 minutes for the
+# interfaces on a 4-core runner, 2026-10-12).  What the gate costs:
+# measured 2026-10-12 on a 20-core workstation shared with other work
+# (docs/measurements/library-archives-browser-2026-10-12.json), every root,
+# four at once, in 13 min 36 s, where one session per job, checking its
+# roots in turn, took 85 s but proves less (docs/notes/library-archives.md).
 
 name: library-archives
 
@@ -48,6 +67,10 @@ on:
       - stdlib/patches/**
       - compiler/agda-2.9.0.sha256
       - scripts/library-archives/**
+      - packages/engine/**
+      - scripts/browser-check/cdp.mjs
+      - scripts/browser-check/serve.mjs
+      - package-lock.json
       - .github/workflows/library-archives.yml
   pull_request:
     paths:
@@ -56,6 +79,10 @@ on:
       - stdlib/patches/**
       - compiler/agda-2.9.0.sha256
       - scripts/library-archives/**
+      - packages/engine/**
+      - scripts/browser-check/cdp.mjs
+      - scripts/browser-check/serve.mjs
+      - package-lock.json
       - .github/workflows/library-archives.yml
 
 permissions:
@@ -81,9 +108,11 @@ jobs:
           authToken: ${{ github.ref == 'refs/heads/main' && secrets.CACHIX_AUTH_TOKEN || '' }}
           skipPush: ${{ github.ref != 'refs/heads/main' }}
           # Not what the flake fetches by hash from GitHub anyway: the
-          # compiler's files and the sources' tarballs.
-          pushFilter: '(-source|-agda\.wasm|-als\.wasm|-als-reactor\.wasm|-als-reactor\.js|-agda-2\.9\.0-compiler)$'
-      - name: Decide whether the archives' derivation changed
+          # compiler's files and the sources' tarballs.  Nor the site and
+          # its npm dependencies, which the gate builds, and site.yml
+          # builds again without the cache.
+          pushFilter: '(-source|-agda\.wasm|-als\.wasm|-als-reactor\.wasm|-als-reactor\.js|-agda-2\.9\.0-compiler|-agda-native-ide-site|-agda-native-ide-npm-deps)$'
+      - name: Decide whether the archives' derivation changed, or the gate's code
         id: changed
         env:
           EVENT: ${{ github.event_name }}
@@ -103,11 +132,23 @@ jobs:
             echo "The archives' derivation is the base's, $head: nothing to build." \
               | tee -a "$GITHUB_STEP_SUMMARY"
             echo build=false >> "$GITHUB_OUTPUT"
+            # The gate runs again only if what it is made of changed.
+            if git diff --quiet "$BASE" HEAD -- \
+                packages/engine scripts/library-archives/gate.mjs \
+                scripts/library-archives/gate scripts/library-archives/index.mjs \
+                scripts/browser-check/cdp.mjs scripts/browser-check/serve.mjs \
+                package-lock.json; then
+              echo "Nor did the gate's code change: no gate." | tee -a "$GITHUB_STEP_SUMMARY"
+              echo gate=false >> "$GITHUB_OUTPUT"
+            else
+              echo gate=true >> "$GITHUB_OUTPUT"
+            fi
           else
             echo build=true >> "$GITHUB_OUTPUT"
+            echo gate=true >> "$GITHUB_OUTPUT"
           fi
       - name: Say what the runner has
-        if: steps.changed.outputs.build == 'true'
+        if: steps.changed.outputs.gate == 'true'
         run: |
           nproc
           free -h
@@ -170,12 +211,41 @@ jobs:
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Build the site, whose language server the gate runs
+        if: steps.changed.outputs.gate == 'true'
+        run: nix build .#site --out-link site --print-build-logs
+      - name: Check every root under the site's language server, in headless Chromium
+        if: steps.changed.outputs.gate == 'true'
+        run: |
+          (while sleep 120; do
+            free -m | awk 'NR == 2 { m = $3 " of " $2 } NR == 3 { print "== memory: " m " MiB used, swap " $3 " of " $2 " MiB" }'
+          done) &
+          trap 'kill $! 2> /dev/null || true' EXIT
+          archives=$(nix build .#agda-algebras-archives --no-link --print-out-paths)
+          mkdir -p records
+          nix develop --command make library-gate SITE=site ARCHIVES="$archives" \
+            LIBRARY_GATE=records/gate GATE_ARGS="--jobs $(nproc)" 2>&1 | tee records/gate.log
+          exit "${PIPESTATUS[0]}"
+      - name: Record the gate's counts and time
+        if: always() && steps.changed.outputs.gate == 'true'
+        run: |
+          [ -f records/gate/report.json ] || exit 0
+          {
+            echo
+            echo "### The gate, under the site's language server"
+            echo
+            echo '```'
+            grep -E '^gate: ' records/gate.log || true
+            echo '```'
+            echo
+            jq -r '.totals | "Seconds summed over the roots: start \(.seconds.start), mount \(.seconds.mount), load \(.seconds.load); the slowest load \(.slowest[0].root) \(.slowest[0].loadSeconds) s; the largest heap \(.largestMemory[0].root) \(.largestMemory[0].memoryBytes) bytes."' records/gate/report.json
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
-        if: always() && steps.changed.outputs.build == 'true'
+        if: always() && steps.changed.outputs.gate == 'true'
         with:
           name: library-archives
           path: records
           if-no-files-found: warn
       - name: Disk usage after the build
-        if: always() && steps.changed.outputs.build == 'true'
+        if: always() && steps.changed.outputs.gate == 'true'
         run: df -h / || true
