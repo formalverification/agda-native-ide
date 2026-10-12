@@ -1120,7 +1120,7 @@ A library module opens read-only, since it is the checked library and its interf
 
 ---
 
-### Issue M1-3: The playground project: Main.agda over the standard library and agda-algebras (#11)
+### Issue M1-3: playground project: Main.agda over standard library + agda-algebras (#11)
 
 **Labels:** `milestone-1-library-ide`, `libraries`
 
@@ -1949,7 +1949,7 @@ A TypeScript extension that activates on Agda files, opens a webview panel besid
 
 ---
 
-### Issue M7-2: The native engine behind the shared interface: an interaction lane and a batch lane as child processes (#64)
+### Issue M7-2: The native engine behind the shared interface: an interaction lane and a batch lane as child processes (#64, closed)
 
 **Labels:** `runtime`, `tool-server`, `milestone-7-vscode`, `core`, `vscode`
 
