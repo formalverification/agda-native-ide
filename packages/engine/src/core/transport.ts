@@ -106,8 +106,14 @@ export interface BatchRun {
   signal?: string | null;
   /** Why it could not be started, when it could not. */
   startError?: string;
-  /** Its standard output and standard error, the last of each when long. */
+  /** Its standard output (all of it, or its last part when it was long),
+   * and the last of its standard error. */
   stdout: string;
   stderr: string;
+  /** When the standard output was too long to keep whole, its first part,
+   * in whole lines; `stdout` is then its last part, in whole lines, and
+   * `omitted` counts the characters between them that were not kept. */
+  stdoutHead?: string;
+  omitted?: number;
   elapsedMs: number;
 }

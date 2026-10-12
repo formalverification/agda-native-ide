@@ -159,6 +159,10 @@ export interface Verdict {
   /** The last of what Agda printed (its standard output, then its
    * standard error). */
   output: string;
+  /** When Agda printed more than the engine keeps (a megabyte from each
+   * end of its output), how many characters between the two ends were not
+   * read: the diagnostics and the modules printed there are missing. */
+  omitted?: number;
   elapsedMs: number;
 }
 

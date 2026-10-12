@@ -300,6 +300,9 @@ export interface CheckFileResult {
    * accept, and the file (agda-native-air's `checkedFromSource`, by
    * module). */
   checking: string[];
+  /** Characters of a long run's output that were not read, between its
+   * first and last megabyte: diagnostics and modules there are missing. */
+  omitted?: number;
 }
 
 export interface FillHoleResult {
@@ -308,6 +311,8 @@ export interface FillHoleResult {
   /** `exitCode === 0`: the file checks with the candidate in place. */
   success: boolean;
   diagnostics: Diagnostic[];
+  /** As check_file's. */
+  omitted?: number;
 }
 
 export interface ToolSurface {
@@ -427,6 +432,7 @@ export function createToolSurface(session: AgdaSession): ToolSurface {
       success: verdict.success,
       diagnostics: verdict.diagnostics,
       checking: verdict.checking,
+      ...(verdict.omitted ? { omitted: verdict.omitted } : {}),
     }));
   };
 
@@ -465,6 +471,7 @@ export function createToolSurface(session: AgdaSession): ToolSurface {
           candidate,
           success: verdict.success,
           diagnostics: verdict.diagnostics,
+          ...(verdict.omitted ? { omitted: verdict.omitted } : {}),
         };
       },
     );

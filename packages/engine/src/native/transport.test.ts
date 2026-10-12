@@ -12,6 +12,7 @@ import { join } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { openSession } from "../core/session.js";
 import type { TransportEvent } from "../core/transport.js";
 import { NativeTransport, startBatch, startNativeTransport } from "./transport.js";
 
@@ -186,6 +187,45 @@ setInterval(() => {}, 1000);`,
     const run = transport.runBatch(transport.resolvePath("X.agda"));
     await transport.terminate();
     expect(await run.done).toMatchObject({ exitCode: null, signal: "SIGTERM" });
+  });
+
+  it("reads the diagnostics and the modules of a run whose output is longer than it keeps", async () => {
+    const agda = fakeAgda(
+      "batch-long",
+      `if (process.argv.includes("--interaction-json")) {
+  process.stdout.write("JSON> ");
+  require("node:readline").createInterface({ input: process.stdin }).on("line", () => {
+    process.stdout.write(JSON.stringify({ kind: "DisplayInfo", info: { kind: "Version", version: "2.9.0" } }) + "\\nJSON> ");
+  });
+} else {
+  const out = [
+    "Checking Early (/p/Early.agda).",
+    "/p/Early.agda:1.1-6: warning: -W[no]EarlyWarning",
+    "an early message",
+    ...Array.from({ length: 30000 }, (_, i) => " Checking Filler" + i + " (/p/Filler" + i + ".agda)." + "x".repeat(70)),
+    "Checking Late (/p/Late.agda).",
+    "/p/Late.agda:2.3-4: error: [UnequalTypes]",
+    "a late message",
+    "",
+  ].join("\\n");
+  process.stdout.write(out, () => process.exit(42));
+}`,
+    );
+    const transport = new NativeTransport({ executable: agda, projectRoot: dir, killGraceMs: 200 });
+    await transport.ready;
+    const opened = await openSession(transport);
+    if (opened.kind !== "session") throw new Error(opened.message);
+    const file = transport.resolvePath("Long.agda");
+    writeFileSync(file, "module Long where\n");
+    const verdict = await opened.session.checkFile(file);
+    if (verdict.kind !== "verdict") throw new Error(JSON.stringify(verdict));
+    expect(verdict.exitCode).toBe(42);
+    expect(verdict.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["EarlyWarning", "UnequalTypes"]);
+    expect(verdict.checking[0]).toBe("Early");
+    expect(verdict.checking.at(-1)).toBe("Late");
+    expect(verdict.omitted).toBeGreaterThan(0);
+    expect(verdict.checking.length).toBeLessThan(30002);
+    await opened.session.dispose();
   });
 
   it("is a run that never started when its executable is missing", async () => {

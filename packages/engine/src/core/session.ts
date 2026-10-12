@@ -813,6 +813,13 @@ export class AgdaSession {
       if (after === undefined || sourceDigest(after) !== digest)
         return failure("source-changed", `${path} changed while the batch run read it; ask again`);
       const output = run.stderr ? `${run.stdout}${run.stdout.endsWith("\n") ? "" : "\n"}${run.stderr}` : run.stdout;
+      // A long run's two ends are read apart, each in whole lines.
+      const texts = run.stdoutHead === undefined ? [output] : [run.stdoutHead, output];
+      const seen = new Set<string>();
+      const diagnostics = texts.flatMap(parseDiagnostics).filter((diagnostic) => {
+        const key = JSON.stringify(diagnostic);
+        return !seen.has(key) && Boolean(seen.add(key));
+      });
       const verdict: Verdict = {
         kind: "verdict",
         lane: "batch",
@@ -823,9 +830,10 @@ export class AgdaSession {
         command: operation.handle!.command,
         exitCode: run.exitCode,
         success: run.exitCode === 0,
-        diagnostics: parseDiagnostics(output),
-        checking: checkedIn(run.stdout),
+        diagnostics,
+        checking: [...(run.stdoutHead === undefined ? [] : checkedIn(run.stdoutHead)), ...checkedIn(run.stdout)],
         output: tail(output),
+        ...(run.omitted ? { omitted: run.omitted } : {}),
         elapsedMs: run.elapsedMs,
       };
       return verdict;

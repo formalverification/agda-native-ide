@@ -66,7 +66,12 @@ export interface NativeConfig {
 
 const PROMPT = "JSON> ";
 const STDERR_TAIL = 8192;
-/** How much of each of a batch run's streams is kept. */
+/** How much of a batch run's standard output is kept from its start, and
+ * from its end (characters); and of its standard error, from its end.
+ * Batch Agda ends at its first error and prints it last, so an error is in
+ * the end; a long run's early warnings and `Checking` lines are in the
+ * start. */
+const BATCH_HEAD = 1 << 20;
 const BATCH_TAIL = 1 << 20;
 
 export const nativeCapabilities: Capabilities = {
@@ -97,7 +102,11 @@ export function startBatch(
   killGraceMs: number,
 ): BatchHandle {
   const started = performance.now();
+  // The standard output's first part, and its last; `total` counts all of it.
+  let head = "";
+  let headFull = false;
   let stdout = "";
+  let total = 0;
   let stderr = "";
   let gone = false;
   let child: ChildProcess;
@@ -120,7 +129,21 @@ export function startBatch(
     return joined.length > BATCH_TAIL ? joined.slice(-BATCH_TAIL) : joined;
   };
   child.stdout!.setEncoding("utf8");
-  child.stdout!.on("data", (chunk: string) => (stdout = keep(stdout, chunk)));
+  child.stdout!.on("data", (data: string) => {
+    let chunk = data;
+    total += chunk.length;
+    if (!headFull) {
+      const room = BATCH_HEAD - head.length;
+      if (chunk.length <= room) {
+        head += chunk;
+        return;
+      }
+      head += chunk.slice(0, room);
+      headFull = true;
+      chunk = chunk.slice(room);
+    }
+    stdout = keep(stdout, chunk);
+  });
   child.stderr!.setEncoding("utf8");
   child.stderr!.on("data", (chunk: string) => (stderr = keep(stderr, chunk)));
   const done = new Promise<BatchRun>((resolveRun) => {
@@ -128,11 +151,20 @@ export function startBatch(
     const finish = (code: number | null, signal: NodeJS.Signals | null) => {
       gone = true;
       process.removeListener("exit", onProcessExit);
+      // All of it kept, or its two ends in whole lines and a count of the
+      // rest.
+      let output: Pick<BatchRun, "stdout" | "stdoutHead" | "omitted"> = { stdout: head + stdout };
+      if (head.length + stdout.length < total) {
+        const first = head.slice(0, head.lastIndexOf("\n") + 1);
+        const newline = stdout.indexOf("\n");
+        const last = newline < 0 ? "" : stdout.slice(newline + 1);
+        output = { stdout: last, stdoutHead: first, omitted: total - first.length - last.length };
+      }
       resolveRun({
         exitCode: code,
         signal,
         ...(startError ? { startError } : {}),
-        stdout,
+        ...output,
         stderr,
         elapsedMs: performance.now() - started,
       });
