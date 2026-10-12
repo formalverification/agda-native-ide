@@ -80,7 +80,7 @@ export async function checkThemes(page, origin, site, out) {
   async function checked(previousNavigation) {
     for (let i = 0; i < 300; i++) {
       const current = await page.eval(state);
-      if (current.navigation !== previousNavigation && current.keyword && /^2 open goals.* · \d/.test(current.status) && current.frames.length >= 8) return;
+      if (current.navigation !== previousNavigation && current.keyword && /^1 open goal · \d/.test(current.status) && current.frames.length >= 8) return;
       await new Promise((done) => setTimeout(done, 100));
     }
     throw new Error("theme check timed out waiting for the default Main.agda");

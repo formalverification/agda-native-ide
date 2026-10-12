@@ -37,7 +37,9 @@
 // (scripts/library-archives/stage.sh).  The page writes that library file
 // as one of the drive's first files, and keeps the buffer in localStorage
 // under a key named by its path, so a document stored for /Main.agda, a
-// module of PLFA's library, is not shown in its place.
+// module of PLFA's library, is not shown in its place.  After a load that
+// leaves goals, the controller asks for the selected goal's context, so
+// that a check reports the goal with what is known there.
 //
 // The editor takes its text as the one Agda's positions refer to (the
 // offsets' commit) when the engine is about to load it, and only then,
@@ -162,6 +164,9 @@ function makeLspClient(rootUri: string = "/") {
     extensions: [...lspExtsWithoutHover, hoverTooltips()],
   });
 }
+
+/** What the tool surface's get_goal answers. */
+type GoalAnswer = { goal: number; type: string; context: AgdaGoalInfo["context"] };
 
 /** A tool's answer as the inspector words it, or the error to show. */
 function toolError(result: ToolResult): string | undefined {
@@ -445,12 +450,34 @@ export class AgdaController {
       this.lspClient!.notification("textDocument/didSave", {
         textDocument: { uri: "file://" + path },
       });
-      if (!load.errors.length)
+      if (!load.errors.length) {
         void this.transport?.persist().catch((error: unknown) =>
           console.warn("Could not persist the Agda cache", error),
         );
+        await this.readActiveContext(epoch);
+      }
     }
     this.finishAction();
+  }
+
+  /** The selected goal's context, after a load: the inspector shows a goal
+   * with what is known there, as a check reports it (issue 11), where it
+   * waited for the goal to be selected.  One question to Agda, quietly. */
+  private async readActiveContext(epoch: number) {
+    const id = this.activeGoalId;
+    if (id == null || !this.tools) return;
+    const result = await this.tools.get_goal({ goal: id });
+    if (epoch !== this.documentEpoch) return;
+    if (result.status === "answer") this.keepGoal(result.result as GoalAnswer);
+    else console.warn(`Could not read goal ${id}'s context`, toolError(result) ?? result.status);
+  }
+
+  /** A goal's type and context, as Agda answered them, kept for the
+   * inspector. */
+  private keepGoal(answer: GoalAnswer) {
+    const context = answer.context.map((entry) => ({ name: entry.name, type: entry.type, inScope: entry.inScope }));
+    this.goalInfo = { ...this.goalInfo, [answer.goal]: { id: answer.goal, type: answer.type, context } };
+    return context;
   }
 
   /** The goals an answer lists, for the inspector. */
@@ -607,9 +634,8 @@ export class AgdaController {
       throw new Error(error);
     }
     if (result.status !== "answer") return;
-    const answer = result.result as { goal: number; type: string; context: AgdaGoalInfo["context"] };
-    const context = answer.context.map((entry) => ({ name: entry.name, type: entry.type, inScope: entry.inScope }));
-    this.goalInfo = { ...this.goalInfo, [answer.goal]: { id: answer.goal, type: answer.type, context } };
+    const answer = result.result as GoalAnswer;
+    const context = this.keepGoal(answer);
     this.lastResult =
       show === "type"
         ? { kind: "GoalType", title: `Goal ${answer.goal}`, body: answer.type }
