@@ -6,9 +6,10 @@ File: `agda-native-ide/docs/adr/0002-where-the-workbench-lives.md`
 
 +  **Status**: Accepted when the pull request that adds it merges.  The
    decisions are William's of 2026-10-05, adopted in the plan by merging PR
-   [#75] (2026-10-06); none is built yet.  Isolation (§ 6) was proposed
-   pending [#59], and adopted on 2026-10-08 ([ADR 0001][adr-0001] § 8);
-   § 7 records what is deliberately left open.
+   [#75] (2026-10-06), when none was built; the shared core was built on
+   2026-10-11 (§ 3).  Isolation (§ 6) was proposed pending [#59], and adopted
+   on 2026-10-08 ([ADR 0001][adr-0001] § 8); § 7 records what is deliberately
+   left open.
 +  **Date**: 2026-10-06 (the decision 2026-10-05).
 +  **Tracking**: [#60] (this record); [#58] (Agda 2.9.0), [#59] (the reactor
    and the drive), [#61] (the library under 2.9.0), [#62] (the shared core);
@@ -682,7 +683,7 @@ served from was settled on 2026-10-07 ([#58]); [#4] is still open.
 | 8 | No isolation: the reactor build, with the drive in the server's worker | Proposed ([#59]); adopted 2026-10-08 | Two shared-memory channels; the reactor replaces one (ALS PR 48); built and measured in [#59] ([ADR 0001][adr-0001] § 8) |
 | 9 | The VS Code web build is verified, not promised | Open ([#68]) | No agents on the web; CORS on every fetch under `require-corp` |
 | 10 | The Emacs view is an experiment, kept only if useful | Open ([#74]) | One image per SVG; the WebKit widget uneven |
-| 11 | Where the 2.9.0 binaries are served from | Open ([#58], [#4]); settled 2026-10-07 ([ADR 0001][adr-0001] decision 19) | A private repository's releases are not public; today's compiler has one source; the binaries now live in releases of formalverification/agda-wasm-builds, a public repository of this organization |
+| 11 | Where the 2.9.0 binaries are served from | Settled 2026-10-07 ([#58]; [ADR 0001][adr-0001] decision 19); [#4] open | The binaries live in releases of formalverification/agda-wasm-builds, a public repository of this organization; when this record was written, this repository was private, so its releases were not public, and the compiler had one source, a personal repository |
 
 ---
 

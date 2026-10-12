@@ -890,8 +890,9 @@ it is tested in, with no polyfill, shim or fallback (William, 2026-10-07).
    `dev`, `build`, `test`, `check`, `browser-check`,
    `browser-check-notices`, `provenance-check`), `upstream/` (the records),
    `scripts/upstream-record.sh`, `scripts/asset-manifest.mjs` and
-   `src/lib/assets.ts` (the derived cache tokens), `src/lib/worker/als.ts`
-   and `src/lib/worker/drive.ts` (the reactor and the drive),
+   `src/lib/assets.ts` (the derived cache tokens),
+   `packages/engine/src/browser/worker/als.ts` and `drive.ts` (the reactor
+   and the drive, in `src/lib/worker/` until [#62]),
    `src/lib/support.ts` (what the page needs), `scripts/browser-check/`
    (`run.mjs`, `notices.mjs`, `cdp.mjs`, `bidi.mjs`),
    `.github/workflows/site.yml`.

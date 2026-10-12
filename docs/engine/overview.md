@@ -18,7 +18,7 @@ together from one `package-lock.json`.
 
 | Package | Entry points | What it is |
 |---|---|---|
-| `@agda-native-ide/engine` | `.` | The engine client's interface: the session, its outcomes, the commands, the response schemas, the give rule, coordinates and digests.  No platform. |
+| `@agda-native-ide/engine` | `.` | The engine client's interface: the session, its outcomes, the commands, the response validation (`parseResponse`), the give rule, coordinates and digests.  No platform. |
 | | `./browser` | The browser transport: the language server's reactor in a worker, over a message port. |
 | | `./browser/worker` | That worker's script, which a host's bundler builds. |
 | | `./native` | The native transport: `agda --interaction-json` as a child process.  Exported under the `node` condition only. |
@@ -54,9 +54,11 @@ compile; the globals are the following:
 
 The views are Svelte source, which the page's build compiles; `make check`
 type-checks them on their own, with none of the page's aliases.  The site's
-build runs `scripts/check-bundle.mjs`, which refuses a bundle that carries
-the native transport's command line, node's process or filesystem API, or
-VS Code's API.
+build refuses node's built-in modules in the page and in its worker
+(`vite.config.js`: Vite would otherwise replace each with an empty module,
+with no more than a warning), and then runs `scripts/check-bundle.mjs`, which
+refuses a bundle that carries a marker of the native transport (its command
+line) or of VS Code's API.
 
 ## The engine's interface
 
@@ -74,6 +76,8 @@ following:
 +  `give(ref, term)`, `refine(ref, term)`, `makeCase(ref, variables)`;
 +  `infer(term, ref?)`, `normalize(term, ref?)`: at a goal or at the top
    level of the loaded file;
++  `reloadNext(reason)`: no command; the next check loads, whatever the text,
+   for a host that has replaced the text it shows;
 +  `version()`, `abort()`, `checkFile()`, `dispose()`.
 
 Every operation returns an `Outcome`, one of the following three types,
@@ -135,14 +139,21 @@ timer.
    goal operations until the next load.  Sent when nothing runs, it does
    nothing.
 
-Every operation has a deadline (ten minutes for a load, two for the rest,
-by default).  At the deadline the session sends `Cmd_abort`; if Agda has
-not ended the command within a grace period (five seconds), the session
+Every operation has a deadline, from the moment it reaches the head of the
+queue until its answer is read: by default ten minutes for a load, one for
+Agda's version, and two for anything else.  At the deadline, an operation not
+yet sent (its source still being written, say) fails unsent; one whose
+command Agda is running is aborted with `Cmd_abort`, and if Agda has not
+ended the command within a grace period (five seconds), the session
 terminates the transport and reports the operation failed only once it is
-gone.  Terminating stops the worker, or closes the child's input (Agda
-exits on end of input when idle) and then sends SIGTERM and SIGKILL to its
-process group, each after a grace period.  The queue holds at most sixteen
-operations; when a session ends, everything running or waiting fails.
+gone; and one whose answer is being read (a load reads its source back)
+fails, and its load is not taken.  Terminating stops the worker, or closes
+the child's input (Agda exits on end of input when idle) and then sends
+SIGTERM and SIGKILL to its process group, each after a grace period.  At most
+sixteen operations wait behind the one running.  When a session ends,
+everything running or waiting fails, and each failure says who ended it: the
+session at a deadline, the host, or Agda.  A host's listener that throws
+stops nothing: the session logs the error and goes on.
 
 ## Which text an answer is about
 
@@ -156,55 +167,69 @@ loads.  Positions and goal numbers are valid for one generation.
    another session, file or generation is refused as stale, and one the
    current load does not have (given, or never there) as unknown, before
    anything is sent: Agda itself would load the file again, silently, and
-   answer about whatever it read.  The session checks again when an
-   operation reaches the head of the queue, since a load or an abort ahead
-   of it may have replaced the load it was asked about.
-+  After a load, the session reads the source back and compares its
-   digest with the text it wrote; a source changed in between fails the
-   load, with no basis.
-+  A failed load leaves Agda with no file, and the session refuses an
-   expression at the top level until the next load, since Agda would
-   check the file again first.
+   answer about whatever it read.  The session checks again when an operation
+   reaches the head of the queue, since a load or an abort ahead of it may
+   have replaced the load it was asked about, or a give ahead of it closed
+   its goal.
++  After a load, the session reads the source back and compares its digest
+   with the text it wrote; a source changed in between fails the load, with
+   no basis.  No load holds from the moment a load is sent until its answer
+   is read and its source read back: Agda's file is then the new one,
+   whatever comes of the load.
++  A load Agda refused (its answer has an `Error`) leaves Agda with no file,
+   and the session refuses an expression at the top level until the next
+   load, since Agda would check the file again first.  The errors Agda
+   reports among its warnings (a termination problem, say) are not such a
+   refusal: Agda keeps the file.  After an abort, a deadline, or a give, a
+   refine or a case split whose answer could not be read, no load holds.
 
-The **snapshot** is the text Agda's live state reflects: the loaded text
-with the edits Agda's own answers made.  Agda goes on reporting positions
-in the loaded text after a give (a later goal keeps its range though the
-text above it changed), so the session keeps the goals' spans in the
-snapshot itself and moves them by each edit, and reports each edit
-(`TextEdit`, UTF-16 offsets into the snapshot as it was) for a host that
-shows the text.  A `?` that Agda reports as a goal is recorded as
-`{!  !}`, as editors show it.  A case split's clauses replace the goal's
-line, but Agda has not checked them, so the next check loads.
+The **snapshot** is the text Agda's live state reflects: the loaded text with
+the edits Agda's own answers made.  Agda goes on reporting positions in the
+loaded text after a give (a later goal keeps its range though the text above
+it changed), so the session keeps the goals' spans in the snapshot itself and
+moves them by each edit, and reports each edit (`TextEdit`, UTF-16 offsets
+into the snapshot as it was) for a host that shows the text.  A `?` that Agda
+reports as a goal is recorded as `{!  !}`, as editors show it.  A case
+split's clauses replace the goal's clause as Agda's Emacs mode replaces it
+(`caseSplitEdit`): a function's line after its indentation, each clause on a
+line of its own with that indentation; or, in an extended lambda, the goal's
+clause, from the `;` or `{` before it to the goal's end, the clauses joined
+by ` ; `.  Agda has not checked them, so the next check loads.
 
 **Coordinates**.  Agda counts positions in code points, 1-based, after
-dropping a leading byte-order mark; JavaScript, CodeMirror and VS Code
-count UTF-16 code units, which differ at every character outside the Basic
-Multilingual Plane.  `OffsetTable` converts between them for one text.  A
-literate file's positions are those of the file as written, since Agda's
-literate preprocessing keeps them.  A host may convert a source before
-Agda reads it (the page aliases PLFA's imports to smaller modules,
-`src/lib/agda/browser-source.js`), but the conversion must keep every
-line's length in code points, which the session checks before it writes
-the file, refusing the load otherwise; the basis's digest is the converted
-text's.
+dropping a leading byte-order mark, in the text it reads with each CR LF made
+one LF (`Agda.Utils.IO.UTF8.convertLineEndings`, which turns the other line
+endings into LF one for one); JavaScript, CodeMirror and VS Code count UTF-16
+code units, which differ at every character outside the Basic Multilingual
+Plane, and at every CR LF.  `OffsetTable` converts between them for one text.
+A literate file's positions are those of the file as written, since Agda's
+literate preprocessing keeps them.  A host may convert a source before Agda
+reads it (the page aliases PLFA's imports to smaller modules,
+`src/lib/agda/browser-source.js`), but the conversion must keep every line's
+length in code points, which the session checks before it writes the file,
+refusing the load otherwise; the basis's digest is the converted text's.
 
 ## The give rule
 
-`planCheck(previous, goals, next)` is the fork's rule as a function of
-texts: if `next` is the snapshot, nothing is sent; if the only change lies
-wholly inside one live goal's braces, in both texts, and leaves the goal
-non-empty, the session gives that goal its new contents with
-`Cmd_give WithoutForce`; anything else (a declaration, an import, an edit
-outside every goal or across two, a goal emptied) loads.  `check()`
-applies it to the session's snapshot, and loads whenever nothing, another
-file, or a failed load is held, or a case split is unchecked.
+`planCheck(previous, goals, next)` is the fork's rule as a function of texts:
+if `next` is the snapshot, nothing is sent; if the only change lies wholly
+inside one live goal's braces, in both texts, and leaves the goal non-empty,
+the session gives that goal its new contents with `Cmd_give WithoutForce`;
+anything else (a declaration, an import, an edit outside every goal or across
+two, a goal emptied, or a goal's text that holds a hole's or a comment's
+delimiter, `{!`, `!}`, `{-`, `-}` or `--`, which a load would read
+differently from a give) loads.  `check()` applies it to the session's
+snapshot, and loads whenever nothing, another file, or a failed load is held,
+or a case split is unchecked.
 
-`check()` calls its `onPlan` hook with the plan synchronously, before
-anything is sent.  The page takes its editor's text as the text Agda's
-positions refer to (the offsets' commit, [`runtime.md`][runtime]) in that
-hook, when the plan is a load, in the same tick it read the text: a commit
-at a give would map Agda's later ranges from the wrong text.  A give is
-carried out only against the snapshot it was planned on.
+`check()` calls its `onPlan` hook with the plan synchronously, once the
+session has taken the check and before anything is sent (a full queue, or a
+conversion that moves positions, refuses the check first and tells nothing).
+The page takes its editor's text as the text Agda's positions refer to (the
+offsets' commit, [`runtime.md`][runtime]) in that hook, when the plan is a
+load, in the same tick it read the text: a commit at a give would map Agda's
+later ranges from the wrong text.  A give is carried out only against the
+snapshot it was planned on.
 
 ## What each host owns
 
@@ -216,18 +241,26 @@ carried out only against the snapshot it was planned on.
 | The host | Its configuration (URLs, the executable, the project root, the library arguments), what it may fetch, when to persist, its source conversion, and its editor: applying highlighting, goals and edits, and showing results. |
 | The views | Showing what they are given, and reporting what the reader does. |
 
-In the page, `src/lib/controller.svelte.ts` is the host: it gives the
-browser transport its URLs and a worker bundled from
-`src/lib/worker/als.ts` (one line, importing the engine's worker), checks
-through the session, asks the inspector's questions through the tool
-surface, writes the edited buffer to the drive after a give and persists
-the drive's cache, and keeps the page's state.  `src/lib/agda/handlers.js`
-applies each response to CodeMirror as it arrives, with the engine's rules
-for what a give or a case split replaces.  CodeMirror's language-server
-client, which the page keeps for hover, reaches the server through the
-transport's editor channel: the transport holds the server's one session,
-answers the editor's `initialize` with the server's own answer, and keeps
-the two clients' request numbers apart.
+In the page, `src/lib/controller.svelte.ts` is the host: it gives the browser
+transport its URLs and a worker bundled from `src/lib/worker/als.ts` (one
+line, importing the engine's worker), checks through the session, asks the
+inspector's questions through the tool surface, writes the edited buffer to
+the drive after a give and persists the drive's cache, and keeps the page's
+state.  `src/lib/agda/handlers.js` applies each response to CodeMirror as it
+arrives, with the engine's rules for what a give or a case split replaces.
+CodeMirror's language-server client, which the page keeps for hover, reaches
+the server through the transport's editor channel: the transport holds the
+server's one session, answers the editor's `initialize` with the server's own
+answer, and keeps the two clients' request numbers apart, a cancellation
+included.
+Infer and Normalize are answered in the scope of the file Agda holds, so when
+that is not the file on screen the page checks the file on screen first (a
+PLFA chapter with its interface archives mounted, as a check does); the fork
+named the file in the command, and Agda loaded it.  When the page replaces
+the editor's text (another chapter, or the playground again), it calls
+`reloadNext`, since the editor no longer shows the highlighting or the goals
+of what Agda holds, and it applies no answer about another file than the one
+on screen.
 
 The companion keeps its delegated commands: it drives agda-mode-vscode's
 own commands and reads their effects, and imports no package yet.  Issue
@@ -314,20 +347,22 @@ Agda's builtins only.  The scenarios are as follows:
    refine opens a goal;
 +  positions in Unicode text (a character outside the Basic Multilingual
    Plane before a goal on its line), and terms outside ASCII;
++  positions in a text whose line ends are CR LF, and two gives in it;
 +  a literate module: a goal in its code, none in its prose, and a give
    that computes;
 +  an abort with nothing running.
 
 Each scenario returns a transcript of the values it asserted on (goals,
-types, contexts, edits, Agda's errors, refusals, normal forms, digests),
-with the engine's root path and the session's name replaced by
-placeholders.  The
-runners add the checks of what they own: natively, a missing executable,
-an Agda that exits at once, a deadline Agda answers, a child stopped with
-SIGSTOP that the kill ladder ends, a child killed mid-command, and a
-disposal that leaves no process; in the browser, a missing compiler, a
-compiler that is not one, a deadline Agda answers, a worker that dies
-without a word (which the deadline ends), and a disposal.
+types, contexts, edits, Agda's errors, refusals, normal forms, digests), with
+the engine's root path and the session's name replaced by placeholders.  The
+first scenario and the last check the session's own contract, so their
+transcripts cannot differ between engines; the other ten compare what Agda
+answered.  The runners add the checks of what they own: natively, a missing
+executable, an Agda that exits at once, a deadline Agda answers, a child
+stopped with SIGSTOP that the kill ladder ends, a child killed mid-command,
+and a disposal that leaves no process; in the browser, a missing compiler, a
+compiler that is not one, a deadline Agda answers, a worker that dies without
+a word (which the deadline ends), and a disposal.
 
 ```sh
 nix develop .#vscode --command make conformance-native  # node, native Agda
@@ -335,9 +370,13 @@ nix develop --command make conformance-browser          # headless Chromium, bui
 nix develop --command make conformance-compare          # the two runs, field by field
 ```
 
-Each writes its record into `conformance/` (`CONFORMANCE=` moves it).  CI
-runs the native suite in the companion's workflow, which builds native
-Agda, and the browser suite in the site's browser job.
+Each writes its record into `conformance/` (`CONFORMANCE=` moves it), and
+each runner removes its own record before it starts.  The comparison takes
+the scenarios' names from the suite, so a scenario missing from either run is
+a difference.  The native runner stops its Agda on SIGINT, SIGTERM and
+SIGHUP, which Agda's own process group does not get.  CI runs the native
+suite in the companion's workflow, which builds native Agda, and the browser
+suite in the site's browser job.
 
 ## What is not here yet
 

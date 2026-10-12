@@ -135,11 +135,13 @@ VS Code profile; they leave the library checkout untouched.
 `make check`, `make test`, `make build` and `make dev` first install the
 locked npm dependencies (`npm ci`) whenever a workspace's `package.json` or
 `package-lock.json` is newer than the last install, and build the shared
-packages.  `make build` refuses
-to build when a file in `static/` differs from its pin; `make assets` puts
-it back.  `build/` is a static site that any static server can serve: the
-page shares no memory between threads, so it needs no cross-origin
-isolation and no particular headers ([#59]).
+packages.  `make build` refuses to build when a file in `static/` differs
+from its pin (`make assets` puts it back), or when the page or its worker
+imports one of node's built-in modules, and then checks the bundle for the
+native transport's and VS Code's markers (`scripts/check-bundle.mjs`).
+`build/` is a static site that any static server can serve: the page shares
+no memory between threads, so it needs no cross-origin isolation and no
+particular headers ([#59]).
 
 `nix build .#site` builds the same site in the Nix sandbox, from a clean
 clone: it runs `make build` with the pinned binaries and the npm
@@ -252,7 +254,7 @@ provenance-check` passes.
 
    +  **Still upstream's** (its path is in `upstream/unchanged.sha256`):
       take the new version, at its path here, for example
-      `git show "${NEW}:src/lib/index.js" > src/lib/index.js`, or
+      `git show "${NEW}:src/lib/agda/goals.js" > src/lib/agda/goals.js`, or
       `git show "${NEW}:README.md" > README.plfa-playground.md`.
    +  **Changed here**: merge three ways, and resolve any conflict it marks:
 
