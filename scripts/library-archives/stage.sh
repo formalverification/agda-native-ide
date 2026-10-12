@@ -1,9 +1,11 @@
 # File: scripts/library-archives/stage.sh
 #
-# A stage: a directory laid out as the page's drive (src/lib/worker/drive.ts,
-# layOutDrive), which the compiler's plain agda runs over as the guest's
-# root, with HOME and Agda_datadir as the page's server has them
-# (src/lib/worker/als.ts).  Sourced by build.sh and check.sh (issue 12).
+# A stage: a directory laid out as the page's drive (layOutDrive, in the
+# engine's packages/engine/src/browser/worker/drive.ts), which the
+# compiler's plain agda runs over as the guest's root, with HOME and
+# Agda_datadir as the page's server has them
+# (packages/engine/src/browser/worker/als.ts).  Sourced by build.sh and
+# check.sh (issue 12).
 #
 #   /lib/prim                  agda-data.zip: the builtins, with their
 #                              interfaces under _build/<version>/agda/

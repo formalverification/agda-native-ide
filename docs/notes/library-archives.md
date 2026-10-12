@@ -70,11 +70,11 @@ the check does not rebuild the interfaces.
    `agda-stdlib-2.3-patched.zip` (`mkStdlib`) and
    `agda-algebras-sources.zip`; the compiler's `agda.wasm` (`nix build
    .#compiler`); and nixpkgs' wasmtime, 38.0.4 at this flake's nixpkgs.
-+  **The stage**: a directory laid out as the page's drive
-   (`src/lib/worker/drive.ts`, `layOutDrive`), from those archives, and
-   mounted as the guest's root (`wasmtime run --dir <stage>::/`), with
-   `HOME=/home/root` and `Agda_datadir=/`, as the page's server has them
-   (`src/lib/worker/als.ts`):
++  **The stage**: a directory laid out as the page's drive (`layOutDrive`,
+   in the engine's `packages/engine/src/browser/worker/drive.ts`), from those
+   archives, and mounted as the guest's root (`wasmtime run --dir
+   <stage>::/`), with `HOME=/home/root` and `Agda_datadir=/`, as the page's
+   server has them (`packages/engine/src/browser/worker/als.ts`):
 
 | Path on the drive | From |
 |---|---|
@@ -207,9 +207,11 @@ three together, against a floor of 54.3 MB.
    components cuts the HSP root from 128 archives to 58, at 6.2% over the
    floor there and 18.9% for the median root.  The cost of the rule is the
    number of files: 82 for the median root, 128 for the HSP root, 385 for the
-   umbrella module.  The page fetches them at once (`mountDriveArchives` in
-   `src/lib/controller.svelte.ts` fetches in parallel), over HTTP/2 from any
-   of the hosts [#6] weighs.
+   umbrella module.  The page fetches them at once: the controller's
+   `mountDriveArchives` (`src/lib/controller.svelte.ts`) hands them to the
+   engine's browser transport, whose `mountArchives`
+   (`packages/engine/src/browser/index.ts`) fetches them in parallel, over
+   HTTP/2 from any of the hosts [#6] weighs.
 +  **Stored zips**: the payload of a 2.9.0 interface is already zstd, so
    gzip saves 0.09% on the HSP closure (the probe), and a stored zip costs
    nothing to unpack; but the name matters, since Cloudflare caches `.zip`
