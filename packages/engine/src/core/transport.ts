@@ -28,8 +28,10 @@ export interface Capabilities {
 export type TransportEvent =
   /** One of Agda's responses, as Agda's own JSON, unvalidated. */
   | { type: "response"; json: unknown }
-  /** The command in flight has ended (or none was, after an abort that
-   * arrived after it ended; the core ignores that). */
+  /** The command in flight has ended.  A transport sends one per command,
+   * and none for an abort: Agda's command reader takes `Cmd_abort`, in
+   * both engines.  The core ignores one that comes while it reads an
+   * answer. */
   | { type: "end" }
   /** Output that is not a response: a line natively that is not JSON
    * (Agda prints `cannot read: ...` for a command it cannot parse), or a
