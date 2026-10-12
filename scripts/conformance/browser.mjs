@@ -13,7 +13,7 @@
 //   nix run .#conformance-browser -- <site> --harness DIR [--out DIR]
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { cpus, platform, release, totalmem } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
@@ -43,6 +43,8 @@ for (const required of [join(site, "index.html"), join(harness, "index.html")])
     process.exit(2);
   }
 mkdirSync(out, { recursive: true });
+// A run that does not finish leaves no record for the comparison to read.
+rmSync(join(out, "browser.json"), { force: true });
 
 const digest = (file) => `sha256:${createHash("sha256").update(readFileSync(join(site, file))).digest("hex")}`;
 const compiler = {

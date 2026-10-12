@@ -16,7 +16,7 @@
 import type { AgdaSession } from "../core/session.js";
 import type { Answer, Failure, Outcome } from "../core/outcome.js";
 import { sourceDigest } from "../core/text.js";
-import { FIXTURES, GOALS, LITERATE, SECOND, UNICODE } from "./fixtures.js";
+import { CRLF, FIXTURES, GOALS, LITERATE, SECOND, UNICODE } from "./fixtures.js";
 
 export { FIXTURES, SLOW_TERM } from "./fixtures.js";
 
@@ -250,6 +250,28 @@ const scenarios: Scenario[] = [
       const inferred = answered(await session.infer("twice not"), "infer");
       equal(inferred.value.expression, "𝔹 → 𝔹", "the type");
       return normalize({ goal, give: give.value, normal: normal.value, inferred: inferred.value });
+    },
+  },
+  {
+    name: "positions in a text whose line ends are CR LF, which Agda reads as LF",
+    async run({ session, path, normalize }) {
+      const load = answered(await session.load(path("Crlf.agda"), CRLF), "load");
+      equal(load.value.errors, [], "no errors");
+      const [first, second] = load.value.goals;
+      // Agda's count is one fewer per line end before the goal.
+      equal(first.agdaRange?.start.pos, CRLF.indexOf("{! !}") + 1 - 7, "Agda's position");
+      equal(first.span!.from, CRLF.indexOf("{! !}"), "the first goal's UTF-16 offset");
+      equal(second.span!.from, CRLF.lastIndexOf("{! !}"), "the second goal's UTF-16 offset");
+      const give = answered(await session.give(session.goalRef(first.id)!, "zero"), "give");
+      equal(give.value.accepted, true, "Agda took the term");
+      const snapshot = CRLF.replace("{! !}", "zero");
+      equal(session.snapshot, snapshot, "the snapshot");
+      const [left] = give.value.goals;
+      equal(snapshot.slice(left.span!.from, left.span!.to), "{! !}", "the other goal, moved by the give");
+      const refine = answered(await session.give(session.goalRef(left.id)!, "n"), "the other give");
+      equal(refine.value.accepted, true, "Agda took that term too");
+      equal(session.snapshot, snapshot.replace("{! !}", "n"), "the snapshot after both");
+      return normalize({ goals: load.value.goals, give: give.value, other: refine.value });
     },
   },
   {

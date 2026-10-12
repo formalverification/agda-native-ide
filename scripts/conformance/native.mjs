@@ -14,7 +14,7 @@
 
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { cpus, platform, release, tmpdir, totalmem } from "node:os";
+import os, { cpus, platform, release, tmpdir, totalmem } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
@@ -31,6 +31,17 @@ if (!agda) {
 }
 const out = resolve(options.out);
 mkdirSync(out, { recursive: true });
+// A run that does not finish leaves no record for the comparison to read.
+rmSync(join(out, "native.json"), { force: true });
+
+// Each Agda runs in a process group of its own, so a signal that ends this
+// runner (Ctrl-C, or make's `timeout`) does not reach it: stop them first.
+const running = new Set();
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"])
+  process.once(signal, async () => {
+    await Promise.allSettled([...running].map((transport) => transport.terminate()));
+    process.exit(128 + os.constants.signals[signal]);
+  });
 
 /** A fresh project root, with its own empty Agda directory so that no
  * library of this machine's reaches the check. */
@@ -56,6 +67,7 @@ async function open(sessionOptions = {}, config = {}) {
     return started;
   }
   const { session, transport } = started;
+  running.add(transport);
   await transport.writeSource(transport.resolvePath("conformance.agda-lib"), FIXTURES["conformance.agda-lib"]);
   return {
     session,
@@ -64,6 +76,7 @@ async function open(sessionOptions = {}, config = {}) {
     path: (relative) => transport.resolvePath(relative),
     close: async () => {
       await session.dispose();
+      running.delete(transport);
       rmSync(root, { recursive: true, force: true });
     },
   };

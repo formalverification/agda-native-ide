@@ -5,16 +5,20 @@
 // holds the values its scenario asserted on, with the engine's root path
 // and the session's name already replaced by placeholders by the suite,
 // and nothing else removed.  It prints every difference and writes
-// comparison.json beside the two runs; it exits 1 when a scenario is
-// missing from either run, failed in either, or answered differently.  A
+// comparison.json beside the two runs; it exits 1 when a scenario of the
+// suite is missing from either run, failed in either, or answered
+// differently, or when a run holds a scenario the suite does not.  A
 // failed scenario's transcript is empty, so two runs that failed alike
-// would otherwise agree.
+// would otherwise agree, and the names come from the suite, so two empty
+// runs cannot.
 //
 //   node scripts/conformance/compare.mjs <browser.json> <native.json> [--out DIR]
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
+
+import { scenarioNames } from "@agda-native-ide/engine/conformance";
 
 const { values: options, positionals } = parseArgs({
   allowPositionals: true,
@@ -36,11 +40,13 @@ function differences(a, b, path = "") {
   return [{ path: path || "/", browser: a, native: b }];
 }
 
-const names = [...new Set([...browser.scenarios, ...native.scenarios].map((scenario) => scenario.name))];
+const ran = [...browser.scenarios, ...native.scenarios].map((scenario) => scenario.name);
+const names = [...new Set([...scenarioNames, ...ran])];
 const scenarios = names.map((name) => {
   const left = browser.scenarios.find((scenario) => scenario.name === name);
   const right = native.scenarios.find((scenario) => scenario.name === name);
-  if (!left || !right) return { name, missing: !left ? "browser" : "native", differences: [] };
+  if (!scenarioNames.includes(name)) return { name, unknown: true, differences: [] };
+  if (!left || !right) return { name, missing: !left && !right ? "either" : !left ? "browser" : "native", differences: [] };
   return {
     name,
     passed: { browser: left.ok, native: right.ok },
@@ -49,7 +55,9 @@ const scenarios = names.map((name) => {
 });
 const fixturesAgree = JSON.stringify(browser.fixtures) === JSON.stringify(native.fixtures);
 const failed = (scenario) => scenario.passed && !(scenario.passed.browser && scenario.passed.native);
-const differing = scenarios.filter((scenario) => scenario.missing || failed(scenario) || scenario.differences.length);
+const differing = scenarios.filter(
+  (scenario) => scenario.missing || scenario.unknown || failed(scenario) || scenario.differences.length,
+);
 const comparison = {
   date: new Date().toISOString(),
   runs: { browser: browser.date, native: native.date },
@@ -59,7 +67,9 @@ const comparison = {
   identical: differing.length === 0 && fixturesAgree,
 };
 for (const scenario of scenarios) {
-  if (scenario.missing) console.log(`MISSING ${scenario.name}: not in the ${scenario.missing} run`);
+  if (scenario.missing)
+    console.log(`MISSING ${scenario.name}: not in ${scenario.missing === "either" ? "either run" : `the ${scenario.missing} run`}`);
+  else if (scenario.unknown) console.log(`UNKNOWN ${scenario.name}: not a scenario of the suite`);
   else if (failed(scenario))
     console.log(`FAILED  ${scenario.name}: in ${["browser", "native"].filter((run) => !scenario.passed[run]).join(" and ")}`);
   else if (!scenario.differences.length) console.log(`same    ${scenario.name}`);

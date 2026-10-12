@@ -47,6 +47,21 @@ twice : (𝔹 → 𝔹) → 𝔹 → 𝔹
 twice f 𝕓 = {! !}
 `;
 
+/** A module whose line ends are CR LF, which Agda reads as one LF each:
+ * its positions are one fewer per line than the text's. */
+export const CRLF = [
+  "module Crlf where",
+  "",
+  "data Nat : Set where",
+  "  zero : Nat",
+  "  suc  : Nat → Nat",
+  "",
+  "pred : Nat → Nat",
+  "pred zero = {! !}",
+  "pred (suc n) = {! !}",
+  "",
+].join("\r\n");
+
 export const LITERATE = `# A literate module
 
 Prose is not code, so \`{! !}\` and \`?\` here are not goals, and neither is ℕ.
@@ -87,6 +102,7 @@ export const FIXTURES: Record<string, string> = {
   "Goals.agda": GOALS,
   "Second.agda": SECOND,
   "Unicode.agda": UNICODE,
+  "Crlf.agda": CRLF,
   "Literate.lagda.md": LITERATE,
   "Slow.agda": SLOW,
 };

@@ -198,7 +198,7 @@ conformance-browser: packages ## Run the engine's conformance suite in headless 
 	timeout 600s nix run .#conformance-browser -- $(SITE) \
 	  --harness $(CONFORMANCE_HARNESS) --out $(CONFORMANCE)
 
-conformance-compare: ## Compare the browser's and the native engine's answers, field by field
+conformance-compare: packages ## Compare the browser's and the native engine's answers, field by field
 	node scripts/conformance/compare.mjs $(CONFORMANCE)/browser.json $(CONFORMANCE)/native.json
 
 # ---------------------------------------------------------------------
