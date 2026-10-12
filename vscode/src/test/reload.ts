@@ -6,8 +6,8 @@ import * as assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { Companion } from '../extension';
-import { PanelState } from '../state';
+import type { Companion } from '../extension';
+import type { PanelState } from '../state';
 
 async function until(predicate: () => boolean | Thenable<boolean>, label: string): Promise<void> {
   const started = performance.now();

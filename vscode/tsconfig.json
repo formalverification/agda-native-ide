@@ -1,14 +1,17 @@
 {
+  // Type checking only: scripts/build.mjs bundles the extension and its
+  // tests with rolldown, which resolves the workspace's packages as node
+  // does (the engine's native entry is exported under "node").
   "compilerOptions": {
     "target": "ES2022",
-    "module": "CommonJS",
-    "rootDir": "src",
-    "outDir": "out",
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "customConditions": ["node"],
+    "noEmit": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "sourceMap": true,
     "types": ["node", "vscode"]
   },
   "include": ["src/**/*.ts"]

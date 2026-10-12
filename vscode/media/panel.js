@@ -5,6 +5,7 @@
   const module = document.getElementById('module');
   const buffer = document.getElementById('buffer');
   const activity = document.getElementById('activity');
+  const answer = document.getElementById('answer');
   const buttons = [...document.querySelectorAll('button[data-action]')];
   for (const button of buttons) {
     button.addEventListener('click', () => vscode.postMessage({ type: 'command', action: button.dataset.action }));
@@ -23,7 +24,8 @@
     for (const button of buttons) button.disabled = message.busy || !message.module;
     const report = state?.lastCommand;
     activity.textContent = message.error ?? (message.busy ? 'Running command...' : report ?
-      `${report.action} returned in ${report.elapsedMs.toFixed(1)} ms.  ${report.documentChanged ? 'The buffer changed.' : 'The buffer is unchanged.'}${report.tokenCount === undefined ? '' : `  ${report.tokenCount} semantic tokens.`}` : '');
+      `${report.action} returned in ${report.elapsedMs.toFixed(1)} ms.  ${report.documentChanged ? 'The buffer changed.' : 'The buffer is unchanged.'}${report.tokenCount === undefined ? '' : `  ${report.tokenCount} semantic tokens.`}${report.exitCode === undefined ? '' : `  Exit code ${report.exitCode}.`}` : '');
+    answer.textContent = message.answer ?? '';
   });
   vscode.postMessage({ type: 'ready' });
 })();

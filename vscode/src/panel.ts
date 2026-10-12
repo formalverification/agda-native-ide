@@ -39,6 +39,17 @@ export function panelHtml(webview: vscode.Webview, extensionUri: vscode.Uri): st
   </div>
   <p id="activity" role="status" aria-live="polite"></p>
   <p>Read Agda mode's panel for goals and errors.</p>
+  <h2>Native lanes</h2>
+  <p>These run the project's own Agda beside the mode's, on the module as
+    it is saved: a command saves it first.</p>
+  <div class="commands" aria-label="Native lane commands">
+    <button data-action="laneGoal">Goal and context</button>
+    <button data-action="laneInfer">Infer</button>
+    <button data-action="laneNormalize">Normalize</button>
+    <button data-action="laneGive">Give</button>
+    <button data-action="checkFile">Check file</button>
+  </div>
+  <pre id="answer" aria-live="polite"></pre>
   <script nonce="${nonce}" src="${script}"></script>
 </body>
 </html>`;

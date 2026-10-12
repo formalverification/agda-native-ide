@@ -164,10 +164,12 @@ PACKAGES := packages/engine packages/tools packages/manifest
 packages: node_modules/.package-lock.json ## Build the shared packages (the engine, the tools, the manifest)
 	npx tsc -b $(PACKAGES)
 
-vscode-check: node_modules/.package-lock.json ## Type-check the VS Code companion
+# The companion imports the engine and the tool surface, so it builds them
+# first; scripts/build.mjs bundles it (issue 64).
+vscode-check: packages ## Type-check the VS Code companion
 	npm --workspace vscode run check
 
-vscode-build: node_modules/.package-lock.json ## Compile the VS Code companion
+vscode-build: packages ## Bundle the VS Code companion, with the engine and the tool surface
 	npm --workspace vscode run build
 
 vscode-unit: vscode-build ## Check version policy and serialized state

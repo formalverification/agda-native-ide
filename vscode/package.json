@@ -18,19 +18,58 @@
       { "command": "agdaWorkbench.give", "title": "Give at Cursor", "category": "Agda Workbench" },
       { "command": "agdaWorkbench.refine", "title": "Refine at Cursor", "category": "Agda Workbench" },
       { "command": "agdaWorkbench.goalContext", "title": "Show Goal and Context in Agda Mode", "category": "Agda Workbench" },
-      { "command": "agdaWorkbench.highlighting", "title": "Read Highlighting", "category": "Agda Workbench" }
-    ]
+      { "command": "agdaWorkbench.highlighting", "title": "Read Highlighting", "category": "Agda Workbench" },
+      { "command": "agdaWorkbench.laneGoal", "title": "Goal Type and Context (Native Lane)", "category": "Agda Workbench" },
+      { "command": "agdaWorkbench.laneInfer", "title": "Infer Type (Native Lane)", "category": "Agda Workbench" },
+      { "command": "agdaWorkbench.laneNormalize", "title": "Normalize (Native Lane)", "category": "Agda Workbench" },
+      { "command": "agdaWorkbench.laneGive", "title": "Give at Cursor (Native Lane)", "category": "Agda Workbench" },
+      { "command": "agdaWorkbench.checkFile", "title": "Check File (Batch Verdict)", "category": "Agda Workbench" }
+    ],
+    "configuration": {
+      "title": "Agda Workbench",
+      "properties": {
+        "agdaWorkbench.agda.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "The agda the native lanes run, by a path or a name on PATH.  Empty: the last of agda-mode-vscode's agdaMode.connection.paths that names an agda (not a language server), else agda on PATH."
+        },
+        "agdaWorkbench.agda.commandLineOptions": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "The options of the agda that agdaWorkbench.agda.path names, delimited by spaces.  Without that path, the native lanes take agdaMode.connection.commandLineOptions, as agda-mode-vscode's own agda does."
+        },
+        "agdaWorkbench.agda.version": {
+          "type": "string",
+          "default": "2.9.0",
+          "scope": "machine-overridable",
+          "description": "The Agda version the project expects.  The native lanes refuse an agda that answers --numeric-version with another."
+        },
+        "agdaWorkbench.lanes.idleMinutes": {
+          "type": "number",
+          "default": 15,
+          "minimum": 1,
+          "description": "How long a project's native lane may sit idle before it is closed."
+        }
+      }
+    }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "check": "tsc -p tsconfig.json --noEmit && node --check media/panel.js",
+    "build": "node scripts/build.mjs",
+    "check": "tsc -p tsconfig.json && node --check media/panel.js",
     "test:unit": "node --test out/test/unit.js",
     "test": "node scripts/run-tests.mjs"
+  },
+  "dependencies": {
+    "@agda-native-ide/engine": "0.1.0",
+    "@agda-native-ide/tools": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "22.20.5",
     "@types/vscode": "1.100.0",
     "@vscode/test-electron": "3.1.0",
+    "rolldown": "1.2.6",
     "typescript": "5.9.3"
   }
 }
