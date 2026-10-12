@@ -878,9 +878,14 @@ every module it imports, directly or not, itself included.
    the index names for it, type-checks a `Main` importing it with exactly
    one `Checking` line; two controls must print more.
 +  **CI**: a job of its own, path-filtered on what the archives are built
-   from, which builds nothing when the check's derivation is the base's; the
-   second build, which proves reproducibility, on `main` and on demand.  The
-   site carries none of it until [#14] mounts the archives.
+   from, which builds nothing when the check's derivation is the base's,
+   and otherwise builds, rebuilds, packs and checks; it reads the public
+   `formalverification` Cachix cache and pushes to it from `main` only.
+   The site carries none of it until [#14] mounts the archives.
++  **Licenses**: agda-algebras' interfaces are Apache-2.0, like its
+   sources, since an interface holds its module's source text; the index
+   is data under agda-algebras' `LICENSE-data` (Apache-2.0 or CC0-1.0); the
+   standard library's interfaces are MIT.
 
 **Evidence**.  Measured 2026-10-11 on this workstation (20 cores, 64 GB,
 Linux 7.0.0-31-generic) and on GitHub's runner; [#12]'s findings of that
@@ -961,7 +966,8 @@ browser ([#13]); the benchmark over these roots ([#18]).
 | 32 | One archive per agda-algebras module; standard-library modules grouped by the agda-algebras modules that reach them; stored zips, each under 25 MiB | Adopted ([#12]); supersedes [#12]'s 2.8.0 tiers | Any set of agda-algebras imports fetches its closure and zip headers: the HSP root 39,251,541 bytes against 39,186,131; the 2.8.0 tiers fetch 15.9 MB for `Overture.Basic` against 4.3 MB (§ 10) |
 | 33 | The index is JSON beside the archives, schema 1, its closures from Agda's `--dependency-graph` | Adopted ([#12]) | Agda's graph is built from the interfaces' imports and reduced transitively, so reachability is exact; a regular expression misses nested imports ([#12], 2026-10-04) (§ 10) |
 | 34 | Every root is checked cold from the archives the index names, exactly one `Checking` line, with two controls that must fail | Adopted ([#12]) | 350 of 350, here and on GitHub's runner; the controls print 2 lines each (§ 10) |
-| 35 | CI builds, packs and checks them in a job of its own, path-filtered, and skipped when the check's derivation is the base's; the second build runs on `main` and on demand; the site does not carry them until [#14] | Adopted ([#12]) | 58 minutes on GitHub's runner with the second build, about 46 without; 21 s when nothing changed; no Nix cache here (§ 10) |
+| 35 | CI builds, rebuilds, packs and checks them in a job of its own, path-filtered, and skipped when the check's derivation is the base's; it reads the `formalverification` Cachix cache and writes it from `main`; the site does not carry them until [#14] | Adopted ([#12]; the cache and the rebuild on pull requests, William, 2026-10-11, the repository public) | 58 minutes on a 2-core runner, uncached; 21 s when nothing changed (§ 10) |
+| 36 | agda-algebras' interfaces are Apache-2.0 like its sources, not `LICENSE-data`'s extracted data; the index is `LICENSE-data`'s | Adopted (William, 2026-10-11, on the session's recommendation) | A 2.9.0 interface holds its module's source text (`iSource`); `LICENSE-data` excludes the sources in whole or in part (§ 10) |
 
 ---
 

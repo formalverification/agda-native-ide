@@ -297,9 +297,9 @@ It is 285,618 bytes, 42,353 gzipped.
    rebuilds them, a matter of seconds), checks every root, and writes the
    sizes, the check's counts and the build's time and memory to the step
    summary, uploading the index, the summary, the report and the check's
-   log.  On a push to `main` and on demand it also builds the interfaces a
-   second time with `--rebuild`.  The archives are not uploaded: the
-   package rebuilds them from the pins.
+   log.  It also builds the interfaces a second time with `--rebuild`, which
+   fails if a byte differs.  The archives are not uploaded: the package
+   rebuilds them from the pins.
 +  **When**: on demand, and on a push to `main` or a pull request that changes
    what the archives are built from (the flake and its lock, the standard
    library's patches, the compiler's hashes, the scripts, the workflow), as a
@@ -308,14 +308,15 @@ It is 285,618 bytes, 42,353 gzipped.
    `.#agda-algebras-check.drvPath` at the base (the pull request's base, or
    the commit before a push) and at the head, in seconds, and builds nothing
    when they are equal, since that derivation is the one the base proved.
-   Nearly every change touches `flake.nix`, and with no Nix cache every run
-   builds everything, so without the guard an unrelated change would cost
-   about 46 minutes; with it, a push that changed nothing the archives are
-   built from took 21 s (run [38159537130][skip]).  A newer run cancels one in
+   Nearly every change touches `flake.nix`, so without the guard an
+   unrelated change would build everything (58 minutes on a 2-core runner);
+   with it, a push that changed nothing the archives are built from took
+   21 s (run [38159537130][skip]).  A newer run cancels one in
    progress on a pull request, never on `main`, since a later push's guard
    compares against the commit before it.
-+  **What it measured** on GitHub's runner (2 cores, 7.8 GiB, 3 GiB of
-   swap, none used; 2026-10-11, run [38153481044][run]), 58 minutes in
++  **What it measured** on GitHub's runner while the repository was private
+   (2 cores, 7.8 GiB, 3 GiB of swap, none used; 2026-10-11, run
+   [38153481044][run]), 58 minutes in
    all: the interfaces with their inputs in 13 min 43 s, `--build-library`
    itself 10 min 33 s (981 MiB of GHC's total memory in use) after
    wasmtime's compile, 1 min 12 s at 4,501,604 KiB; their `--rebuild` in 12
@@ -326,9 +327,42 @@ It is 285,618 bytes, 42,353 gzipped.
 +  **Not in the site**: the site's build carries none of this until [#14]
    mounts the archives, since 71 MB the page never reads would cost every
    build and deploy.
-+  **A cache** would spare CI the builds: the public `formalverification`
-   Cachix cache exists, and agda-algebras' CI pushes to it; whether this
-   private repository's CI should push there too is William's to decide.
++  **The cache**: the job reads the public `formalverification` Cachix
+   cache, which agda-algebras' CI also uses, so a derivation built before is
+   fetched rather than built, and it pushes what it builds from `main` only,
+   since a pull request's run executes what the pull request changed (the
+   write token, `CACHIX_AUTH_TOKEN`, reaches the action on `main` alone).
+   It pushes none of what the flake fetches by hash from GitHub anyway: the
+   compiler's files and the sources' tarballs.  `--rebuild` is never
+   fetched: it builds again on the runner and compares with the first
+   build, built or fetched, so on a cached run it proves the bytes
+   reproduce across machines.  William's decision of 2026-10-11, with the
+   repository public, where runners cost no minutes.
+
+## Licenses
+
+What the archives carry is licensed as its source is, since a 2.9.0
+interface holds its module's source text (`iSource` in Agda's `Interface`,
+kept "so that the HTML and LaTeX backends can generate their output";
+`Overture.Basic`'s decompressed interface holds its front matter and prose).
+
++  **agda-algebras' sources and interfaces: Apache-2.0**.  The sources
+   archive carries `LICENSE`, `NOTICE` and `LICENSE-data`.  An interface is
+   the work in object form, which Apache-2.0 covers by name, not a
+   machine-extracted representation: agda-algebras' `LICENSE-data` excludes
+   "the source files under src/ themselves, in whole or in part", and an
+   interface contains them whole.
++  **The index: Apache-2.0 or CC0-1.0, at the recipient's option**
+   (`LICENSE-data`): module names and paths, dependency metadata, sizes and
+   digests, which that file names.
++  **The standard library's interfaces: MIT**, like its sources, whose
+   archive the page already ships with its `LICENCE`; **the builtins'**
+   are already in `agda-data.zip`, under Agda's MIT license.
++  **When the site ships them** ([#14]), `NOTICE` and `docs/provenance.md`
+   name them in the same change: agda-algebras at its commit under
+   Apache-2.0 with its `NOTICE`'s text, and the index under `LICENSE-data`.
+
+(William's decision of 2026-10-11, on the session's recommendation.)
 
 ## Moving to another commit, or another Agda
 

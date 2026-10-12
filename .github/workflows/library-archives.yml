@@ -3,9 +3,8 @@
 # agda-algebras' archives (issue 12): its interfaces built by the
 # compiler's plain agda under wasmtime, packed and indexed, and every root
 # checked cold from the archives the index names
-# (docs/notes/library-archives.md); on a push to main and on demand, the
-# interfaces are also built a second time, to prove the bytes reproduce.
-# The sizes, the check's counts and the build's time and memory go to the
+# (docs/notes/library-archives.md), with the interfaces built a second
+# time to prove the bytes reproduce.  The sizes, the check's counts and the build's time and memory go to the
 # step summary; the index, the summary and the check's report are
 # uploaded.  The archives themselves are not: nothing ships them until the
 # page mounts them (issue 14), and `nix build .#agda-algebras-archives`
@@ -19,17 +18,23 @@
 # agda.wasm once per derivation, at about 4.3 GiB, on a runner with 7.8
 # GiB.
 #
-# What it costs: measured 2026-10-11 on GitHub's runner (2 cores, 7.8
-# GiB, 3 GiB of swap, none of it used; run 38153481044), 58 minutes: the
-# interfaces with their inputs 13.7, again with --rebuild 12.1, the
-# archives 0.1, and the check of every root, two at once, 31.5.  With no
-# Nix cache, every run builds it all, and nearly every change touches
-# flake.nix.  So the job first evaluates the check's derivation at the
-# base (the pull request's base, or the commit before a push) and at the
-# head, which takes seconds, and builds nothing when the two are the same
-# derivation and this file is unchanged: that derivation is the one the
-# base proved.  And the second build, which proves reproducibility, runs
-# on main and on demand, not on pull requests.
+# What it costs: measured 2026-10-11 on a 2-core runner, while the
+# repository was private (7.8 GiB, 3 GiB of swap, none of it used; run
+# 38153481044), 58 minutes: the interfaces with their inputs 13.7, again
+# with --rebuild 12.1, the archives 0.1, and the check of every root, two
+# at once, 31.5.  Nearly every change touches flake.nix, so the job first
+# evaluates the check's derivation at the base (the pull request's base,
+# or the commit before a push) and at the head, which takes seconds, and
+# builds nothing when the two are the same derivation and this file is
+# unchanged: that derivation is the one the base proved.
+#
+# The public formalverification Cachix cache, which agda-algebras' CI
+# also uses, is read on every run, so a derivation built before is
+# fetched rather than built; its write token, CACHIX_AUTH_TOKEN, reaches
+# the action only on main, since a pull request's run executes what the
+# pull request changed.  The second build is never fetched: --rebuild
+# builds again here and compares with what the first build gave, built or
+# fetched.
 
 name: library-archives
 
@@ -70,6 +75,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v27
+      - uses: cachix/cachix-action@v17
+        with:
+          name: formalverification
+          authToken: ${{ github.ref == 'refs/heads/main' && secrets.CACHIX_AUTH_TOKEN || '' }}
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
+          # Not what the flake fetches by hash from GitHub anyway: the
+          # compiler's files and the sources' tarballs.
+          pushFilter: '(-source|-agda\.wasm|-als\.wasm|-als-reactor\.wasm|-als-reactor\.js|-agda-2\.9\.0-compiler)$'
       - name: Decide whether the archives' derivation changed
         id: changed
         env:
@@ -109,7 +122,7 @@ jobs:
           nix build .#agda-algebras-interfaces --print-build-logs
       - name: Build them again, and fail if a byte differs
         id: rebuild
-        if: steps.changed.outputs.build == 'true' && github.event_name != 'pull_request'
+        if: steps.changed.outputs.build == 'true'
         run: nix build .#agda-algebras-interfaces --rebuild --keep-failed
       - name: Say what differed
         if: failure() && steps.rebuild.outcome == 'failure'
