@@ -21,8 +21,9 @@
 // and one lane per project root, are issue 64's.
 
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { statSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 import {
   failure,
@@ -39,7 +40,9 @@ export interface NativeConfig {
   /** The `agda` to run, by an explicit path. */
   executable: string;
   /** The project's root: the child's working directory, and the only tree
-   * the transport reads or writes sources in. */
+   * the transport reads or writes sources in, by path (a symbolic link
+   * inside it is followed: the root keeps a host's mistakes in, not an
+   * adversary's links out). */
   projectRoot: string;
   /** Arguments after `--interaction-json`: the libraries, the include
    * paths, the options (for example `--no-libraries -i <root>`). */
@@ -71,7 +74,11 @@ export class NativeTransport implements EngineTransport {
   readonly child: ChildProcessWithoutNullStreams;
 
   private readonly listeners = new Set<(event: TransportEvent) => void>();
-  private buffer = "";
+  /** The start of a line that may yet be a prompt. */
+  private head = "";
+  /** The line being read, in the pieces it arrived in: a line of Agda's
+   * highlighting can run to megabytes, and is joined once. */
+  private parts: string[] = [];
   private stderr = "";
   /** What Agda printed before its first prompt that is not a response
    * (an option it refused, say). */
@@ -99,6 +106,9 @@ export class NativeTransport implements EngineTransport {
       this.child.once("exit", (code, signal) => {
         this.exited = { code, signal };
         process.removeListener("exit", this.onProcessExit);
+        // A last line Agda did not end belongs to what it said.
+        const pending = (this.head + this.parts.join("")).trim();
+        if (pending && this.prompts === 0) this.preamble += `${pending}\n`;
         this.readyResolve(
           failure("startup", `${config.executable} exited before it was ready (${signal ?? `code ${code}`})`, {
             detail: { stdout: this.preamble.trim(), stderr: this.stderr.trim() },
@@ -114,14 +124,27 @@ export class NativeTransport implements EngineTransport {
       });
     });
     this.child.once("error", (error) => {
-      this.readyResolve(failure("startup", `${config.executable} could not be started (${error.message})`));
+      // A spawn fails with ENOENT for a working directory that is missing
+      // as well as for an executable: say which.
+      this.readyResolve(
+        failure(
+          "startup",
+          isDirectory(this.root)
+            ? `${config.executable} could not be started (${error.message})`
+            : `the project's root, ${this.root}, is not a directory`,
+        ),
+      );
       if (!this.exited && this.child.pid === undefined) {
         this.exited = { code: null, signal: null };
+        process.removeListener("exit", this.onProcessExit);
         this.emit({ type: "exit", code: null, signal: null, detail: error.message });
       }
     });
-    // Should this process end without disposing of the transport, take the
-    // child with it.
+    // Should this process exit without disposing of the transport, take
+    // the child with it.  This covers a normal exit only: a host that a
+    // signal ends (SIGINT, SIGTERM) must terminate its transports itself,
+    // since the child, in a process group of its own, does not get the
+    // terminal's signal.
     this.onProcessExit = () => this.killGroup("SIGKILL");
     process.once("exit", this.onProcessExit);
 
@@ -226,7 +249,7 @@ export class NativeTransport implements EngineTransport {
   private inside(path: string): string {
     const absolute = resolve(this.root, path);
     const within = relative(this.root, absolute);
-    if (within.startsWith("..") || isAbsolute(within))
+    if (within === ".." || within.startsWith(`..${sep}`) || isAbsolute(within))
       throw new Error(`${path} is outside the project's root, ${this.root}`);
     return absolute;
   }
@@ -235,33 +258,66 @@ export class NativeTransport implements EngineTransport {
     for (const listener of this.listeners) listener(event);
   }
 
+  /** Read Agda's output: a prompt can only start a line, and only the new
+   * chunk is searched for a line's end. */
   private read(chunk: string) {
-    this.buffer += chunk;
-    for (;;) {
-      if (this.buffer.startsWith(PROMPT)) {
-        this.buffer = this.buffer.slice(PROMPT.length);
-        this.prompts += 1;
-        if (this.prompts === 1) this.readyResolve(true);
-        else this.emit({ type: "end" });
-        continue;
+    let text = chunk;
+    let at = 0;
+    while (at < text.length) {
+      if (!this.parts.length) {
+        if (this.head) {
+          text = this.head + text.slice(at);
+          at = 0;
+          this.head = "";
+        }
+        if (text.startsWith(PROMPT, at)) {
+          at += PROMPT.length;
+          this.prompts += 1;
+          if (this.prompts === 1) this.readyResolve(true);
+          else this.emit({ type: "end" });
+          continue;
+        }
+        // A prompt that has not arrived whole.
+        const rest = text.slice(at);
+        if (rest.length < PROMPT.length && PROMPT.startsWith(rest)) {
+          this.head = rest;
+          return;
+        }
       }
-      // A prompt that has not arrived whole.
-      if (this.buffer.length < PROMPT.length && PROMPT.startsWith(this.buffer)) return;
-      const newline = this.buffer.indexOf("\n");
-      if (newline < 0) return;
-      const line = this.buffer.slice(0, newline);
-      this.buffer = this.buffer.slice(newline + 1);
-      if (!line.trim()) continue;
-      let json: unknown;
-      try {
-        json = JSON.parse(line);
-      } catch {
-        if (this.prompts === 0) this.preamble = (this.preamble + line + "\n").slice(-STDERR_TAIL);
-        this.emit({ type: "noise", text: line });
-        continue;
+      const newline = text.indexOf("\n", at);
+      if (newline < 0) {
+        this.parts.push(text.slice(at));
+        return;
       }
-      this.emit({ type: "response", json });
+      this.parts.push(text.slice(at, newline));
+      at = newline + 1;
+      const line = this.parts.join("");
+      this.parts = [];
+      this.line(line);
     }
+  }
+
+  /** One whole line: a response, or noise (before the first prompt, what
+   * Agda said instead of starting). */
+  private line(line: string) {
+    if (!line.trim()) return;
+    let json: unknown;
+    try {
+      json = JSON.parse(line);
+    } catch {
+      if (this.prompts === 0) this.preamble = (this.preamble + line + "\n").slice(-STDERR_TAIL);
+      this.emit({ type: "noise", text: line });
+      return;
+    }
+    this.emit({ type: "response", json });
+  }
+}
+
+function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
   }
 }
 
