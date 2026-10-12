@@ -356,7 +356,7 @@
       # every platform, fetched once by hash.  After a change to the
       # lockfile, set npmDepsHash to lib.fakeHash, build, and copy the
       # hash the failure reports.
-      npmDepsHash = "sha256-tDg/0bxNBvI9SrKxkcp9gLsHWjw+09GaYVD4nU1CcxA=";
+      npmDepsHash = "sha256-PkIqBH/t6YiC8biSZ2mFRo3Av6NSUOYbrTBNA2elwGY=";
       npmDeps = pkgs: pkgs.fetchNpmDeps {
         name = "agda-native-ide-npm-deps";
         src = lib.fileset.toSource {

@@ -391,6 +391,7 @@ Each change is its own commit, named here by its subject.
 | `src/lib/agda/handlers.js` | A case split's edit is the engine's `caseSplitEdit`, which keeps the line's indentation for every clause and in an extended lambda replaces only the goal's clause, as Agda's Emacs mode does ([#62]'s self-review) | "Close the session's corners a self-review found" |
 | `src/lib/controller.svelte.ts`, `src/routes/+page.svelte` | Infer and Normalize check the file on screen first when Agda holds another; replacing the editor's text makes the next check a load, and an answer about another file is not applied; the drive is ready for archives once the session has opened; a mount counts and flags only the archives it lacks; the inspector asks about the goal named ([#62]'s self-review) | "Answer Infer and Normalize in the file on screen, and keep the page's state its own" |
 | `vite.config.js` | The build refuses node's built-in modules in the page and in its worker, which Vite would replace with empty ones ([#62]'s self-review) | "Refuse node's built-in modules in the browser's bundle" |
+| `package-lock.json` | The companion's entry declares `@agda-native-ide/engine` and `@agda-native-ide/tools` (links in the workspace) and `rolldown` 1.2.6 (already locked, as Vite's bundler), as its manifest does; edited by hand, since npm 10 rewrites the file with fields lost, and nothing is re-resolved: the lockfile gains those five lines alone, and `npm ci` accepts it.  The flake's `npmDepsHash` changes with it ([#64]).  JSON carries no comment, so this row is the record. | "Host the native engine in the companion" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
@@ -410,6 +411,7 @@ Each change is its own commit, named here by its subject.
 [#61]: https://github.com/formalverification/agda-native-ide/issues/61
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59
 [#62]: https://github.com/formalverification/agda-native-ide/issues/62
+[#64]: https://github.com/formalverification/agda-native-ide/issues/64
 [agda-web/als-demo]: https://github.com/agda-web/als-demo
 [agda/agda]: https://github.com/agda/agda
 [cormullion/juliamono]: https://github.com/cormullion/juliamono
