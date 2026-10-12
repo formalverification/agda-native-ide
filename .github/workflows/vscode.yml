@@ -33,13 +33,13 @@ jobs:
       - name: Run the engine's conformance suite against native Agda 2.9.0
         if: ${{ !cancelled() }}
         run: nix develop .#vscode --command make conformance-native CONFORMANCE=conformance
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: vscode-command-measurements
           path: vscode/test-output
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: conformance-native
