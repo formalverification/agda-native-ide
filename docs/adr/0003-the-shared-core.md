@@ -256,7 +256,7 @@ interface Verdict {
   kind: "verdict"; lane: "batch"; engine: "browser" | "native"; agdaVersion: string;
   path: string; digest: string; command: { executable: string; args: string[]; cwd: string };
   exitCode: number; success: boolean; diagnostics: Diagnostic[]; checking: string[];
-  output: string; elapsedMs: number;
+  output: string; omitted?: number; elapsedMs: number;
 }
 type RefusalReason = "unsupported-capability" | "stale-goal" | "unknown-goal" | "no-loaded-file"
   | "invalid-input" | "busy" | "session-ended" | "position-shift" | "configuration";
@@ -782,11 +782,15 @@ that exit code alone, never a reading of Agda's messages.
    modules the run type-checked (its `Checking` lines); the command, with
    its arguments and directory; and the file and the digest of the text it
    read.  The session reads the file before the run and after it, and a
-   file that changed in between has no verdict.
+   file that changed in between has no verdict.  The transport keeps the
+   first and the last megabyte of a run's output, in whole lines, and the
+   verdict says how much it did not read between them (`omitted`).
 +  **A given text**: `checkFile(path, { text, expect })` writes `text` over
    the file for the run and puts the file back on every path (a deadline,
-   an abort and the session's end included); `expect`, a digest, is the
-   text the file must hold first.  agda-native-air's `fill_hole` checks a
+   an abort and the session's end included), unless another writer changed
+   the file meanwhile: then the file keeps the newer text, and the failure
+   carries what it held before the check.  `expect`, a digest, is the text
+   the file must hold first.  agda-native-air's `fill_hole` checks a
    candidate this way, in place, since a copy of a hierarchical module fails
    to load.
 +  **Queued with the lane**: a verdict waits for the lane's command in
@@ -880,7 +884,9 @@ where this engine's session lets it do better.
    requests silently); the next request starts another.
 +  **Idle shutdown** after fifteen minutes (air's bound; the companion's
    setting), by closing the lane's input, which Agda answers by exiting
-   with code 0.
+   with code 0.  The close takes its turn in the root's line, as a request
+   does, so a request that comes meanwhile starts a new lane only once the
+   old Agda is gone.
 +  **Disposal** closes every lane, one still starting included, and the
    registry refuses from then on.
 +  **The prompt, not a sentinel**: air frames each command with
@@ -933,6 +939,10 @@ setting that stands in for the project's pin).
    (agda-algebras pins it in its flake), so the setting stands in for it.
    The version check passes the candidate's options, so options Agda
    refuses are refused before any lane starts.
++  **As a spawn in the root finds it**: a relative executable, and a
+   relative or empty PATH entry, are resolved against the project's root,
+   where the lanes run, as node's spawn resolves them there, and the
+   version is asked there.
 +  **The options ride the process's arguments**, after `--interaction-json`
    (as the mode puts them after `--interaction`) and before the file in a
    batch run; every `Cmd_load` inherits them.  air sends them with each load

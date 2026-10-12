@@ -297,7 +297,11 @@ Agda (SIGTERM, then SIGKILL to the group) and settles once that Agda is
 gone.  It reads the file before the run and after it, and a file that
 changed in between has no verdict.  `checkFile(path, { text, expect })`
 writes `text` over the file for the run and puts the file back on every
-path; `expect` is the digest the file must hold first.  agda-native-air's
+path, unless another writer changed it meanwhile (the file then keeps the
+newer text, and the failure carries what it held before); `expect` is the
+digest the file must hold first.  The transport keeps the first and the
+last megabyte of a run's output, and a verdict says how much it did not
+read between them (`omitted`).  agda-native-air's
 `fill_hole` checks a candidate this way, in place, since a copy of a
 hierarchical module fails to load.  Batch Agda 2.9.0 exits 0 when the
 file checks with nothing open, 42 for an error, an open goal, an unsolved
@@ -321,9 +325,10 @@ so a rewrite that keeps the size and the modification time counts, and a
 file that holds the lane's own give is not loaded again.  A crash fails
 the request it interrupts, and the host is told of it once (`onLaneEnded`),
 whether the lane was busy or idle; the next request starts a new lane.  A
-lane idle for fifteen minutes is closed by closing its input, which Agda
-answers by exiting with code 0; disposal closes every lane, one still
-starting included, and the registry refuses from then on.  A lane's
+lane idle for fifteen minutes is closed, in its turn in the root's line, by
+closing its input, which Agda answers by exiting with code 0; disposal
+closes every lane, one still starting included, and the registry refuses
+from then on.  A lane's
 sessions record a `?` as written, since the lane loads files as they are
 on disk.
 
@@ -332,8 +337,9 @@ the directory of the nearest `.agda-lib` above the file, where Agda finds
 its library and writes its interfaces; with none, the host's fallback (the
 workspace folder) around the file, else the file's directory.  The host
 lists candidates in its order, each an executable (a path, or a name on
-PATH) with its arguments; the first that names an executable decides, and
-is refused, naming the setting it came from, unless it answers
+PATH, resolved as a spawn in the root would resolve it) with its arguments;
+the first that names an executable decides, and is refused, naming the
+setting it came from, unless it answers
 `--numeric-version`, given its arguments, with the version the project
 expects.  The arguments go on the process's command line, and every
 `Cmd_load` inherits them (Agda adds a load's own arguments to the
