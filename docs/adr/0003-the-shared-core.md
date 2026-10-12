@@ -718,7 +718,7 @@ recorded in [`docs/measurements/engine-conformance-2026-10-11.json`][record]:
    with a CR LF counted twice, both pass 11 of 12 and fail the CR LF scenario
    with the same message.
 
-**Evidence since [#64]**.  Run on 2026-10-12 at `1f94e86`, on the same
+**Evidence since [#64]**.  Run on 2026-10-12 at `7eba708`, on the same
 machine, against the same Agda (in Chromium 149.0.7827.200, the site built
 at that revision), recorded in [the native engine's record][native-record]:
 
@@ -835,7 +835,7 @@ that exit code alone, never a reading of Agda's messages.
    the put-back removed, five of them fail; with the deadline's stop
    removed, the deadline's fails.
 +  The runner's check: a verdict on a module whose check counts down from a
-   billion, under a deadline of 1,500 ms, failed as a timeout after 1,505
+   billion, under a deadline of 1,500 ms, failed as a timeout after 1,504
    ms; the check asserts that the run's process was gone, and that the lane
    answered next.
 +  In the companion, after agda-mode-vscode's own load of the fixture, the
@@ -1035,18 +1035,18 @@ status bar, and every lane closed at deactivation.
    since `fetchNpmDeps` keeps the lockfile in its output.
 
 **Evidence**.  The real suite under VS Code 1.141.0, agda-mode-vscode 0.10.4
-and Agda 2.9.0, 2026-10-12, at `1f94e86` ([the native engine's
+and Agda 2.9.0, 2026-10-12, at `7eba708` ([the native engine's
 record][native-record], `companion`), after the mode's own first load of
-`Overture.Basic` (4,401 ms):
+`Overture.Basic` (4,761 ms):
 
 | Step | Agda's time | The command's |
 |---|---:|---:|
-| The verdict, the goal open (exit 42), which started the lane | 322 ms | 361 ms |
-| The goal's type and context (`Level`), the lane's first load | 317 ms load, 1.2 ms goal | 327 ms |
-| The same, warm | 0.8 ms | 6.3 ms |
-| An inference in the goal | 1.0 ms | 5.8 ms |
-| A give of `0ℓ`, after a load of the edited module | 63 ms load, 1.4 ms give | 88 ms |
-| The verdict, the module checking (exit 0) | 331 ms | 338 ms |
+| The verdict, the goal open (exit 42), which started the lane | 329 ms | 359 ms |
+| The goal's type and context (`Level`), the lane's first load | 312 ms load, 1.4 ms goal | 322 ms |
+| The same, warm | 0.9 ms | 5.8 ms |
+| An inference in the goal | 1.2 ms | 6.2 ms |
+| A give of `0ℓ`, after a load of the edited module | 57 ms load, 1.1 ms give | 88 ms |
+| The verdict, the module checking (exit 0) | 333 ms | 339 ms |
 
 +  A verdict rides its root's lane (it is queued there), so the first
    verdict started the interaction lane too; the batch run is a process of
@@ -1055,7 +1055,7 @@ record][native-record], `companion`), after the mode's own first load of
    registry loads such a file rather than give on the host's behalf (§ 12).
 +  The batch run and the lane's first load each type-checked only
    `Overture.Basic`.  These are single observations on a machine other
-   sessions were using (load average 3.3), not benchmarks.  The issue's
+   sessions were using (load average 2.1), not benchmarks.  The issue's
    premise, native speed, rested on a figure of 5.1 s for a native check of
    a `Main` importing `Setoid.Varieties.HSP` (314 modules), which was Agda
    2.8.0's; under 2.9.0 the same native check took 2.09 to 2.11 s ([ADR
@@ -1063,9 +1063,10 @@ record][native-record], `companion`), after the mode's own first load of
    page has not been measured under 2.9.0.
 +  The bundle requires `vscode` and node's built-in modules alone.
 +  In the same run the window-reload check that follows failed in its
-   hidden case.  It failed in four of five runs on this machine that night
-   (the first passed), one of them at the base revision `d301045`, while
-   CI's last twelve runs of the workflow passed.  A probe traced it to VS
+   hidden case.  It failed in six of the seven runs on this machine that
+   night in which it ran (the first passed), one of them at the base
+   revision `d301045`, while CI's last twelve runs of the workflow
+   passed.  A probe traced it to VS
    Code making another Agda editor active for about 15 ms, which the
    companion follows (`probes.hiddenReload`).
 +  The Nix site failed with "npmDepsHash is out of date", the two lockfiles'
@@ -1129,7 +1130,7 @@ own, no process group).
 | 15 | The browser build refuses node's built-in modules; the bundle check looks for the markers that remain | Adopted (the self-review) | An import of `node:fs` or `fs` fails the build, which the previous configuration built and passed (§ 1) |
 | 16 | Any exit of the browser engine stops every wait on it and releases its worker | Adopted (the self-review) | Unit tests with a fake worker (§ 6) |
 | 17 | A verdict is its own outcome: a fresh Agda's exit code, `success` that code being 0, Agda's diagnostics read from its output and never deciding it | Adopted ([#64], 2026-10-12) | The probed exit codes; the verdict scenario; unit tests (§ 11) |
-| 18 | A verdict is queued with the lane's commands; a given text is written over the file and put back on every path; a deadline, an abort or the session's end stops its Agda, and it settles once that Agda is gone | Adopted ([#64]) | Unit tests and two mutations; a deadline of 1,500 ms ended at 1,505 ms (§ 11) |
+| 18 | A verdict is queued with the lane's commands; a given text is written over the file and put back on every path; a deadline, an abort or the session's end stops its Agda, and it settles once that Agda is gone | Adopted ([#64]) | Unit tests and two mutations; a deadline of 1,500 ms ended at 1,504 ms (§ 11) |
 | 19 | `check_file` and `fill_hole` answer from the batch lane, with agda-native-air's meaning sentences, and refuse where there is none | Adopted ([#64]); [#65] registers them | The tool surface's tests (§§ 8, 11) |
 | 20 | One lane per project root, with agda-native-air's persistence rules; the stamp is the text, compared with the snapshot, so a lane's own give is not loaded again; a crash is told once, busy or idle; a lane's sessions record a `?` as written | Adopted ([#64]) | Unit tests and four mutations; four checks against Agda (§ 12) |
 | 21 | A scenario may be conditional on a capability; the comparison reports a declared difference only once each run passed its own branch | Adopted ([#64]) | 12 identical and 1 declared; three controls each fail the comparison (§ 9) |

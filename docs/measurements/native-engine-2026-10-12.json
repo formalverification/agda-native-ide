@@ -1,6 +1,6 @@
 {
   "date": "2026-10-12",
-  "revision": "1f94e865c803972f8925ed7d0f5527728d852fe5",
+  "revision": "7eba7080ee2c2f31c856e1a8a87d0a1c1b5b4542",
   "agdaCommit": "da66a8c75f11d10699a6b38b261efdf244b66f2a",
   "scope": "Issue 64's runs: the engine's conformance suite through one interface against both engines (natively through the lane registry and the resolution an editor host uses), with the runners' own checks, the registry's rules and a verdict's deadline among the native runner's; the comparison of the two runs, and three controls that each must fail it; the companion's real suite under VS Code with its native lanes on the agda-algebras fixture; and the probes of 2026-10-11 the decisions rest on.  Each timing is a single observation on a machine other sessions were also using, not a benchmark.",
   "commands": [
@@ -12,7 +12,7 @@
     "nix develop .#vscode --command make vscode-test"
   ],
   "native": {
-    "date": "2026-10-12T05:58:21.902Z",
+    "date": "2026-10-12T06:15:53.296Z",
     "engine": "native",
     "agda": {
       "executable": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
@@ -40,7 +40,7 @@
       {
         "name": "a session names its engine, its Agda and its lanes",
         "ok": true,
-        "elapsedMs": 26,
+        "elapsedMs": 19,
         "transcript": {
           "agdaVersion": "2.9.0",
           "interaction": true
@@ -49,7 +49,7 @@
       {
         "name": "a load with open goals answers them, and is not a verdict",
         "ok": true,
-        "elapsedMs": 36,
+        "elapsedMs": 33,
         "transcript": {
           "goals": [
             {
@@ -107,7 +107,7 @@
       {
         "name": "Agda's goal type and context",
         "ok": true,
-        "elapsedMs": 40,
+        "elapsedMs": 36,
         "transcript": {
           "goal0": {
             "goal": 0,
@@ -144,7 +144,7 @@
       {
         "name": "a valid give edits the goal and keeps the loaded basis",
         "ok": true,
-        "elapsedMs": 35,
+        "elapsedMs": 33,
         "transcript": {
           "give": {
             "goal": 0,
@@ -184,7 +184,7 @@
       {
         "name": "a rejected term is Agda's answer, and leaves the goal open",
         "ok": true,
-        "elapsedMs": 42,
+        "elapsedMs": 33,
         "transcript": {
           "accepted": false,
           "error": "<root>/Goals.agda:7.14-18: error: [UnequalTypes]\nThe type\n  Nat\nis not a subtype of\n  A\nwhen checking that the expression zero has type A"
@@ -193,7 +193,7 @@
       {
         "name": "an edit inside one goal is a give; any other edit is a reload, which retires the old goals",
         "ok": true,
-        "elapsedMs": 50,
+        "elapsedMs": 42,
         "transcript": {
           "plans": [
             "load",
@@ -211,7 +211,7 @@
       {
         "name": "a module switch cannot reuse the previous module's goals",
         "ok": true,
-        "elapsedMs": 50,
+        "elapsedMs": 48,
         "transcript": {
           "second": [
             {
@@ -353,7 +353,7 @@
       {
         "name": "positions in a text whose line ends are CR LF, which Agda reads as LF",
         "ok": true,
-        "elapsedMs": 29,
+        "elapsedMs": 23,
         "transcript": {
           "goals": [
             {
@@ -445,7 +445,7 @@
       {
         "name": "a literate module: goals in its code, none in its prose",
         "ok": true,
-        "elapsedMs": 36,
+        "elapsedMs": 31,
         "transcript": {
           "goal": {
             "id": 0,
@@ -486,7 +486,7 @@
       {
         "name": "a verdict is a fresh Agda's exit code where the engine has a batch lane, and is refused where it has none",
         "ok": true,
-        "elapsedMs": 132,
+        "elapsedMs": 116,
         "transcript": {
           "capability": {
             "batch": true
@@ -545,7 +545,7 @@
       {
         "name": "an abort with nothing running is nothing",
         "ok": true,
-        "elapsedMs": 15,
+        "elapsedMs": 11,
         "transcript": {
           "aborting": null
         }
@@ -565,7 +565,7 @@
       {
         "name": "a start whose Agda exits at once fails, with Agda's words",
         "ok": true,
-        "elapsedMs": 7,
+        "elapsedMs": 10,
         "detail": {
           "message": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda exited before it was ready (code 71)",
           "detail": {
@@ -577,7 +577,7 @@
       {
         "name": "a deadline aborts the command, and the session goes on",
         "ok": true,
-        "elapsedMs": 581,
+        "elapsedMs": 586,
         "detail": {
           "failure": "the normalize outran its deadline of 500 ms and was aborted"
         }
@@ -585,18 +585,18 @@
       {
         "name": "a child that cannot answer the abort is killed, and nothing waits",
         "ok": true,
-        "elapsedMs": 1534,
+        "elapsedMs": 1539,
         "detail": {
-          "pid": 985187,
+          "pid": 1040153,
           "failure": "the normalize outran its deadline of 400 ms, and Agda was stopped"
         }
       },
       {
         "name": "a child that crashes ends the session, naming the signal",
         "ok": true,
-        "elapsedMs": 339,
+        "elapsedMs": 351,
         "detail": {
-          "pid": 985286,
+          "pid": 1040181,
           "detail": {
             "reason": "exit",
             "code": null,
@@ -607,15 +607,15 @@
       {
         "name": "disposal leaves no process",
         "ok": true,
-        "elapsedMs": 112,
+        "elapsedMs": 111,
         "detail": {
-          "pid": 985307
+          "pid": 1040189
         }
       },
       {
         "name": "a root's files share one lane, another root has its own, and a file loads only when its text is not Agda's",
         "ok": true,
-        "elapsedMs": 103,
+        "elapsedMs": 105,
         "detail": {
           "loads": [
             "first",
@@ -639,7 +639,7 @@
       {
         "name": "an idle lane is closed by closing its input, and Agda exits with code 0",
         "ok": true,
-        "elapsedMs": 353,
+        "elapsedMs": 332,
         "detail": {
           "exit": {
             "code": 0,
@@ -650,7 +650,7 @@
       {
         "name": "disposal closes every lane, and the registry refuses from then on",
         "ok": true,
-        "elapsedMs": 175,
+        "elapsedMs": 166,
         "detail": {
           "pids": 2
         }
@@ -658,7 +658,7 @@
       {
         "name": "options the project's Agda refuses are refused before any lane starts, with Agda's words",
         "ok": true,
-        "elapsedMs": 9,
+        "elapsedMs": 12,
         "detail": {
           "message": "AGDA names <agda>, which did not answer `/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda --no-such-option --numeric-version` (exit 71: Error: Unrecognized option: --no-such-option ); set AGDA to an Agda 2.9.0, or fix its options"
         }
@@ -666,9 +666,9 @@
       {
         "name": "a verdict that outruns its deadline has its Agda stopped, and the lane goes on",
         "ok": true,
-        "elapsedMs": 1518,
+        "elapsedMs": 1523,
         "detail": {
-          "elapsedMs": 1505,
+          "elapsedMs": 1504,
           "failure": "the verdict on <root>/Endless.agda outran its deadline of 1500 ms, and its Agda was stopped"
         }
       }
@@ -685,7 +685,7 @@
     }
   },
   "browser": {
-    "date": "2026-10-12T05:58:37.850Z",
+    "date": "2026-10-12T06:16:07.456Z",
     "engine": "browser",
     "browser": "Chrome/149.0.7827.200",
     "served": "without the isolation headers",
@@ -715,7 +715,7 @@
       {
         "name": "a session names its engine, its Agda and its lanes",
         "ok": true,
-        "elapsedMs": 464,
+        "elapsedMs": 434,
         "transcript": {
           "agdaVersion": "2.9.0",
           "interaction": true
@@ -724,7 +724,7 @@
       {
         "name": "a load with open goals answers them, and is not a verdict",
         "ok": true,
-        "elapsedMs": 684,
+        "elapsedMs": 616,
         "transcript": {
           "goals": [
             {
@@ -782,7 +782,7 @@
       {
         "name": "Agda's goal type and context",
         "ok": true,
-        "elapsedMs": 713,
+        "elapsedMs": 620,
         "transcript": {
           "goal0": {
             "goal": 0,
@@ -819,7 +819,7 @@
       {
         "name": "a valid give edits the goal and keeps the loaded basis",
         "ok": true,
-        "elapsedMs": 660,
+        "elapsedMs": 621,
         "transcript": {
           "give": {
             "goal": 0,
@@ -859,7 +859,7 @@
       {
         "name": "a rejected term is Agda's answer, and leaves the goal open",
         "ok": true,
-        "elapsedMs": 705,
+        "elapsedMs": 648,
         "transcript": {
           "accepted": false,
           "error": "<root>/Goals.agda:7.14-18: error: [UnequalTypes]\nThe type\n  Nat\nis not a subtype of\n  A\nwhen checking that the expression zero has type A"
@@ -868,7 +868,7 @@
       {
         "name": "an edit inside one goal is a give; any other edit is a reload, which retires the old goals",
         "ok": true,
-        "elapsedMs": 764,
+        "elapsedMs": 683,
         "transcript": {
           "plans": [
             "load",
@@ -886,7 +886,7 @@
       {
         "name": "a module switch cannot reuse the previous module's goals",
         "ok": true,
-        "elapsedMs": 722,
+        "elapsedMs": 684,
         "transcript": {
           "second": [
             {
@@ -935,7 +935,7 @@
       {
         "name": "a case split rewrites the clause, which a check then loads; a refine opens a goal",
         "ok": true,
-        "elapsedMs": 716,
+        "elapsedMs": 628,
         "transcript": {
           "clauses": [
             "choose red = ?",
@@ -984,7 +984,7 @@
       {
         "name": "positions in Unicode text, and terms outside ASCII",
         "ok": true,
-        "elapsedMs": 654,
+        "elapsedMs": 565,
         "transcript": {
           "goal": {
             "id": 0,
@@ -1028,7 +1028,7 @@
       {
         "name": "positions in a text whose line ends are CR LF, which Agda reads as LF",
         "ok": true,
-        "elapsedMs": 658,
+        "elapsedMs": 571,
         "transcript": {
           "goals": [
             {
@@ -1120,7 +1120,7 @@
       {
         "name": "a literate module: goals in its code, none in its prose",
         "ok": true,
-        "elapsedMs": 661,
+        "elapsedMs": 589,
         "transcript": {
           "goal": {
             "id": 0,
@@ -1161,7 +1161,7 @@
       {
         "name": "a verdict is a fresh Agda's exit code where the engine has a batch lane, and is refused where it has none",
         "ok": true,
-        "elapsedMs": 417,
+        "elapsedMs": 382,
         "transcript": {
           "capability": {
             "batch": false
@@ -1175,7 +1175,7 @@
       {
         "name": "an abort with nothing running is nothing",
         "ok": true,
-        "elapsedMs": 446,
+        "elapsedMs": 384,
         "transcript": {
           "aborting": null
         }
@@ -1195,7 +1195,7 @@
       {
         "name": "a start whose compiler is not a compiler fails, and terminates its worker",
         "ok": true,
-        "elapsedMs": 14,
+        "elapsedMs": 15,
         "detail": {
           "message": "the compiler could not be loaded (TypeError: WebAssembly compilation aborted: Network error: Failed to read from a ReadableStream)"
         }
@@ -1203,7 +1203,7 @@
       {
         "name": "a deadline aborts the command, and the session goes on",
         "ok": true,
-        "elapsedMs": 1680,
+        "elapsedMs": 1621,
         "detail": {
           "failure": "the normalize outran its deadline of 1000 ms and was aborted"
         }
@@ -1211,7 +1211,7 @@
       {
         "name": "a worker that stops answering is ended by the deadline, and nothing waits",
         "ok": true,
-        "elapsedMs": 1877,
+        "elapsedMs": 1792,
         "detail": {
           "failure": "the normalize outran its deadline of 600 ms, and Agda was stopped"
         }
@@ -1219,7 +1219,7 @@
       {
         "name": "disposal terminates the worker",
         "ok": true,
-        "elapsedMs": 413,
+        "elapsedMs": 369,
         "detail": {}
       },
       {
@@ -1244,10 +1244,10 @@
     "failure": null
   },
   "comparison": {
-    "date": "2026-10-12T05:58:38.209Z",
+    "date": "2026-10-12T06:16:07.726Z",
     "runs": {
-      "browser": "2026-10-12T05:58:37.850Z",
-      "native": "2026-10-12T05:58:21.902Z"
+      "browser": "2026-10-12T06:16:07.456Z",
+      "native": "2026-10-12T06:15:53.296Z"
     },
     "agda": {
       "browser": "2.9.0",
@@ -1401,16 +1401,16 @@
     }
   },
   "companion": {
-    "date": "2026-10-12T05:59:17.032Z",
+    "date": "2026-10-12T06:16:40.195Z",
     "machine": {
       "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
       "logicalCpus": 20,
       "memoryBytes": 67068481536,
       "kernel": "7.0.0-31-generic",
       "loadAverage": [
-        3.28,
-        5.7,
-        6.85
+        2.09,
+        1.71,
+        3.35
       ]
     },
     "vscode": "1.141.0",
@@ -1419,13 +1419,13 @@
     "agda": "2.9.0",
     "fixture": "agda-algebras' Overture.Basic, its Agda fences in Overture/Basic.agda, as vscode/scripts/run-tests.mjs writes it; the mode's options `--no-libraries --no-default-libraries -i <stdlib> -i <workspace>`, which the lanes take",
     "sourceSha256": "419e24a842c830029a05f9e8f5e329ba3d4e3a32c94b7d41bbe2f555daa9481a",
-    "modeFirstLoadMs": 4401.1730769999995,
-    "activationCallMs": 106.33665399999995,
+    "modeFirstLoadMs": 4760.79851,
+    "activationCallMs": 117.04920900000002,
     "nativeLanes": {
       "verdictBefore": {
         "exitCode": 42,
-        "agdaMs": 321.5,
-        "commandMs": 360.5,
+        "agdaMs": 329.4,
+        "commandMs": 358.9,
         "checking": [
           "Overture.Basic"
         ],
@@ -1436,32 +1436,32 @@
       },
       "firstGoal": {
         "load": "first",
-        "loadMs": 317.17475000000013,
+        "loadMs": 312.09105100000033,
         "checking": [
           "Overture.Basic"
         ],
-        "agdaMs": 1.2,
-        "commandMs": 327
+        "agdaMs": 1.4,
+        "commandMs": 321.9
       },
       "warmGoal": {
         "load": "reused",
-        "agdaMs": 0.8,
-        "commandMs": 6.3
+        "agdaMs": 0.9,
+        "commandMs": 5.8
       },
       "infer": {
-        "agdaMs": 1,
-        "commandMs": 5.8
+        "agdaMs": 1.2,
+        "commandMs": 6.2
       },
       "give": {
         "load": "changed",
-        "loadMs": 63.106974000000264,
-        "agdaMs": 1.4,
-        "commandMs": 87.8
+        "loadMs": 57.39089700000022,
+        "agdaMs": 1.1,
+        "commandMs": 87.5
       },
       "verdictAfter": {
         "exitCode": 0,
-        "agdaMs": 330.7,
-        "commandMs": 337.9,
+        "agdaMs": 333.4,
+        "commandMs": 339,
         "checking": [
           "Overture.Basic"
         ],
@@ -1585,7 +1585,7 @@
     },
     "hiddenReload": {
       "date": "2026-10-12",
-      "method": "vscode/src/test/reload.ts instrumented, in one run at 1f94e86 and then restored, to log each change of the active editor and the companion's module.",
+      "method": "vscode/src/test/reload.ts instrumented in one run on 2026-10-12, at the code before the last change to the registry's reporting, and then restored, to log each change of the active editor and the companion's module.",
       "trace": [
         "1760 ms: Cover.txt active (the companion's module Basic.agda)",
         "1818 ms: Basic.agda active",
@@ -1594,7 +1594,7 @@
         "1886 ms: Cover.txt active",
         "1939 ms: the marker is written with the module Basic.agda"
       ],
-      "finding": "Showing a document in the panel's column made Basic.agda, in column one, the active editor for about 15 ms first, and the companion follows every active Agda editor, so its module moved back.  The check passed in the first run of the session and failed in four later ones, one at the base revision; CI's last twelve runs of the workflow passed."
+      "finding": "Showing a document in the panel's column made Basic.agda, in column one, the active editor for about 15 ms first, and the companion follows every active Agda editor, so its module moved back.  The check passed in the first run of the session and failed in all six later runs in which it ran on this machine (one-minute load averages from about 2 to about 10), one of them at the base revision; CI's last twelve runs of the workflow passed."
     }
   }
 }

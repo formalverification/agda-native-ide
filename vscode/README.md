@@ -224,20 +224,20 @@ that load.  This is one observation, not a benchmark or a comparison with
 the browser.  The command return values, exact versions, source and bundle
 hashes, machine load and timings are archived in [the run record][run].
 
-On 2026-10-12, at `1f94e86`, the same machine (load average 3.3, other
+On 2026-10-12, at `7eba708`, the same machine (load average 2.1, other
 sessions running), VS Code 1.141.0 (its extension host's node 24.21.0),
 native Agda 2.9.0 and mode 0.10.4 measured the lanes after the mode's own
-first load of the module (4,401 ms, with no interfaces before it), as
+first load of the module (4,761 ms, with no interfaces before it), as
 follows:
 
 | Step | Agda's time | The command's |
 |---|---:|---:|
-| The verdict, the goal open (exit 42), which started the lane | 322 ms | 361 ms |
-| The goal's type and context, the lane's first load | 317 ms load, 1.2 ms goal | 327 ms |
-| The same, warm | 0.8 ms | 6.3 ms |
-| An inference in the goal | 1.0 ms | 5.8 ms |
-| A give of `0ℓ`, after a load of the edited module | 63 ms load, 1.4 ms give | 88 ms |
-| The verdict, the module checking (exit 0) | 331 ms | 338 ms |
+| The verdict, the goal open (exit 42), which started the lane | 329 ms | 359 ms |
+| The goal's type and context, the lane's first load | 312 ms load, 1.4 ms goal | 322 ms |
+| The same, warm | 0.9 ms | 5.8 ms |
+| An inference in the goal | 1.2 ms | 6.2 ms |
+| A give of `0ℓ`, after a load of the edited module | 57 ms load, 1.1 ms give | 88 ms |
+| The verdict, the module checking (exit 0) | 333 ms | 339 ms |
 
 The batch run and the lane's first load each type-checked `Overture.Basic`
 alone: they accepted every standard library interface the mode's Agda had
