@@ -679,12 +679,15 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     await controller.mountDriveArchives(plfaInterfaceUrls(chapter));
   }
 
+  async function checkCurrentFile() {
+    if (workspaceMode === "plfa") await ensurePlfaInterfaces();
+    await controller.loadAgdaFile();
+  }
+  controller.checkCurrentFile = checkCurrentFile;
+
   function runCheck() {
     if (!compilerReady || isBusy) return true;
-    void runAction(async () => {
-      if (workspaceMode === "plfa") await ensurePlfaInterfaces();
-      await controller.loadAgdaFile();
-    });
+    void runAction(checkCurrentFile);
     return true;
   }
 

@@ -177,6 +177,14 @@ export class AgdaController {
 
   /** Set by terminateALSWASM, so the session's end is not reported. */
   private stopRequested = false;
+  /** Counts the documents the editor has shown: a check's answers that
+   * arrive after another document replaced its own are not applied. */
+  private documentEpoch = 0;
+  /** Archive mounts in flight. */
+  private mounting = 0;
+  /** How the page checks the file on screen (in PLFA, with the chapter's
+   * interfaces mounted first); a plain check by default. */
+  checkCurrentFile: () => Promise<void> = () => this.loadAgdaFile();
   /** Stops the engine, during its startup or after. */
   private stopper?: AbortController;
 
@@ -232,7 +240,7 @@ export class AgdaController {
           if (progress.phase === "downloading")
             this.wasmLoadingProgress = { bytesLoaded: progress.loaded, bytesTotal: progress.total };
           else if (progress.phase === "downloaded") this.alsWorkerStatus = "loaded";
-          else if (progress.phase === "starting") this.driveIsCreated = true;
+          // The drive is ready for archives once the session has opened.
         },
         signal: this.stopper.signal,
       },
@@ -251,7 +259,12 @@ export class AgdaController {
     this.tools = createToolSurface(session);
     this.driveIsCreated = true;
     this.reportedAgdaVersion = session.agdaVersion;
-    session.onResponse((event) => this.onResponse(event.response, event.operation.command));
+    session.onResponse((event) => {
+      // An answer about another file than the one on screen (a check that
+      // was running when a chapter opened) is not this document's.
+      if (event.operation.path === this.currentFilePath)
+        this.onResponse(event.response, event.operation.command);
+    });
 
     const ended = new Promise<number>((resolve, reject) => {
       session.onStatus((status) => {
@@ -339,6 +352,7 @@ export class AgdaController {
     if (!view) throw new Error("The Agda editor is not ready");
     const session = this.session;
     const path = this.currentFilePath;
+    const epoch = this.documentEpoch;
     const source = view.state.doc.toString();
     let plan: CheckPlan | undefined;
     const started = performance.now();
@@ -370,6 +384,8 @@ export class AgdaController {
       this.activeGoalId = undefined;
     }
     const outcome = await checking;
+    // Another document replaced this one while Agda checked it.
+    if (epoch !== this.documentEpoch) return;
     this.lastCheckDurationMs = performance.now() - started;
     if (outcome.kind !== "answer") return this.operationFailed(outcome);
     const value = outcome.value;
@@ -464,9 +480,14 @@ export class AgdaController {
     this.persistDocument(doc);
     try {
       await transport.writeSource(this.currentFilePath, browserAgdaSource(this.currentFilePath, doc));
-      this.lspClient!.notification("textDocument/didSave", {
-        textDocument: { uri: "file://" + this.currentFilePath },
-      });
+    } catch (error) {
+      console.warn("Could not save the buffer where Agda reads it", error);
+      return;
+    }
+    this.lspClient!.notification("textDocument/didSave", {
+      textDocument: { uri: "file://" + this.currentFilePath },
+    });
+    try {
       await transport.persist();
     } catch (error) {
       console.warn("Could not persist the Agda cache", error);
@@ -476,13 +497,17 @@ export class AgdaController {
   async mountDriveArchives(urls: string[]): Promise<void> {
     const transport = this.transport;
     if (!transport || !this.driveIsCreated) throw new Error("Agda filesystem is not ready");
+    const missing = transport.unmounted(urls);
+    if (!missing.length) return;
+    this.mounting += 1;
     this.driveArchiveLoading = true;
-    this.lastAction = `Loading ${urls.length} PLFA cache ${urls.length === 1 ? "bundle" : "bundles"}…`;
+    this.lastAction = `Loading ${missing.length} PLFA cache ${missing.length === 1 ? "bundle" : "bundles"}…`;
     try {
-      await transport.mountArchives(urls);
+      await transport.mountArchives(missing);
       this.lastAction = "PLFA cache ready";
     } finally {
-      this.driveArchiveLoading = false;
+      this.mounting -= 1;
+      this.driveArchiveLoading = this.mounting > 0;
     }
   }
 
@@ -521,17 +546,20 @@ export class AgdaController {
       throw new Error("Place the cursor in a goal and load the file first");
     this.activeGoalId = goal.id;
     const ref = this.requireSession().goalRef(goal.id);
-    if (!ref) throw new Error(`Goal ${goal.id} is not open in Agda; load the file again`);
+    if (!ref) throw new Error(`Goal ${goal.id} is not among the goals of Agda's last check; check the file again`);
     return { goal, ref };
   }
 
-  /** The inspector's question about a goal, through the tool surface. */
+  /** The inspector's question about a goal, through the tool surface: the
+   * goal named, even one that has no place in the editor (a refine's), or
+   * else the goal at the cursor. */
   private async askGoal(id: number | undefined, show: "type" | "context") {
     if (id != null) this.selectGoal(id);
-    const { goal } = this.requireGoal();
+    const goalId = id ?? this.requireGoal().goal.id;
+    if (id != null) this.activeGoalId = id;
     this.lastAction =
-      show === "type" ? `Inspecting goal ${goal.id}…` : `Loading context for goal ${goal.id}…`;
-    const result = await this.tools!.get_goal({ goal: goal.id });
+      show === "type" ? `Inspecting goal ${goalId}…` : `Loading context for goal ${goalId}…`;
+    const result = await this.tools!.get_goal({ goal: goalId });
     const error = toolError(result);
     if (error) {
       this.lastAction = "Ready";
@@ -611,16 +639,23 @@ export class AgdaController {
     this.finishAction();
   }
 
+  /** Agda answers an expression in the scope of the file it holds: if
+   * that is not the file on screen, check this one first.  (The fork named
+   * the file in the command, and Agda loaded it.) */
+  private async holdCurrentFile() {
+    if (this.requireSession().basis?.path !== this.currentFilePath) await this.checkCurrentFile();
+  }
+
   async infer(expression: string) {
     if (!expression.trim()) throw new Error("Enter an expression to infer");
-    this.requireSession();
+    await this.holdCurrentFile();
     this.lastAction = "Inferring type…";
     return this.askExpression("type_of", expression);
   }
 
   async normalize(expression: string) {
     if (!expression.trim()) throw new Error("Enter an expression to normalize");
-    this.requireSession();
+    await this.holdCurrentFile();
     const goal = this.getActiveGoal();
     this.lastAction = "Normalizing expression…";
     if (goal) this.activeGoalId = goal.id;
@@ -643,6 +678,9 @@ export class AgdaController {
   ) {
     if (!this.editorView) return;
     const pathChanged = filePath !== this.currentFilePath;
+    this.documentEpoch += 1;
+    // The editor no longer shows what Agda holds, nor its highlighting.
+    this.session?.reloadNext("the editor's text was replaced");
     this.currentFilePath = filePath;
     this.currentStorageKey = storageKey;
     this.checked = false;

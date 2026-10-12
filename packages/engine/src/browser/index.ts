@@ -331,13 +331,18 @@ export class BrowserTransport implements EngineTransport {
 
   // ---- What the page asks of the drive ------------------------------------
 
+  /** The archives among `urls` not yet mounted, each once. */
+  unmounted(urls: readonly string[]): string[] {
+    return urls.filter((url, index) => !this.mounted.has(url) && urls.indexOf(url) === index);
+  }
+
   /** Fetch zips by URL and extract them at the drive's root, once each. */
   async mountArchives(urls: readonly string[]): Promise<void> {
     if (this.mounting) {
       await this.mounting;
       return this.mountArchives(urls);
     }
-    const missing = urls.filter((url, index) => !this.mounted.has(url) && urls.indexOf(url) === index);
+    const missing = this.unmounted(urls);
     if (!missing.length) return;
     if (this.exited) throw new Error("the language server has stopped");
     const drive = this.drive;

@@ -681,6 +681,13 @@ export class AgdaSession {
     );
   }
 
+  /** The host no longer shows what Agda holds (it replaced its text, and
+   * with it the goals and the highlighting), so the next check loads,
+   * whatever the text. */
+  reloadNext(reason: string): void {
+    if (this.loaded) this.loaded.unchecked = reason;
+  }
+
   /** Abort the operation that is running, if any: Agda ends it with
    * `DoneAborting`, and forgets the loaded file. */
   abort(): { aborting: OperationKind | undefined } {
