@@ -596,9 +596,10 @@ then the host sends the two headers ([#6]).
 +  **Why it matters for hosting**: GitHub Pages cannot send the two headers;
    the fork's fallback for such a host, a service worker that adds them, costs
    a reload on a first visit and had a race that left some first visits
-   unisolated, which two guards fix; and while this repository is private, the
-   organization's free plan serves no GitHub Pages site from it at all ([#6]'s
-   findings, 2026-10-04).  A page that needs no isolation can be served by any
+   unisolated, which two guards fix; and while this repository was private,
+   the organization's free plan served no GitHub Pages site from it at all
+   ([#6]'s findings, 2026-10-04; the repository has been public since
+   2026-10-11).  A page that needs no isolation can be served by any
    static host.  That is why isolation belongs in this record: it is the
    browser's one hosting constraint in the brief's matrix, and the reason
    Milestone 0 weighs hosts by their headers.
@@ -634,12 +635,16 @@ will answer it.
 +  **The Emacs view** is [#74]'s experiment: one benchmark proof drawn as a
    static SVG with a hot-spot per leaf, measured for render time, legibility
    and interaction, and kept only if it is useful.
-+  **Where the 2.9.0 binaries are served from** is open on [#58] and [#4].
-   [#58] proposes a release of this organization, pinned by hash in the flake;
-   this repository is private for now, so its releases are not a public URL for
-   the page or for a clean `nix build`; and [#4] asks for a mirror the
-   organization controls, since today's compiler has one source, a personal
-   repository.
++  **Where the 2.9.0 binaries are served from** was open on [#58] and [#4]
+   when this record was written.  [#58] proposed a release of this
+   organization, pinned by hash in the flake; this repository was private
+   then, so its releases were not a public URL for the page or for a clean
+   `nix build`; and [#4] asked for a mirror the organization controls, since
+   the compiler had one source, a personal repository.  William settled it
+   on 2026-10-07: the binaries live in releases of
+   formalverification/agda-wasm-builds, a public repository of this
+   organization, and the flake fetches them by hash ([ADR 0001][adr-0001]
+   § 7, decision 19).
 
 **Evidence**.
 
@@ -658,7 +663,8 @@ will answer it.
    source is upstream's git tree) and [#58]'s acceptance
    (`nix build .#compiler` from the pinned commits, the hashes recorded).
 
-**Status**.  Open by design: [#68], [#74], [#58] and [#4].
+**Status**.  Open by design: [#68] and [#74].  Where the binaries are
+served from was settled on 2026-10-07 ([#58]); [#4] is still open.
 
 ---
 
@@ -676,7 +682,7 @@ will answer it.
 | 8 | No isolation: the reactor build, with the drive in the server's worker | Proposed ([#59]); adopted 2026-10-08 | Two shared-memory channels; the reactor replaces one (ALS PR 48); built and measured in [#59] ([ADR 0001][adr-0001] § 8) |
 | 9 | The VS Code web build is verified, not promised | Open ([#68]) | No agents on the web; CORS on every fetch under `require-corp` |
 | 10 | The Emacs view is an experiment, kept only if useful | Open ([#74]) | One image per SVG; the WebKit widget uneven |
-| 11 | Where the 2.9.0 binaries are served from | Open ([#58], [#4]) | A private repository's releases are not public; today's compiler has one source |
+| 11 | Where the 2.9.0 binaries are served from | Open ([#58], [#4]); settled 2026-10-07 ([ADR 0001][adr-0001] decision 19) | A private repository's releases are not public; today's compiler has one source; the binaries now live in releases of formalverification/agda-wasm-builds, a public repository of this organization |
 
 ---
 

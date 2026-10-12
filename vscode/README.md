@@ -122,9 +122,8 @@ editor active, and checks that the latest module survives reload.
 A no-window control, with a process still alive, fails the xdotool assertion.
 
 The tests also check malformed saved state and exact version matching.
-No production code consumes the mode's test hooks.  The fixture is public,
-but the extension, logs and artifacts remain in this private repository.
-CI is [the companion workflow][ci].
+No production code consumes the mode's test hooks.  CI is [the companion
+workflow][ci].
 
 The webview loads only this package's scripts and stylesheet, through
 `asWebviewUri`, with `default-src 'none'` and a fresh script nonce.  Source
