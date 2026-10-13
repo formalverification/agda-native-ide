@@ -13,13 +13,16 @@
 export const PLAYGROUND_DIR = "/play";
 
 /** A module name's part, as the page accepts one: a letter (of any
- * script) or an underscore, then letters, digits, `_`, `'` or `-`. */
-const NAME_PART = /^[\p{L}_][\p{L}\p{N}_'-]*$/u;
+ * script) or an underscore, then letters, digits, `_`, `'` or `-`, with no
+ * `__` (Agda reads that as a mixfix operator's holes). */
+const NAME_PART = /^(?!.*__)[\p{L}_][\p{L}\p{N}_'-]*$/u;
 
 /** Agda's keywords, which no module name part may be. */
 const KEYWORDS = new Set(
   "abstract codata coinductive constructor data do eta-equality field forall hiding import in inductive infix infixl infixr instance interleaved let macro module mutual no-eta-equality opaque open overlap pattern postulate primitive private public quote quoteTerm record renaming rewrite syntax tactic to unfolding unquote unquoteDecl unquoteDef using variable where with"
-    .split(" "),
+    .split(" ")
+    // Agda's reserved letter, and a hole, are no names either.
+    .concat(["λ", "_"]),
 );
 
 /** The module a playground file holds, by its path; none outside /play/. */
@@ -48,6 +51,9 @@ export function playgroundTarget(
         ? `"${bad}" cannot be part of a module's name: use letters, digits, _, ' and -, starting with a letter`
         : `"${trimmed}" has an empty part`,
     };
+  // Agda's own modules are named Agda.…, which the page's import planner
+  // takes for builtins, whose interfaces the drive holds.
+  if (parts[0] === "Agda") return { error: "Agda's own modules are named Agda.…; name the copy otherwise" };
   return { module: parts.join("."), path: `${PLAYGROUND_DIR}/${parts.join("/")}${extension}` };
 }
 
@@ -70,6 +76,22 @@ function codeLines(text: string, literate: boolean): Array<{ text: string; from:
     from += line.length + 1;
   }
   return lines;
+}
+
+/** The lines, with those that begin inside a `{- -}` comment (nested ones
+ * counted) not code. */
+function outsideBlockComments(lines: Array<{ text: string; from: number; code: boolean }>) {
+  let depth = 0;
+  return lines.map((line) => {
+    const code = line.code && depth === 0;
+    for (let at = 0; at + 1 < line.text.length; at++) {
+      const two = line.text.slice(at, at + 2);
+      if (depth === 0 && two === "--") break;
+      if (two === "{-") (depth += 1), (at += 1);
+      else if (two === "-}" && depth > 0) (depth -= 1), (at += 1);
+    }
+    return { ...line, code };
+  });
 }
 
 /** Escape a string for a regular expression. */
@@ -136,18 +158,18 @@ export function openImportEdit(
   text: string,
   module: string,
 ): { from: number; insert: string } | { at: number } | undefined {
-  const lines = codeLines(text, false);
+  const lines = outsideBlockComments(codeLines(text, false));
   const opened = new RegExp(`^open[ \\t]+import[ \\t]+${escape(module)}(?=\\s|$)`);
-  const existing = lines.find((line) => opened.test(line.text));
+  const existing = lines.find((line) => line.code && opened.test(line.text));
   if (existing) return { at: existing.from };
   let after: number | undefined;
   for (let index = 0; index < lines.length; index++) {
-    if (/^(open[ \t]+)?import[ \t]/.test(lines[index].text)) {
+    if (lines[index].code && /^(open[ \t]+)?import[ \t]/.test(lines[index].text)) {
       while (index + 1 < lines.length && /^[ \t]+\S/.test(lines[index + 1].text)) index++;
       after = index;
     }
   }
-  after ??= lines.findIndex((line) => /^module[ \t]/.test(line.text));
+  after ??= lines.findIndex((line) => line.code && /^module[ \t]/.test(line.text));
   if (after < 0) return undefined;
   const line = lines[after];
   const end = line.from + line.text.length;

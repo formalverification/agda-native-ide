@@ -1121,7 +1121,12 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       }
       controller.showDocument(file, source);
       plfaMarkdown = editor?.state.doc.toString() ?? "";
+      // The editor's scroll (where the chapter was left, or its top) is
+      // applied in its next measure; the reader follows it, rather than
+      // its reset to the top dragging the editor back.
+      claimScrollSync("editor");
       readerContent?.scrollTo({ top: 0 });
+      requestAnimationFrame(() => scheduleScrollSync("editor"));
       if (controller.driveIsCreated)
         void runAction(() => ensurePlfaInterfaces(chapter));
     } catch (error) {
@@ -1154,21 +1159,25 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
    * closure's archives are mounted (asking first, issue 14), so that
    * hover, Infer and Normalize answer in its scope. */
   async function openLibraryModule(item: TreeItem) {
-    if (!libraryOpens || !item.path || !item.name) return;
+    if (!item.path || !item.name || isBusy) return;
+    // A module open already is shown whether or not Agda is up; one opened
+    // anew is read from the drive, so it needs Agda.
+    const open = controller.isOpen(item.path);
+    if (!open && !libraryOpens) return;
     const request = ++chapterRequest;
     const file: DocumentFile = {
       path: item.path,
       library: { library: "agda-algebras", module: item.name },
     };
     try {
-      const text = controller.isOpen(file.path) ? undefined : await controller.readLibrarySource(file.path);
+      const text = open ? undefined : await controller.readLibrarySource(file.path);
       if (request !== chapterRequest || isBusy) return;
       workspaceMode = "playground";
       activeResource = "agda";
       controller.showDocument(file, text);
       setTimeout(() => editor?.focus());
       // The reader asked for it: a question before a fetch takes the focus.
-      void runAction(() => checkCurrentFile());
+      if (compilerReady) void runAction(() => checkCurrentFile());
     } catch (error) {
       actionError = readableError(error);
     }
@@ -1200,7 +1209,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     copySelection = null;
     openPlayground(file);
     // A selection's copy is shown at the selection.
-    if (selection && controller.currentFilePath === file.path)
+    if (selection && controller.currentFilePath === file.path && copy.at <= editor.state.doc.length)
       editor.dispatch({ selection: { anchor: copy.at }, effects: EditorView.scrollIntoView(copy.at, { y: "center" }) });
   }
 

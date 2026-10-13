@@ -57,8 +57,15 @@ describe("a copy's name and path", () => {
 
   it("refuses what is not a module name", () => {
     expect(playgroundTarget("", ".agda")).toEqual({ error: "Name the copy's module" });
-    for (const name of ["2Sig", "My Sig", "Sig..A", "where", "A.module", "Sig(1)"])
+    for (const name of ["2Sig", "My Sig", "Sig..A", "where", "A.module", "Sig(1)", "λ", "_", "X._", "a__b"])
       expect(playgroundTarget(name, ".agda")).toHaveProperty("error");
+  });
+
+  it("refuses Agda's own namespace, which the import planner takes for builtins", () => {
+    expect(playgroundTarget("Agda.HSP", ".lagda.md")).toEqual({
+      error: "Agda's own modules are named Agda.…; name the copy otherwise",
+    });
+    expect(playgroundTarget("Agdas.HSP", ".lagda.md")).toEqual({ module: "Agdas.HSP", path: "/play/Agdas/HSP.lagda.md" });
   });
 
   it("reads a playground file's module from its path", () => {
@@ -145,6 +152,18 @@ describe("an open import added to Main", () => {
   it("goes after the module line when there is no import, and at the end of a last line", () => {
     expect(openImportEdit("module Main where\nx = 0\n", "M")).toEqual({ from: 18, insert: "open import M\n" });
     expect(openImportEdit("module Main where", "M")).toEqual({ from: 17, insert: "\nopen import M\n" });
+  });
+
+  it("ignores what a block comment holds", () => {
+    const commented = "module Main where\nopen import Agda.Builtin.Nat\n{-\nopen import Agda.Builtin.Bool\n{- nested -}\nopen import M\n-}\nx = 0\n";
+    expect(openImportEdit(commented, "M")).toEqual({
+      from: commented.indexOf("{-"),
+      insert: "open import M\n",
+    });
+    expect(openImportEdit("{-\nmodule Old where\n-}\nmodule Main where\n", "M")).toEqual({
+      from: "{-\nmodule Old where\n-}\nmodule Main where\n".length,
+      insert: "open import M\n",
+    });
   });
 
   it("is where Main opens the module already, and none without a module", () => {

@@ -200,8 +200,10 @@ const READ_ONLY = {
   type: "(𝓞 𝓥 : Level) → Type (lsuc 𝓞 ⊔ lsuc 𝓥)",
   hoverLine: "Level-of-Signature : {𝓞 𝓥 : Level} → Signature 𝓞 𝓥 → Level",
   hover: "(𝓞 𝓥 : Agda.Primitive.Level) →",
-  /** An edit to Main before it opens, which undo there must take back. */
-  mainEdit: "\n-- an edit made before the library's module opens\n",
+  /** An edit to Main before it opens, which undo there must take back: one
+   * undo group in either browser (Firefox's typing sends a newline as
+   * Enter, which starts a group, so it has none at its end). */
+  mainEdit: "\n-- an edit made before the library's module opens",
 };
 
 /** The copy step's copies (issue 10): the module's, its goal and the term
@@ -217,7 +219,9 @@ const COPY = {
   given: "sig-ops 𝑆 = proj₁ 𝑆",
   libTooFarDown:
     ": error: [LibTooFarDown]\nAn .agda-lib file for Overture.Signatures\nmust not be located in the directory /play",
-  selectionFrom: "Signature : (𝓞 𝓥 : Level)",
+  /** The start of the selection's first line. */
+  selectionFrom: "Signature : (",
+  selected: "Signature 𝓞 𝓥 = Σ[ F ∈ Type 𝓞 ] (F → Type 𝓥)",
   selectionName: "SignatureType",
   selectionPath: "/play/SignatureType.agda",
 };
@@ -745,6 +749,21 @@ async function findInEditor(text) {
   await page.press("Escape", "Escape", 27);
 }
 
+/** Move the cursor down from the top of the editor, with the arrow key, to
+ * the first line that starts with `start`: the keyboard a reader has in a
+ * read-only module, where Firefox's search panel does not move the
+ * selection.  @param {string} start */
+async function cursorToLine(start) {
+  await page.eval(() => document.querySelector(".cm-content").focus());
+  await page.press("Home", "Home", 36, 2);
+  for (let presses = 0; presses < 400; presses++) {
+    const line = await page.eval(() => document.querySelector(".cm-activeLine")?.textContent ?? null);
+    if (line?.startsWith(start)) return;
+    await page.press("ArrowDown", "ArrowDown", 40);
+  }
+  throw new Error(`no line of the editor starts with ${JSON.stringify(start)}`);
+}
+
 /** Hover over the last character of the occurrence of `word` after the
  * colon in the drawn line `line`, with the mouse, and return the language
  * server's answer, and how long it took (Chromium: the driver moves the
@@ -1243,7 +1262,7 @@ try {
     await openTab(READ_ONLY.path);
     await waitFor((s) => !s.busy && s.tab === READ_ONLY.path && finished(s.status), "the library module again");
     // Two lines, selected with the keyboard.
-    await findInEditor(COPY.selectionFrom);
+    await cursorToLine(COPY.selectionFrom);
     await page.press("Home", "Home", 36);
     await page.press("ArrowDown", "ArrowDown", 40, 8);
     await page.press("ArrowDown", "ArrowDown", 40, 8);
@@ -1257,6 +1276,7 @@ try {
       copied.status.startsWith("Module checked") && copied.problems.length === 0,
       `the selection copy's check says "${copied.status}": ${JSON.stringify(copied.problems)}`,
     );
+    assert(copied.editor.includes(COPY.selected), `the selection copy reads ${JSON.stringify(copied.editor)}`);
     const checking = await inferChecking(READ_ONLY.infer);
     results.selectionChecking = checking;
     assert(JSON.stringify(checking) === JSON.stringify([COPY.selectionName]), `the selection copy type-checked [${checking}]`);

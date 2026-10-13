@@ -57,8 +57,8 @@
 // of agda-algebras is shown read-only, as the drive holds it, and loaded
 // with the session's load of its path, which writes nothing; Agda then
 // answers Infer and Normalize in its scope.  Files of the playground
-// besides Main (copies of a library's modules) are listed in localStorage,
-// each text under its own key, and written to the drive when Agda starts.
+// besides Main (copies of a library's modules) are the keys of their text
+// in localStorage, and are written to the drive when Agda starts.
 //
 // Before a check of a playground file, or a load of a library's module,
 // the controller mounts the interfaces its imports need (issue 14): it
@@ -74,7 +74,7 @@
 // other namespaces, and the archives the index no longer names.
 
 import { EditorView } from "@codemirror/view";
-import { Compartment, type EditorState, type StateEffect } from "@codemirror/state";
+import { Compartment, Transaction, type EditorState, type StateEffect } from "@codemirror/state";
 import { LSPClient, languageServerExtensions } from "@codemirror/lsp-client";
 import { messagesOf, sourceKind } from "@agda-native-ide/engine";
 import type {
@@ -112,6 +112,7 @@ import { asset } from "$app/paths";
 import { assetFiles, cacheTokens, compilerBytes, driveCacheNamespace } from "$lib/assets";
 import { applyAgdaResponse } from "./agda/handlers";
 import { commit } from "./codemirror/offsets";
+import { setGoals } from "./agda/effects";
 import {
   getActiveAgdaGoal,
   getAgdaGoalById,
@@ -120,6 +121,7 @@ import {
 } from "./agda/goals";
 import { browserAgdaSource } from "./agda/browser-source";
 import { OpenDocuments, fileOf, type DocumentFile } from "./documents";
+import { PLAYGROUND_DIR } from "./playground";
 
 type ALSWorkerStatus =
   | "initial"
@@ -207,20 +209,21 @@ export const LS_DOC_KEY = storageKeyOf(PLAYGROUND.file);
 /** The playground's Main, as a document. */
 export const MAIN_FILE: DocumentFile = { path: PLAYGROUND.file, storageKey: LS_DOC_KEY };
 
-/** Where the browser lists the playground's files besides Main, which
- * copies of a library's modules made (issue 10); each one's text is under
- * its own key, as Main's is. */
-const PLAYGROUND_FILES_KEY = "agda-native-ide:play-files";
-
+/** The playground's files besides Main that the browser keeps (copies of
+ * a library's modules, issue 10): every key named by a path under /play/,
+ * but Main's.  The keys are the list, so two tabs that each make a copy
+ * cannot drop each other's. */
 function storedPlaygroundFiles(): string[] {
+  const prefix = storageKeyOf(`${PLAYGROUND_DIR}/`);
   try {
-    const stored: unknown = JSON.parse(localStorage.getItem(PLAYGROUND_FILES_KEY) ?? "[]");
-    if (Array.isArray(stored))
-      return stored.filter((path): path is string => typeof path === "string" && path.startsWith("/play/"));
+    return Object.keys(localStorage)
+      .filter((key) => key.startsWith(prefix) && key !== LS_DOC_KEY)
+      .map((key) => key.slice(storageKeyOf("").length))
+      .sort();
   } catch {
-    // Refused or unreadable storage: no copies.
+    // Refused storage: no copies.
+    return [];
   }
-  return [];
 }
 
 /** agda-algebras as the page describes it (issue 14): its sources, which
@@ -1189,7 +1192,15 @@ export class AgdaController {
     this.editorView.focus();
   }
 
+  /** Agda answers about a goal of the file it holds: refuse a goal command
+   * on another, whose goals are not Agda's (issue 10). */
+  private requireHeldFile() {
+    if (this.requireSession().basis?.path !== this.currentFilePath)
+      throw new Error(`Agda holds another file; check ${this.currentFilePath.split("/").pop()} first`);
+  }
+
   private requireGoal() {
+    this.requireHeldFile();
     const goal = this.getActiveGoal();
     if (!goal)
       throw new Error("Place the cursor in a goal and load the file first");
@@ -1203,6 +1214,7 @@ export class AgdaController {
    * goal named, even one that has no place in the editor (a refine's), or
    * else the goal at the cursor. */
   private async askGoal(id: number | undefined, show: "type" | "context") {
+    this.requireHeldFile();
     if (id != null) this.selectGoal(id);
     const goalId = id ?? this.requireGoal().goal.id;
     if (id != null) this.activeGoalId = id;
@@ -1350,6 +1362,10 @@ export class AgdaController {
     this.documents.keep(view.state.update({ effects: this.lspClientCompartment.reconfigure([]) }).state);
     this.documents.keep(next);
     if (!this.isOpen(file.path)) this.openFiles = [...this.openFiles, fileOf(next) ?? file];
+    // A file Agda does not hold shows no goals: those it shows were a load
+    // the session no longer holds (the fork's switch wiped them too).
+    if (this.session?.basis?.path !== file.path)
+      next = next.update({ effects: setGoals.of([]), annotations: Transaction.addToHistory.of(false) }).state;
     // The file shown gains it: the client opens the file on the server
     // with the text shown (didOpen), as the left one's is closed.
     if (this.alsWorkerStatus === "active")
@@ -1415,8 +1431,11 @@ export class AgdaController {
     const candidates = [...PLAYGROUND.includes, "/lib/prim"].flatMap((directory) =>
       sourceSuffixes.map((suffix) => `${directory}/${relative}${suffix}`),
     );
+    // The playground's own files count whether or not the drive holds them
+    // yet (Main is written there by its first check).
+    const known = new Set<string>([PLAYGROUND.file, ...this.playgroundFiles]);
     const present = await transport.present(candidates);
-    return candidates.find((path) => present.has(path));
+    return candidates.find((path) => present.has(path) || known.has(path));
   }
 
   /** Add a file to the playground's project (issue 10): written where Agda
@@ -1426,15 +1445,9 @@ export class AgdaController {
     if (!transport) throw new Error("Agda is still starting");
     const file = this.playgroundFile(path);
     await transport.writeSource(path, text);
+    // Its key is what lists it, on this visit and the next.
     this.persistDocument(text, file);
-    if (!this.playgroundFiles.includes(path)) {
-      this.playgroundFiles = [...this.playgroundFiles, path];
-      try {
-        localStorage.setItem(PLAYGROUND_FILES_KEY, JSON.stringify(this.playgroundFiles));
-      } catch {
-        // Refused: the copy is listed until the page is left.
-      }
-    }
+    if (!this.playgroundFiles.includes(path)) this.playgroundFiles = [...this.playgroundFiles, path].sort();
     void transport.persist().catch((error: unknown) => console.warn("Could not persist the Agda cache", error));
     return file;
   }
