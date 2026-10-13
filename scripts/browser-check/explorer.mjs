@@ -13,12 +13,14 @@
 //      the site ships, in its order, each with its level, its place among
 //      its siblings and its label; and the filter, whose rows must be the
 //      modules whose names hold its words, with their ancestors;
-//   +  the tree while a check runs: rows the page cannot open then are
-//      `aria-disabled`, agda-algebras' never are, and a key and the filter
+//   +  the tree while a check runs: the rows aria-disabled are exactly
+//      those the page cannot open then (the playground's file and the
+//      chapters shown), agda-algebras' never are, and a key and the filter
 //      work, all in one call inside the page, so that it takes tens of
 //      milliseconds of the check it runs beside;
 //   +  the tree after a reload: the rows expanded before it still are, and
-//      the open file, whose section was closed, is revealed; then a PLFA
+//      the open file, whose section was closed, is revealed; activating its
+//      row keeps what was typed a moment before; then a PLFA
 //      chapter opened from the reader, in a part that is closed and far
 //      below the tree's top, is revealed: its part opened, its row current
 //      and scrolled into view.
@@ -157,8 +159,10 @@ export function libraryRows(modules) {
   });
 }
 
-/** The rows of the library shown. @param {ReturnType<typeof treeState>} tree */
-const library = (tree) => tree.rows.filter((row) => row.id?.startsWith(PREFIX));
+/** The rows of the library shown, not the row that stands in for them
+ * while the list loads, or says why it could not.
+ * @param {ReturnType<typeof treeState>} tree */
+const library = (tree) => tree.rows.filter((row) => row.id?.startsWith(PREFIX) && row.id !== `${PREFIX}message`);
 /** @param {ReturnType<typeof treeState>} tree @param {string} id */
 const row = (tree, id) => tree.rows.find((candidate) => candidate.id === id);
 
@@ -304,6 +308,11 @@ export async function useExplorerWhileBusy(page, record) {
       disabled: rows()
         .filter((row) => row.getAttribute("aria-disabled") === "true")
         .map((row) => row.getAttribute("data-id")),
+      // The rows the page cannot open while Agda is busy: the playground's
+      // file and every chapter shown.
+      unopenable: rows()
+        .map((row) => row.getAttribute("data-id"))
+        .filter((id) => id === "play:Main" || /^plfa:[^/]+\//.test(id)),
     };
     const library = rows().filter((row) => row.getAttribute("data-id").startsWith("agda-algebras:"));
     out.libraryDisabled = library.filter((row) => row.hasAttribute("aria-disabled")).length;
@@ -328,7 +337,10 @@ export async function useExplorerWhileBusy(page, record) {
     found.busyBefore && found.busyAfter,
     `the check ended while the Explorer was used (${found.ms} ms): this step needs a check that outlasts it`,
   );
-  assert(found.disabled.includes(MAIN), "Main.agda's row is not aria-disabled while Agda is busy");
+  assert(
+    JSON.stringify(found.disabled) === JSON.stringify(found.unopenable),
+    `while Agda is busy the rows aria-disabled are [${found.disabled}], not the playground's file and the chapters shown, [${found.unopenable}]`,
+  );
   assert(found.libraryDisabled === 0, `${found.libraryDisabled} rows of agda-algebras are disabled while Agda is busy`);
   assert(
     found.focusedAfterDown === found.expectedAfterDown,
@@ -365,6 +377,19 @@ export async function checkExplorerAfterReload(page, origin, site, checked, reco
   assert(lost.length === 0, `after the reload [${lost}] are no longer expanded`);
   assert(JSON.parse(tree.stored ?? "[]").includes("section:play"), "the page did not store the revealed playground");
   record.revealedAfterReload = MAIN;
+
+  // Activating the open file's row keeps what was just typed: the page
+  // saves 250 ms after a change, and loading the file again would put the
+  // stored copy in its place.
+  const typed = "-- typed just before the row was activated";
+  await page.eval(() => document.querySelector(".cm-content").focus());
+  await page.press("End", "End", 35, 2);
+  await page.type(typed);
+  await click(page, `.explorer [data-id="${MAIN}"]`);
+  await new Promise((done) => setTimeout(done, 400));
+  tree = await page.eval(treeState);
+  assert(tree.editor.includes(typed), "activating the open file's row lost what was just typed");
+  record.typingKept = true;
 
   // A chapter opened from the tree, its part then closed and the tree
   // scrolled to its top; the reader's Next opens the next part's first
