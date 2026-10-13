@@ -1,3 +1,15 @@
+// File: src/lib/codemirror/lsp-hover.ts
+//
+// Changed from upstream: this is SeungheonOh/plfa-playground's
+// src/lib/codemirror/lsp-hover.ts at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
+// (docs/provenance.md).  The language server counts a position's character
+// in code points, where CodeMirror's client sends UTF-16 code units, the
+// protocol's default: on a line with a character outside the Basic
+// Multilingual Plane before the pointer (agda-algebras' 𝑆, 𝑨, 𝒦), the
+// server read the token that many characters to the right.  The request's
+// position, and the range of the answer, are now in code points
+// (issue 10).
+
 import type * as lsp from "vscode-languageserver-protocol"
 import {EditorView, type Tooltip, hoverTooltip} from "@codemirror/view"
 import type {Extension} from "@codemirror/state"
@@ -8,9 +20,24 @@ import {highlightCode} from "@lezer/highlight"
 
 import {Text} from "@codemirror/state"
 
+/// The offset of a server's position: its character counted in code
+/// points from the line's start.
 export function fromPosition(doc: Text, pos: lsp.Position): number {
   let line = doc.line(pos.line + 1)
-  return line.from + pos.character
+  let offset = 0, count = 0
+  for (const ch of line.text) {
+    if (count == pos.character) break
+    offset += ch.length
+    count++
+  }
+  return line.from + offset
+}
+
+/// A position as the server counts it: its line, and its character in
+/// code points from the line's start.
+export function toPosition(doc: Text, pos: number): lsp.Position {
+  let line = doc.lineAt(pos)
+  return {line: line.number - 1, character: [...line.text.slice(0, pos - line.from)].length}
 }
 
 // import {escHTML} from "./text"
@@ -41,7 +68,7 @@ function hoverRequest(plugin: LSPPluginPriv, pos: number) {
   if (plugin.client.hasCapability("hoverProvider") === false) return Promise.resolve(null)
   plugin.client.sync()
   return plugin.client.request<lsp.HoverParams, lsp.Hover | null>("textDocument/hover", {
-    position: plugin.toPosition(pos),
+    position: toPosition(plugin.view.state.doc, pos),
     textDocument: {uri: plugin.uri},
   })
 }

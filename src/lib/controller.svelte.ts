@@ -53,11 +53,15 @@
 // Each open file has an editor state of its own (issue 10, ./documents):
 // the controller keeps those not on screen, and shows one with the
 // view's setState, so its history, its selection and its scroll are its
-// own; the language server's client follows the file on screen.
+// own; the language server's client follows the file on screen.  A module
+// of agda-algebras is shown read-only, as the drive holds it, and loaded
+// with the session's load of its path, which writes nothing; Agda then
+// answers Infer and Normalize in its scope.
 //
-// Before a check of the playground's Main, the controller mounts the
-// interfaces its imports need (issue 14): it reads the imports from the
-// buffer, plans their closure from agda-algebras' archive index (which it
+// Before a check of the playground's Main, or a load of a library's module,
+// the controller mounts the interfaces its imports need (issue 14): it
+// reads the imports from the buffer (a library's module: its own name),
+// plans their closure from agda-algebras' archive index (which it
 // fetches when Agda starts, with the library's sources), and mounts the
 // archives this session has not, reading those the browser keeps from the
 // engine's archive store and fetching the rest, but only once the reader
@@ -346,6 +350,9 @@ export class AgdaController {
   /** What the last check's plan has to say: imports the index lacks, or an
    * index that could not be read. */
   planNote = $state("");
+  /** The last load of a library's module: the modules Agda type-checked
+   * (its `Checking` lines), and how long it took. */
+  lastLoad = $state<{ module: string; checking: string[]; ms: number } | null>(null);
 
   /** A plan under way, which the page counts as busy. */
   planning = $state(false);
@@ -589,6 +596,7 @@ export class AgdaController {
     const file = this.currentFile;
     const path = file.path;
     const epoch = this.documentEpoch;
+    if (file.library) return this.loadLibraryModule(view, session, file, epoch);
     const source = view.state.doc.toString();
     let plan: CheckPlan | undefined;
     const started = performance.now();
@@ -646,6 +654,54 @@ export class AgdaController {
         );
         await this.readActiveContext(epoch);
       }
+    }
+    this.finishAction();
+  }
+
+  /** Load the library module on screen as it is on the drive (issue 10):
+   * the drive's copy is the checked library, so nothing is written, and
+   * the editor shows the text Agda reads.  Agda then answers hover, Infer
+   * and Normalize in its scope.  Its `Checking` lines say whether Agda
+   * type-checked the module again or accepted its interface. */
+  private async loadLibraryModule(view: EditorView, session: AgdaSession, file: DocumentFile, epoch: number) {
+    const module = file.library!.module;
+    if (session.plan(file.path, view.state.doc.toString()).kind === "unchanged") {
+      this.lastAction = "Already loaded";
+      return;
+    }
+    this.lastCheckDurationMs = undefined;
+    this.problems = [];
+    this.lastResult = null;
+    this.goalInfo = {};
+    this.interactionPoints = [];
+    this.activeGoalId = undefined;
+    this.lastAction = `Loading ${module}…`;
+    const started = performance.now();
+    // Agda's positions will refer to this text, which nothing changes.
+    view.dispatch({ effects: commit.of() });
+    const outcome = await session.load(file.path);
+    if (epoch !== this.documentEpoch) return;
+    const elapsed = performance.now() - started;
+    this.lastCheckDurationMs = elapsed;
+    if (outcome.kind !== "answer") return this.operationFailed(outcome);
+    const load = outcome.value;
+    this.lastLoad = { module, checking: load.checking, ms: elapsed };
+    this.problems = [
+      ...load.errors.map((message) => ({ severity: "error" as const, message })),
+      ...load.warnings.map((message) => ({ severity: "warning" as const, message })),
+    ];
+    if (load.errors.length)
+      this.lastResult = { kind: "Error", title: "Type checking failed", body: load.errors[0] };
+    this.setGoals(load.goals);
+    if (!load.errors.length) {
+      // A load that type-checked anything (an empty list: the module's own
+      // interface was accepted) is the one the next open from source cites.
+      if (load.checking.length) rememberLibraryLoad(module, { ms: Math.round(elapsed), modules: load.checking.length });
+      // What Agda wrote (the interfaces of the modules it checked) is kept
+      // for the next visit.
+      void this.transport?.persist().catch((error: unknown) =>
+        console.warn("Could not persist the Agda cache", error),
+      );
     }
     this.finishAction();
   }
@@ -734,7 +790,8 @@ export class AgdaController {
     const view = this.editorView;
     const transport = this.transport;
     const file = this.currentFile;
-    if (!view || !transport) return;
+    // A library's module is the checked library: never written.
+    if (!view || !transport || file.library) return;
     const doc = view.state.doc.toString();
     this.persistDocument(doc, file);
     try {
@@ -865,8 +922,9 @@ export class AgdaController {
     if (evicted?.length) console.info(`Evicted ${evicted.length} archives that agda-algebras' index no longer names`);
   }
 
-  /** Before a check of the playground's Main: mount the archives its
-   * imports need, asking first when any is to be fetched (issue 14).
+  /** Before a check of the playground's Main, or a load of a library's
+   * module (issue 10): mount the archives its imports need (a module's,
+   * its own closure), asking first when any is to be fetched (issue 14).
    * `automatic` is a check the reader did not ask for (the first, when Agda
    * is ready), whose question does not take the keyboard's focus.  False
    * when the reader cancelled, or stopped the mount, and nothing is to be
@@ -893,6 +951,10 @@ export class AgdaController {
     const imports = () => {
       const view = this.editorView;
       if (!view) return [];
+      // A library's module needs its own closure: itself, and what it
+      // imports (issue 10).
+      const library = this.currentFile.library;
+      if (library) return [library.module];
       const kind = sourceKind(this.currentFilePath) ?? "agda";
       return (importedModules(view.state.doc.toString(), kind) ?? []).filter((name) => !isBuiltinModule(name));
     };
@@ -921,26 +983,28 @@ export class AgdaController {
     // Builtins alone (the default Main) need no plan and no index.
     if (!transport || !imports.length) return "check";
     const library = AGDA_ALGEBRAS.description;
-    if (!library) {
-      this.planNote = `This build has no archives of agda-algebras' interfaces (${AGDA_ALGEBRAS.error}), so Agda checks its modules from source.`;
-      return "check";
-    }
-    if (!globalThis.crypto?.subtle) {
-      this.planNote =
-        "agda-algebras' interfaces cannot be checked against their digests here (the page is not served from a secure origin, https or localhost), so none is mounted, and Agda checks its modules from source.";
-      return "check";
-    }
+    // A plan that checks from source says so, and for a library's module,
+    // how long the last such load took here (issue 10).
+    const fromSource = (note: string) => {
+      this.planNote = [note, this.fromSourceNote()].filter(Boolean).join(" ");
+      return "check" as const;
+    };
+    if (!library)
+      return fromSource(`This build has no archives of agda-algebras' interfaces (${AGDA_ALGEBRAS.error}), so Agda checks its modules from source.`);
+    if (!globalThis.crypto?.subtle)
+      return fromSource(
+        "agda-algebras' interfaces cannot be checked against their digests here (the page is not served from a secure origin, https or localhost), so none is mounted, and Agda checks its modules from source.",
+      );
     let index: ArchiveIndex;
     try {
       index = await this.readLibraryIndex();
     } catch (error) {
-      this.planNote = `${describe(error)}, so Agda checks agda-algebras' modules from source; reload the page to try again.`;
-      return "check";
+      return fromSource(`${describe(error)}, so Agda checks agda-algebras' modules from source; reload the page to try again.`);
     }
-    if (this.reportedAgdaVersion && index.agda.version !== this.reportedAgdaVersion) {
-      this.planNote = `agda-algebras' interfaces are Agda ${index.agda.version}'s and this is Agda ${this.reportedAgdaVersion}, so Agda checks its modules from source.`;
-      return "check";
-    }
+    if (this.reportedAgdaVersion && index.agda.version !== this.reportedAgdaVersion)
+      return fromSource(
+        `agda-algebras' interfaces are Agda ${index.agda.version}'s and this is Agda ${this.reportedAgdaVersion}, so Agda checks its modules from source.`,
+      );
     const plan = await planImports(index, imports, {
       includes: PLAYGROUND.includes,
       read: (source) => transport.readSource(source).catch(() => undefined),
@@ -991,7 +1055,11 @@ export class AgdaController {
       }
       if (choice === "source") {
         // What the browser keeps costs nothing to mount, and is mounted.
-        note("agda-algebras' interfaces were not fetched, so Agda checks the modules they hold from source.");
+        note(
+          ["agda-algebras' interfaces were not fetched, so Agda checks the modules they hold from source.", this.fromSourceNote()]
+            .filter(Boolean)
+            .join(" "),
+        );
         fetchRefs = [];
       }
     }
@@ -1016,6 +1084,17 @@ export class AgdaController {
       throw new Error(`${describe(error)}; nothing was checked.`, { cause: error });
     }
     return "check";
+  }
+
+  /** For a library's module whose closure Agda checks from source: how long
+   * its last such load took in this browser, or that it can take minutes. */
+  private fromSourceNote(): string {
+    const library = this.currentFile.library;
+    if (!library) return "";
+    const last = lastLibraryLoad(library.module);
+    return last
+      ? `The last load of ${library.module} here that checked from source took ${formatDuration(last.ms)} and type-checked ${last.modules} ${last.modules === 1 ? "module" : "modules"}.`
+      : `Loading ${library.module} from source can take minutes.`;
   }
 
   /** The reader's answer to fetching `archives`: the one remembered for
@@ -1279,6 +1358,24 @@ export class AgdaController {
     this.openFiles = this.openFiles.filter((file) => file.path !== path);
   }
 
+  /** A library's module as the drive holds it: the text Agda reads. */
+  async readLibrarySource(path: string): Promise<string> {
+    const transport = this.transport;
+    if (!transport || !this.driveIsCreated) throw new Error("Agda is still starting");
+    const text = await transport.readSource(path);
+    if (text === undefined) throw new Error(`${path} is not on the drive`);
+    return text;
+  }
+
+}
+
+/** A duration as the page states it: 989 ms, 1.58 s, 2m 34.8s. */
+export function formatDuration(milliseconds: number) {
+  if (milliseconds < 1000) return `${Math.round(milliseconds)} ms`;
+  if (milliseconds < 60_000) return `${(milliseconds / 1000).toFixed(2)} s`;
+  const minutes = Math.floor(milliseconds / 60_000);
+  const seconds = ((milliseconds % 60_000) / 1000).toFixed(1);
+  return `${minutes}m ${seconds}s`;
 }
 
 /** An error in its own words. */
@@ -1326,3 +1423,29 @@ function interfacesByArchive(index: ArchiveIndex): Map<string, string[]> {
   return map;
 }
 
+/** Where the browser keeps how long the last load of a library's module
+ * took that type-checked anything from source (issue 10). */
+const libraryLoadKey = (module: string) => `agda-native-ide:library-load:${module}`;
+
+/** The last load of `module` in this browser that type-checked anything:
+ * its time, and how many modules. */
+export function lastLibraryLoad(module: string): { ms: number; modules: number } | undefined {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(libraryLoadKey(module)) ?? "null");
+    if (value && typeof value === "object" && "ms" in value && "modules" in value) {
+      const { ms, modules } = value as { ms: unknown; modules: unknown };
+      if (typeof ms === "number" && typeof modules === "number") return { ms, modules };
+    }
+  } catch {
+    // Refused or unreadable storage: nothing is known.
+  }
+  return undefined;
+}
+
+function rememberLibraryLoad(module: string, load: { ms: number; modules: number }) {
+  try {
+    localStorage.setItem(libraryLoadKey(module), JSON.stringify(load));
+  } catch {
+    // Refused: the next open says less.
+  }
+}

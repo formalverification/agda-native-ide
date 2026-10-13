@@ -24,18 +24,23 @@
   // sections: the playground, every module of agda-algebras, from the
   // list the build writes (agda-algebras-modules.json), and PLFA's
   // chapters, by part.  Its rows stay focusable while Agda is busy (the
-  // playground's file and the chapters, which open only while Agda is idle,
-  // are aria-disabled then; agda-algebras' modules never are), which rows
-  // are expanded is kept in localStorage, and the open file is revealed and
-  // marked current.  Activating the open file's row moves to it rather than
-  // loading it again.  Until a library module opens, activating one selects
-  // it.  The editor keeps a state of its own for each open file, with its
-  // own history, shown with setState (issue 10, $lib/documents), so undo
-  // never crosses files, and each file's edits are saved under its own key
-  // whichever file is on screen; the open files are tabs.  Before a check
-  // of the playground's Main, the page mounts the interface archives its
-  // imports need, and before it fetches one it shows how many bytes and
-  // asks (issue 14): the question sits at the foot of the code pane, as the
+  // playground's file, the chapters and agda-algebras' modules, which open
+  // only while Agda is idle, are aria-disabled then), which rows are
+  // expanded is kept in localStorage, and the open file is revealed and
+  // marked current.  Activating the open file's row moves to it rather
+  // than loading it again.  The editor keeps a state of its own for each
+  // open file, with its own history, shown with setState (issue 10,
+  // $lib/documents), so undo never crosses files, and each file's edits
+  // are saved under its own key whichever file is on screen; the open
+  // files are tabs.  A module of agda-algebras opens read-only from the
+  // Explorer, while Agda is idle: its text is the drive's, which is never
+  // written, loaded so that hover, Infer and Normalize answer in its
+  // scope, after the archives of its own closure are mounted; a line
+  // above it says it is the checked library and links its page on
+  // agda-algebras' site.  Before a check of the playground's Main, or a
+  // load of a library's module, the page mounts the interface archives it
+  // needs, and before it fetches one it shows how many bytes and asks
+  // (issue 14): the question sits at the foot of the code pane, as the
   // minibuffer does, with no spinner, since nothing is under way while it
   // waits; the fetch shows its progress in the inspector's heading, with a
   // STOP.
@@ -55,11 +60,13 @@
     CircleAlert,
     CircleCheck,
     Download,
+    ExternalLink,
     FileCode,
     FolderOpen,
     Info,
     ListChecks,
     LoaderCircle,
+    Lock,
     RotateCcw,
     Sigma,
     Split,
@@ -76,11 +83,13 @@
     MAIN_FILE,
     MountStopped,
     PLAYGROUND,
+    formatDuration,
     sizeWithBytes,
   } from "$lib/controller.svelte";
   import {
     DocumentSaver,
     documentFile,
+    readOnlyDocument,
     type DocumentFile,
   } from "$lib/documents";
   import { missingFeatures, unsupportedBrowserNotice } from "$lib/support";
@@ -202,6 +211,11 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   /** What every file's editor state has (the page's keys, its listener,
    * its theme), made with the editor. */
   let editorExtensions: Extension = [];
+  /** A module's page on agda-algebras' site, which renders each module at
+   * its path ([M1-11], issue 19): Overture.Signatures at
+   * /Overture/Signatures/. */
+  const libraryPage = (module: string) =>
+    `https://agda-algebras.universalalgebra.org/${module.split(".").join("/")}/`;
 
   let editorHost: HTMLDivElement;
   let editor: EditorView | undefined;
@@ -261,6 +275,8 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     return ranges;
   });
   const editorFileName = $derived(fileName(controller.currentFilePath));
+  /** The library's module on screen, read-only (issue 10). */
+  const currentLibrary = $derived(controller.currentFile.library);
 
   const isAgdaBusy = $derived(controller.iotcmStatus === "processing");
   // Work under way, which shows a spinner: Agda's, or a mount's.
@@ -272,14 +288,19 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     controller.alsWorkerStatus === "active" &&
       controller.iotcmStatus === "ready",
   );
+  /** Whether a module of agda-algebras opens now: it is read from the
+   * drive and loaded, so Agda must be up and idle (issue 10). */
+  const libraryOpens = $derived(compilerReady && !isBusy);
   const consentRequest = $derived(controller.consent);
   let consentRemember = $state(false);
   let consentForm = $state<HTMLFormElement>();
 
-  // agda-algebras' rows, built once from its module list.
+  // agda-algebras' rows, built once from its module list, and again with
+  // each module aria-disabled, for while the page cannot open one.
   const libraryItems = $derived(
     libraryModules ? moduleTree(libraryModules.modules, "agda-algebras:") : null,
   );
+  const libraryItemsDisabled = $derived(libraryItems ? disabledModules(libraryItems) : null);
   // A section's rows while they load, or why they could not.
   const message = (id: string, error: string, loading: string): TreeItem => ({
     id,
@@ -288,8 +309,8 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   });
   // The Explorer's sections.  The playground's file and PLFA's chapters
   // open only while Agda is idle, as the page has always done, so they are
-  // aria-disabled meanwhile; agda-algebras' modules, which do not open
-  // yet, never are.
+  // aria-disabled meanwhile; agda-algebras' modules, which Agda loads when
+  // they open, also while it starts (issue 10).
   const explorerItems = $derived.by((): TreeItem[] => [
     {
       id: "section:play",
@@ -315,7 +336,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       title: libraryModules
         ? `agda-algebras at ${libraryModules.commit?.slice(0, 8) ?? "its pin"}: ${libraryModules.modules.length} modules`
         : undefined,
-      children: libraryItems ?? [
+      children: (libraryOpens ? libraryItems : libraryItemsDisabled) ?? [
         message("agda-algebras:message", libraryError, "Loading the modules…"),
       ],
     },
@@ -346,6 +367,14 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
         : [message("plfa:message", plfaError, "Indexing")],
     },
   ]);
+  /** The same tree, every module (and folder that is a module) aria-disabled. */
+  function disabledModules(items: TreeItem[]): TreeItem[] {
+    return items.map((item) => ({
+      ...item,
+      ...(item.path ? { disabled: true } : {}),
+      ...(item.children ? { children: disabledModules(item.children) } : {}),
+    }));
+  }
   // Agda did not start (this browser lacks what the page needs, or a step
   // of the startup failed), or its server stopped of its own accord.  The
   // banner says which.
@@ -424,14 +453,6 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
                   : "Waiting for check",
   );
 
-
-  function formatDuration(milliseconds: number) {
-    if (milliseconds < 1000) return `${Math.round(milliseconds)} ms`;
-    if (milliseconds < 60_000) return `${(milliseconds / 1000).toFixed(2)} s`;
-    const minutes = Math.floor(milliseconds / 60_000);
-    const seconds = ((milliseconds % 60_000) / 1000).toFixed(1);
-    return `${minutes}m ${seconds}s`;
-  }
 
   /** A path's last part: the name a tab shows. */
   function fileName(path: string) {
@@ -697,12 +718,13 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
 
   /** A file's editor state (issue 10): its own text, history and language,
    * the language server's place (empty until the file is shown with Agda
-   * up), and what every state has. */
+   * up), read-only for a library's module, and what every state has. */
   function createEditorState(file: DocumentFile, text: string) {
     return EditorState.create({
       doc: text,
       extensions: [
         documentFile.of(file),
+        file.library ? readOnlyDocument() : [],
         file.path.endsWith(".lagda.md") ? literateAgdaLanguage() : agdaSourceLanguage(),
         controller.lspClientCompartment.of([]),
         editorExtensions,
@@ -1082,6 +1104,31 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       }, 50);
   }
 
+  /** Open a module of agda-algebras read-only (issue 10): the drive's copy,
+   * which is the checked library, never written; loaded, after its
+   * closure's archives are mounted (asking first, issue 14), so that
+   * hover, Infer and Normalize answer in its scope. */
+  async function openLibraryModule(item: TreeItem) {
+    if (!libraryOpens || !item.path || !item.name) return;
+    const request = ++chapterRequest;
+    const file: DocumentFile = {
+      path: item.path,
+      library: { library: "agda-algebras", module: item.name },
+    };
+    try {
+      const text = controller.isOpen(file.path) ? undefined : await controller.readLibrarySource(file.path);
+      if (request !== chapterRequest || isBusy) return;
+      workspaceMode = "playground";
+      activeResource = "agda";
+      controller.showDocument(file, text);
+      setTimeout(() => editor?.focus());
+      // The reader asked for it: a question before a fetch takes the focus.
+      void runAction(() => checkCurrentFile());
+    } catch (error) {
+      actionError = readableError(error);
+    }
+  }
+
   /** Which Explorer rows are expanded, kept for the next visit. */
   function setExplorerExpanded(expanded: string[]) {
     explorerExpanded = expanded;
@@ -1092,22 +1139,26 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     }
   }
 
-  /** A file the Explorer or a tab opens: the playground's Main, or a PLFA
-   * chapter.  A module of agda-algebras does not open yet; the tree selects
-   * it, and nothing more.  The file on screen is not opened again, which
-   * would reset the cursor and the reader; the focus moves to it instead. */
+  /** A file the Explorer or a tab opens: the playground's Main, a PLFA
+   * chapter, or a module of agda-algebras, read-only (issue 10).  The file
+   * on screen is not opened again, which would reset the cursor and the
+   * reader; the focus moves to it instead. */
   function openFromExplorer(item: TreeItem) {
     if (item.path === controller.currentFilePath)
       return focusResource(workspaceMode === "plfa" ? "markdown" : "agda");
-    if (item.path) openPath(item.path);
+    if (item.path) openPath(item.path, item);
   }
 
-  /** Open the file at `path`. */
-  function openPath(path: string) {
+  /** Open the file at `path`: `item`, the Explorer's row, names a library's
+   * module. */
+  function openPath(path: string, item?: TreeItem) {
     if (path === controller.currentFilePath) return focusResource(workspaceMode === "plfa" ? "markdown" : "agda");
     if (path === PLAYGROUND.file) return openPlayground(MAIN_FILE);
     const chapter = plfaChapters.find((entry) => entry.modulePath === path);
-    if (chapter) void openPlfaChapter(chapter);
+    if (chapter) return void openPlfaChapter(chapter);
+    const open = controller.openFiles.find((file) => file.path === path)?.library;
+    const module = item?.name ?? open?.module;
+    if (module) void openLibraryModule({ id: `agda-algebras:${module}`, label: module, kind: "module", path, name: module });
   }
 
   /** Close a tab: its file's state, and its history, are forgotten; the
@@ -1294,7 +1345,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
                   aria-disabled={!current && isBusy ? "true" : undefined}
                   onclick={() => (current ? focusResource("agda") : !isBusy && openPath(file.path))}
                 >
-                  <FileCode size={15} /><span
+                  {#if file.library}<Lock size={13} />{:else}<FileCode size={15} />{/if}<span
                     >{fileName(file.path)}</span
                   >
                 </button>
@@ -1322,6 +1373,25 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
             </select>
           </label>
         </div>
+        {#if currentLibrary}
+          <div class="library-bar" role="note" aria-label="Read-only library module">
+            <Lock size={13} />
+            <p>
+              <strong>Read-only</strong>: {currentLibrary.module} is agda-algebras{libraryModules?.commit
+                ? ` at ${libraryModules.commit.slice(0, 8)}`
+                : ""}, the checked library, as the playground imports it.
+            </p>
+            <div class="library-actions">
+              <a
+                class="library-page"
+                href={libraryPage(currentLibrary.module)}
+                target="_blank"
+                rel="noreferrer"
+                title="Its page on the agda-algebras site, in a new tab"><ExternalLink size={13} />Its page</a
+              >
+            </div>
+          </div>
+        {/if}
         <div class="command-strip">
           <button
             title="Goal type (C-c C-t)"
@@ -1411,7 +1481,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
             }}
           >
             <p class="consent-text">
-              Checking {editorFileName} needs
+              {currentLibrary ? `Loading ${currentLibrary.module}` : `Checking ${editorFileName}`} needs
               <strong class="consent-size" data-bytes={consentRequest.bytes}
                 >{sizeWithBytes(consentRequest.bytes)}</strong
               >
@@ -1982,6 +2052,50 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   }
   .editor-tab-open :global(svg:first-child) {
     color: var(--accent);
+  }
+  /* A library's module (issue 10): the line that says it is the checked
+     library, read-only, and its actions, wrapping at any width. */
+  .library-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--command-line);
+    background: var(--accent-soft);
+    color: var(--text);
+    font-size: 11px;
+    line-height: 1.45;
+  }
+  .library-bar > :global(svg) {
+    flex: none;
+    color: var(--accent-strong);
+  }
+  .library-bar p {
+    flex: 1 1 260px;
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .library-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .library-actions a {
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 8px;
+    border: 1px solid var(--command-hover-line);
+    color: var(--accent-strong);
+    background: var(--surface);
+    font-size: 11px;
+    text-decoration: none;
+  }
+  .library-actions a:hover {
+    background: var(--accent-soft);
   }
   :global(.tab-close) {
     margin-left: auto;
