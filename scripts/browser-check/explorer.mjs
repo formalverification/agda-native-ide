@@ -140,7 +140,11 @@ export function libraryRows(modules) {
     }
     rows.push({ name, level: parts.length + 1, parent: parts.slice(0, -1).join(".") });
   }
-  const siblings = Map.groupBy(rows, (row) => row.parent);
+  // A loop, not Map.groupBy, which Node 20 (in package.json's engines)
+  // does not have.
+  /** @type {Map<string, typeof rows>} */
+  const siblings = new Map();
+  for (const row of rows) siblings.set(row.parent, [...(siblings.get(row.parent) ?? []), row]);
   return rows.map((row) => {
     const group = siblings.get(row.parent) ?? [];
     return {
