@@ -170,21 +170,26 @@ keeps which rows are expanded and decides what opening a row means.
 ## What it costs
 
 Measured on 2026-10-13 on this workstation, in the flake's headless
-Chromium 149, with other sessions' builds beside it (load average 13 to
-20, so the times are indicative and the counts are the findings):
+Chromium 149, at the loads given (other sessions' builds ran beside it, so
+the times are indicative and the counts are the findings):
 
 +  **Every row of agda-algebras at once**: closing and reopening its
-   section, with every row open, mounts 351 rows; from the click to the
-   frame after it, a median of 75 to 93 ms over three runs of 11, against
-   144 to 347 ms when each row drew its two icons as Lucide's components,
-   which is why the icons are plain SVG.  Closing takes about 15 ms.
+   section, with every row open, mounts 351 rows.  From the click to the
+   frame after it, the reopening took a median of 30 to 31 ms at a load
+   near 2, and 37 to 47 ms at a load near 14 (runs of 7 and 11).  Closing
+   takes 5 to 7 ms.  When each row drew its two icons as Lucide's
+   components, the reopening took 59 to 66 ms at the same quiet load, the
+   two builds alternating, which is why the icons are Lucide's paths drawn
+   as plain SVG.
 +  **The filter**: one letter typed, from the input event to the frame
-   after it, a median of about 45 ms for `a` or `s` (345 and 354 matches,
-   363 rows) and 17 ms for `h` (45 matches, 70 rows); clearing it, 40 to
-   130 ms, as the rows come back.
-+  **The page's first check** is unchanged, within the noise: five
-   alternating rounds on fresh profiles of `main`'s site and this one gave
-   medians of 746 and 806 ms as the page reports the check.
+   after it, a median of 18 to 19 ms for `a` at a load near 2 (345
+   matches, 363 rows), and at a load near 14, 21 to 27 ms for `a` or `s`
+   and 8 to 9 ms for `h` (45 matches, 70 rows); clearing it, 18 to 36 ms,
+   as the rows come back.
++  **The page's first check** is unchanged: eight alternating rounds on
+   fresh profiles of `main`'s site and this one, both built by Nix, gave
+   medians of 864 and 851 ms to "Agda ready", and 454 and 446 ms for the
+   check as the page reports it (load 9 to 12).
 
 ## The checks
 
