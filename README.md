@@ -194,13 +194,14 @@ agda-algebras: the page must ask before it fetches the archives the import
 needs, stating their bytes, fetch exactly those, and type-check `Main`
 alone.  It then reloads, and asserts that the archives come from the
 browser's store with no request; imports `Setoid.Varieties.HSP`, which
-must ask once; and changes an archive in the store, which must be fetched
-again, once, and its old copy evicted ([#14]).  It uses the Explorer's
-tree with the keyboard, as a screen reader's user would: its roles, the
-arrow keys to a module, every module listed in order, a filter, the keys
-and the filter while a check runs, and, after a reload, the rows still
-expanded, the open file revealed, and a PLFA chapter in a closed part
-opened and scrolled into view ([#9]).  It serves
+must ask once; changes an archive in the store, which must be fetched
+again, once, and its old copy evicted; and declines a fetch, after which
+only the declined archive's modules may be checked from source ([#14]).
+It uses the Explorer's tree with the keyboard, as a screen reader's user
+would: its roles, the arrow keys to a module, every module listed in
+order, a filter, the keys and the filter while a check runs, and, after a
+reload, the rows still expanded, the open file revealed, and a PLFA
+chapter in a closed part opened and scrolled into view ([#9]).  It serves
 the site without the two isolation headers and asserts that the page is
 not cross-origin isolated; `make browser-check ISOLATED=1` (`--isolated`)
 sends them and asserts that it is.  It writes its timings, every request

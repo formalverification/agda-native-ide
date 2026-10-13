@@ -1130,20 +1130,24 @@ assets (its *namespace*), in which the drive keeps what Agda wrote.
    `Setoid.Algebras.Basic`'s closure, which took 5 min 0.5 s); the hash
    Agda checks is `iFullHash` (`Agda.TypeChecking.Monad.Base`, and
    `Agda.Interaction.Imports` at the compiler's commit).
-+  **The browser check** (steps 6 to 9, with and without the isolation
-   headers): `import Overture.Signatures` asks for 202.1 KB (206,933 bytes),
-   3 archives holding 11 modules, with no request before the answer, Esc
-   cancelling and a second check asking again, then fetches exactly those
++  **The browser check** (its steps on the mount, with and without the
+   isolation headers): `import Overture.Signatures` asks for 202.1 KB (206,933
+   bytes), 3 archives holding 11 modules, with no request before the answer,
+   Esc cancelling and a second check asking again, then fetches exactly those
    3 and type-checks `Main` alone; a second visit asks nothing, requests no
-   archive and type-checks nothing, and a drive database of another
-   namespace is gone; `Setoid.Varieties.HSP` asks once, for 37.2 MiB
-   (39,044,608 bytes), the 125 archives not yet mounted, fetches exactly
-   those and type-checks `Main` alone; an archive kept under another
-   digest is evicted and fetched again, once, its bytes stated 1 ms before
-   the request.  Three controls fail it: a store whose reads miss, a page
-   that requests an archive before the answer, and no eviction.  The
-   notices: an archive not found, an archive that is not its digest's, and
-   the index not found, after which `Main` checks from source.
+   archive and type-checks nothing, and a drive database of another namespace
+   is gone; `Setoid.Varieties.HSP` asks once, for 37.2 MiB (39,044,608 bytes),
+   the 125 archives not yet mounted, fetches exactly those and type-checks
+   `Main` alone; an archive kept under another digest is evicted, asked for
+   alone and fetched again, once; with the answer remembered, the bytes are
+   stated in the status bar about a millisecond before the request; a declined
+   fetch requests nothing, mounts what the browser keeps, and Agda checks the
+   declined archive's one module alone, not even `Main`, accepting the
+   archived interfaces above it.  Four controls fail it: a store whose reads
+   miss, a page that requests an archive before the answer, no eviction, and a
+   decline that mounts nothing.  The notices: an archive not found, an archive
+   that is not its digest's, and the index not found, after which `Main`
+   checks from source.
 +  **Times** (local server, a 1-minute load of 2 to 3, medians of three):
    the mount took 58, 157 and 419 ms and the check 1.06, 3.21 and 6.54 s
    for `Overture.Basic`, `Setoid.Algebras.Basic` and `Setoid.Varieties.HSP`
@@ -1210,10 +1214,10 @@ manifest, which generalizes the library's description.
 | 43 | The stored buffer's key is named by its path, with no migration from the old key | Adopted ([#11]) | Nothing is deployed, so no reader holds a document under the old key (§ 11) |
 | 44 | The site serves agda-algebras' index and interface archives from its own origin, from the archives' derivation; not a GitHub release | Adopted (William, 2026-10-13, on the session's proposal, after the release was measured) | A release's files send no CORS header, so the page cannot fetch them; the site 30,439,204 to 100,856,795 bytes; its build reads the cache and builds the interfaces until `main` pushes them (§ 12) |
 | 45 | Before a check of the playground's `Main`, the page plans the archives from its imports by Agda's own reading rules and the index, following an import the index lacks into its source on the drive; builtins need no plan | Adopted ([#14]) | The reading's closure is Agda's for 597 of 601 modules, 4 by `Agda.Primitive`; the plan is `needs` for every root; `Data.Vec` plans 29 archives, not none (§ 12) |
-| 46 | The page states the bytes still to fetch, the archives, the modules and the origin, and asks; nothing is fetched before the answer; an answer may be remembered for the tab, and a decline is remembered for its archives | Adopted ([#14]) | The browser check's steps 6 and 8, and a control that requests an archive early fails step 6 (§ 12) |
+| 46 | The page states the bytes still to fetch, the archives, the modules and the origin, and asks; nothing is fetched before the answer; an answer may be remembered for the tab, and a decline is remembered for its archives | Adopted ([#14]) | The browser check's import and HSP steps, and a control that requests an archive early fails the import step (§ 12) |
 | 47 | The browser keeps fetched archives in IndexedDB by their SHA-256, checked on arrival, and the index evicts what it no longer names | Adopted ([#14]) | A second visit requests no archive; a changed archive is fetched once and its old copy evicted; controls without reads or without eviction fail (§ 12) |
 | 48 | A mount skips an archive whose interfaces the drive already holds | Adopted ([#14]) | Agda checks `iFullHash`, not the interface's bytes; the page's interfaces from source were byte-identical to the archives' (181 of 181) (§ 12) |
-| 49 | The index's digest joins the drive cache's namespace; drive databases of other namespaces are deleted when the page starts; a mounted archive's paths leave the drive's cache | Adopted ([#14]) | The browser check's step 7 deletes a planted database; a unit test of the drive (§ 12) |
+| 49 | The index's digest joins the drive cache's namespace; drive databases of other namespaces are deleted when the page starts; a mounted archive's paths leave the drive's cache | Adopted ([#14]) | The browser check's second visit deletes a planted database; a unit test of the drive (§ 12) |
 | 50 | `static/_headers` is unchanged; a second visit's lack of requests comes from the store, whatever the host caches | Adopted ([#14]) | Cloudflare Pages joins two `Cache-Control` rules with a comma; the host is [#6]'s (§ 12) |
 
 ---

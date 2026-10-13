@@ -3,7 +3,7 @@
  "issue": 14,
  "date": "2026-10-13",
  "clock": "Times are UTC where a run records them; the workstation's clock read MDT (UTC-6).",
- "revision": "d1ffafab570815c6095d38538fb26b7609d6a4d0",
+ "revision": "7b4e3f0fe7b0837fba3c046bdca80ca459783ccf",
  "machine": {
   "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
   "logicalCpus": 20,
@@ -363,7 +363,7 @@
     }
    },
    {
-    "revision": "d1ffafab570815c6095d38538fb26b7609d6a4d0",
+    "revision": "d1ffafa",
     "when": "2026-10-13T13:42Z",
     "load": "1.8 to 4.9",
     "runs": [
@@ -651,27 +651,28 @@
   "chromium": {
    "browser": "Chrome/149.0.7827.200",
    "served": "without the isolation headers",
-   "date": "2026-10-13T13:40:20.620Z",
+   "date": "2026-10-13T14:17:04.843Z",
    "failure": null,
    "timings": {
-    "Agda ready, since navigation": 716,
-    "first check done, since navigation": 1166,
-    "first check, as the page reports it": 377,
-    "first check": 1179,
-    "infer, and the first check's Checking lines": 124,
-    "give at goal 0": 358,
-    "check a type error": 262,
-    "refuse a postulate": 160,
-    "library import, as the page reports it": 126,
-    "import a module of agda-algebras, asked first": 1962,
-    "second visit's check, as the page reports it": 213,
-    "a second visit, from the browser's store": 1042,
-    "HSP: from the answer to the check's end": 7087,
-    "HSP import, as the page reports it": 6710,
-    "import Setoid.Varieties.HSP, asked once": 7975,
-    "a changed archive, fetched again": 8085,
-    "a remembered answer: the bytes stated, then fetched": 6820,
-    "themes": 7298
+    "Agda ready, since navigation": 790,
+    "first check done, since navigation": 1334,
+    "first check, as the page reports it": 468,
+    "first check": 1349,
+    "infer, and the first check's Checking lines": 128,
+    "give at goal 0": 360,
+    "check a type error": 265,
+    "refuse a postulate": 170,
+    "library import, as the page reports it": 141,
+    "import a module of agda-algebras, asked first": 1845,
+    "second visit's check, as the page reports it": 243,
+    "a second visit, from the browser's store": 1144,
+    "HSP: from the answer to the check's end": 7079,
+    "HSP import, as the page reports it": 6620,
+    "import Setoid.Varieties.HSP, asked once": 7966,
+    "a changed archive, fetched again": 8035,
+    "a remembered answer: the bytes stated, then fetched": 8099,
+    "a declined fetch: what the browser keeps still mounts": 7683,
+    "themes": 7698
    },
    "steps": [
     "first check",
@@ -684,6 +685,7 @@
     "import Setoid.Varieties.HSP, asked once",
     "a changed archive, fetched again",
     "a remembered answer: the bytes stated, then fetched",
+    "a declined fetch: what the browser keeps still mounts",
     "themes"
    ],
    "checking": [
@@ -722,38 +724,48 @@
    ],
    "changedChecking": [],
    "rememberedStated": {
-    "statedAt": 840.2999999523163,
-    "requestedAt": 841.3999998569489
+    "statedAt": 931.6000001430511,
+    "requestedAt": 933.2000000476837
+   },
+   "declinedChecking": {
+    "declined": "interfaces/stdlib-9e7155097cdf.zip",
+    "fromSource": [
+     "Data.Product"
+    ],
+    "checking": [
+     "Data.Product"
+    ]
    },
    "requested": {
-    "count": 168,
-    "bytes": 61267336
+    "count": 169,
+    "bytes": 61553633
    }
   },
   "chromiumIsolated": {
    "browser": "Chrome/149.0.7827.200",
    "served": "with the isolation headers",
-   "date": "2026-10-13T13:40:56.500Z",
+   "date": "2026-10-13T14:17:50.295Z",
    "failure": null,
    "timings": {
-    "Agda ready, since navigation": 760,
-    "first check done, since navigation": 1259,
-    "first check, as the page reports it": 426,
-    "first check": 1287,
-    "infer, and the first check's Checking lines": 115,
-    "give at goal 0": 353,
-    "check a type error": 257,
-    "refuse a postulate": 162,
-    "library import, as the page reports it": 143,
-    "import a module of agda-algebras, asked first": 1937,
-    "second visit's check, as the page reports it": 234,
-    "a second visit, from the browser's store": 1155,
-    "HSP: from the answer to the check's end": 7180,
-    "HSP import, as the page reports it": 6720,
-    "import Setoid.Varieties.HSP, asked once": 8204,
-    "a changed archive, fetched again": 8728,
-    "a remembered answer: the bytes stated, then fetched": 7263,
-    "themes": 7499
+    "Agda ready, since navigation": 809,
+    "first check done, since navigation": 1306,
+    "first check, as the page reports it": 424,
+    "first check": 1311,
+    "infer, and the first check's Checking lines": 128,
+    "give at goal 0": 362,
+    "check a type error": 256,
+    "refuse a postulate": 169,
+    "library import, as the page reports it": 162,
+    "import a module of agda-algebras, asked first": 1961,
+    "second visit's check, as the page reports it": 266,
+    "a second visit, from the browser's store": 1159,
+    "HSP: from the answer to the check's end": 7480,
+    "HSP import, as the page reports it": 7030,
+    "import Setoid.Varieties.HSP, asked once": 8394,
+    "a changed archive, fetched again": 8655,
+    "a remembered answer: the bytes stated, then fetched": 7365,
+    "a declined fetch: what the browser keeps still mounts": 8715,
+    "themes": 7914
    },
    "steps": [
     "first check",
@@ -766,6 +778,7 @@
     "import Setoid.Varieties.HSP, asked once",
     "a changed archive, fetched again",
     "a remembered answer: the bytes stated, then fetched",
+    "a declined fetch: what the browser keeps still mounts",
     "themes"
    ],
    "checking": [
@@ -804,37 +817,47 @@
    ],
    "changedChecking": [],
    "rememberedStated": {
-    "statedAt": 845.8250000476837,
-    "requestedAt": 846.5650000572205
+    "statedAt": 885.9100000858307,
+    "requestedAt": 887.3800001144409
+   },
+   "declinedChecking": {
+    "declined": "interfaces/stdlib-9e7155097cdf.zip",
+    "fromSource": [
+     "Data.Product"
+    ],
+    "checking": [
+     "Data.Product"
+    ]
    },
    "requested": {
-    "count": 168,
-    "bytes": 61267336
+    "count": 169,
+    "bytes": 61553633
    }
   },
   "firefox157": {
    "browser": "Firefox/157.0",
    "served": "without the isolation headers",
-   "date": "2026-10-13T13:39:07.367Z",
+   "date": "2026-10-13T14:18:46.544Z",
    "failure": null,
    "timings": {
-    "Agda ready, since navigation": 992,
-    "first check done, since navigation": 1230,
-    "first check, as the page reports it": 168,
-    "first check": 1212,
-    "infer, and the first check's Checking lines": 130,
-    "give at goal 0": 357,
-    "check a type error": 345,
-    "refuse a postulate": 314,
+    "Agda ready, since navigation": 1017,
+    "first check done, since navigation": 1295,
+    "first check, as the page reports it": 205,
+    "first check": 1313,
+    "infer, and the first check's Checking lines": 142,
+    "give at goal 0": 364,
+    "check a type error": 501,
+    "refuse a postulate": 346,
     "library import, as the page reports it": 93,
-    "import a module of agda-algebras, asked first": 1919,
-    "second visit's check, as the page reports it": 125,
-    "a second visit, from the browser's store": 1262,
-    "HSP: from the answer to the check's end": 5959,
-    "HSP import, as the page reports it": 5530,
-    "import Setoid.Varieties.HSP, asked once": 6897,
-    "a changed archive, fetched again": 7189,
-    "a remembered answer: the bytes stated, then fetched": 6991
+    "import a module of agda-algebras, asked first": 1915,
+    "second visit's check, as the page reports it": 123,
+    "a second visit, from the browser's store": 1275,
+    "HSP: from the answer to the check's end": 5855,
+    "HSP import, as the page reports it": 5400,
+    "import Setoid.Varieties.HSP, asked once": 6803,
+    "a changed archive, fetched again": 6574,
+    "a remembered answer: the bytes stated, then fetched": 6556,
+    "a declined fetch: what the browser keeps still mounts": 7586
    },
    "steps": [
     "first check",
@@ -846,7 +869,8 @@
     "a second visit, from the browser's store",
     "import Setoid.Varieties.HSP, asked once",
     "a changed archive, fetched again",
-    "a remembered answer: the bytes stated, then fetched"
+    "a remembered answer: the bytes stated, then fetched",
+    "a declined fetch: what the browser keeps still mounts"
    ],
    "checking": [
     "Main"
@@ -884,12 +908,21 @@
    ],
    "changedChecking": [],
    "rememberedStated": {
-    "statedAt": 1158,
-    "requestedAt": 1161
+    "statedAt": 1238,
+    "requestedAt": 1243
+   },
+   "declinedChecking": {
+    "declined": "interfaces/stdlib-9e7155097cdf.zip",
+    "fromSource": [
+     "Data.Product"
+    ],
+    "checking": [
+     "Data.Product"
+    ]
    },
    "requested": {
-    "count": 163,
-    "bytes": 59556910
+    "count": 164,
+    "bytes": 59843201
    }
   }
  },
@@ -944,6 +977,11 @@
    "change": "the page never evicts what the index no longer names",
    "failure": "timed out waiting for the stale copy ffffffffffffffff evicted: the store holds 128 archives"
   },
+  "declineMountsNothing": {
+   "change": "Check from source mounts nothing, not even what the browser keeps (the behavior before the review)",
+   "failure": "timed out after 180 s waiting for the check after the decline; the page shows {\"status\":\"Checking source…\",\"bar\":\"Checking source… | 0 goals |  | Agda 2.9.0 | WASI · local | UTF-8\",\"banner\":null}"
+  },
+  "revisions": "controls a to c at d1ffafa, d at 814c942",
   "unit": "Three mutations of the transport fail its unit tests: no abort of the downloads under way after a failure, forgetting archives when the mount was stopped or the engine gone, and the memory store handing out its own buffer."
  },
  "gate": {

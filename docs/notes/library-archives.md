@@ -452,23 +452,31 @@ their SHA-256.
    interface's bytes; and the interfaces the page wrote from source were
    byte-identical to the archives' (11 of 11 for `Overture.Signatures`'s
    closure, 170 of 170 for `Setoid.Algebras.Basic`'s).
-+  **The question**: the bytes still to fetch, in one convention (bytes,
-   then KB of 1,024 bytes, then MiB) with the exact count beside them, the
-   archives and the modules whose interfaces they hold, and the origin:
-   "Checking Main.agda needs 202.1 KB (206,933 bytes) of agda-algebras'
-   interfaces: 3 archives holding 11 modules, from this site."  Its
-   answers are Fetch, Check from source and Cancel, and the answer may be
-   remembered for the tab (sessionStorage); a decline is remembered for the
-   archives declined, so a later check does not ask again for them.  It
-   takes the keyboard's focus only when the reader asked for the check;
-   Esc, and any edit, cancel it; it shows no spinner, since nothing is under
-   way while it waits.  Nothing is requested before the answer.
++  **The question**: the bytes still to fetch, in one convention (bytes, then
+   KB of 1,024 bytes, then MiB) with the exact count beside them, the archives
+   and the modules whose interfaces they hold, and the origin: "Checking
+   Main.agda needs 202.1 KB (206,933 bytes) of agda-algebras' interfaces: 3
+   archives holding 11 modules, from this site."  Its answers are Fetch, Check
+   from source and Cancel, and the answer may be remembered for the tab
+   (sessionStorage); a decline is remembered for the archives declined, so a
+   later check that needs only those does not ask again, and one that needs
+   new archives asks for all of them, saying how many of them, and how many
+   bytes, were declined before.  Check from source still mounts what the
+   browser keeps: Agda then checks the declined archives' modules alone, and
+   accepts the archived interfaces above them (the browser check's declined
+   fetch: one archive declined, its one module checked, nothing else, not even
+   `Main`).  The question takes the keyboard's focus only when the reader
+   asked for the check; Esc, and any edit, cancel it; it shows no spinner,
+   since nothing is under way while it waits.  Nothing is requested before the
+   answer.
 +  **The fetch**: at most six archives at once, their progress in the unit
    of their total ("120.0 of 202.1 KB"), each checked against its SHA-256
    with the browser's own digest (which needs a secure origin, https or
    localhost; elsewhere the page does not offer the fetch), kept in the
    archive store, and extracted as it arrives.  STOP ends it, and a failure
-   names the archive; either way nothing is checked.  An archive whose
+   names the archive; either way nothing is checked, and the plan's note
+   says so.  A plan whose imports change while it is made is made again,
+   twice at most, and then not checked.  An archive whose
    bytes are not its digest's says that the site may have changed since the
    page was loaded.
 +  **The store**: `agda-native-ide-archives`, keyed by each archive's
