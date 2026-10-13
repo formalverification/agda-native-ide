@@ -7,8 +7,8 @@
 // tree view pattern says: Up and Down between the rows shown, Right opens
 // a closed parent or enters an open one, Left closes an open parent or
 // goes to the parent, Home and End, `*` opens a row's siblings, Enter
-// activates, and a printable character moves to the next row whose label
-// starts with what was typed.  Plain functions of plain data, which the
+// activates, and a printable character moves to a row whose label starts
+// with what was typed (typeAhead).  Plain functions of plain data, which the
 // component (ExplorerTree.svelte) renders and a test can drive.
 
 /** What a row is: a section of the Explorer (the playground, a library), a
@@ -100,7 +100,8 @@ export interface TreeRow {
   hits: Array<[number, number]>;
 }
 
-/** The words of a filter: each must be part of a name, case aside. */
+/** The words of a filter: each must be part of an item's name or of its
+ * label, case aside. */
 export function filterTerms(query: string): string[] {
   return query.trim().toLowerCase().split(/\s+/).filter(Boolean);
 }
@@ -126,8 +127,9 @@ function hitsIn(label: string, terms: readonly string[]): Array<[number, number]
 
 /**
  * The rows shown, in order.  With no terms: every root, and the children
- * of every row `isExpanded` names.  With terms: the items whose names hold
- * them all, with their ancestors, and nothing else, each parent's rows
+ * of every row `isExpanded` names.  With terms: the items with a name whose
+ * name or label holds each of them, with their ancestors, and nothing else,
+ * each parent's rows
  * shown unless `isExpanded` says otherwise.  `matches` counts the items
  * found that open a file.
  */
@@ -242,8 +244,10 @@ export function keyAction(rows: readonly TreeRow[], active: string, key: string)
   }
 }
 
-/** The next row after `active`, wrapping, whose label starts with
- * `typed`, case aside. */
+/** The first row, wrapping, whose label starts with `typed`, case aside:
+ * from the row after `active` for one letter, or a letter repeated (which
+ * steps through the rows that start with it); from `active` itself for a
+ * longer prefix, so that typing on along a label stays on its row. */
 export function typeAhead(rows: readonly TreeRow[], active: string, typed: string): string | undefined {
   const start = rows.findIndex((row) => row.item.id === active);
   const prefix = typed.toLowerCase();

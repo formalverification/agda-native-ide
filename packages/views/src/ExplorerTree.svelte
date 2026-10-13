@@ -56,7 +56,9 @@
     onexpandedchange: (expanded: string[]) => void;
     /** A row that opens a file was activated. */
     onopen?: (item: TreeItem) => void;
-    /** The selection moved to a row. */
+    /** The reader selected a row (a click, Enter or Space).  The open
+     * file's row, which the tree selects when it reveals it, is not
+     * reported: the host knows its own file. */
     onselect?: (item: TreeItem) => void;
   }
 
