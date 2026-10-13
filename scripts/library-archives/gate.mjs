@@ -4,19 +4,22 @@
 // reactor, accepts agda-algebras' archives in a browser.  It serves a
 // built site without the isolation headers, the gate's page (built by
 // `make library-gate` from scripts/library-archives/gate/) under
-// /__gate__/, and the archives (`nix build .#agda-algebras-archives`) under
-// /__archives__/; writes the page's plan from the index (index.mjs's
-// `needs`, as check.sh stages each root); opens the page in headless
-// Chromium with a fresh profile; and polls its report, since a check can
-// outlast a DevTools command's minute.  Each root must type-check Main
+// /__gate__/, and the interface archives (`nix build
+// .#agda-algebras-archives`) under /__archives__/, agda-algebras' sources
+// archive coming from the site; writes the page's plan from the index
+// (index.mjs's `needs`, as check.sh stages each root); opens the page in
+// headless Chromium with a fresh profile; and polls its report, since a
+// check can outlast a DevTools command's minute.  Each root must type-check Main
 // alone, with no error, and then two controls on CONTROL_ROOT must
 // type-check more: the root's own archive left out, and the first byte of
 // its source changed under its interface.  It writes report.json and
 // report.txt into --out, and exits 1 if a check failed, 2 on bad input.
 //
-// The site's builtins and standard library must be the ones the archives
-// were built against (the index's digests), or the check would measure
-// other inputs, and it stops.
+// The site's builtins, standard library and agda-algebras' sources archive
+// must be the ones the archives were built against (the index's digests),
+// or the check would measure other inputs, and it stops.  The page reads
+// all three from the site, and so does the gate, since the site ships
+// agda-algebras' sources (issue 11).
 //
 //   CHROME=<chromium> node scripts/library-archives/gate.mjs <site>
 //     --harness DIR --archives DIR [--out DIR] [--root ROOT]... [--jobs N]
@@ -102,7 +105,7 @@ try {
 const builtins = index.libraries.builtins.sources;
 const stdlib = index.libraries["standard-library"].sources;
 const algebras = index.libraries["agda-algebras"];
-for (const { path, sha256: expected } of [builtins, stdlib]) {
+for (const { path, sha256: expected } of [builtins, stdlib, algebras.sources]) {
   const shipped = join(site, path);
   const actual = existsSync(shipped) ? sha256(shipped) : "missing";
   if (actual !== expected) {
@@ -163,7 +166,7 @@ const plan = {
   glue: "/als-reactor-2.9.0.js",
   builtin: `/${builtins.path}`,
   stdlib: `/${stdlib.path}`,
-  libraries: [{ url: `${ARCHIVES}${algebras.sources.path}`, agdaLib: algebras.agdaLib, name: algebras.name }],
+  libraries: [{ url: `/${algebras.sources.path}`, agdaLib: algebras.agdaLib, name: algebras.name }],
   archivesBase: ARCHIVES,
   play,
   mainOptions: MAIN_OPTIONS,
@@ -297,7 +300,7 @@ const record = {
   served: "without the isolation headers",
   site,
   compiler: Object.fromEntries(
-    ["als-reactor-2.9.0.wasm.gz", "als-reactor-2.9.0.js", builtins.path, stdlib.path].map((file) => [
+    ["als-reactor-2.9.0.wasm.gz", "als-reactor-2.9.0.js", builtins.path, stdlib.path, algebras.sources.path].map((file) => [
       file,
       `sha256:${sha256(join(site, file))}`,
     ]),

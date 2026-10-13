@@ -307,7 +307,7 @@ It is 285,618 bytes, 42,353 gzipped.
    language server the site ships, its reactor
    (`als-reactor-2.9.0.wasm`), in headless Chromium.  For each root, a
    fresh session of the engine's browser transport, over a drive laid out
-   from the site's own builtins and standard library and agda-algebras'
+   from the site's own builtins, standard library and agda-algebras'
    sources archive; a play library beside `/play/Main.agda`, written as
    `stage.sh` writes it; the archives the index names for the root
    (`index.mjs`'s `needs`, as `check.sh` stages them), mounted with the
@@ -315,9 +315,10 @@ It is 285,618 bytes, 42,353 gzipped.
    a `Main` that imports the root under agda-algebras' options line.  It
    passes when the load's `Checking` lines (the session's
    `LoadValue.checking`) name `Main` alone and Agda reports no error.
-   Before it starts, the site's builtins and standard library must have
-   the digests the index records, or it stops: archives built against
-   other inputs would be checked again, and the gate would measure that.
+   Before it starts, the site's builtins, standard library and (since the
+   site ships it, [#11]) agda-algebras' sources archive must have the
+   digests the index records, or it stops: archives built against other
+   inputs would be checked again, and the gate would measure that.
 +  **The drive's libraries**: the drive wrote Agda's registry once, as
    fixed text naming the standard library and PLFA, so agda-algebras
    could not be on it ([#11]'s finding of 2026-10-04).  The engine now
@@ -326,10 +327,10 @@ It is 285,618 bytes, 42,353 gzipped.
    the fields `index.json` records under `libraries`; `layOutDrive` writes
    the libraries file from it after the standard library's `.agda-lib`,
    which is the stage's file, and a defaults file from the names, which
-   Agda reads only for a file in no library.  The page passes PLFA as the
-   list's one entry, so its drive is as it was; the gate passes
-   agda-algebras'.  A list rather than a slot for agda-algebras, since the
-   engine is every host's, and [#14] and [#11] mount the same library.
+   Agda reads only for a file in no library.  The page passes
+   agda-algebras' and PLFA's ([#11]); the gate passes agda-algebras'.  A
+   list rather than a slot for agda-algebras, since the engine is every
+   host's, and [#14] and [#11] mount the same library.
 +  **Every root, every time**: 350 of 350 on 2026-10-12 here (headless
    Chromium 149, four at once, a 1-minute load of 3.0 at the start and 6.1
    at the end, from other sessions' builds), in 12 min 49 s.  Per root,
