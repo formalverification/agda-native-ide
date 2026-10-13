@@ -1,0 +1,180 @@
+{
+ "run": "agent-harnesses-2026-10-12",
+ "issue": 82,
+ "date": "2026-10-12",
+ "clock": "The workstation's clock read MDT (UTC-6), 2026-10-12, 22:25 to 22:45; UTC 2026-10-13 04:25 to 04:45.",
+ "revision": "dffce8caa6971148a7f3f9a1f05d1828a4d39074",
+ "machine": {
+  "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+  "logicalCpus": 20,
+  "memoryKiB": 65496564,
+  "os": "Ubuntu 24.04 (noble)",
+  "kernel": "7.0.0-31-generic",
+  "loadAverage": "about 2.3",
+  "apparmorRestrictUnprivilegedUserns": 1,
+  "bubblewrap": "0.9.0, /usr/bin/bwrap; no bwrap profile in /etc/apparmor.d",
+  "note": "Paths are given as placeholders: <worktree> is this branch's worktree, <parent> the directory above the checkouts, <air> an agda-native-air checkout, <scratch> a directory outside the worktree."
+ },
+ "harnesses": {
+  "claude-code": {"version": "2.1.282", "settings": "model opus[1m], effortLevel xhigh, permissions.defaultMode auto, no sandbox key (Claude Code's sandbox is off by default)"},
+  "codex-cli": {"version": "0.162.1", "settings": "model gpt-6.1-sol, model_reasoning_effort xhigh; no MCP server configured; the main checkout trusted; per-command approvals saved as prefix rules, among them make check, make test and make build"},
+  "copilot-cli": {"version": "1.0.95", "settings": "no settings.json, so its sandbox is off (its default); this repository's main checkout is not among its trusted folders"}
+ },
+ "links": {
+  "what": "Untracked links claude-tooling installs, each excluded in the main checkout's .git/info/exclude (/.claude, /.agents, /AGENTS.md)",
+  "parent": {
+   "CLAUDE.md": "a link to claude-tooling's projects/agda-native-ide/CLAUDE.md",
+   "AGENTS.md": "a link to the same file (made 2026-10-11)",
+   ".claude/skills/": "7 links, each to a skill in claude-tooling",
+   ".agents/skills": "a link to <parent>/.claude/skills (made 2026-10-11)"
+  },
+  "worktree": {
+   ".claude": "a link to <parent>/.claude",
+   ".agents": "a link to <parent>/.agents",
+   "AGENTS.md": "a link to <parent>/AGENTS.md"
+  },
+  "global": "~/.claude/CLAUDE.md, ~/.codex/AGENTS.md and ~/.copilot/copilot-instructions.md resolve to one file, claude-tooling's global/CLAUDE.md; ~/.claude/skills and ~/.agents/skills hold the same 39 skills"
+ },
+ "probe": {
+  "prompt": "Answer only from what you were given at the start of this session: do not run any command, read any file, or call any tool.  1. Print, verbatim, every line of your instructions that begins with \"PROBE-MARKER:\", one per line.  2. List the names of every skill you can see, comma-separated, and say how many there are.  3. Quote verbatim the first sentence of the description of the skill named timing-checks-in-the-page, or say that you were given no description for it.  4. List the names of your MCP servers, or say none.  Number the answers 1 to 4.",
+  "checks": "The global marker (claude-tooling/global) is not guessable from the prompt; the description's first sentence was compared with .claude/skills/timing-checks-in-the-page/SKILL.md.",
+  "where": "<worktree>, inside nix develop (the default shell)"
+ },
+ "observations": {
+  "claude-code": {
+   "listings": {
+    "claude mcp list": "the signed-in account's four claude.ai connectors; no server of this repository's",
+    "init event (claude -p --output-format stream-json --verbose)": "77 skills: 39 global, 7 project, and Claude Code's own and its plugins'; mcp_servers: the account's claude.ai connectors only"
+   },
+   "probeRun": {"model": "claude-opus-5-5[1m]", "effort": "low", "wallSeconds": 20, "turns": 1, "costUsd": 0.255},
+   "instructions": "Both markers, each once: PROBE-MARKER: claude-tooling/global and PROBE-MARKER: claude-tooling/agda-native-ide.  The worktree's AGENTS.md link was not loaded beside the parent's CLAUDE.md (the project file appeared once, in this session's own context too).",
+   "skills": "72 by the model's count of its listing.  Five of the seven project skills were listed by name with no description: building-agda-for-wasi, checking-an-agda-library-under-a-new-agda, testing-the-vscode-companion, timing-checks-in-the-page, wiring-agda-libraries-into-a-nix-devshell; agda-typecheck-performance and typechecking-agda-under-nix had theirs.  Asked for timing-checks-in-the-page's description, the model answered that it was given none, and that twelve other skills had none either.",
+   "mcp": "The account's claude.ai connectors; none of this repository's.",
+   "alsoObserved": "This session itself (Claude Code 2.1.282, Opus 5.5, started at <worktree> outside nix develop) loaded the same two instruction files and the same skills, with the same five project skills named only, and the project memory index from the main checkout's project directory."
+  },
+  "codex-cli": {
+   "listings": {
+    "codex debug prompt-input": "AGENTS.md instructions for <worktree>: ~/.codex/AGENTS.md and <worktree>/AGENTS.md, both markers once each.  50 skills, each with its description, from three roots: ~/.agents/skills (39), ~/.codex/skills/.system (4: imagegen, openai-docs, skill-creator, skill-installer), <parent>/.claude/skills (7, through <worktree>/.agents).",
+    "codex mcp list": "No MCP servers configured yet.",
+    "codex doctor": "21 ok, 0 warn, 0 fail; sandbox: restricted fs + restricted network, approval OnRequest; mcp: no MCP servers configured"
+   },
+   "probeRun": {"model": "gpt-6.1-sol", "effort": "low", "sandbox": "read-only", "wallSeconds": 24, "usage": {"input_tokens": 26180, "cached_input_tokens": 12288, "output_tokens": 699, "reasoning_output_tokens": 195}},
+   "instructions": "Both markers.",
+   "skills": "50, named in the order of the listing; the first sentence of timing-checks-in-the-page's description quoted verbatim.",
+   "mcp": "None."
+  },
+  "copilot-cli": {
+   "listings": {
+    "copilot instruction list": "Repository instructions: AGENTS.md (the worktree's link).  Personal instructions: ~/.copilot/copilot-instructions.md.",
+    "copilot skill list": "Project skills 7, personal skills 39, built-in skills 2, each with its description",
+    "copilot mcp list": "Built-in servers: github-mcp-server (http)"
+   },
+   "probeRun": "Not run: Copilot CLI has not worked on an issue here, and a prompt spends the plan's allowance."
+  }
+ },
+ "codexTrials": {
+  "what": "Codex's own session logs (~/.codex/sessions/2026/10/10/) of the trials on issues 17 and 63, before the links of 2026-10-11",
+  "sessions": 8,
+  "cliVersion": "0.162.1",
+  "turnContext": "model gpt-6.1-sol, effort xhigh, approval_policy on-request, sandbox_policy workspace-write with network_access false",
+  "instructions": "Only PROBE-MARKER: claude-tooling/global (from ~/.codex/AGENTS.md); the project's CLAUDE.md was read by path, as the kickoff prompts said.",
+  "sandbox": "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted, in the root sessions of both trials; the sub-agents then requested sandbox_permissions require_escalated on 332, 22 and 10 commands",
+  "commits": "Ten commits (pull requests 83 and 84): author William DeMeo, each ending with the provenance line naming GPT-6.1 Sol via Codex CLI, none with a Co-authored-by trailer"
+ },
+ "gates": {
+  "what": "nix develop --command make <gate> at <worktree>, from this Claude Code session's shell, then each gate under Codex's sandbox command",
+  "claude-code": {
+   "check": {"exit": 0, "seconds": 20},
+   "test": {"exit": 0, "seconds": 8, "tests": 5470},
+   "build, before make assets": {"exit": 2, "seconds": 1, "message": "sha256sum: WARNING: 33 listed files could not be read (assets-check)"},
+   "browser-check, before a build": {"exit": 2, "seconds": 2, "message": "build/index.html does not exist: build the site first"},
+   "assets": {"exit": 0, "seconds": 1, "note": "the flake's assets were already in the store"},
+   "build": {"exit": 0, "seconds": 23},
+   "browser-check": {"exit": 0, "seconds": 23, "summary": "Checking: [\"Main\"]; goals: {\"before\":1,\"after\":0}; 28 requests"}
+  },
+  "codex-exec-workspace-write": {
+   "command": "nix develop --command codex exec --json -c 'model_reasoning_effort=\"low\"' -s workspace-write '<run exactly this shell command once: make <gate>; report its exit status and last line>' < /dev/null, at <worktree>; turn context: approval_policy never, sandbox_policy workspace-write with network_access false",
+   "check": {"exit": 0, "session": "17 s", "how": "outside the sandbox, by the saved rule prefix_rule(pattern=[\"make\", \"check\"], decision=\"allow\")"},
+   "test": {"exit": 0, "tests": 5470, "session": "18 s, with browser-check", "how": "outside the sandbox, by the saved rule [\"make\", \"test\"]"},
+   "build": {"exit": 0, "session": "23 s", "how": "outside the sandbox, by the saved rule [\"make\", \"build\"]"},
+   "browser-check": {"exit": 1, "how": "no saved rule; in the sandbox", "message": "error building bubblewrap command: Fatal error: cannot enforce sandbox read-only path <worktree>/.agents because it crosses writable symlink <worktree>/.agents"},
+   "control": "A command no rule covers (readlink of the namespaces, a touch under the home directory, a curl) failed the same way in a session of the same settings, and wrote nothing.",
+   "rules": "~/.codex/rules/default.rules holds prefix rules for make check, make test and make build (approvals kept during the trials of 2026-10-10), none for make browser-check"
+  },
+  "codex-sandbox-workspace": {
+   "command": "nix develop --command codex sandbox -P :workspace -C <worktree> -- make <gate>",
+   "check": {"exit": 1, "seconds": 1},
+   "test": {"exit": 1, "seconds": 0},
+   "build": {"exit": 1, "seconds": 0},
+   "browser-check": {"exit": 1, "seconds": 0},
+   "message": "error building bubblewrap command: Fatal error: cannot enforce sandbox read-only path <worktree>/.agents because it crosses writable symlink <worktree>/.agents"
+  },
+  "codex-sandbox-danger-full-access": {
+   "command": "nix develop --command codex sandbox -P :danger-full-access -C <worktree> -- make <gate>",
+   "check": {"exit": 0, "seconds": 13},
+   "test": {"exit": 0, "seconds": 7},
+   "build": {"exit": 0, "seconds": 23},
+   "browser-check": {"exit": 0, "seconds": 24}
+  },
+  "copilot-cli": "Not run from a Copilot session."
+ },
+ "codexSandboxProbes": {
+  "what": "codex sandbox -P <profile> -C <dir> -- echo hi",
+  "rows": [
+   {"dir": "<worktree>", "profile": ":workspace", "result": "cannot enforce sandbox read-only path <worktree>/.agents because it crosses writable symlink"},
+   {"dir": "<worktree>", "profile": ":read-only", "result": "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted"},
+   {"dir": "<worktree>", "profile": "none given, inside nix develop", "result": "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted"},
+   {"dir": "<scratch>/real, a git repository with a real .agents/skills directory", "profile": ":workspace", "result": "bwrap: loopback: Failed RTM_NEWADDR"},
+   {"dir": "<scratch>/linked, with .agents a link to a directory", "profile": ":workspace", "result": "cannot enforce sandbox read-only path .../.agents because it crosses writable symlink"},
+   {"dir": "<scratch>/linked, with only AGENTS.md a link", "profile": ":workspace", "result": "bwrap: loopback: Failed RTM_NEWADDR"},
+   {"dir": "<scratch>/linked, with only .claude a link", "profile": ":workspace", "result": "bwrap: loopback: Failed RTM_NEWADDR"},
+   {"dir": "<scratch>/linked, with a real .agents/ holding a skills link", "profile": ":workspace", "result": "bwrap: loopback: Failed RTM_NEWADDR"},
+   {"dir": "<scratch>/real", "profile": ":workspace with sandbox_workspace_write.network_access=true", "result": "bwrap: loopback: Failed RTM_NEWADDR"},
+   {"dir": "<scratch>/real", "profile": ":danger-full-access", "result": "hi"}
+  ],
+  "finding": "Every sandboxed command fails on this machine (AppArmor), and in a checkout whose .agents is a link to a directory the workspace profile fails earlier, before bubblewrap runs; a real .agents directory holding a skills link passes that step."
+ },
+ "agda": {
+  "pageCompiler": "compiler/build-agda-2.9.0.sh: AGDA_COMMIT da66a8c75f11d10699a6b38b261efdf244b66f2a (committed 2026-10-05T16:41:29Z; agda/agda has no v2.9.0 tag)",
+  "nativeHere": "nix develop .#vscode --command printenv AGDA: /nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda (flake input native-agda, github:agda/agda at da66a8c7); Agda version 2.9.0",
+  "nativeAir": "agda-native-air's flake.lock pins agda/agda at da66a8c7; its .#backend shell's agda is /nix/store/farh1v7zh9niln08bs9q0h4v4m7bdd4c-agda-env-2.9.0/bin/agda, a wrapper whose references include /nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin, the same store path; both report the data directory /nix/store/95cx28xrqs5cnaq2d2zb7m6285n8jr5h-Agda-2.9.0-data",
+  "stdlib": "nix build .#stdlib (v2.3 at 8326c747 with stdlib/patches/, /nix/store/232s6b002fdlxk2vv0nfvffq9zahk2zg-agda-stdlib-2.3-patched) against formalverification/agda-stdlib at fb5d1840 (tag v2.3-agda-2.9.0, agda-native-air's stdlibRev): diff -r of src/ and of standard-library.agda-lib found no difference",
+  "agdaAlgebras": "agda-native-air's backend shell registers agda-algebras at 4662373d (agda-algebras-unstable-2026-09-07); the page pins f067d57d (master, 2026-10-10)",
+  "nativeCheck": {
+   "command": "agda --library-file=<scratch>/libraries plfa/part1/Naturals.lagda.md, at <scratch>/plfa-check, with the native Agda above and the patched standard library",
+   "exit": 0,
+   "seconds": 11,
+   "checkingLines": 57
+  }
+ },
+ "agdaMcp": {
+  "server": "agda-mcp 0.2.0, the binary cabal list-bin exe:agda-mcp printed in an agda-native-air main checkout whose HEAD was 36742bb6, run by its scripts/run-server.sh with AGDA_MCP_BIN and --agda-bin, so without the launcher's shell",
+  "registration": {
+   "args": ["--agda-bin", "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda", "--agda-flags", "--library-file=<scratch>/libraries", "--timeout", "600"],
+   "env": {"AGDA_MCP_BIN": "<air>/agda-mcp/dist-newstyle/build/x86_64-linux/ghc-9.10.3/agda-mcp-0.2.0/x/agda-mcp/build/agda-mcp/agda-mcp"},
+   "chapterLayout": "<scratch>/plfa.agda-lib (name: plfa, depend: standard-library, include: .) and <scratch>/plfa/part1/Naturals.lagda.md, a copy of static/plfa/content/part1/Naturals.lagda.md: the layout of static/plfa/project.zip"
+  },
+  "runs": [
+   {
+    "harness": "Claude Code 2.1.282, Sonnet 5 at low, claude -p with --mcp-config <file> --strict-mcp-config --allowedTools mcp__agda__check_file, started at <worktree> inside nix develop",
+    "wallSeconds": 13,
+    "init": "agda: connected, source dynamic",
+    "laidOut": {"success": true, "exitCode": 0, "holes": 0, "diagnostics": 0, "elapsedMs": 896, "note": "the standard library's interfaces from the native check above"},
+    "inPlace": {"file": "static/plfa/content/part1/Naturals.lagda.md", "success": false, "exitCode": 42, "diagnostic": "ModuleNameDoesntMatchFileName", "elapsedMs": 148}
+   },
+   {
+    "harness": "Codex CLI 0.162.1, GPT-6.1 Sol at low, codex exec -s read-only with the registration as -c overrides (startup_timeout_sec 120, tool_timeout_sec 660, required true, check_file approved), started at <worktree> inside nix develop",
+    "wallSeconds": 30,
+    "laidOut": {"success": true, "exitCode": 0, "holes": 0, "diagnostics": 0, "elapsedMs": 922},
+    "inPlace": {"success": false, "exitCode": 42, "diagnostic": "ModuleNameDoesntMatchFileName"},
+    "note": "Codex called check_file a third time with verbose true, whose answer adds a command block naming the Agda binary and the libraries file; the plain answers carry a project block only",
+    "usage": {"input_tokens": 138828, "cached_input_tokens": 109184, "output_tokens": 463}
+   },
+   {
+    "harness": "Claude Code 2.1.282, Sonnet 5 at low, the page's commands verbatim in a fresh <scratch> (the standard library without interfaces), started at <worktree> outside nix develop",
+    "wallSeconds": 13,
+    "laidOut": {"success": true, "exitCode": 0, "holes": 0, "diagnostics": 0, "elapsedMs": 4017}
+   }
+  ]
+ }
+}
