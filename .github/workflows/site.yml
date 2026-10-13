@@ -6,7 +6,13 @@
 #   build    `nix build .#site`, then the same build again with --rebuild,
 #            which fails if a byte differs (and then uploads what
 #            differed); it records the output's NAR hash and uploads the
-#            site for the browser job;
+#            site for the browser job.  The site carries agda-algebras'
+#            archives (issue 14), so its build depends on their
+#            interfaces' (10 to 14 minutes on a runner): it reads the
+#            formalverification Cachix cache and writes nothing to it.
+#            library-archives.yml is to fill that cache from main, but
+#            pushes nothing until CACHIX_AUTH_TOKEN reaches it, so until
+#            then every run builds the interfaces;
 #   test     the unit tests (vitest) and svelte-check, in the dev shell;
 #   browser  the built site checked in headless Chromium (`nix run
 #            .#browser-check`), served without the isolation headers, which
@@ -17,9 +23,14 @@
 #            notices (`nix run .#browser-check-notices`): a browser without
 #            DecompressionStream, a compiler request that fails, a compiler
 #            that does not decompress, and an archive whose transfer breaks
-#            off (issue 8); and the engine's conformance suite against the
-#            built site's reactor (`make conformance-browser`, issue 62).
-#            The timings, records and screenshots are uploaded.
+#            off (issue 8), and three after Agda has started: an archive
+#            not found, an archive that is not its digest's, and the index
+#            not found (issue 14); the engine's conformance suite against
+#            the built site's reactor (`make conformance-browser`, issue
+#            62); and the manifest package's tests over the built site's
+#            whole archive index, whose plan must be index.mjs's for every
+#            root (issue 14).  The timings, records and screenshots are
+#            uploaded.
 #
 # It replaces upstream's workflow (imported as app.yml), whose npm steps
 # are `make test` and `make check` here, and whose build is the Nix
@@ -43,6 +54,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v27
+      # Read only: agda-algebras' interfaces, which the site's archives are
+      # packed from, are fetched once main's archives job pushes them, which
+      # it does not until CACHIX_AUTH_TOKEN reaches it; until then they are
+      # built here.
+      - uses: cachix/cachix-action@v17
+        with:
+          name: formalverification
+          skipPush: true
       - name: Build the site
         run: nix build .#site --print-build-logs
       - name: Build it again, and fail if a byte differs
@@ -115,6 +134,11 @@ jobs:
       - name: Run the engine's conformance suite in headless Chromium, against the site's reactor
         if: ${{ !cancelled() }}
         run: nix develop --command make conformance-browser SITE=site CONFORMANCE=conformance
+      - name: Plan every root of the built site's archive index as index.mjs does
+        if: ${{ !cancelled() }}
+        run: |
+          nix develop --command bash -c \
+            "make packages && AGDA_ALGEBRAS_INDEX=$PWD/site/agda-algebras/index.json npx vitest run packages/manifest"
       - uses: actions/upload-artifact@v6
         if: always()
         with:

@@ -8,8 +8,11 @@
 // a `.gz` as application/gzip with no Content-Encoding (as GitHub Pages
 // does), and logs every request, since a worker's requests are invisible
 // to the page's DevTools session.  A test can answer chosen paths itself,
-// to see what the page does when a request fails (issue 8).  Adapted from
-// the 2026-10-04 investigation's harness (issue 5).
+// to see what the page does when a request fails (issue 8).  It can send
+// `no-store` for chosen paths, so that every request for them reaches its
+// log rather than the browser's HTTP cache: a check that no archive was
+// requested must not be passed by that cache (issue 14).  Adapted from the
+// 2026-10-04 investigation's harness (issue 5).
 //
 //   node scripts/browser-check/serve.mjs <site> [port] [--isolated]
 
@@ -41,9 +44,11 @@ const TYPES = {
  * the connection is dropped after its body, as a transfer that breaks off.
  * @param {{ root: string, port?: number, isolated?: boolean,
  *   answer?: (path: string) =>
- *     { status: number, body: Buffer, cut?: boolean } | undefined }} options
+ *     { status: number, body: Buffer, cut?: boolean } | undefined,
+ *   noStore?: string[] }} options  `noStore`: the path prefixes sent with
+ *   `cache-control: no-store` instead of `max-age=600`
  */
-export function serve({ root, port = 0, isolated = false, answer }) {
+export function serve({ root, port = 0, isolated = false, answer, noStore = [] }) {
   // Every file must lie under this prefix; the filesystem root is its own
   // prefix, already ending in a separator.
   const resolved = resolve(root);
@@ -104,7 +109,7 @@ export function serve({ root, port = 0, isolated = false, answer }) {
           ? (TYPES[extname(file ?? "")] ?? "application/octet-stream")
           : "text/plain; charset=utf-8",
       "content-length": cut ? 2 * body.length : body.length,
-      "cache-control": "max-age=600",
+      "cache-control": noStore.some((prefix) => entry.url.startsWith(prefix)) ? "no-store" : "max-age=600",
       ...(isolated
         ? {
             "cross-origin-opener-policy": "same-origin",
