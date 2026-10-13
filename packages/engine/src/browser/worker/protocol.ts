@@ -11,7 +11,13 @@
 // share it, and gained the drive's readFile.  The drive takes a list of
 // libraries where it took PLFA's archive alone (issue 13), and the host's
 // files, a project's own `.agda-lib`, where it held an empty /Main.agda
-// (issue 11).
+// (issue 11).  It says which paths it holds, so the host mounts no archive
+// whose interfaces an earlier check wrote and its cache restored, and names
+// its cache's databases by one prefix (issue 14).
+
+/** The prefix of the drive cache's IndexedDB databases: one per namespace,
+ * `agda-playground-drive-<namespace>`, the fork's name (./drive.ts). */
+export const DRIVE_CACHE_PREFIX = "agda-playground-drive-";
 
 export type WASMSource =
   | { type: "stream"; stream: ReadableStream<Uint8Array> }
@@ -79,6 +85,9 @@ export interface ALSWorkerInitResultProxied {
   writeFile: (path: string, content: string) => Promise<void>;
   /** A file's text, or undefined when the drive has none. */
   readFile: (path: string) => Promise<string | undefined>;
+  /** Extract a zip at the drive's root; its paths leave the drive's cache. */
   mountArchive: (data: ArrayBuffer) => Promise<void>;
+  /** Which of these paths the drive holds. */
+  present: (paths: string[]) => Promise<string[]>;
   persist: () => Promise<void>;
 }

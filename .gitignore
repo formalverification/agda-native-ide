@@ -22,6 +22,9 @@ result
 /static/*.woff2
 /static/favicon.png
 /static/plfa/**/*.zip
+# agda-algebras' archive index and interface archives (issue 14), which
+# `make assets` copies from the flake's agda-algebras-archives
+/static/agda-algebras/
 
 # What `make browser-check` writes: the timings, the requests, a screenshot
 /browser-check

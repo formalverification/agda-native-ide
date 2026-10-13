@@ -32,19 +32,53 @@
 //       Agda refuses it as agda-algebras would, under --safe, with its
 //       position and message;
 //   7.  replaces the buffer with a Main that imports a module of
-//       agda-algebras, checks, and asserts it resolves: the module and the
-//       standard-library modules it imports are type-checked from source,
-//       since the page mounts none of their interfaces yet (issue 14);
-//       while that check runs, it uses the Explorer, in one call inside
-//       the page: a key and the filter work, and only the rows the page
-//       cannot open then are aria-disabled (issue 9);
+//       agda-algebras, checks, and asserts the page asks first (issue 14):
+//       a question stating the bytes of the archives the import needs,
+//       computed here from the site's own index, with no spinner, the
+//       focus on its Fetch button, nothing sideways at 400 px, and no
+//       archive requested while it waits; Esc cancels it, and a second
+//       check asks again; Fetch fetches exactly those archives, and the
+//       check type-checks Main alone;
 //   8.  closes the Explorer's section that holds the open file, and
 //       reloads: the rows expanded before still are, and the open file is
 //       revealed; then opens a PLFA chapter from the reader's Next, in a
 //       part that is closed, far below the tree's top, and asserts the tree
 //       opens the part and scrolls the chapter's row into view (issue 9);
-//   9.  in Chromium, exercises the theme choices, persistence, system
+//   9.  a second visit: once the browser keeps the archives, reloads in the
+//       same profile, and asserts that the automatic check asks nothing,
+//       requests no archive, mounts the 3 from the browser's store and
+//       type-checks Main alone, and that a drive cache of another
+//       namespace, made before the reload, is gone;
+//  10.  imports Setoid.Varieties.HSP, the milestone's import: the question
+//       states the bytes of the archives not yet mounted, Fetch fetches
+//       exactly those, and Main alone is type-checked; while the mount and
+//       the check run, it uses the Explorer, in one call inside the page: a
+//       key and the filter work, and only the rows the page cannot open
+//       then are aria-disabled (issue 9); a check after an edit that
+//       imports nothing new asks nothing and fetches nothing;
+//  11.  a changed archive: puts in the store what a browser that visited
+//       an earlier deploy holds (one archive under another digest, its
+//       current copy absent), reloads, and asserts that the stale copy is
+//       evicted, that the automatic check asks for that archive alone,
+//       without taking the focus, and, answered with the answer
+//       remembered, fetches it once, at its current URL, and type-checks
+//       Main alone;
+//  12.  a remembered answer: with another archive gone from the store,
+//       reloads, and asserts that the page asks nothing, states the bytes
+//       in the status bar before the request (on the page's clock, as
+//       measured), and fetches that archive alone;
+//  13.  a declined fetch: with the remembered answer forgotten and one
+//       more archive gone, the page asks for it alone; Check from source
+//       requests nothing, says so in a note, mounts the archives the
+//       browser keeps, and Agda type-checks the declined archive's
+//       modules alone (with Main, or not), accepting the archived
+//       interfaces above them;
+//  14.  in Chromium, exercises the theme choices, persistence, system
 //       changes, first-frame colors and narrow viewports (issue 17).
+//
+// The server sends `no-store` for agda-algebras' index and archives, so
+// that every request for them reaches its log rather than the browser's
+// HTTP cache (the host's `/*.zip` rule revalidates them too).
 //
 // It writes browser-check.json (the timings, the requests, the console)
 // and a screenshot into --out, and exits 1 on the first failed assertion,
@@ -57,7 +91,7 @@
 //   FIREFOX=<firefox> node scripts/browser-check/run.mjs <site> --browser firefox [...]
 //   nix run .#browser-check -- <site> [--out DIR] [--isolated]
 
-import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import * as cdp from "./cdp.mjs";
@@ -107,21 +141,70 @@ const INFER = {
   type: "{A : Set} (x y : List A) → length (x ++ y) ≡ length x + length y",
 };
 
-/** The import step's Main, which imports the agda-algebras module with
- * the fewest imports of the standard library, and the modules its check
- * must type-check from source: Main, that module, and the 10
- * standard-library modules it imports (agda-algebras' index; issue 11).
- * The Explorer is used while this check runs (issue 9), in one call that
- * takes some tens of milliseconds, so the check must outlast that: from
- * source it takes seconds, and from archives (issue 14) still far more. */
+/** The import step's Main, which imports the agda-algebras module with the fewest
+ * imports of the standard library (issue 11): its 3 archives (at the pin
+ * of 2026-10-13; the steps compute them from the site's index), 206,933
+ * bytes, hold the interfaces of it and the 10 standard-library modules it
+ * imports, so the check type-checks Main alone (issue 14). */
 const LIBRARY = {
   source:
     "{-# OPTIONS --without-K --exact-split --safe #-}\n\nmodule Main where\n\n" +
     "import Overture.Signatures\n",
   module: "Overture.Signatures",
   infer: "Overture.Signatures.Signature",
-  checking: 12,
 };
+
+/** The HSP step's Main: the milestone's import. */
+const HSP = {
+  source:
+    "{-# OPTIONS --without-K --exact-split --safe #-}\n\nmodule Main where\n\n" +
+    "import Setoid.Varieties.HSP\n",
+  module: "Setoid.Varieties.HSP",
+  infer: "Setoid.Varieties.HSP.Birkhoff",
+};
+
+/** Where the page keeps the archives, and the drive's caches (the engine's
+ * archive-store.ts and drive-caches.ts). */
+const ARCHIVE_STORE = "agda-native-ide-archives";
+const DRIVE_CACHE_PREFIX = "agda-playground-drive-";
+const DRIVE_NAMESPACES_KEY = "agda-native-ide:drive-namespaces";
+const ARCHIVES_PATH = "/agda-algebras/interfaces/";
+
+/** The archives a set of imports needs, by path, sorted.
+ * @param {string[]} roots */
+function needs(roots) {
+  const seen = new Set();
+  const todo = [...roots];
+  while (todo.length) {
+    const name = /** @type {string} */ (todo.pop());
+    if (seen.has(name)) continue;
+    seen.add(name);
+    todo.push(...INDEX.modules[name].deps);
+  }
+  const archives = new Set();
+  for (const name of seen) if (INDEX.modules[name].archive !== null) archives.add(INDEX.modules[name].archive);
+  return [...archives].sort();
+}
+
+/** A count and its noun. @param {number} n @param {string} noun */
+const plural = (n, noun) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+
+/** What the page's question must say for these archives: their URLs as the
+ * page names them, their bytes, and the interfaces they hold.
+ * @param {string[]} archives */
+function expected(archives) {
+  const bytes = archives.reduce((sum, path) => sum + INDEX.archives[path].bytes, 0);
+  const kb = bytes / 1024;
+  const size =
+    bytes < 1024 ? `${bytes} bytes` : Number(kb.toFixed(1)) < 1024 ? `${kb.toFixed(1)} KB` : `${(bytes / 1048576).toFixed(1)} MiB`;
+  return {
+    urls: archives.map((path) => `/agda-algebras/${path}?cache=${INDEX.archives[path].sha256.slice(0, 16)}`).sort(),
+    bytes,
+    stated: `${size} (${bytes.toLocaleString("en-US")} bytes)`,
+    count: `${archives.length} ${archives.length === 1 ? "archive" : "archives"} holding ${plural(archives.reduce((sum, path) => sum + INDEX.archives[path].modules, 0), "module")}`,
+    digests: archives.map((path) => INDEX.archives[path].sha256),
+  };
+}
 
 /** The declaration the type error's step appends, and the error Agda must
  * report at `refl`, after the position (Agda prints the naturals as
@@ -188,6 +271,16 @@ if (!existsSync(join(site, "index.html"))) {
 const out = resolve(options.out);
 mkdirSync(out, { recursive: true });
 
+/** The site's own index: what an import needs is computed here from it, as
+ * scripts/library-archives/index.mjs computes it, and not from the page. */
+if (!existsSync(join(site, "agda-algebras", "index.json"))) {
+  console.error(
+    `${site}/agda-algebras/index.json does not exist: the site carries agda-algebras' archives since issue 14 (make assets, then make build)`,
+  );
+  process.exit(2);
+}
+const INDEX = JSON.parse(readFileSync(join(site, "agda-algebras", "index.json"), "utf8"));
+
 // Every change of the inspector's heading and the status bar, with its
 // time since navigation, recorded in the page from its first moment: a
 // state that lasts 50 ms ("Agda ready", before the first check starts)
@@ -195,7 +288,8 @@ mkdirSync(out, { recursive: true });
 const RECORDER = `(() => {
   const events = (window.__browserCheck = []);
   const last = {};
-  const watched = { status: ".inspector-status", bar: ".statusbar > span" };
+  // The question before a fetch, with the bytes it states (issue 14).
+  const watched = { status: ".inspector-status", bar: ".statusbar > span", consent: ".consent-size" };
   new MutationObserver(() => {
     for (const [name, selector] of Object.entries(watched)) {
       const elements = [...document.querySelectorAll(selector)];
@@ -204,10 +298,20 @@ const RECORDER = `(() => {
         : null;
       if (text !== last[name]) {
         last[name] = text;
-        events.push({ t: Math.round(performance.now()), name, text });
+        // t, rounded, for the record; at, as measured, to compare.
+        const at = performance.now();
+        events.push({ t: Math.round(at), at, name, text });
       }
     }
   }).observe(document, { subtree: true, childList: true, characterData: true });
+  // When each of agda-algebras' archives was requested, on the page's own
+  // clock, which the events above share.
+  const resources = (window.__browserCheckResources = []);
+  new PerformanceObserver((list) => {
+    for (const entry of list.getEntries())
+      if (entry.name.includes(${JSON.stringify("/agda-algebras/interfaces/")}))
+        resources.push({ t: Math.round(entry.startTime), at: entry.startTime, name: new URL(entry.name).pathname + new URL(entry.name).search });
+  }).observe({ type: "resource", buffered: true });
 })();`;
 
 /** What the page shows, read from its DOM. */
@@ -244,6 +348,14 @@ const state = () => ({
   result: document.querySelector(".result-card pre")?.textContent ?? null,
   log: document.querySelector(".compiler-log pre")?.textContent ?? null,
   minibuffer: document.querySelector("#command-input") !== null,
+  // The question before a fetch: what it says, the bytes it states, and
+  // whether its Fetch button has the focus (issue 14).
+  consent: document.querySelector(".consent")?.textContent?.replace(/\s+/g, " ").trim() ?? null,
+  consentBytes: document.querySelector(".consent-size")?.dataset.bytes ?? null,
+  consentFocused: document.activeElement?.classList.contains("consent-fetch") ?? false,
+  note: document.querySelector(".plan-note")?.textContent?.trim() ?? null,
+  width: document.documentElement?.clientWidth ?? 0,
+  scrollWidth: document.documentElement?.scrollWidth ?? 0,
   description:
     document.querySelector('meta[name="description"]')?.getAttribute("content") ??
     "",
@@ -301,7 +413,7 @@ function assert(condition, message) {
 /** Poll the page until `predicate` holds.
  * @param {(s: ReturnType<typeof state>) => boolean} predicate
  * @param {string} what */
-async function waitFor(predicate, what, timeoutMs = STEP_TIMEOUT_MS) {
+async function waitFor(predicate, what, timeoutMs = STEP_TIMEOUT_MS, also = async () => true) {
   const start = performance.now();
   let last;
   while (performance.now() - start < timeoutMs) {
@@ -313,7 +425,7 @@ async function waitFor(predicate, what, timeoutMs = STEP_TIMEOUT_MS) {
     if (thrown) throw new Error(`the page threw: ${thrown.text}`);
     if (last.failedAction)
       throw new Error(`the page could not act: "${last.failedAction}"`);
-    if (predicate(last)) return last;
+    if (predicate(last) && (await also())) return last;
     await new Promise((done) => setTimeout(done, 100));
   }
   throw new Error(
@@ -360,6 +472,128 @@ async function selectGoal(n) {
   await waitFor((s) => !s.busy && s.activeGoal === n, `goal ${n} selected`);
 }
 
+/** In a step where the page must not ask, a question fails it at once,
+ * rather than holding the check until the step's time runs out. */
+function noQuestion(/** @type {ReturnType<typeof state>} */ s, /** @type {string} */ what) {
+  if (s.consent !== null) throw new Error(`${what} asked: ${JSON.stringify(s.consent)}`);
+  return true;
+}
+
+/** The requests for agda-algebras' archives the server logged since the
+ * `from`th, by URL, sorted. */
+const archiveRequests = (from = 0) =>
+  (server?.log ?? [])
+    .slice(from)
+    .filter((request) => request.url.startsWith(ARCHIVES_PATH))
+    .map((request) => request.url)
+    .sort();
+
+/** The digests the page's archive store holds; the store is never created
+ * here, only read. */
+const storeKeys = () =>
+  page.eval(
+    (name) =>
+      new Promise((resolve) => {
+        const open = indexedDB.open(name);
+        open.onupgradeneeded = () => open.transaction?.abort();
+        open.onerror = () => resolve([]);
+        open.onsuccess = () => {
+          const database = open.result;
+          const keys = database.transaction("archives").objectStore("archives").getAllKeys();
+          keys.onsuccess = () => (database.close(), resolve(keys.result.map(String)));
+          keys.onerror = () => (database.close(), resolve([]));
+        };
+      }),
+    ARCHIVE_STORE,
+  );
+
+/** Delete an archive from the page's store, and put another record in its
+ * place when one is given (the state an earlier deploy leaves). */
+const replaceKept = (/** @type {string} */ digest, /** @type {{ sha256: string, path: string } | undefined} */ instead) =>
+  page.eval(
+    ({ name, digest, instead }) =>
+      new Promise((resolve, reject) => {
+        const open = indexedDB.open(name);
+        open.onsuccess = () => {
+          const transaction = open.result.transaction("archives", "readwrite");
+          const store = transaction.objectStore("archives");
+          store.delete(digest);
+          if (instead)
+            store.put({ ...instead, library: "agda-algebras", bytes: 1, data: new ArrayBuffer(1), stored: 0 });
+          transaction.oncomplete = () => (open.result.close(), resolve(true));
+          transaction.onerror = () => reject(transaction.error);
+        };
+        open.onerror = () => reject(open.error);
+      }),
+    { name: ARCHIVE_STORE, digest, instead: instead ?? null },
+  );
+
+/** Wait until the store holds `digests` (and `also` holds of its keys). */
+async function waitForStore(digests, what, also = () => true) {
+  const start = performance.now();
+  let keys = [];
+  while (performance.now() - start < 30_000) {
+    keys = await storeKeys();
+    if (digests.every((digest) => keys.includes(digest)) && also(keys)) return keys;
+    await new Promise((done) => setTimeout(done, 200));
+  }
+  throw new Error(`timed out waiting for ${what}: the store holds ${keys.length} archives`);
+}
+
+/** Navigate to the page again in the same profile, and wait for the new
+ * document. */
+async function reload() {
+  const before = await page.eval(() => performance.timeOrigin);
+  await page.navigate(`${server.origin}/`);
+  const start = performance.now();
+  while (performance.now() - start < STEP_TIMEOUT_MS) {
+    try {
+      const now = await page.eval(() => (document.readyState === "complete" ? performance.timeOrigin : null));
+      if (now !== null && now !== before) return;
+    } catch {
+      // The old document is going.
+    }
+    await new Promise((done) => setTimeout(done, 100));
+  }
+  throw new Error("the page did not load again");
+}
+
+/** Wait for a check that started after `since` (the page's clock) to end:
+ * a heading that said it was checking since then, and a verdict now. */
+async function waitForCheck(since, what) {
+  return waitFor(
+    (s) =>
+      !s.busy &&
+      s.consent === null &&
+      finished(s.status) &&
+      (s.status.startsWith("Module checked") || s.problems.some((p) => p.error)),
+    what,
+    STEP_TIMEOUT_MS,
+    async () =>
+      (await page.eval(() => window.__browserCheck)).some(
+        (e) => e.t >= since && e.name === "status" && /^Checking source/.test(e.text ?? ""),
+      ),
+  );
+}
+
+/** The modules the last check type-checked, from the compiler log an
+ * Infer shows. */
+async function inferChecking(expression) {
+  await click("Infer type");
+  await waitFor((s) => s.minibuffer, "the Infer minibuffer");
+  await submit(expression);
+  const inferred = await waitFor(
+    (s) => !s.busy && !s.minibuffer && (s.status === "Inferred type" || s.problems.length > 0),
+    `the type of ${expression}`,
+  );
+  assert(inferred.problems.length === 0, `Infer reported ${JSON.stringify(inferred.problems)}`);
+  // A check that type-checked nothing (Main's interface restored, and up
+  // to date) leaves no compiler log under the result.
+  const { log } = await page.eval(state);
+  // Unanchored: Agda indents a nested module's line.
+  return [...(log ?? "").matchAll(/Checking (\S+) \(/g)].map((m) => m[1]);
+}
+
 /** @param {string} name @param {() => Promise<void>} body */
 async function step(name, body) {
   const start = performance.now();
@@ -370,7 +604,9 @@ async function step(name, body) {
 }
 
 try {
-  server = await serve({ root: site, isolated: options.isolated });
+  // agda-algebras' index and archives are never answered from the HTTP
+  // cache, so the log sees every request for them (issue 14).
+  server = await serve({ root: site, isolated: options.isolated, noStore: ["/agda-algebras/"] });
   chrome = await driver.launch(driver.executable);
   page = chrome.page;
   results.browser = chrome.product;
@@ -566,45 +802,70 @@ try {
     );
   });
 
-  await step("import a module of agda-algebras", async () => {
+  await step("import a module of agda-algebras, asked first", async () => {
+    const want = expected(needs([LIBRARY.module]));
+    results.libraryImport = { archives: want.urls.length, bytes: want.bytes, stated: want.stated };
     await page.eval(() => document.querySelector(".cm-content").focus());
     await page.press("a", "KeyA", 65, 2);
     await page.type(LIBRARY.source);
+    const from = server.log.length;
     await page.press("Enter", "Enter", 13, 2);
-    // The Explorer, while that check runs (issue 9).
-    await useExplorerWhileBusy(page, (results.explorer.whileBusy = {}));
-    const checked = await waitFor(
-      (s) =>
-        !s.busy &&
-        finished(s.status) &&
-        (s.status.startsWith("Module checked") || s.problems.some((p) => p.error)),
-      "the library import's check",
+    // A question, not work under way: no spinner while it waits.
+    const asked = await waitFor((s) => s.consent !== null && !s.busy, "the question before the fetch");
+    results.libraryQuestion = asked.consent;
+    assert(asked.consentBytes === String(want.bytes), `the question states ${asked.consentBytes} bytes, not ${want.bytes}`);
+    assert(
+      asked.consent.includes(`needs ${want.stated} of agda-algebras' interfaces: ${want.count}, from this site.`),
+      `the question says ${JSON.stringify(asked.consent)}, not ${want.stated} and ${want.count}`,
     );
+    assert(asked.consentFocused, "the question the reader asked for does not have the focus on its Fetch button");
+    await new Promise((done) => setTimeout(done, 1000));
+    assert(archiveRequests(from).length === 0, `archives were requested before the answer: ${archiveRequests(from)}`);
+    // At 400 px the question wraps, and nothing scrolls sideways.
+    await page.setViewport(400, 900);
+    await new Promise((done) => setTimeout(done, 300));
+    const narrow = await page.eval(() => ({
+      width: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      buttons: [...document.querySelectorAll(".consent button")].map((b) => {
+        const box = b.getBoundingClientRect();
+        return box.width > 0 && box.right <= document.documentElement.clientWidth + 0.5;
+      }),
+    }));
+    await page.setViewport(1440, 900);
+    assert(narrow.scrollWidth <= narrow.width, `at 400 px the page scrolls sideways (${narrow.scrollWidth} > ${narrow.width})`);
+    assert(narrow.buttons.length === 3 && narrow.buttons.every(Boolean), `at 400 px the question's buttons are not all in view: ${narrow.buttons}`);
+    // Esc cancels: nothing is fetched, nothing checked; a second check asks again.
+    await page.press("Escape", "Escape", 27);
+    await waitFor((s) => s.consent === null && !s.busy, "the question cancelled");
+    assert(archiveRequests(from).length === 0, `archives were requested after a cancel: ${archiveRequests(from)}`);
+    await page.eval(() => document.querySelector(".cm-content").focus());
+    const since = await page.eval(() => performance.now());
+    await page.press("Enter", "Enter", 13, 2);
+    await waitFor((s) => s.consent !== null && !s.busy, "the question asked again");
+    await page.eval(() => document.querySelector(".consent-fetch").click());
+    const checked = await waitForCheck(since, "the library import's check");
     results.timings["library import, as the page reports it"] = milliseconds(checked.status);
+    assert(checked.problems.length === 0, `the import reported ${JSON.stringify(checked.problems)}`);
+    const requested = archiveRequests(from);
+    results.libraryRequests = requested;
     assert(
-      checked.problems.length === 0,
-      `the import reported ${JSON.stringify(checked.problems)}`,
+      JSON.stringify(requested) === JSON.stringify(want.urls),
+      `the page requested ${JSON.stringify(requested)}, not ${JSON.stringify(want.urls)}`,
     );
-    // An Infer shows the compiler log, with the check's Checking lines.
-    await click("Infer type");
-    await waitFor((s) => s.minibuffer, "the Infer minibuffer");
-    await submit(LIBRARY.infer);
-    const inferred = await waitFor(
-      (s) =>
-        !s.busy &&
-        !s.minibuffer &&
-        ((s.status === "Inferred type" && s.log !== null) || s.problems.length > 0),
-      "the library's inferred type and the compiler log",
-    );
+    const events = await page.eval(() => window.__browserCheck);
+    const asks = events.filter((e) => e.name === "consent" && e.text);
+    assert(asks.length === 2, `the page asked ${asks.length} times, not twice (once, cancelled, and once more)`);
+    const progress = `Fetching agda-algebras' interfaces: ${want.stated.replace(/ \(.*$/, "").replace(/^([\d.]+) (\S+)$/, "$1 of $1 $2")}`;
     assert(
-      inferred.problems.length === 0,
-      `Infer reported ${JSON.stringify(inferred.problems)}`,
+      events.some((e) => e.name === "status" && e.text === progress),
+      `the inspector never said "${progress}"`,
     );
-    const checking = [...inferred.log.matchAll(/Checking (\S+) \(/g)].map((m) => m[1]);
+    const checking = await inferChecking(LIBRARY.infer);
     results.libraryChecking = checking;
     assert(
-      checking.includes("Main") && checking.includes(LIBRARY.module) && checking.length === LIBRARY.checking,
-      `the import type-checked [${checking}], expected Main, ${LIBRARY.module} and the 10 modules it imports`,
+      JSON.stringify(checking) === JSON.stringify(["Main"]),
+      `the import type-checked [${checking}], not Main alone: an archive's interface was not accepted`,
     );
   });
   // Keep the runtime check's screenshot and event record before the steps
@@ -628,6 +889,205 @@ try {
       throw error;
     }
   });
+
+  await step("a second visit, from the browser's store", async () => {
+    const want = expected(needs([LIBRARY.module]));
+    await waitForStore(want.digests, "the archives kept before the page is left");
+    // A drive cache of another namespace, as an earlier deploy leaves it.
+    const stale = `${DRIVE_CACHE_PREFIX}0000000000000000`;
+    await page.eval(
+      ({ name, key }) =>
+        new Promise((resolve, reject) => {
+          const open = indexedDB.open(name, 1);
+          open.onupgradeneeded = () => open.result.createObjectStore("files", { keyPath: "path" });
+          open.onsuccess = () => {
+            open.result.close();
+            localStorage.setItem(key, JSON.stringify([...JSON.parse(localStorage.getItem(key) ?? "[]"), "0000000000000000"]));
+            resolve(true);
+          };
+          open.onerror = () => reject(open.error);
+        }),
+      { name: stale, key: DRIVE_NAMESPACES_KEY },
+    );
+    const from = server.log.length;
+    await reload();
+    const checked = await waitFor(
+      (s) => noQuestion(s, "the second visit") && !s.busy && s.status.startsWith("Module checked"),
+      "the second visit's automatic check",
+    );
+    results.timings["second visit's check, as the page reports it"] = milliseconds(checked.status);
+    const events = await page.eval(() => window.__browserCheck);
+    assert(!events.some((e) => e.name === "consent" && e.text), "the second visit asked before its check");
+    assert(archiveRequests(from).length === 0, `the second visit requested ${archiveRequests(from)}`);
+    const count = `${want.urls.length} ${want.urls.length === 1 ? "archive" : "archives"}`;
+    const mounted = `Mounting ${count} of agda-algebras' interfaces, kept in this browser…`;
+    assert(events.some((e) => e.name === "bar" && e.text?.includes(mounted)), `the status bar never said "${mounted}"`);
+    const databases = await page.eval(() => indexedDB.databases().then((all) => all.map((d) => d.name)));
+    results.databases = databases;
+    assert(!databases.includes(stale), `the drive cache of another namespace, ${stale}, is still there`);
+    assert(
+      databases.some((name) => name.startsWith(DRIVE_CACHE_PREFIX)) && databases.includes(ARCHIVE_STORE),
+      `the drive's own cache or the archive store is gone: ${databases}`,
+    );
+    const checking = await inferChecking(LIBRARY.infer);
+    results.secondVisitChecking = checking;
+    assert(checking.every((name) => name === "Main"), `the second visit type-checked [${checking}], not Main alone`);
+  });
+
+  await step("import Setoid.Varieties.HSP, asked once", async () => {
+    const mounted = needs([LIBRARY.module]);
+    const want = expected(needs([HSP.module]).filter((path) => !mounted.includes(path)));
+    results.hspImport = { archives: want.urls.length, bytes: want.bytes, stated: want.stated };
+    await page.eval(() => document.querySelector(".cm-content").focus());
+    await page.press("a", "KeyA", 65, 2);
+    await page.type(HSP.source);
+    const from = server.log.length;
+    const since = await page.eval(() => performance.now());
+    await page.press("Enter", "Enter", 13, 2);
+    const asked = await waitFor((s) => s.consent !== null && !s.busy, "the question before HSP's fetch");
+    results.hspQuestion = asked.consent;
+    assert(asked.consentBytes === String(want.bytes), `the question states ${asked.consentBytes} bytes, not ${want.bytes}`);
+    assert(
+      asked.consent.includes(`needs ${want.stated} of agda-algebras' interfaces: ${want.count}, from this site.`),
+      `the question says ${JSON.stringify(asked.consent)}`,
+    );
+    assert(archiveRequests(from).length === 0, "archives were requested before the answer");
+    // Fetch, without remembering the answer: the check after the edit
+    // below must ask again if the plan wanted anything.
+    await page.eval(() => document.querySelector(".consent-fetch").click());
+    // The Explorer, while the mount and the check run, which take seconds
+    // (issue 9).
+    await useExplorerWhileBusy(page, (results.explorer.whileBusy = {}));
+    const started = performance.now();
+    const checked = await waitForCheck(since, "HSP's check");
+    results.timings["HSP: from the answer to the check's end"] = Math.round(performance.now() - started);
+    results.timings["HSP import, as the page reports it"] = milliseconds(checked.status);
+    assert(checked.problems.length === 0, `HSP's import reported ${JSON.stringify(checked.problems)}`);
+    const requested = archiveRequests(from);
+    assert(
+      JSON.stringify(requested) === JSON.stringify(want.urls),
+      `the page requested ${requested.length} archives, not the ${want.urls.length} expected`,
+    );
+    const checking = await inferChecking(HSP.infer);
+    results.hspChecking = checking;
+    assert(JSON.stringify(checking) === JSON.stringify(["Main"]), `HSP's import type-checked [${checking}], not Main alone`);
+    // An edit that imports nothing new: no question, no request.
+    await page.eval(() => document.querySelector(".cm-content").focus());
+    await page.press("End", "End", 35, 2);
+    await page.type("\n-- an edit that imports nothing new\n");
+    const again = server.log.length;
+    const sinceEdit = await page.eval(() => performance.now());
+    await page.press("Enter", "Enter", 13, 2);
+    await waitForCheck(sinceEdit, "the check after an edit");
+    const after = (await page.eval(() => window.__browserCheck)).filter((e) => e.t >= sinceEdit);
+    assert(!after.some((e) => e.name === "consent" && e.text), "a check that imports nothing new asked again");
+    assert(archiveRequests(again).length === 0, `a check that imports nothing new requested ${archiveRequests(again)}`);
+  });
+
+  await step("a changed archive, fetched again", async () => {
+    const all = expected(needs([HSP.module]));
+    await waitForStore(all.digests, "HSP's archives kept");
+    // A browser that visited an earlier deploy: this archive under another
+    // digest, and its current copy absent.
+    const changed = `interfaces/${LIBRARY.module}.zip`;
+    const current = INDEX.archives[changed].sha256;
+    const old = "f".repeat(64);
+    await replaceKept(current, { sha256: old, path: changed });
+    const want = expected([changed]);
+    const from = server.log.length;
+    await reload();
+    // The automatic check asks for that archive alone, and its bytes.
+    const asked = await waitFor((s) => s.consent !== null && !s.busy, "the question for the changed archive");
+    assert(asked.consentBytes === String(want.bytes), `the question states ${asked.consentBytes} bytes, not ${want.bytes}`);
+    assert(
+      asked.consent.includes(`needs ${want.stated} of agda-algebras' interfaces: ${want.count}, from this site.`),
+      `the question says ${JSON.stringify(asked.consent)}`,
+    );
+    assert(!asked.consentFocused, "the automatic check's question took the focus");
+    assert(archiveRequests(from).length === 0, "the changed archive was requested before the answer");
+    // The old copy is evicted when the page reads the index.
+    await waitForStore([], `the stale copy ${old.slice(0, 16)} evicted`, (keys) => !keys.includes(old));
+    // Remember the answer for the tab, and fetch.
+    await page.eval(() => {
+      document.querySelector(".consent-remember input").click();
+      document.querySelector(".consent-fetch").click();
+    });
+    await waitFor((s) => !s.busy && s.consent === null && s.status.startsWith("Module checked"), "the check after the fetch");
+    const requested = archiveRequests(from);
+    results.changedRequests = requested;
+    assert(
+      JSON.stringify(requested) === JSON.stringify(want.urls),
+      `after the change the page requested ${JSON.stringify(requested)}, not ${JSON.stringify(want.urls)}`,
+    );
+    await waitForStore([current], "the changed archive kept");
+    const checking = await inferChecking(HSP.infer);
+    results.changedChecking = checking;
+    assert(checking.every((name) => name === "Main"), `after the change the check type-checked [${checking}], not Main alone`);
+  });
+
+  await step("a remembered answer: the bytes stated, then fetched", async () => {
+    // Another archive gone from the store; the answer is remembered.
+    const gone = needs([LIBRARY.module]).find((path) => path !== `interfaces/${LIBRARY.module}.zip`);
+    const want = expected([gone]);
+    await replaceKept(INDEX.archives[gone].sha256);
+    const from = server.log.length;
+    await reload();
+    const checked = await waitFor(
+      (s) => noQuestion(s, "the check with the answer remembered") && !s.busy && s.status.startsWith("Module checked"),
+      "the automatic check with the answer remembered",
+    );
+    assert(checked.problems.length === 0, `the check reported ${JSON.stringify(checked.problems)}`);
+    const requested = archiveRequests(from);
+    assert(
+      JSON.stringify(requested) === JSON.stringify(want.urls),
+      `with the answer remembered the page requested ${JSON.stringify(requested)}, not ${JSON.stringify(want.urls)}`,
+    );
+    // The bytes are stated before the request is made, on the page's clock,
+    // as measured, not rounded.
+    const events = await page.eval(() => window.__browserCheck);
+    const stated = `Fetching 1 archive of agda-algebras' interfaces, ${want.stated}…`;
+    const statedAt = events.find((e) => e.name === "bar" && e.text?.includes(stated))?.at;
+    const requestedAt = (await page.eval(() => window.__browserCheckResources))[0]?.at;
+    results.rememberedStated = { statedAt, requestedAt };
+    assert(statedAt !== undefined, `the status bar never said "${stated}"`);
+    assert(requestedAt !== undefined && statedAt < requestedAt, `the bytes were stated at ${statedAt} ms, not before the request at ${requestedAt} ms`);
+  });
+
+  await step("a declined fetch: what the browser keeps still mounts", async () => {
+    // Forget the remembered answer, and lose one more archive from the
+    // store: the next check asks for it alone.
+    await page.eval(() => sessionStorage.removeItem("agda-native-ide:fetch-choice:agda-algebras"));
+    const declined = needs([LIBRARY.module]).find((path) => path !== `interfaces/${LIBRARY.module}.zip` && path !== needs([LIBRARY.module]).find((p) => p !== `interfaces/${LIBRARY.module}.zip`));
+    const want = expected([declined]);
+    await replaceKept(INDEX.archives[declined].sha256);
+    const from = server.log.length;
+    await reload();
+    const asked = await waitFor((s) => s.consent !== null && !s.busy, "the question for one archive");
+    assert(asked.consentBytes === String(want.bytes), `the question states ${asked.consentBytes} bytes, not ${want.bytes}`);
+    await page.eval(() => document.querySelector(".consent-source").click());
+    const checked = await waitFor(
+      (s) => noQuestion(s, "the check after a decline") && !s.busy && s.status.startsWith("Module checked"),
+      "the check after the decline",
+    );
+    assert(checked.problems.length === 0, `the check reported ${JSON.stringify(checked.problems)}`);
+    assert(archiveRequests(from).length === 0, `a declined fetch requested ${archiveRequests(from)}`);
+    assert(/were not fetched/.test(checked.note ?? ""), `the note says ${JSON.stringify(checked.note)}`);
+    // The archives the browser kept were mounted; Agda checked the declined
+    // archive's modules from source, and accepted the archived interfaces
+    // above them, which name those modules by their sources' hashes, and
+    // Main's own restored interface, for the same reason (Main is not
+    // always among the Checking lines).
+    const fromSource = Object.entries(INDEX.modules)
+      .filter(([, module]) => module.archive === declined)
+      .map(([name]) => name);
+    const checking = await inferChecking(HSP.infer);
+    results.declinedChecking = { declined, fromSource, checking };
+    assert(
+      JSON.stringify(checking.filter((name) => name !== "Main").sort()) === JSON.stringify([...fromSource].sort()),
+      `after the decline the check type-checked [${checking}], not the declined archive's [${fromSource}] alone (and Main)`,
+    );
+  });
+
   if (options.browser === "chromium") {
     await step("themes", async () => {
       results.themes = await checkThemes(page, server.origin, site, join(out, "themes"));

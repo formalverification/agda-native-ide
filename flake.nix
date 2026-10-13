@@ -19,9 +19,11 @@
 # own lib/prim (mkAgdaData, below); the standard library, which `nix
 # build .#stdlib` builds patched; and agda-algebras' sources, zipped from
 # its pinned commit (mkAgdaAlgebrasSources), with the list of its modules
-# (mkAgdaAlgebrasModules).  `make assets` copies the
-# result into static/, and `make build` checks the files there against
-# their pins before it builds.  docs/provenance.md records where each file
+# (mkAgdaAlgebrasModules), and its archive index and interface archives
+# (agda-algebras-archives), so the site's build depends on the interfaces'
+# (issue 14).  `make assets` copies the result into static/, and `make
+# build` checks the files there against their pins before it builds.
+# docs/provenance.md records where each file
 # comes from and its license.
 #
 # `nix build .#site` builds the static site: the npm dependencies are
@@ -437,7 +439,9 @@
         # its reactor build, as als-reactor-2.9.0.wasm, with its JavaScript
         # glue as als-reactor-2.9.0.js (issue 59); the command build,
         # als.wasm, stays pinned for the compiler's records and is not
-        # shipped.
+        # shipped.  agda-algebras' archive index and its interface archives
+        # (agda-algebras-archives) are under static/agda-algebras/, which
+        # the page mounts from as a check's imports need them (issue 14).
         assets = pkgs.runCommand "plfa-playground-assets" { } (
           lib.concatMapStrings (pin: ''
             install -D -m 444 ${fetchPin pkgs pin} "$out/${pin.path}"
@@ -448,6 +452,8 @@
             install -D -m 444 ${stdlib}/agda-stdlib-2.3-patched.zip "$out/static/agda-stdlib-2.3-patched.zip"
             install -D -m 444 ${agdaAlgebrasSources}/agda-algebras-sources.zip "$out/static/agda-algebras-sources.zip"
             install -D -m 444 ${agdaAlgebrasModules}/agda-algebras-modules.json "$out/static/agda-algebras-modules.json"
+            install -D -m 444 ${agda-algebras-archives}/index.json "$out/static/agda-algebras/index.json"
+            install -D -m 444 -t "$out/static/agda-algebras/interfaces" ${agda-algebras-archives}/interfaces/*.zip
           '');
 
         # The static site, as `make build` writes it into build/.

@@ -243,18 +243,24 @@ library-gate: packages ## Check agda-algebras' archives under $(SITE)'s language
 # the standard library, agda-stdlib-2.3-patched.zip (`nix build
 # .#stdlib`), and agda-algebras' sources, agda-algebras-sources.zip, for
 # the playground's project (issue 11), with the list of its modules,
-# agda-algebras-modules.json, for the Explorer (issue 9).  `make assets`
-# copies the set into static/, and `make build` refuses to build unless
-# every pinned file there still matches its pin, those six are the flake's,
-# and the list is the archive's (scripts/library-modules.mjs --check).  (Inside the Nix
-# sandbox, where `nix build .#site` runs the same `make build`, there is
-# no nix to ask, and the site's derivation copies them in itself.)  docs/provenance.md
-# records them all.  `make build` also publishes NOTICE (as NOTICE.txt)
-# and licenses/ in build/.
+# agda-algebras-modules.json, for the Explorer (issue 9); and agda-algebras'
+# archive index and interface archives, static/agda-algebras/ (`nix build
+# .#agda-algebras-archives`), which the page mounts as a check's imports
+# need them (issue 14).  `make assets` copies the set into static/, and
+# `make build` refuses to build unless every pinned file there still
+# matches its pin, those six files and that directory are the flake's, and
+# the list is the archive's (scripts/library-modules.mjs --check).  (Inside
+# the Nix sandbox, where `nix build .#site` runs the same `make build`,
+# there is no nix to ask, and the site's derivation copies them in
+# itself.)  docs/provenance.md records them all.  `make build` also
+# publishes NOTICE (as NOTICE.txt) and licenses/ in build/.
 #
 # dev, build, test and check install the locked npm dependencies first
 # (`npm ci`) when a workspace manifest or package-lock.json is newer than
 # the last install, and build the shared packages (`make packages`).
+# `make dev` reads the assets' digests once, when it starts: restart it
+# after `make assets`, or the page refuses agda-algebras' new index as not
+# the one it was built with.
 #
 #   PINS           the pinned binaries (default: upstream/assets.sha256)
 #   UNCHANGED      the imported files that are still upstream's, byte for
@@ -275,6 +281,9 @@ PINS      ?= upstream/assets.sha256
 OWN_ASSETS := agda-data.zip als-reactor-2.9.0.wasm als-reactor-2.9.0.js \
               agda-stdlib-2.3-patched.zip agda-algebras-sources.zip \
               agda-algebras-modules.json
+# The directory in static/ that is wholly the flake's: `make assets`
+# replaces it, so an archive the index no longer names does not stay.
+OWN_DIRS := agda-algebras
 UNCHANGED ?= upstream/unchanged.sha256
 SITE_REVISION ?= $(shell rev=$$(git rev-parse HEAD 2>/dev/null) && \
   if [ -n "$$(git status --porcelain 2>/dev/null)" ]; then echo $$rev-dirty; else echo $$rev; fi)
@@ -286,6 +295,7 @@ assets: ## Fetch the pinned binaries, build the flake's own (nix build .#assets)
 	      rm "$$f" && echo "assets: removed $$f, which the set no longer has"; \
 	    fi; \
 	  done && \
+	  for d in $(OWN_DIRS); do rm -rf "static/$$d"; done && \
 	  cp -R --no-preserve=mode,ownership "$$out"/static/. static/ && \
 	  echo "assets: copied $$out/static into static/"
 	@$(MAKE) --no-print-directory assets-check
@@ -300,6 +310,14 @@ assets-check: ## Check the pinned binaries in static/, and that the flake's own 
 	      echo "assets-check: static/$$f is the flake's"; \
 	    else \
 	      echo "assets-check: static/$$f is not the flake's ($$built); run make assets" >&2; \
+	      exit 1; \
+	    fi; \
+	  done; \
+	  for d in $(OWN_DIRS); do \
+	    if diff -rq "$$built/static/$$d" "static/$$d" > /dev/null 2>&1; then \
+	      echo "assets-check: static/$$d/ is the flake's ($$(find "static/$$d" -type f | wc -l) files)"; \
+	    else \
+	      echo "assets-check: static/$$d/ is not the flake's ($$built); run make assets" >&2; \
 	      exit 1; \
 	    fi; \
 	  done; \

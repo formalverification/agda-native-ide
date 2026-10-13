@@ -1,0 +1,1180 @@
+{
+ "run": "library-mount-2026-10-13",
+ "issue": 14,
+ "date": "2026-10-13",
+ "clock": "Times are UTC where a run records them; the workstation's clock read MDT (UTC-6).",
+ "revision": "7b4e3f0fe7b0837fba3c046bdca80ca459783ccf",
+ "revisions": "The revisions this record names are the branch's before its history was rewritten twice: split into thematic commits, then rebased onto main at 4a45506 (pull request 91, the Explorer).  4622928, d1ffafa and 7b4e3f0 were never pushed; 7427de4 and 442a463 were the pull request's first two heads.  Their code: d1ffafa's is 7427de4's; 7b4e3f0's and 814c942's are 442a463's, less this record; 4622928's is d1ffafa's before the review's fixes.  On main, 7427de4's code is a77488c's and 442a463's is b0b8c9b's; at e63412d (b0b8c9b with the plan's mirror of issue 9's closing) the gates, the browser check in Chromium with and without the isolation headers, its notices, and the browser check in Firefox 157 passed again, 2026-10-13, with the Explorer's steps beside these.",
+ "machine": {
+  "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+  "logicalCpus": 20,
+  "memoryBytes": 67068481536,
+  "kernel": "7.0.0-31-generic",
+  "note": "A laptop CPU shared with other sessions; the load averages are given with each set, and times are indicative.  The counts (archives, bytes, requests, Checking lines) and the messages are the findings."
+ },
+ "inputs": {
+  "browser": "Chrome/149.0.7827.200 (the flake's chromium, headless); Firefox 157.0 (the system's) for one run",
+  "agdaVersion": "2.9.0",
+  "archives": "nix build .#agda-algebras-archives at agda-algebras f067d57d: index.json 285,618 bytes, SHA-256 7f94ac5807604672cc824bf9aea81d62471fe741726f221987d20f7b04a3d6a8; 395 interface archives, 70,104,812 bytes",
+  "site": "build/ from make build: 100,856,795 bytes, against 30,439,204 at the base (444452a)"
+ },
+ "origin": {
+  "what": "Can the page read archives from a GitHub release, or from GitHub Pages?  A page served at 127.0.0.1 fetched each (probe below); the headers are curl's, with an Origin header.",
+  "browser": {
+   "browser": "Chrome/149.0.7827.200",
+   "origin": "http://127.0.0.1:38157",
+   "date": "2026-10-13T13:29:06.452Z",
+   "results": {
+    "release": {
+     "url": "https://github.com/formalverification/agda-wasm-builds/releases/download/agda-2.9.0-da66a8c-als-8/SHA256SUMS",
+     "error": "TypeError: Failed to fetch"
+    },
+    "pages": {
+     "url": "https://formalverification.github.io/agda-native-air/assets/images/favicon.png",
+     "ok": true,
+     "status": 200,
+     "bytes": 1870,
+     "acao": null
+    }
+   }
+  },
+  "headers": [
+   "HTTP/2 302 ",
+   "location: https://release-assets.githubusercontent.com/github-production-release",
+   "HTTP/2 200 ",
+   "HTTP/2 200 ",
+   "access-control-allow-origin: *",
+   "cache-control: max-age=600"
+  ],
+  "finding": "A release's 302 from github.com and the 200 from release-assets.githubusercontent.com send no Access-Control-Allow-Origin, so fetch fails; GitHub Pages sends access-control-allow-origin: *.  William chose the site's own origin (2026-10-13)."
+ },
+ "importsReading": {
+  "what": "For each module of agda-algebras and of the standard library the index lists, the closure through the index of the imports importedModules reads from its source, against the module's closure in Agda's graph, less itself (probe below).",
+  "checked": 601,
+  "equal": 597,
+  "differing": "4, by Agda.Primitive alone, which Agda imports without a statement: Examples.Demos.GeneralOperationsAndRelations, Legacy.Base.Complexity.Basic, Overture.Preface, Setoid.Complexity.Basic",
+  "followed": {
+   "what": "planImports over the shipped standard library's sources, for imports the index does not list",
+   "Data.Vec": "29 archives, 25,191,583 bytes; 2 modules from source (Data.Vec, Data.Vec.Bounded.Base); the index alone: none",
+   "Data.String": "33 archives, 29,661,094 bytes; 6 modules from source",
+   "Data.Rational": "35 archives, 30,468,550 bytes; 52 modules from source"
+  }
+ },
+ "browserBuiltInterfaces": {
+  "what": "The interfaces the page wrote when it checked an import from source (main's site, 444452a, no archive mounted), read back from the drive's IndexedDB cache, against the archives' entries at the same paths (probe below).",
+  "Overture.Signatures": {
+   "status": "Module checked · 5.79 s",
+   "identical": "11 of 11"
+  },
+  "Setoid.Algebras.Basic": {
+   "status": "Module checked · 5m 0.5s",
+   "identical": "170 of 170",
+   "load": "10 to 13"
+  },
+  "agda": "Agda 2.9.0 at da66a8c accepts an import by iFullHash = combineHashes (iSourceHash : the imports' hashes) (src/full/Agda/TypeChecking/Monad/Base.hs:1608, Interaction/Imports.hs:1156), not by the interface's bytes."
+ },
+ "hashing": {
+  "what": "SHA-256 of the largest archive (stdlib-bbd88e40b6f4.zip, 6,965,690 bytes) under node 22",
+  "engineCorePureJs": "518 ms",
+  "webCrypto": "16 ms"
+ },
+ "mountTimes": {
+  "what": "A fresh profile per import, Main stored before the page loads, the automatic check's question answered (first visit), then a reload in the same profile (second visit).  mountMs is from the answer (or, on the second visit, the status bar's 'Mounting ... kept in this browser') to the heading's 'Checking source'; checkS is the page's own duration; a local server.",
+  "samples": [
+   {
+    "revision": "4622928",
+    "when": "2026-10-13T13:17Z",
+    "load": "2.1 to 3.1",
+    "runs": [
+     {
+      "module": "Overture.Basic",
+      "round": 0,
+      "visit": "first",
+      "load": 2.28,
+      "stated": 4318471,
+      "archives": 14,
+      "bytes": 4318471,
+      "agdaReadyMs": 697,
+      "mountMs": 58,
+      "checkS": 1.06,
+      "answerToCheckedMs": 1145
+     },
+     {
+      "module": "Overture.Basic",
+      "round": 0,
+      "visit": "second",
+      "load": 2.23,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 559,
+      "mountMs": 47,
+      "checkS": 1.02,
+      "navigationToCheckedMs": 1727
+     },
+     {
+      "module": "Setoid.Algebras.Basic",
+      "round": 0,
+      "visit": "first",
+      "load": 2.23,
+      "stated": 16974016,
+      "archives": 50,
+      "bytes": 16974016,
+      "agdaReadyMs": 697,
+      "mountMs": 157,
+      "checkS": 2.95,
+      "answerToCheckedMs": 3136
+     },
+     {
+      "module": "Setoid.Algebras.Basic",
+      "round": 0,
+      "visit": "second",
+      "load": 2.2,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 585,
+      "mountMs": 94,
+      "checkS": 2.97,
+      "navigationToCheckedMs": 3720
+     },
+     {
+      "module": "Setoid.Varieties.HSP",
+      "round": 0,
+      "visit": "first",
+      "load": 2.2,
+      "stated": 39251541,
+      "archives": 128,
+      "bytes": 39251541,
+      "agdaReadyMs": 706,
+      "mountMs": 419,
+      "checkS": 6.28,
+      "answerToCheckedMs": 6713
+     },
+     {
+      "module": "Setoid.Varieties.HSP",
+      "round": 0,
+      "visit": "second",
+      "load": 2.09,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 601,
+      "mountMs": 188,
+      "checkS": 6.06,
+      "navigationToCheckedMs": 6949
+     },
+     {
+      "module": "Overture.Basic",
+      "round": 1,
+      "visit": "first",
+      "load": 2.09,
+      "stated": 4318471,
+      "archives": 14,
+      "bytes": 4318471,
+      "agdaReadyMs": 694,
+      "mountMs": 53,
+      "checkS": 1.01,
+      "answerToCheckedMs": 1095
+     },
+     {
+      "module": "Overture.Basic",
+      "round": 1,
+      "visit": "second",
+      "load": 2.08,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 565,
+      "mountMs": 43,
+      "checkS": 1.06,
+      "navigationToCheckedMs": 1727
+     },
+     {
+      "module": "Setoid.Algebras.Basic",
+      "round": 1,
+      "visit": "first",
+      "load": 2.08,
+      "stated": 16974016,
+      "archives": 50,
+      "bytes": 16974016,
+      "agdaReadyMs": 691,
+      "mountMs": 153,
+      "checkS": 3.21,
+      "answerToCheckedMs": 3406
+     },
+     {
+      "module": "Setoid.Algebras.Basic",
+      "round": 1,
+      "visit": "second",
+      "load": 1.99,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 573,
+      "mountMs": 115,
+      "checkS": 3.16,
+      "navigationToCheckedMs": 3949
+     },
+     {
+      "module": "Setoid.Varieties.HSP",
+      "round": 1,
+      "visit": "first",
+      "load": 1.99,
+      "stated": 39251541,
+      "archives": 128,
+      "bytes": 39251541,
+      "agdaReadyMs": 731,
+      "mountMs": 416,
+      "checkS": 6.54,
+      "answerToCheckedMs": 6993
+     },
+     {
+      "module": "Setoid.Varieties.HSP",
+      "round": 1,
+      "visit": "second",
+      "load": 2.14,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 604,
+      "mountMs": 167,
+      "checkS": 6.31,
+      "navigationToCheckedMs": 7180
+     },
+     {
+      "module": "Overture.Basic",
+      "round": 2,
+      "visit": "first",
+      "load": 2.14,
+      "stated": 4318471,
+      "archives": 14,
+      "bytes": 4318471,
+      "agdaReadyMs": 803,
+      "mountMs": 67,
+      "checkS": 1.16,
+      "answerToCheckedMs": 1250
+     },
+     {
+      "module": "Overture.Basic",
+      "round": 2,
+      "visit": "second",
+      "load": 2.53,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 602,
+      "mountMs": 29,
+      "checkS": 1.01,
+      "navigationToCheckedMs": 1706
+     },
+     {
+      "module": "Setoid.Algebras.Basic",
+      "round": 2,
+      "visit": "first",
+      "load": 2.53,
+      "stated": 16974016,
+      "archives": 50,
+      "bytes": 16974016,
+      "agdaReadyMs": 769,
+      "mountMs": 201,
+      "checkS": 3.63,
+      "answerToCheckedMs": 3871
+     },
+     {
+      "module": "Setoid.Algebras.Basic",
+      "round": 2,
+      "visit": "second",
+      "load": 3.14,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 608,
+      "mountMs": 96,
+      "checkS": 3.22,
+      "navigationToCheckedMs": 4005
+     },
+     {
+      "module": "Setoid.Varieties.HSP",
+      "round": 2,
+      "visit": "first",
+      "load": 3.14,
+      "stated": 39251541,
+      "archives": 128,
+      "bytes": 39251541,
+      "agdaReadyMs": 742,
+      "mountMs": 431,
+      "checkS": 6.6,
+      "answerToCheckedMs": 7040
+     },
+     {
+      "module": "Setoid.Varieties.HSP",
+      "round": 2,
+      "visit": "second",
+      "load": 3.12,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 678,
+      "mountMs": 256,
+      "checkS": 6.96,
+      "navigationToCheckedMs": 7988
+     }
+    ],
+    "medians": {
+     "Overture.Basic": {
+      "stated": 4318471,
+      "archives": 14,
+      "firstVisit": {
+       "mountMs": 58,
+       "checkS": 1.06,
+       "answerToCheckedMs": 1145
+      },
+      "secondVisit": {
+       "mountMs": 43,
+       "checkS": 1.02,
+       "navigationToCheckedMs": 1727,
+       "archivesRequested": 0,
+       "asked": 0
+      }
+     },
+     "Setoid.Algebras.Basic": {
+      "stated": 16974016,
+      "archives": 50,
+      "firstVisit": {
+       "mountMs": 157,
+       "checkS": 3.21,
+       "answerToCheckedMs": 3406
+      },
+      "secondVisit": {
+       "mountMs": 96,
+       "checkS": 3.16,
+       "navigationToCheckedMs": 3949,
+       "archivesRequested": 0,
+       "asked": 0
+      }
+     },
+     "Setoid.Varieties.HSP": {
+      "stated": 39251541,
+      "archives": 128,
+      "firstVisit": {
+       "mountMs": 419,
+       "checkS": 6.54,
+       "answerToCheckedMs": 6993
+      },
+      "secondVisit": {
+       "mountMs": 188,
+       "checkS": 6.31,
+       "navigationToCheckedMs": 7180,
+       "archivesRequested": 0,
+       "asked": 0
+      }
+     }
+    }
+   },
+   {
+    "revision": "d1ffafa",
+    "when": "2026-10-13T13:42Z",
+    "load": "1.8 to 4.9",
+    "runs": [
+     {
+      "module": "Overture.Basic",
+      "round": 0,
+      "visit": "first",
+      "load": 1.76,
+      "stated": 4318471,
+      "archives": 14,
+      "bytes": 4318471,
+      "agdaReadyMs": 748,
+      "mountMs": 77,
+      "checkS": 1.19,
+      "answerToCheckedMs": 1302
+     },
+     {
+      "module": "Overture.Basic",
+      "round": 0,
+      "visit": "second",
+      "load": 1.78,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 613,
+      "mountMs": 29,
+      "checkS": 1.15,
+      "navigationToCheckedMs": 1877
+     },
+     {
+      "module": "Setoid.Algebras.Basic",
+      "round": 0,
+      "visit": "first",
+      "load": 1.78,
+      "stated": 16974016,
+      "archives": 50,
+      "bytes": 16974016,
+      "agdaReadyMs": 754,
+      "mountMs": 173,
+      "checkS": 3.32,
+      "answerToCheckedMs": 3532
+     },
+     {
+      "module": "Setoid.Algebras.Basic",
+      "round": 0,
+      "visit": "second",
+      "load": 2.04,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 627,
+      "mountMs": 93,
+      "checkS": 3.39,
+      "navigationToCheckedMs": 4174
+     },
+     {
+      "module": "Setoid.Varieties.HSP",
+      "round": 0,
+      "visit": "first",
+      "load": 2.04,
+      "stated": 39251541,
+      "archives": 128,
+      "bytes": 39251541,
+      "agdaReadyMs": 747,
+      "mountMs": 368,
+      "checkS": 7.3,
+      "answerToCheckedMs": 7676
+     },
+     {
+      "module": "Setoid.Varieties.HSP",
+      "round": 0,
+      "visit": "second",
+      "load": 3.97,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 958,
+      "mountMs": 272,
+      "checkS": 8.52,
+      "navigationToCheckedMs": 9810
+     },
+     {
+      "module": "Overture.Basic",
+      "round": 1,
+      "visit": "first",
+      "load": 3.97,
+      "stated": 4318471,
+      "archives": 14,
+      "bytes": 4318471,
+      "agdaReadyMs": 959,
+      "mountMs": 100,
+      "checkS": 1.57,
+      "answerToCheckedMs": 1709
+     },
+     {
+      "module": "Overture.Basic",
+      "round": 1,
+      "visit": "second",
+      "load": 4.53,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 593,
+      "mountMs": 46,
+      "checkS": 1.07,
+      "navigationToCheckedMs": 1766
+     },
+     {
+      "module": "Setoid.Algebras.Basic",
+      "round": 1,
+      "visit": "first",
+      "load": 4.53,
+      "stated": 16974016,
+      "archives": 50,
+      "bytes": 16974016,
+      "agdaReadyMs": 815,
+      "mountMs": 191,
+      "checkS": 3.73,
+      "answerToCheckedMs": 3951
+     },
+     {
+      "module": "Setoid.Algebras.Basic",
+      "round": 1,
+      "visit": "second",
+      "load": 4.34,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 711,
+      "mountMs": 113,
+      "checkS": 3.81,
+      "navigationToCheckedMs": 4707
+     },
+     {
+      "module": "Setoid.Varieties.HSP",
+      "round": 1,
+      "visit": "first",
+      "load": 4.34,
+      "stated": 39251541,
+      "archives": 128,
+      "bytes": 39251541,
+      "agdaReadyMs": 1017,
+      "mountMs": 599,
+      "checkS": 9.04,
+      "answerToCheckedMs": 9660
+     },
+     {
+      "module": "Setoid.Varieties.HSP",
+      "round": 1,
+      "visit": "second",
+      "load": 4.51,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 786,
+      "mountMs": 227,
+      "checkS": 6.55,
+      "navigationToCheckedMs": 7631
+     },
+     {
+      "module": "Overture.Basic",
+      "round": 2,
+      "visit": "first",
+      "load": 4.51,
+      "stated": 4318471,
+      "archives": 14,
+      "bytes": 4318471,
+      "agdaReadyMs": 779,
+      "mountMs": 55,
+      "checkS": 1.25,
+      "answerToCheckedMs": 1357
+     },
+     {
+      "module": "Overture.Basic",
+      "round": 2,
+      "visit": "second",
+      "load": 4.13,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 654,
+      "mountMs": 32,
+      "checkS": 1.04,
+      "navigationToCheckedMs": 1778
+     },
+     {
+      "module": "Setoid.Algebras.Basic",
+      "round": 2,
+      "visit": "first",
+      "load": 4.13,
+      "stated": 16974016,
+      "archives": 50,
+      "bytes": 16974016,
+      "agdaReadyMs": 782,
+      "mountMs": 176,
+      "checkS": 3.73,
+      "answerToCheckedMs": 3935
+     },
+     {
+      "module": "Setoid.Algebras.Basic",
+      "round": 2,
+      "visit": "second",
+      "load": 4.35,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 733,
+      "mountMs": 95,
+      "checkS": 4.16,
+      "navigationToCheckedMs": 5081
+     },
+     {
+      "module": "Setoid.Varieties.HSP",
+      "round": 2,
+      "visit": "first",
+      "load": 4.35,
+      "stated": 39251541,
+      "archives": 128,
+      "bytes": 39251541,
+      "agdaReadyMs": 1035,
+      "mountMs": 599,
+      "checkS": 8.56,
+      "answerToCheckedMs": 9159
+     },
+     {
+      "module": "Setoid.Varieties.HSP",
+      "round": 2,
+      "visit": "second",
+      "load": 4.87,
+      "asked": 0,
+      "archives": 0,
+      "agdaReadyMs": 770,
+      "mountMs": 241,
+      "checkS": 7.83,
+      "navigationToCheckedMs": 8936
+     }
+    ],
+    "medians": {
+     "Overture.Basic": {
+      "stated": 4318471,
+      "archives": 14,
+      "firstVisit": {
+       "mountMs": 77,
+       "checkS": 1.25,
+       "answerToCheckedMs": 1357
+      },
+      "secondVisit": {
+       "mountMs": 32,
+       "checkS": 1.07,
+       "navigationToCheckedMs": 1778,
+       "archivesRequested": 0,
+       "asked": 0
+      }
+     },
+     "Setoid.Algebras.Basic": {
+      "stated": 16974016,
+      "archives": 50,
+      "firstVisit": {
+       "mountMs": 176,
+       "checkS": 3.73,
+       "answerToCheckedMs": 3935
+      },
+      "secondVisit": {
+       "mountMs": 95,
+       "checkS": 3.81,
+       "navigationToCheckedMs": 4707,
+       "archivesRequested": 0,
+       "asked": 0
+      }
+     },
+     "Setoid.Varieties.HSP": {
+      "stated": 39251541,
+      "archives": 128,
+      "firstVisit": {
+       "mountMs": 599,
+       "checkS": 8.56,
+       "answerToCheckedMs": 9159
+      },
+      "secondVisit": {
+       "mountMs": 241,
+       "checkS": 7.83,
+       "navigationToCheckedMs": 8936,
+       "archivesRequested": 0,
+       "asked": 0
+      }
+     }
+    }
+   }
+  ],
+  "fromSource": "Setoid.Algebras.Basic's 170 modules from source in the page: 1 min 38 s to 6 min 32 s over six runs (playground-2026-10-12.json), and 5 min 0.5 s on 2026-10-13 at a load of 10 to 13"
+ },
+ "browserCheck": {
+  "chromium": {
+   "browser": "Chrome/149.0.7827.200",
+   "served": "without the isolation headers",
+   "date": "2026-10-13T14:17:04.843Z",
+   "failure": null,
+   "timings": {
+    "Agda ready, since navigation": 790,
+    "first check done, since navigation": 1334,
+    "first check, as the page reports it": 468,
+    "first check": 1349,
+    "infer, and the first check's Checking lines": 128,
+    "give at goal 0": 360,
+    "check a type error": 265,
+    "refuse a postulate": 170,
+    "library import, as the page reports it": 141,
+    "import a module of agda-algebras, asked first": 1845,
+    "second visit's check, as the page reports it": 243,
+    "a second visit, from the browser's store": 1144,
+    "HSP: from the answer to the check's end": 7079,
+    "HSP import, as the page reports it": 6620,
+    "import Setoid.Varieties.HSP, asked once": 7966,
+    "a changed archive, fetched again": 8035,
+    "a remembered answer: the bytes stated, then fetched": 8099,
+    "a declined fetch: what the browser keeps still mounts": 7683,
+    "themes": 7698
+   },
+   "steps": [
+    "first check",
+    "infer, and the first check's Checking lines",
+    "give at goal 0",
+    "check a type error",
+    "refuse a postulate",
+    "import a module of agda-algebras, asked first",
+    "a second visit, from the browser's store",
+    "import Setoid.Varieties.HSP, asked once",
+    "a changed archive, fetched again",
+    "a remembered answer: the bytes stated, then fetched",
+    "a declined fetch: what the browser keeps still mounts",
+    "themes"
+   ],
+   "checking": [
+    "Main"
+   ],
+   "libraryImport": {
+    "archives": 3,
+    "bytes": 206933,
+    "stated": "202.1 KB (206,933 bytes)"
+   },
+   "libraryQuestion": "Checking Main.agda needs 202.1 KB (206,933 bytes) of agda-algebras' interfaces: 3 archives holding 11 modules, from this site. Without them, Agda checks those modules from source, which can take minutes. Fetch 202.1 KB Check from source Cancel Remember my answer in this tab",
+   "libraryRequests": [
+    "/agda-algebras/interfaces/Overture.Signatures.zip?cache=7a12fa9575d1c5bc",
+    "/agda-algebras/interfaces/stdlib-5603a1b8072d.zip?cache=d92b539b164b1206",
+    "/agda-algebras/interfaces/stdlib-9e7155097cdf.zip?cache=0424c0566d018695"
+   ],
+   "libraryChecking": [
+    "Main"
+   ],
+   "secondVisitChecking": [],
+   "databases": [
+    "agda-native-ide-archives",
+    "agda-playground-drive-6007685e7d4312ca"
+   ],
+   "hspImport": {
+    "archives": 125,
+    "bytes": 39044608,
+    "stated": "37.2 MiB (39,044,608 bytes)"
+   },
+   "hspQuestion": "Checking Main.agda needs 37.2 MiB (39,044,608 bytes) of agda-algebras' interfaces: 125 archives holding 293 modules, from this site. Without them, Agda checks those modules from source, which can take minutes. Fetch 37.2 MiB Check from source Cancel Remember my answer in this tab",
+   "hspChecking": [
+    "Main"
+   ],
+   "changedRequests": [
+    "/agda-algebras/interfaces/Overture.Signatures.zip?cache=7a12fa9575d1c5bc"
+   ],
+   "changedChecking": [],
+   "rememberedStated": {
+    "statedAt": 931.6000001430511,
+    "requestedAt": 933.2000000476837
+   },
+   "declinedChecking": {
+    "declined": "interfaces/stdlib-9e7155097cdf.zip",
+    "fromSource": [
+     "Data.Product"
+    ],
+    "checking": [
+     "Data.Product"
+    ]
+   },
+   "requested": {
+    "count": 169,
+    "bytes": 61553633
+   }
+  },
+  "chromiumIsolated": {
+   "browser": "Chrome/149.0.7827.200",
+   "served": "with the isolation headers",
+   "date": "2026-10-13T14:17:50.295Z",
+   "failure": null,
+   "timings": {
+    "Agda ready, since navigation": 809,
+    "first check done, since navigation": 1306,
+    "first check, as the page reports it": 424,
+    "first check": 1311,
+    "infer, and the first check's Checking lines": 128,
+    "give at goal 0": 362,
+    "check a type error": 256,
+    "refuse a postulate": 169,
+    "library import, as the page reports it": 162,
+    "import a module of agda-algebras, asked first": 1961,
+    "second visit's check, as the page reports it": 266,
+    "a second visit, from the browser's store": 1159,
+    "HSP: from the answer to the check's end": 7480,
+    "HSP import, as the page reports it": 7030,
+    "import Setoid.Varieties.HSP, asked once": 8394,
+    "a changed archive, fetched again": 8655,
+    "a remembered answer: the bytes stated, then fetched": 7365,
+    "a declined fetch: what the browser keeps still mounts": 8715,
+    "themes": 7914
+   },
+   "steps": [
+    "first check",
+    "infer, and the first check's Checking lines",
+    "give at goal 0",
+    "check a type error",
+    "refuse a postulate",
+    "import a module of agda-algebras, asked first",
+    "a second visit, from the browser's store",
+    "import Setoid.Varieties.HSP, asked once",
+    "a changed archive, fetched again",
+    "a remembered answer: the bytes stated, then fetched",
+    "a declined fetch: what the browser keeps still mounts",
+    "themes"
+   ],
+   "checking": [
+    "Main"
+   ],
+   "libraryImport": {
+    "archives": 3,
+    "bytes": 206933,
+    "stated": "202.1 KB (206,933 bytes)"
+   },
+   "libraryQuestion": "Checking Main.agda needs 202.1 KB (206,933 bytes) of agda-algebras' interfaces: 3 archives holding 11 modules, from this site. Without them, Agda checks those modules from source, which can take minutes. Fetch 202.1 KB Check from source Cancel Remember my answer in this tab",
+   "libraryRequests": [
+    "/agda-algebras/interfaces/Overture.Signatures.zip?cache=7a12fa9575d1c5bc",
+    "/agda-algebras/interfaces/stdlib-5603a1b8072d.zip?cache=d92b539b164b1206",
+    "/agda-algebras/interfaces/stdlib-9e7155097cdf.zip?cache=0424c0566d018695"
+   ],
+   "libraryChecking": [
+    "Main"
+   ],
+   "secondVisitChecking": [],
+   "databases": [
+    "agda-native-ide-archives",
+    "agda-playground-drive-6007685e7d4312ca"
+   ],
+   "hspImport": {
+    "archives": 125,
+    "bytes": 39044608,
+    "stated": "37.2 MiB (39,044,608 bytes)"
+   },
+   "hspQuestion": "Checking Main.agda needs 37.2 MiB (39,044,608 bytes) of agda-algebras' interfaces: 125 archives holding 293 modules, from this site. Without them, Agda checks those modules from source, which can take minutes. Fetch 37.2 MiB Check from source Cancel Remember my answer in this tab",
+   "hspChecking": [
+    "Main"
+   ],
+   "changedRequests": [
+    "/agda-algebras/interfaces/Overture.Signatures.zip?cache=7a12fa9575d1c5bc"
+   ],
+   "changedChecking": [],
+   "rememberedStated": {
+    "statedAt": 885.9100000858307,
+    "requestedAt": 887.3800001144409
+   },
+   "declinedChecking": {
+    "declined": "interfaces/stdlib-9e7155097cdf.zip",
+    "fromSource": [
+     "Data.Product"
+    ],
+    "checking": [
+     "Data.Product"
+    ]
+   },
+   "requested": {
+    "count": 169,
+    "bytes": 61553633
+   }
+  },
+  "firefox157": {
+   "browser": "Firefox/157.0",
+   "served": "without the isolation headers",
+   "date": "2026-10-13T14:18:46.544Z",
+   "failure": null,
+   "timings": {
+    "Agda ready, since navigation": 1017,
+    "first check done, since navigation": 1295,
+    "first check, as the page reports it": 205,
+    "first check": 1313,
+    "infer, and the first check's Checking lines": 142,
+    "give at goal 0": 364,
+    "check a type error": 501,
+    "refuse a postulate": 346,
+    "library import, as the page reports it": 93,
+    "import a module of agda-algebras, asked first": 1915,
+    "second visit's check, as the page reports it": 123,
+    "a second visit, from the browser's store": 1275,
+    "HSP: from the answer to the check's end": 5855,
+    "HSP import, as the page reports it": 5400,
+    "import Setoid.Varieties.HSP, asked once": 6803,
+    "a changed archive, fetched again": 6574,
+    "a remembered answer: the bytes stated, then fetched": 6556,
+    "a declined fetch: what the browser keeps still mounts": 7586
+   },
+   "steps": [
+    "first check",
+    "infer, and the first check's Checking lines",
+    "give at goal 0",
+    "check a type error",
+    "refuse a postulate",
+    "import a module of agda-algebras, asked first",
+    "a second visit, from the browser's store",
+    "import Setoid.Varieties.HSP, asked once",
+    "a changed archive, fetched again",
+    "a remembered answer: the bytes stated, then fetched",
+    "a declined fetch: what the browser keeps still mounts"
+   ],
+   "checking": [
+    "Main"
+   ],
+   "libraryImport": {
+    "archives": 3,
+    "bytes": 206933,
+    "stated": "202.1 KB (206,933 bytes)"
+   },
+   "libraryQuestion": "Checking Main.agda needs 202.1 KB (206,933 bytes) of agda-algebras' interfaces: 3 archives holding 11 modules, from this site. Without them, Agda checks those modules from source, which can take minutes. Fetch 202.1 KB Check from source Cancel Remember my answer in this tab",
+   "libraryRequests": [
+    "/agda-algebras/interfaces/Overture.Signatures.zip?cache=7a12fa9575d1c5bc",
+    "/agda-algebras/interfaces/stdlib-5603a1b8072d.zip?cache=d92b539b164b1206",
+    "/agda-algebras/interfaces/stdlib-9e7155097cdf.zip?cache=0424c0566d018695"
+   ],
+   "libraryChecking": [
+    "Main"
+   ],
+   "secondVisitChecking": [],
+   "databases": [
+    "agda-native-ide-archives",
+    "agda-playground-drive-6007685e7d4312ca"
+   ],
+   "hspImport": {
+    "archives": 125,
+    "bytes": 39044608,
+    "stated": "37.2 MiB (39,044,608 bytes)"
+   },
+   "hspQuestion": "Checking Main.agda needs 37.2 MiB (39,044,608 bytes) of agda-algebras' interfaces: 125 archives holding 293 modules, from this site. Without them, Agda checks those modules from source, which can take minutes. Fetch 37.2 MiB Check from source Cancel Remember my answer in this tab",
+   "hspChecking": [
+    "Main"
+   ],
+   "changedRequests": [
+    "/agda-algebras/interfaces/Overture.Signatures.zip?cache=7a12fa9575d1c5bc"
+   ],
+   "changedChecking": [],
+   "rememberedStated": {
+    "statedAt": 1238,
+    "requestedAt": 1243
+   },
+   "declinedChecking": {
+    "declined": "interfaces/stdlib-9e7155097cdf.zip",
+    "fromSource": [
+     "Data.Product"
+    ],
+    "checking": [
+     "Data.Product"
+    ]
+   },
+   "requested": {
+    "count": 164,
+    "bytes": 59843201
+   }
+  }
+ },
+ "notices": [
+  {
+   "name": "an archive not found",
+   "notice": "agda-algebras' archive interfaces/Overture.Signatures.zip could not be downloaded (HTTP 404 Not Found); nothing was checked.",
+   "failure": null
+  },
+  {
+   "name": "an archive that is not its digest's",
+   "notice": "agda-algebras' archive interfaces/Overture.Signatures.zip is not the archive its index names (its SHA-256 is 1ae044afddd9b669, not 7a12fa9575d1c5bc): the site may have changed since this page was loaded, so reload it; nothing was checked.",
+   "failure": null
+  },
+  {
+   "name": "the index not found",
+   "notice": "agda-algebras' archive index could not be downloaded (HTTP 404 Not Found), so Agda checks agda-algebras' modules from source; reload the page to try again.",
+   "failure": null
+  },
+  {
+   "name": "no DecompressionStream",
+   "notice": "This browser cannot run Agda here: it lacks DecompressionStream. The page is tested in Chromium and Firefox; other browsers are not supported.",
+   "failure": null
+  },
+  {
+   "name": "compiler not found",
+   "notice": "Agda could not start: the compiler could not be downloaded (HTTP 404 Not Found).",
+   "failure": null
+  },
+  {
+   "name": "compiler corrupt",
+   "notice": "Agda could not start: the compiler could not be loaded (TypeError: WebAssembly compilation aborted: Network error: Failed to read from a ReadableStream).",
+   "failure": null
+  },
+  {
+   "name": "standard library cut short",
+   "notice": "Agda could not start: the standard library could not be downloaded (TypeError: Failed to fetch).",
+   "failure": null
+  }
+ ],
+ "controls": {
+  "what": "The browser check against a build with one change each, restored by filename from the commit afterward; each must fail.",
+  "storeReadsMiss": {
+   "change": "the archive store's get returns nothing",
+   "failure": "the second visit asked: \"Checking Main.agda needs 202.1 KB (206,933 bytes) of agda-algebras' interfaces: 3 archives holding 11 modules, from this site. Without them, Agda checks those modules from source, which can take minutes. Fetch 202.1 KB Check from source Cancel Remember my answer in this tab\""
+  },
+  "requestBeforeAnswer": {
+   "change": "the page requests the first archive to fetch before it asks",
+   "failure": "archives were requested before the answer: /agda-algebras/interfaces/Overture.Signatures.zip?cache=7a12fa9575d1c5bc"
+  },
+  "noEviction": {
+   "change": "the page never evicts what the index no longer names",
+   "failure": "timed out waiting for the stale copy ffffffffffffffff evicted: the store holds 128 archives"
+  },
+  "declineMountsNothing": {
+   "change": "Check from source mounts nothing, not even what the browser keeps (the behavior before the review)",
+   "failure": "timed out after 180 s waiting for the check after the decline; the page shows {\"status\":\"Checking source…\",\"bar\":\"Checking source… | 0 goals |  | Agda 2.9.0 | WASI · local | UTF-8\",\"banner\":null}"
+  },
+  "revisions": "controls a to c at d1ffafa, d at 814c942",
+  "unit": "Three mutations of the transport fail its unit tests: no abort of the downloads under way after a failure, forgetting archives when the mount was stopped or the engine gone, and the memory store handing out its own buffer."
+ },
+ "gate": {
+  "what": "make library-gate on two roots, with the transport changed (strings, as before)",
+  "summary": null,
+  "report": {
+   "date": "2026-10-13T13:44:11.570Z",
+   "finished": "2026-10-13T13:44:26.855Z",
+   "wallSeconds": 15,
+   "browser": "Chrome/149.0.7827.200",
+   "agdaVersion": "2.9.0",
+   "served": "without the isolation headers",
+   "site": "REPO/build",
+   "compiler": {
+    "als-reactor-2.9.0.wasm.gz": "sha256:684731b5e7c9cb81e7337c9cf376e0fb2f6de0c3ff860bd6b0c37d949793f820",
+    "als-reactor-2.9.0.js": "sha256:c782dbaca349830299055c71ec9c4f72ec543c0d612d08b7c40fbb364e601dce",
+    "agda-data.zip": "sha256:b250cb2154c15efb882139c6698b5b4c3514a3fb1e361bbde58f58a2eed943c0",
+    "agda-stdlib-2.3-patched.zip": "sha256:773c59515bf4cd2ebf6d86aed6d57ec4493333538b28c1ace55509ece7e7aacd",
+    "agda-algebras-sources.zip": "sha256:005b0f5576bf88d25d32b5b7af44bcc9ff47028faddc9a2c9eb38a18998ad961"
+   },
+   "archives": {
+    "path": "/nix/store/m9mi6nmb9rgf7mrncwkdv9mrhgn51g19-agda-algebras-archives",
+    "index": "sha256:7f94ac5807604672cc824bf9aea81d62471fe741726f221987d20f7b04a3d6a8",
+    "agda": {
+     "version": "2.9.0",
+     "wasm": "da2f1efc6b13e0d8b8a69311511c8ed6fbfbc2759bd8ec299004580fcfba1eb1"
+    },
+    "agdaAlgebras": "f067d57d367a4830834ce1fd80937820754f9a28"
+   },
+   "machine": {
+    "platform": "linux",
+    "release": "7.0.0-31-generic",
+    "cpus": 20,
+    "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+    "memory": 67068481536
+   },
+   "load": {
+    "start": [
+     4.56,
+     2.97,
+     2.32
+    ],
+    "end": [
+     4.58,
+     3.06,
+     2.36
+    ]
+   },
+   "jobs": 4,
+   "sessions": "fresh",
+   "mainOptions": "{-# OPTIONS --without-K --exact-split --safe #-}",
+   "play": "name: play\ndepend: standard-library-2.3 agda-algebras\ninclude: .\n",
+   "totals": {
+    "roots": 2,
+    "passed": 2,
+    "failed": 0,
+    "missing": [],
+    "controls": [
+     {
+      "name": "control:drop_own_archive",
+      "ok": true,
+      "checking": 2
+     },
+     {
+      "name": "control:change_a_source_byte",
+      "ok": true,
+      "checking": 2
+     }
+    ],
+    "seconds": {
+     "start": 1.646,
+     "mount": 0.328,
+     "load": 8.943,
+     "total": 10.919
+    },
+    "slowest": [
+     {
+      "root": "Setoid.Varieties.HSP",
+      "loadSeconds": 7.538
+     },
+     {
+      "root": "Overture.Basic",
+      "loadSeconds": 1.405
+     }
+    ],
+    "largestMemory": [
+     {
+      "root": "Setoid.Varieties.HSP",
+      "memoryBytes": 367919104
+     },
+     {
+      "root": "Overture.Basic",
+      "memoryBytes": 59965440
+     }
+    ],
+    "requests": 137,
+    "bytesServed": 53853867
+   },
+   "failure": null,
+   "results": [
+    {
+     "name": "Overture.Basic",
+     "root": "Overture.Basic",
+     "modules": 66,
+     "archives": 14,
+     "bytes": 4318471,
+     "job": 0,
+     "startedAt": 56,
+     "startMs": 823,
+     "ok": true,
+     "checking": [
+      "Main"
+     ],
+     "errors": [],
+     "warnings": 0,
+     "mountMs": 55,
+     "loadMs": 1405,
+     "totalMs": 2284,
+     "memoryBytes": 59965440
+    },
+    {
+     "name": "Setoid.Varieties.HSP",
+     "root": "Setoid.Varieties.HSP",
+     "modules": 313,
+     "archives": 128,
+     "bytes": 39251541,
+     "job": 1,
+     "startedAt": 57,
+     "startMs": 823,
+     "ok": true,
+     "checking": [
+      "Main"
+     ],
+     "errors": [],
+     "warnings": 0,
+     "mountMs": 273,
+     "loadMs": 7538,
+     "totalMs": 8635,
+     "memoryBytes": 367919104
+    },
+    {
+     "name": "control:drop_own_archive",
+     "root": "Overture.Basic",
+     "control": "drop_own_archive",
+     "modules": 66,
+     "archives": 13,
+     "bytes": 4234993,
+     "job": 0,
+     "startedAt": 8692,
+     "startMs": 590,
+     "ok": true,
+     "checking": [
+      "Main",
+      "Overture.Basic"
+     ],
+     "errors": [],
+     "warnings": 0,
+     "mountMs": 22,
+     "loadMs": 1905,
+     "totalMs": 2518,
+     "memoryBytes": 69664768
+    },
+    {
+     "name": "control:change_a_source_byte",
+     "root": "Overture.Basic",
+     "control": "change_a_source_byte",
+     "modules": 66,
+     "archives": 14,
+     "bytes": 4318471,
+     "job": 0,
+     "startedAt": 11209,
+     "startMs": 580,
+     "ok": true,
+     "checking": [
+      "Main",
+      "Overture.Basic"
+     ],
+     "errors": [],
+     "warnings": 0,
+     "mountMs": 48,
+     "loadMs": 1879,
+     "totalMs": 2509,
+     "memoryBytes": 69861376
+    }
+   ],
+   "console": []
+  }
+ },
+ "probes": {
+  "origin": "// Can a page fetch a GitHub release asset, or a GitHub Pages file, cross-origin?\nimport * as cdp from \"REPO/scripts/browser-check/cdp.mjs\";\nimport { serve } from \"REPO/scripts/browser-check/serve.mjs\";\nconst server = await serve({ root: process.argv[2] });\nconst chrome = await cdp.launch(process.env.CHROME);\nconst { page } = chrome;\nawait page.navigate(`${server.origin}/`);\nconst urls = {\n  release: \"https://github.com/formalverification/agda-wasm-builds/releases/download/agda-2.9.0-da66a8c-als-8/SHA256SUMS\",\n  pages: \"https://formalverification.github.io/agda-native-air/assets/images/favicon.png\",\n};\nconst out = { browser: chrome.product, origin: server.origin, date: new Date().toISOString(), results: {} };\nfor (const [name, url] of Object.entries(urls)) {\n  await page.eval((url) => { window.__r = \"pending\"; fetch(url).then(async (r) => { window.__r = { ok: r.ok, status: r.status, bytes: (await r.arrayBuffer()).byteLength, acao: r.headers.get(\"access-control-allow-origin\") }; }, (e) => { window.__r = { error: `${e.name}: ${e.message}` }; }); }, url);\n  let r = \"pending\";\n  for (let i = 0; i < 100 && r === \"pending\"; i++) { await new Promise((d) => setTimeout(d, 100)); r = await page.eval(() => window.__r); }\n  out.results[name] = { url, ...r };\n}\nconsole.log(JSON.stringify(out, null, 1));\nawait chrome.close(); await server.close();\n",
+  "importsReading": "// For every module of the index: the closure of the imports read from its\n// source, through the index's graph, must be its closure in Agda's graph\n// less itself.  Exact reachability is the index's; the reading only has\n// to find the imports.\nimport { readFileSync, existsSync } from \"node:fs\";\nconst { sourceKind } = await import(process.argv[2] + \"/packages/engine/dist/core/index.js\"); const { importedModules } = await import(process.argv[2] + \"/packages/manifest/dist/index.js\");\nconst index = JSON.parse(readFileSync(process.argv[3] + \"/index.json\", \"utf8\"));\nconst root = process.argv[4];\nconst closure = (names) => { const seen = new Set(); const todo = [...names]; while (todo.length) { const n = todo.pop(); if (seen.has(n) || !index.modules[n]) continue; seen.add(n); todo.push(...index.modules[n].deps); } return seen; };\nlet checked = 0, wrong = [], unknown = new Map();\nfor (const [name, module] of Object.entries(index.modules)) {\n  if (module.library === \"builtins\") continue;\n  const file = module.library === \"agda-algebras\" ? root + module.source : root + \"/stdlibzip/agda-stdlib-2.3\" + module.source.replace(/^\\/stdlib/, \"\");\n  if (!existsSync(file)) { wrong.push(`${name}: no file ${file}`); continue; }\n  const imports = importedModules(readFileSync(file, \"utf8\"), sourceKind(file));\n  if (!imports) { wrong.push(`${name}: unread kind`); continue; }\n  for (const i of imports) if (!index.modules[i]) unknown.set(i, (unknown.get(i) ?? 0) + 1);\n  const mine = closure(imports);\n  const agdas = closure([name]); agdas.delete(name);\n  const missing = [...agdas].filter((m) => !mine.has(m));\n  const extra = [...mine].filter((m) => !agdas.has(m));\n  if (missing.length || extra.length) wrong.push(`${name}: missing ${missing.slice(0, 5)} extra ${extra.slice(0, 5)}`);\n  checked++;\n}\nconsole.log(JSON.stringify({ checked, wrong: wrong.length, examples: wrong.slice(0, 10), importsNotInIndex: [...unknown] }, null, 1));\n",
+  "browserBuiltInterfaces": "// Does the page's own check of a module from source write the same interface\n// bytes as agda-algebras' archives hold?  Seed Main with an import, wait for\n// the check and the drive's persist, and read the persisted interfaces back.\nimport * as cdp from \"REPO/scripts/browser-check/cdp.mjs\";\nimport { serve } from \"REPO/scripts/browser-check/serve.mjs\";\nconst [site, module] = process.argv.slice(2);\nconst main = `{-# OPTIONS --without-K --exact-split --safe #-}\\n\\nmodule Main where\\n\\nimport ${module}\\n`;\nconst server = await serve({ root: site });\nconst chrome = await cdp.launch(process.env.CHROME);\nconst { page } = chrome;\nawait page.addInitScript(`if (!sessionStorage.getItem(\"seeded\")) { sessionStorage.setItem(\"seeded\", \"1\"); localStorage.setItem(\"agda-web-ide-beta:doc:/play/Main.agda\", ${JSON.stringify(main)}); }`);\nawait page.navigate(`${server.origin}/`);\nconst t0 = Date.now();\nlet status = \"\";\nwhile (Date.now() - t0 < 900_000) {\n  status = await page.eval(() => document.querySelector(\".inspector-status\")?.textContent?.trim() ?? \"\");\n  if (/ · \\d/.test(status) && !(await page.eval(() => document.querySelector(\".spin\") !== null))) break;\n  await new Promise((d) => setTimeout(d, 500));\n}\nconsole.error(`check: ${status} after ${Date.now() - t0} ms; waiting 15 s for the persist`);\nawait new Promise((d) => setTimeout(d, 15_000));\nawait page.eval(() => {\n  window.__probe = \"pending\";\n  (async () => {\n    const names = (await indexedDB.databases()).map((d) => d.name).filter((n) => n.startsWith(\"agda-playground-drive-\"));\n    const out = { databases: names, files: [] };\n    for (const name of names) {\n      const db = await new Promise((ok, no) => { const r = indexedDB.open(name); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });\n      const records = await new Promise((ok, no) => { const r = db.transaction(\"files\").objectStore(\"files\").getAll(); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });\n      for (const record of records) {\n        if (!record.path.endsWith(\".agdai\")) continue;\n        const bytes = record.content instanceof Uint8Array ? record.content : new TextEncoder().encode(record.content);\n        const digest = [...new Uint8Array(await crypto.subtle.digest(\"SHA-256\", bytes))].map((b) => b.toString(16).padStart(2, \"0\")).join(\"\");\n        out.files.push({ path: record.path, bytes: bytes.byteLength, sha256: digest });\n      }\n    }\n    window.__probe = out;\n  })().catch((e) => (window.__probe = { error: String(e) }));\n});\nlet result = \"pending\";\nfor (let i = 0; i < 200 && result === \"pending\"; i++) { await new Promise((d) => setTimeout(d, 100)); result = await page.eval(() => window.__probe); }\nconsole.log(JSON.stringify({ browser: chrome.product, module, status, ...result }, null, 1));\nawait chrome.close(); await server.close();\n",
+  "mountTimes": "// Mount times in the page (issue 14): for each import, a fresh profile\n// whose stored Main imports it; the automatic check asks; the probe agrees,\n// and times the mount (from the answer to the check's start) and the check\n// (the page's own duration); then a reload in the same profile, which\n// mounts from the browser's store, timed the same way.  Each line is one\n// visit.  REPO and CHROME as the timing-checks-in-the-page skill's probes.\nimport * as cdp from \"REPO/scripts/browser-check/cdp.mjs\";\nimport { serve } from \"REPO/scripts/browser-check/serve.mjs\";\nimport { readFileSync } from \"node:fs\";\nimport { loadavg } from \"node:os\";\nconst [site, roundsText, ...modules] = process.argv.slice(2);\nconst rounds = Number(roundsText);\nconst RECORDER = readFileSync(\"REPO/scripts/browser-check/run.mjs\", \"utf8\").match(/const RECORDER = `([\\s\\S]*?)`;\\n/)[1]\n  .replaceAll(\"\\\\\\\\\", \"\\\\\").replace(\"${JSON.stringify(\\\"/agda-algebras/interfaces/\\\")}\", '\"/agda-algebras/interfaces/\"');\nconst look = () => ({\n  status: document.querySelector(\".inspector-status\")?.textContent?.trim() ?? \"\",\n  consent: document.querySelector(\".consent-size\")?.dataset.bytes ?? null,\n  text: document.querySelector(\".consent\")?.textContent?.replace(/\\s+/g, \" \").trim() ?? null,\n  busy: document.querySelector(\".spin\") !== null,\n  error: document.querySelector(\".action-error span\")?.textContent?.trim() ?? null,\n  now: performance.now(),\n});\nconst until = async (page, predicate, ms = 600_000) => {\n  const start = Date.now();\n  for (;;) {\n    let s;\n    try { s = await page.eval(look); } catch { s = null; }\n    if (s?.error) throw new Error(s.error);\n    if (s && predicate(s)) return s;\n    if (Date.now() - start > ms) throw new Error(`timed out; last ${JSON.stringify(s)}`);\n    await new Promise((d) => setTimeout(d, 50));\n  }\n};\nconst seconds = (text) => { const m = text.match(/· (?:(\\d+)m )?([\\d.]+) (ms|s)$/); return m ? (Number(m[1] ?? 0) * 60 + Number(m[2]) / (m[3] === \"ms\" ? 1000 : 1)) : NaN; };\nconst results = [];\nfor (let round = 0; round < rounds; round++) for (const module of modules) {\n  const server = await serve({ root: site, noStore: [\"/agda-algebras/\"] });\n  const chrome = await cdp.launch(process.env.CHROME);\n  const { page } = chrome;\n  await page.setViewport(1440, 900);\n  const main = `{-# OPTIONS --without-K --exact-split --safe #-}\\n\\nmodule Main where\\n\\nimport ${module}\\n`;\n  await page.addInitScript(RECORDER);\n  await page.addInitScript(`if (!sessionStorage.getItem(\"seeded\")) { sessionStorage.setItem(\"seeded\", \"1\"); localStorage.setItem(\"agda-web-ide-beta:doc:/play/Main.agda\", ${JSON.stringify(main)}); }`);\n  const load = loadavg()[0];\n  await page.navigate(`${server.origin}/`);\n  const asked = await until(page, (s) => s.consent !== null && !s.busy);\n  const answered = await page.eval(() => { document.querySelector(\".consent-fetch\").click(); return performance.now(); });\n  const done = await until(page, (s) => !s.busy && s.consent === null && s.status.startsWith(\"Module checked\"));\n  let events = await page.eval(() => window.__browserCheck);\n  const checkStart = events.find((e) => e.t >= answered && e.name === \"status\" && /^Checking source/.test(e.text ?? \"\"))?.t;\n  const ready = events.find((e) => e.name === \"bar\" && /Agda ready/.test(e.text ?? \"\"))?.t;\n  const cold = server.log.filter((r) => r.url.startsWith(\"/agda-algebras/interfaces/\"));\n  results.push({ module, round, visit: \"first\", load: Number(load.toFixed(2)), stated: Number(asked.consent), archives: cold.length,\n    bytes: cold.reduce((a, r) => a + r.bytes, 0), agdaReadyMs: ready, mountMs: Math.round(checkStart - answered),\n    checkS: seconds(done.status), answerToCheckedMs: Math.round(done.now - answered) });\n  console.log(JSON.stringify(results.at(-1)));\n  // Let the drive persist Main's interface before the page is left.\n  await new Promise((d) => setTimeout(d, 3000));\n  const from = server.log.length;\n  const before = await page.eval(() => performance.timeOrigin);\n  await page.navigate(`${server.origin}/`);\n  for (;;) { try { if ((await page.eval(() => performance.timeOrigin)) !== before) break; } catch {} await new Promise((d) => setTimeout(d, 50)); }\n  const warm = await until(page, (s) => !s.busy && s.consent === null && s.status.startsWith(\"Module checked\"));\n  events = await page.eval(() => window.__browserCheck);\n  const mounting = events.find((e) => e.name === \"bar\" && /Mounting \\d+ archives? of agda-algebras' interfaces, kept/.test(e.text ?? \"\"))?.t;\n  const warmStart = events.find((e) => e.t >= (mounting ?? 0) && e.name === \"status\" && /^Checking source/.test(e.text ?? \"\"))?.t;\n  const warmReady = events.find((e) => e.name === \"bar\" && /Agda ready/.test(e.text ?? \"\"))?.t;\n  const asks = events.filter((e) => e.name === \"consent\" && e.text).length;\n  const again = server.log.slice(from).filter((r) => r.url.startsWith(\"/agda-algebras/interfaces/\"));\n  results.push({ module, round, visit: \"second\", load: Number(loadavg()[0].toFixed(2)), asked: asks, archives: again.length,\n    agdaReadyMs: warmReady, mountMs: mounting === undefined || warmStart === undefined ? null : Math.round(warmStart - mounting),\n    checkS: seconds(warm.status), navigationToCheckedMs: Math.round(warm.now) });\n  console.log(JSON.stringify(results.at(-1)));\n  await chrome.close(); await server.close();\n}\n"
+ }
+}

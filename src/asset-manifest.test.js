@@ -6,7 +6,9 @@
 // asset's content and nothing else, and the build refuses to run without
 // an asset.  agda-algebras' sources are among them, since Agda reads them
 // (issue 11); the list of its modules is too, outside the drive cache's
-// namespace, since Agda does not read it (issue 9).
+// namespace, since Agda does not read it (issue 9); and its archive index,
+// whose archives and sources the build checks against the digests it
+// records (issue 14).
 
 import { createHash } from "node:crypto";
 import {
@@ -46,7 +48,25 @@ beforeEach(() => {
     }),
   );
   write("plfa/interfaces/part1/Naturals.zip", "naturals v1");
+  write("agda-algebras/interfaces/A.zip", "a v1");
+  writeIndex();
 });
+
+/** agda-algebras' index, naming one archive and the sources as they are. */
+function writeIndex({ archive = "a v1", sources = "agda-algebras v1" } = {}) {
+  write(
+    "agda-algebras/index.json",
+    JSON.stringify({
+      schema: 1,
+      libraries: {
+        "agda-algebras": { sources: { path: "agda-algebras-sources.zip", sha256: sha256(sources) } },
+        "standard-library": { sources: { path: "agda-stdlib-2.3-patched.zip", sha256: sha256("stdlib v1") } },
+        builtins: { sources: { path: "agda-data.zip", sha256: sha256("builtins v1") } },
+      },
+      archives: { "interfaces/A.zip": { bytes: 4, sha256: sha256(archive), modules: 1 } },
+    }),
+  );
+}
 
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -63,13 +83,15 @@ describe("the asset manifest", () => {
   });
 
   it("changes one token, and the namespace, when one asset changes", () => {
+    // Not building: the index records the sources it was built from.
     for (const [name, path] of [
       ["builtins", "agda-data.zip"],
       ["agdaAlgebras", "agda-algebras-sources.zip"],
+      ["agdaAlgebrasIndex", "agda-algebras/index.json"],
     ]) {
-      const before = assetManifest(dir);
+      const before = assetManifest(dir, { strict: false });
       write(path, `${name} v2`);
-      const after = assetManifest(dir);
+      const after = assetManifest(dir, { strict: false });
       for (const other of Object.keys(before.tokens))
         if (other === name)
           expect(after.tokens[other]).not.toBe(before.tokens[other]);
@@ -114,6 +136,29 @@ describe("the asset manifest", () => {
   it("refuses a missing PLFA interface manifest", () => {
     rmSync(join(dir, "plfa/interfaces/manifest.json"));
     expect(() => assetManifest(dir)).toThrow(/interfaces\/manifest\.json/);
+    expect(() => assetManifest(dir, { strict: false })).not.toThrow();
+  });
+
+  it("gives each file's length and full digest, and no directory's", () => {
+    const { files, tokens } = assetManifest(dir);
+    expect(files.agdaAlgebras).toEqual({ bytes: "agda-algebras v1".length, sha256: sha256("agda-algebras v1") });
+    expect(files.agdaAlgebrasIndex.sha256.slice(0, 16)).toBe(tokens.agdaAlgebrasIndex);
+    expect(files.plfaInterfaces).toBeUndefined();
+  });
+
+  it("refuses an archive the index names that is missing or not its digest's, unless it is not building", () => {
+    rmSync(join(dir, "agda-algebras/interfaces/A.zip"));
+    expect(() => assetManifest(dir)).toThrow(/missing from .*agda-algebras\/interfaces\/A\.zip/);
+    expect(() => assetManifest(dir, { strict: false })).not.toThrow();
+    write("agda-algebras/interfaces/A.zip", "a v2");
+    expect(() => assetManifest(dir)).toThrow(/not the archives agda-algebras\/index\.json names, .*interfaces\/A\.zip/);
+    writeIndex({ archive: "a v2" });
+    expect(() => assetManifest(dir)).not.toThrow();
+  });
+
+  it("refuses an index built from other sources than the site ships", () => {
+    writeIndex({ sources: "agda-algebras v0" });
+    expect(() => assetManifest(dir)).toThrow(/index\.json was built from other sources than .* has: agda-algebras-sources\.zip/);
     expect(() => assetManifest(dir, { strict: false })).not.toThrow();
   });
 

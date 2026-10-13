@@ -6,9 +6,9 @@
 # (docs/notes/library-archives.md), with the interfaces built a second
 # time to prove the bytes reproduce.  The sizes, the check's counts and the build's time and memory go to the
 # step summary; the index, the summary and the check's report are
-# uploaded.  The archives themselves are not: nothing ships them until the
-# page mounts them (issue 14), and `nix build .#agda-algebras-archives`
-# rebuilds them from the pins.
+# uploaded.  The archives themselves are not: the site carries them, and
+# site.yml uploads the site it builds (issue 14), and `nix build
+# .#agda-algebras-archives` rebuilds them from the pins.
 #
 # It runs on demand, and when a push to main or a pull request changes
 # what the archives are built from: the flake (the pins of agda-algebras,
@@ -132,7 +132,9 @@ jobs:
           # Not what the flake fetches by hash from GitHub anyway: the
           # compiler's files and the sources' tarballs.  Nor the site and
           # its npm dependencies, which the gate builds, and site.yml
-          # builds again without the cache.
+          # builds again, reading this cache (for the interfaces its
+          # archives are packed from, issue 14) and writing nothing; until
+          # the write token reaches this action, it finds none there.
           pushFilter: '(-source|-agda\.wasm|-als\.wasm|-als-reactor\.wasm|-als-reactor\.js|-agda-2\.9\.0-compiler|-agda-native-ide-site|-agda-native-ide-npm-deps)$'
       - name: Decide whether the archives' derivation changed, or the gate's code
         id: changed

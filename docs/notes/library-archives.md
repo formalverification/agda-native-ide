@@ -8,15 +8,19 @@ imports fetch what they need and nothing else, and indexed from the
 dependency graph Agda itself computes ([#12]).  [ADR 0001][adr] § 10 records
 the decisions; this note is the explanation it links.  The page ships and
 mounts the sources archive, for the playground's project, which depends on
-the library ([#11]; ADR 0001 § 11); mounting the interface archives is
-[#14]'s work, and the Explorer that lists the modules is [#9]'s.  Every
-figure is from the runs of 2026-10-11 that [#12]'s findings describe: the
-local ones in
+the library ([#11]; ADR 0001 § 11); since [#14] it ships the index and the
+interface archives too, and mounts those a check's imports need, after it
+has stated their bytes and the reader has agreed ("The mount in the page",
+below; ADR 0001 § 12); the Explorer that lists the modules is [#9]'s.
+Every figure is from the runs of 2026-10-11 that [#12]'s findings describe:
+the local ones in
 [`docs/measurements/library-archives-2026-10-11.json`][record], with the
-machine and its load, and the runner's in its run; and the gate's, which
+machine and its load, and the runner's in its run; the gate's, which
 checks them under the page's own language server ([#13]), from the runs of
 2026-10-12 in
-[`docs/measurements/library-archives-browser-2026-10-12.json`][gate-record].
+[`docs/measurements/library-archives-browser-2026-10-12.json`][gate-record];
+and the mount's, from the runs of 2026-10-13 in
+[`docs/measurements/library-mount-2026-10-13.json`][mount-record].
 
 An *interface* (`.agdai`) is what Agda writes after it type-checks a module:
 the module's definitions in a binary form, which a later check that imports
@@ -95,7 +99,7 @@ the check does not rebuild the interfaces.
    line has a path under `/lib/prim`); and the paths Agda stores in an
    interface (with a deprecation warning, for one) are the page's, not the
    build machine's.  Where agda-algebras sits, `/agda-algebras`, is the
-   layout [#11]'s finding of 2026-10-04 used; [#11] and [#14] settle it.
+   layout [#11]'s finding of 2026-10-04 used, which [#11] kept.
 +  **What is built**: every module of agda-algebras' include path, `Legacy/`
    included, since a reader may import any of them, and the standard-library
    modules they import, not the whole standard library.  `agda
@@ -212,11 +216,10 @@ three together, against a floor of 54.3 MB.
    components cuts the HSP root from 128 archives to 58, at 6.2% over the
    floor there and 18.9% for the median root.  The cost of the rule is the
    number of files: 82 for the median root, 128 for the HSP root, 385 for the
-   umbrella module.  The page fetches them at once: the controller's
-   `mountDriveArchives` (`src/lib/controller.svelte.ts`) hands them to the
-   engine's browser transport, whose `mountArchives`
-   (`packages/engine/src/browser/index.ts`) fetches them in parallel, over
-   HTTP/2 from any of the hosts [#6] weighs.
+   umbrella module.  The page fetches six at a time (the engine's browser
+   transport, `mountArchives` in `packages/engine/src/browser/index.ts`),
+   so the HSP root's 128 took 0.4 s from a local server ("The mount in the
+   page", below).
 +  **Stored zips**: the payload of a 2.9.0 interface is already zstd, so
    gzip saves 0.09% on the HSP closure (the probe), and a stored zip costs
    nothing to unpack; but the name matters, since Cloudflare caches `.zip`
@@ -227,7 +230,8 @@ three together, against a floor of 54.3 MB.
 +  **The names**: an agda-algebras archive is named by its module; a
    standard-library group by a digest of its members' names, so its name
    changes only when its membership does.  The index carries each archive's
-   SHA-256, which [#14] uses for the cache and the URL's `?cache=` token.
+   SHA-256, which the page checks a fetched archive against, keeps it under
+   in the browser, and puts in its URL as the `?cache=` token ([#14]).
 +  **The sources come beside the standard library's, not inside it**:
    `agda-algebras-sources.zip`, 985,864 bytes, deflated, holding every module
    (the Explorer lists them, [#9]).  It is a different library, at a
@@ -402,6 +406,118 @@ It is 285,618 bytes, 42,353 gzipped.
    reports it; the machine and its load
    ([`docs/measurements/library-archives-browser-2026-10-12.json`][gate-record]).
 
+## The mount in the page
+
+(`packages/manifest/src/imports.ts` and `library.ts`; the engine's browser
+transport, `packages/engine/src/browser/index.ts`, with its archive store,
+`archive-store.ts`, and its stale caches, `drive-caches.ts`;
+`src/lib/controller.svelte.ts`, `prepareImports`; [#14].)
+
+The page mounts, before a check of the playground's `Main`, the archives
+its imports need, and asks before it fetches any.  A *mount* extracts an
+archive's interfaces onto the drive, where Agda reads them; the drive's
+*cache* is the IndexedDB database in which the drive keeps what Agda wrote,
+named by a digest of the assets (its *namespace*); the *archive store* is a
+second database, in which the browser keeps the archives it fetched, by
+their SHA-256.
+
++  **Where they come from**: the page's own origin, `/agda-algebras/`
+   (William's decision of 2026-10-13).  A GitHub release cannot serve them:
+   neither its redirect nor the file it redirects to sends
+   `Access-Control-Allow-Origin`, and a page's `fetch` of one fails in
+   Chromium 149.  The page fetches the index when Agda starts, beside the
+   library's sources, and an archive only when a check needs it.
++  **The plan**: the imports are read from the buffer by Agda 2.9.0's own
+   lexical and literate rules (comments, pragmas, strings and characters
+   blanked; in Markdown, a bare fence and an `agda` fence are both code,
+   as Agda takes them by default).  The closure of what this reading finds
+   is Agda's own for 597 of agda-algebras' and the standard library's 601
+   modules; the other 4 differ by `Agda.Primitive`, which Agda imports
+   without a statement, and which is on the drive from the start.  Agda's
+   builtins (`Agda.*`) need no plan, so the default `Main` never waits for
+   the index.  The closure comes from the index (`index.mjs`'s `needs`; a
+   unit test compares the two for every root), and an import the index
+   does not list is followed into its source on the drive (`/play`, then
+   `/agda-algebras/src`, then `/stdlib/src`), whose imports join the plan:
+   `open import Data.Vec`, which agda-algebras does not reach, mounts the
+   29 archives (25,191,583 bytes) its own imports need, and leaves 2
+   modules to check from source, where the index alone would have
+   mounted nothing.  A module found nowhere is named in a note.
++  **What it skips**: an archive mounted earlier in the session, and one
+   whose every interface the drive already holds, because an earlier check
+   from source wrote them and the drive's cache restored them.  Agda 2.9.0
+   accepts an imported module's interface by `iFullHash`, the hash of its
+   source combined with its imports' (`Agda.TypeChecking.Monad.Base` and
+   `Agda.Interaction.Imports` at the compiler's commit), not by the
+   interface's bytes; and the interfaces the page wrote from source were
+   byte-identical to the archives' (11 of 11 for `Overture.Signatures`'s
+   closure, 170 of 170 for `Setoid.Algebras.Basic`'s).
++  **The question**: the bytes still to fetch, in one convention (bytes, then
+   KB of 1,024 bytes, then MiB) with the exact count beside them, the archives
+   and the modules whose interfaces they hold, and the origin: "Checking
+   Main.agda needs 202.1 KB (206,933 bytes) of agda-algebras' interfaces: 3
+   archives holding 11 modules, from this site."  Its answers are Fetch, Check
+   from source and Cancel, and the answer may be remembered for the tab
+   (sessionStorage); a decline is remembered for the archives declined, so a
+   later check that needs only those does not ask again, and one that needs
+   new archives asks for all of them, saying how many of them, and how many
+   bytes, were declined before.  Check from source still mounts what the
+   browser keeps: Agda then checks the declined archives' modules alone, and
+   accepts the archived interfaces above them (the browser check's declined
+   fetch: one archive declined, its one module checked, nothing else, not even
+   `Main`).  The question takes the keyboard's focus only when the reader
+   asked for the check; Esc, and any edit, cancel it; it shows no spinner,
+   since nothing is under way while it waits.  Nothing is requested before the
+   answer.
++  **The fetch**: at most six archives at once, their progress in the unit
+   of their total ("120.0 of 202.1 KB"), each checked against its SHA-256
+   with the browser's own digest (which needs a secure origin, https or
+   localhost; elsewhere the page does not offer the fetch), kept in the
+   archive store, and extracted as it arrives.  STOP ends it, and a failure
+   names the archive; either way nothing is checked, and the plan's note
+   says so.  A plan whose imports change while it is made is made again,
+   twice at most, and then not checked.  An archive whose
+   bytes are not its digest's says that the site may have changed since the
+   page was loaded.
++  **The store**: `agda-native-ide-archives`, keyed by each archive's
+   SHA-256 and named once, since its keys are the archives' contents.  A
+   second visit mounts from it with no request.  When the page reads the
+   index it evicts what the index no longer names; a record that cannot be
+   read or extracted is forgotten; an archive the plan counted as kept that
+   is gone when the mount reads it is not fetched, but planned and asked
+   for again.
++  **The drive's cache**: the index's digest is in its namespace, a mounted
+   archive's paths leave it (neither persisted nor restored again), and the
+   page deletes every drive database of another namespace when it starts:
+   those `indexedDB.databases()` lists (Chromium; Firefox from 126), and
+   those a list in localStorage records, which is all Firefox 114 to 125
+   can find, and only for namespaces this code recorded.
+
+Measured 2026-10-13 in headless Chromium 149, from a local server, at a
+1-minute load of 2 to 3, three rounds each, medians; the archives are the
+fixed roots' (the mount is from the answer to the check's start, the
+check is the page's own duration, and the second visit is a reload in the
+same profile):
+
+| Imports | Question | Mount | Check | Second visit: mount, check |
+|---|---|---:|---:|---|
+| `Overture.Basic` | 4.1 MiB (4,318,471 bytes), 14 archives | 58 ms | 1.06 s | 43 ms, 1.02 s |
+| `Setoid.Algebras.Basic` | 16.2 MiB (16,974,016 bytes), 50 archives | 157 ms | 3.21 s | 96 ms, 3.16 s |
+| `Setoid.Varieties.HSP` | 37.4 MiB (39,251,541 bytes), 128 archives | 419 ms | 6.54 s | 188 ms, 6.31 s |
+
+A second sample, at the change's last revision and a load of 1.8 to 4.9,
+took 77, 176 and 599 ms to mount and 1.25, 3.73 and 8.56 s to check, and
+its second visits again asked nothing and requested no archive.  From
+source, the page checked `Setoid.Algebras.Basic`'s 170 modules in 1 min
+38 s to 6 min 32 s over six runs ([#11]) and 5 min 0.5 s on 2026-10-13.  Over a network the fetch adds the transfer: 39,251,541 bytes
+take about 6 s at 50 Mbit/s.
+
++  **What the page does not yet state in bytes**: what it loads when Agda
+   starts (the compiler's gzip, 11,095,997 bytes; the builtins, the
+   standard library and the two libraries' sources; the index), and PLFA's
+   chapter archives, built by Agda 2.8.0, which the page's Agda does not
+   read ([#20] retires them).
+
 ## CI
 
 (`.github/workflows/library-archives.yml`.)
@@ -470,9 +586,13 @@ It is 285,618 bytes, 42,353 gzipped.
    interfaces once, without the `--rebuild`, and runs the gate: from these
    steps, about 25 to 40 minutes while nothing is cached, an estimate,
    since no run has changed the gate alone yet.
-+  **Not in the site**: the site's build carries none of this until [#14]
-   mounts the archives, since 71 MB the page never reads would cost every
-   build and deploy.
++  **In the site**: since [#14], the site carries the index and the
+   archives under `/agda-algebras/` (285,618 and 70,104,812 bytes; the
+   built site went from 30,439,204 to 100,856,795 bytes), so the site's
+   derivation depends on the interfaces'.  `site.yml` reads this job's
+   cache, and builds the interfaces itself (9 min 47 s to 13 min 43 s on a
+   runner) until `main`'s runs push them; William chose this on
+   2026-10-13 over an origin of their own (ADR 0001 § 12).
 +  **The cache**: the job reads the public `formalverification` Cachix
    cache, which agda-algebras' CI also uses, so a derivation built before is
    fetched rather than built, and it pushes what it builds from `main` only,
@@ -510,10 +630,11 @@ kept "so that the HTML and LaTeX backends can generate their output";
    are already in `agda-data.zip`, under Agda's MIT license.
 +  **What the site ships**: the sources archive since [#11], which
    `NOTICE` names, with agda-algebras' `LICENSE` and `NOTICE` copied into
-   `licenses/agda-algebras/`, and `docs/provenance.md` records.  When [#14]
-   ships the interfaces and the index, the same files name them: the
-   interfaces under Apache-2.0 like the sources, and the index under
-   `LICENSE-data`.
+   `licenses/agda-algebras/`, and `docs/provenance.md` records.  Since
+   [#14] the site ships the interfaces and the index, and the same files
+   name them: the interfaces under Apache-2.0 like the sources (the
+   standard library's under MIT), and the index under `LICENSE-data`,
+   which `licenses/agda-algebras/` now holds too.
 
 (William's decision of 2026-10-11, on the session's recommendation.)
 
@@ -530,15 +651,19 @@ kept "so that the HTML and LaTeX backends can generate their output";
    which `pack.mjs` reads from the build and the index records.  A new
    standard library is a new `stdlib/patches/` or source pin, and the same
    rebuild.
-+  **The page's cache**: when [#14] ships the archives, their digests (or
-   the index's) join the drive cache's namespace
-   (`scripts/asset-manifest.mjs`), so that a cache is never restored against
-   other archives.
++  **The page's cache**: the index's digest is in the drive cache's
+   namespace (`scripts/asset-manifest.mjs`), so a drive persisted against
+   one set of archives is not restored against another, and the page
+   deletes the old namespace's database when it starts; the browser keeps
+   each archive by its own SHA-256, so an archive that did not change is
+   not fetched again, and one that did is fetched, and its old copy
+   evicted, by the first check that needs it ([#14]).
 
 [adr]: ../adr/0001-runtime.md
 [explorer-note]: explorer.md
 [record]: ../measurements/library-archives-2026-10-11.json
 [gate-record]: ../measurements/library-archives-browser-2026-10-12.json
+[mount-record]: ../measurements/library-mount-2026-10-13.json
 [gate-run]: https://github.com/formalverification/agda-native-ide/actions/runs/38209105006
 [run]: https://github.com/formalverification/agda-native-ide/actions/runs/38153481044
 [skip]: https://github.com/formalverification/agda-native-ide/actions/runs/38159537130
@@ -549,5 +674,6 @@ kept "so that the HTML and LaTeX backends can generate their output";
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
 [#14]: https://github.com/formalverification/agda-native-ide/issues/14
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
+[#20]: https://github.com/formalverification/agda-native-ide/issues/20
 [#61]: https://github.com/formalverification/agda-native-ide/issues/61
 [#64]: https://github.com/formalverification/agda-native-ide/issues/64

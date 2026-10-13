@@ -280,6 +280,10 @@ function tab(session, context) {
       ]
         .filter(([bit]) => modifiers & /** @type {number} */ (bit))
         .map(([, value]) => /** @type {string} */ (value));
+      // A name WebDriver does not know is refused here, by name, rather
+      // than by the browser as an invalid argument.
+      if (!(key in KEYS) && [...key].length > 1)
+        throw new Error(`bidi.mjs cannot press ${key}: add its WebDriver key value to KEYS`);
       const value = KEYS[key] ?? key;
       await keys([
         ...held.map((v) => ({ type: "keyDown", value: v })),

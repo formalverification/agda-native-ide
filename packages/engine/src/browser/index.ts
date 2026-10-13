@@ -52,8 +52,13 @@ import type {
   ALSWorkerInitResultProxied,
   WASMSource,
 } from "./worker/protocol.js";
+import { openArchiveStore, type ArchiveStore } from "./archive-store.js";
 
 export type { WASMSource } from "./worker/protocol.js";
+export { ARCHIVE_STORE, memoryArchiveStore, openArchiveStore } from "./archive-store.js";
+export type { ArchiveStore, StoredArchive } from "./archive-store.js";
+export { DRIVE_NAMESPACES_KEY, browserDriveCacheHost, forgetOtherDriveCaches } from "./drive-caches.js";
+export type { DriveCacheHost } from "./drive-caches.js";
 
 export interface BrowserConfig {
   /** A new worker running `@agda-native-ide/engine/browser/worker`, as the
@@ -79,6 +84,11 @@ export interface BrowserConfig {
   files?: readonly { path: string; text: string }[];
   /** The namespace of the drive's IndexedDB cache. */
   cacheNamespace: string;
+  /** Where the archives mounted by their SHA-256 are kept (issue 14): a
+   * store, or the name of its IndexedDB database
+   * (./archive-store.ts).  Without it nothing is kept, and an archive is
+   * fetched every time it is mounted. */
+  archiveStore?: string | ArchiveStore;
   /** The server's arguments after its name; `--raw` is required. */
   args: readonly string[];
   /** The project's root on the drive (default "/"): where relative paths
@@ -107,6 +117,63 @@ export interface LibraryArchive {
    * page calls PLFA's "PLFA"). */
   what?: string;
 }
+
+/** An archive to mount after the engine has started (issue 14): a zip
+ * whose entries are at their paths on the drive, extracted at its root.
+ * With its SHA-256, its bytes are checked before they are mounted, and it
+ * is kept in the transport's archive store under that digest, so that a
+ * later mount reads it there instead of fetching it. */
+export interface ArchiveRef {
+  url: string;
+  /** Its SHA-256, in hex. */
+  sha256?: string;
+  /** Its length in bytes, for the progress. */
+  bytes?: number;
+  /** What a failure calls it (default "the archive URL"). */
+  what?: string;
+  /** The library whose index names it, and its path there, kept with it. */
+  library?: string;
+  path?: string;
+  /** False: the archive must come from the store, since the reader was
+   * told it would not be downloaded; a miss fails with `ArchiveNotKept`. */
+  fetch?: false;
+}
+
+/** An archive planned as kept that the store no longer has (another tab
+ * evicted it, or the browser did): the host plans again, and asks. */
+export class ArchiveNotKept extends Error {
+  constructor(what: string) {
+    super(`${what} is no longer kept in this browser`);
+    this.name = "ArchiveNotKept";
+  }
+}
+
+/** How a mount is going: its bytes, read from the store or fetched, of the
+ * total its archives name (undefined when one names none), and its
+ * archives mounted. */
+export interface MountProgress {
+  loaded: number;
+  total: number | undefined;
+  mounted: number;
+  archives: number;
+}
+
+/** What a mount read: from the network, and from the archive store. */
+export interface MountReport {
+  fetched: number;
+  fetchedBytes: number;
+  kept: number;
+  keptBytes: number;
+}
+
+export interface MountOptions {
+  onProgress?: (progress: MountProgress) => void;
+  /** Aborting it stops the mount's downloads; what was mounted stays. */
+  signal?: AbortSignal;
+}
+
+/** How many archives are fetched at once. */
+const PARALLEL_FETCHES = 6;
 
 export type BrowserProgress =
   | { phase: "downloading"; loaded: number; total: number }
@@ -162,6 +229,77 @@ async function readOrFail(response: Response, what: string) {
   } catch (error) {
     throw new Error(`${what} could not be downloaded (${describeError(error)})`, { cause: error });
   }
+}
+
+/** A response's body, read whole, reporting each chunk's bytes as it
+ * arrives; or a failure saying which file and why. */
+async function readCounting(response: Response, what: string, onBytes: (count: number) => void) {
+  if (!response.body) {
+    const data = await readOrFail(response, what);
+    onBytes(data.byteLength);
+    return data;
+  }
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  const reader = response.body.getReader();
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      length += value.byteLength;
+      onBytes(value.byteLength);
+    }
+  } catch (error) {
+    throw new Error(`${what} could not be downloaded (${describeError(error)})`, { cause: error });
+  }
+  const data = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    data.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return data.buffer;
+}
+
+/** The SHA-256 of `data`, in hex, by the browser's own implementation,
+ * which only a secure context offers (https, or localhost). */
+async function sha256Of(data: ArrayBuffer, what: string) {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle)
+    throw new Error(
+      `${what} cannot be checked: the page is not served from a secure origin (https, or localhost), so the browser computes no SHA-256 for it`,
+    );
+  const digest = new Uint8Array(await subtle.digest("SHA-256", data));
+  return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/** Run `work` on each item, at most `width` at once; the first failure
+ * stops the start of more, is told to `onFail` at once (to abort what is
+ * under way), and is thrown once those under way settle. */
+async function inPool<T>(
+  items: readonly T[],
+  width: number,
+  work: (item: T) => Promise<void>,
+  onFail: () => void = () => {},
+) {
+  let next = 0;
+  let failed: { error: unknown } | undefined;
+  const lane = async () => {
+    while (!failed && next < items.length) {
+      const item = items[next++];
+      try {
+        await work(item);
+      } catch (error) {
+        if (!failed) {
+          failed = { error };
+          onFail();
+        }
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(width, items.length) }, lane));
+  if (failed) throw failed.error;
 }
 
 /** A stream of a response's body that reports its bytes as they pass,
@@ -263,6 +401,8 @@ export class BrowserTransport implements EngineTransport {
   private objectUrl: string | undefined;
   private readonly mounted = new Set<string>();
   private mounting: Promise<void> | undefined;
+  /** The archive store, once asked for. */
+  private opening: Promise<ArchiveStore | null> | undefined;
   private readonly root: string;
   /** Rejects when the transport is terminated or the engine exits, so a
    * start or a drive call in progress stops waiting on a worker that is
@@ -356,35 +496,175 @@ export class BrowserTransport implements EngineTransport {
 
   // ---- What the page asks of the drive ------------------------------------
 
-  /** The archives among `urls` not yet mounted, each once. */
-  unmounted(urls: readonly string[]): string[] {
-    return urls.filter((url, index) => !this.mounted.has(url) && urls.indexOf(url) === index);
+  /** The archives among `archives` not yet mounted, each once (by URL). */
+  unmounted<T extends string | ArchiveRef>(archives: readonly T[]): T[] {
+    const url = (archive: T) => (typeof archive === "string" ? archive : archive.url);
+    const seen = new Set<string>();
+    return archives.filter((archive) => {
+      const key = url(archive);
+      if (this.mounted.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
-  /** Fetch zips by URL and extract them at the drive's root, once each. */
-  async mountArchives(urls: readonly string[]): Promise<void> {
+  /** The archive store, opened once, or null. */
+  private store(): Promise<ArchiveStore | null> {
+    const configured = this.config.archiveStore;
+    if (configured === undefined) return Promise.resolve(null);
+    this.opening ??= typeof configured === "string" ? openArchiveStore(configured) : Promise.resolve(configured);
+    return this.opening;
+  }
+
+  /** Delete the library's archives from the archive store whose digests
+   * are not in `keep` (its index's, when the page reads it); the digests
+   * deleted. */
+  async retainArchives(library: string, keep: Iterable<string>): Promise<string[]> {
+    const store = await this.store();
+    return store ? store.retain(library, keep) : [];
+  }
+
+  /** Which of these digests the archive store holds (none without one). */
+  async kept(digests: readonly string[]): Promise<Set<string>> {
+    const store = await this.store();
+    if (!store || !digests.length) return new Set();
+    const keys = await store.keys().catch((error: unknown) => {
+      console.warn("Could not read the archive store", error);
+      return new Set<string>();
+    });
+    return new Set(digests.filter((digest) => keys.has(digest)));
+  }
+
+  /** Mount zips at the drive's root, once each: an archive given by its
+   * URL alone is fetched; one with its SHA-256 is read from the archive
+   * store if it is there, and otherwise fetched, checked against its
+   * digest and kept.  At most six are fetched at once, and each is
+   * extracted as it arrives.  A failure stops the rest; what was mounted
+   * before it stays mounted, so a second try fetches only what is left. */
+  async mountArchives(archives: readonly (string | ArchiveRef)[], options: MountOptions = {}): Promise<MountReport> {
     if (this.mounting) {
-      await this.mounting;
-      return this.mountArchives(urls);
+      await this.mounting.catch(() => {});
+      return this.mountArchives(archives, options);
     }
-    const missing = this.unmounted(urls);
-    if (!missing.length) return;
+    const report: MountReport = { fetched: 0, fetchedBytes: 0, kept: 0, keptBytes: 0 };
+    const missing = this.unmounted(archives).map((archive) =>
+      typeof archive === "string" ? { url: archive } : archive,
+    );
+    if (!missing.length) return report;
     if (this.exited) throw new Error("the language server has stopped");
     const drive = this.drive;
     if (!drive) throw new Error("Agda's filesystem is not ready");
     const mount = async () => {
-      const archives = await this.until(
-        Promise.all(
-          missing.map(async (url) => {
-            const response = await fetch(url, { signal: this.downloads.signal });
-            if (!response.ok) throw new Error(`Could not load Agda cache: ${response.status}`);
-            return { url, data: await response.arrayBuffer() };
-          }),
-        ),
-      );
-      for (const archive of archives) {
-        await this.until(drive.mountArchive(Comlink.transfer(archive.data, [archive.data])));
-        this.mounted.add(archive.url);
+      const store = missing.some((archive) => archive.sha256) ? await this.until(this.store()) : null;
+      const kept = await this.until(this.kept(missing.flatMap((archive) => archive.sha256 ?? [])));
+      const progress: MountProgress = {
+        loaded: 0,
+        total: missing.every((archive) => archive.bytes !== undefined)
+          ? missing.reduce((sum, archive) => sum + (archive.bytes ?? 0), 0)
+          : undefined,
+        mounted: 0,
+        archives: missing.length,
+      };
+      const tell = () => options.onProgress?.({ ...progress });
+      tell();
+      // This mount's downloads stop with the caller's signal or the
+      // transport's own.
+      const stopping = new AbortController();
+      const stop = () => stopping.abort();
+      options.signal?.addEventListener("abort", stop, { once: true });
+      this.downloads.signal.addEventListener("abort", stop, { once: true });
+      if (options.signal?.aborted || this.downloads.signal.aborted) stop();
+      // One extraction at a time, in the order the archives arrive.
+      let extracting: Promise<void> = Promise.resolve();
+      const puts: Promise<void>[] = [];
+      const stopped = (what: string) => new Error(`${what} was not mounted: the mount was stopped`);
+      const extract = (archive: ArchiveRef, data: ArrayBuffer, what: string) => {
+        const extracted = extracting.then(async () => {
+          if (stopping.signal.aborted) throw stopped(what);
+          await this.until(drive.mountArchive(Comlink.transfer(data, [data])));
+          this.mounted.add(archive.url);
+          progress.mounted += 1;
+          tell();
+        });
+        extracting = extracted.catch(() => {});
+        return extracted;
+      };
+      try {
+        await inPool(missing, PARALLEL_FETCHES, async (archive) => {
+          const what = archive.what ?? `the archive ${archive.url}`;
+          if (stopping.signal.aborted) throw stopped(what);
+          const digest = archive.sha256;
+          let data: ArrayBuffer | undefined;
+          if (digest && store && kept.has(digest)) {
+            data = await store.get(digest).catch((error: unknown) => {
+              console.warn(`Could not read ${what} from the archive store`, error);
+              return undefined;
+            });
+            // A record that cannot be read is no use kept.
+            if (!data) await store.forget([digest]).catch(() => {});
+          }
+          if (data) {
+            report.kept += 1;
+            report.keptBytes += data.byteLength;
+            progress.loaded += data.byteLength;
+            tell();
+          } else {
+            // An archive planned as kept is not fetched: its bytes were
+            // never stated to the reader.
+            if (archive.fetch === false) throw new ArchiveNotKept(what);
+            if (stopping.signal.aborted) throw new Error(`${what} was not downloaded: the mount was stopped`);
+            const response = await fetchOrFail(archive.url, what, stopping.signal);
+            data = await readCounting(response, what, (count) => {
+              progress.loaded += count;
+              tell();
+            });
+            if (archive.sha256) {
+              const digest = await sha256Of(data, what);
+              if (digest !== archive.sha256)
+                throw new Error(
+                  `${what} is not the archive its index names (its SHA-256 is ${digest.slice(0, 16)}, not ${archive.sha256.slice(0, 16)}): the site may have changed since this page was loaded, so reload it`,
+                );
+              // Kept before its buffer is handed to the worker: the store
+              // copies it when put is called, and the mount settles only
+              // once it is written.
+              if (store)
+                puts.push(
+                  store
+                    .put({
+                      sha256: archive.sha256,
+                      library: archive.library ?? "",
+                      path: archive.path ?? archive.url,
+                      bytes: data.byteLength,
+                      data,
+                      stored: Date.now(),
+                    })
+                    .catch((error: unknown) => console.warn(`Could not keep ${what} in the archive store`, error)),
+                );
+            }
+            report.fetched += 1;
+            report.fetchedBytes += data.byteLength;
+          }
+          try {
+            await extract(archive, data, what);
+          } catch (error) {
+            // An archive the drive could not extract is not kept for the
+            // next try; one the mount never reached, since it was stopped
+            // or the engine is gone, is sound, and stays.
+            if (digest && store && !stopping.signal.aborted && !this.exited)
+              await store.forget([digest]).catch(() => {});
+            throw error;
+          }
+        }, stop);
+      } catch (error) {
+        stop();
+        throw error;
+      } finally {
+        // Nothing is left extracting, or being written to the store, when
+        // the mount settles.
+        await extracting;
+        await Promise.all(puts);
+        options.signal?.removeEventListener("abort", stop);
+        this.downloads.signal.removeEventListener("abort", stop);
       }
     };
     this.mounting = mount();
@@ -393,6 +673,14 @@ export class BrowserTransport implements EngineTransport {
     } finally {
       this.mounting = undefined;
     }
+    return report;
+  }
+
+  /** Which of `paths` the drive holds (an interface an earlier check
+   * wrote, which the drive's cache restored, or an archive's). */
+  async present(paths: readonly string[]): Promise<Set<string>> {
+    if (!paths.length) return new Set();
+    return new Set(await this.until(this.ready().present([...paths])));
   }
 
   /** Persist the sources written and the interfaces Agda wrote, in the

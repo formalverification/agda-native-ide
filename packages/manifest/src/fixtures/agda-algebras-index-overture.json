@@ -1,0 +1,831 @@
+{
+ "schema": 1,
+ "agda": {
+  "version": "2.9.0",
+  "wasm": "da2f1efc6b13e0d8b8a69311511c8ed6fbfbc2759bd8ec299004580fcfba1eb1"
+ },
+ "libraries": {
+  "agda-algebras": {
+   "name": "agda-algebras",
+   "commit": "f067d57d367a4830834ce1fd80937820754f9a28",
+   "root": "/agda-algebras",
+   "agdaLib": "/agda-algebras/agda-algebras.agda-lib",
+   "sources": {
+    "path": "agda-algebras-sources.zip",
+    "bytes": 985864,
+    "sha256": "005b0f5576bf88d25d32b5b7af44bcc9ff47028faddc9a2c9eb38a18998ad961"
+   }
+  },
+  "standard-library": {
+   "name": "standard-library-2.3",
+   "root": "/stdlib",
+   "agdaLib": "/stdlib/standard-library.agda-lib",
+   "sources": {
+    "path": "agda-stdlib-2.3-patched.zip",
+    "bytes": 1536421,
+    "sha256": "773c59515bf4cd2ebf6d86aed6d57ec4493333538b28c1ace55509ece7e7aacd"
+   }
+  },
+  "builtins": {
+   "root": "/lib/prim",
+   "sources": {
+    "path": "agda-data.zip",
+    "bytes": 580637,
+    "sha256": "b250cb2154c15efb882139c6698b5b4c3514a3fb1e361bbde58f58a2eed943c0"
+   }
+  }
+ },
+ "roots": [
+  "Overture.Basic",
+  "Overture.Signatures"
+ ],
+ "archives": {
+  "interfaces/Overture.Basic.zip": {
+   "bytes": 83478,
+   "sha256": "8daf8f36abdd52cdb6ac95175a5f11bae0cce95126b89801c78edaba4d6eb95b",
+   "modules": 1
+  },
+  "interfaces/Overture.Signatures.zip": {
+   "bytes": 14942,
+   "sha256": "7a12fa9575d1c5bca53d57b2f724fb444da1996757bab424f414a657af8ca37f",
+   "modules": 1
+  },
+  "interfaces/stdlib-035d11e89ab6.zip": {
+   "bytes": 47644,
+   "sha256": "ffcfdd4df478783d3d01411377109b723f8e6201cfafefb4b2dc052e01113180",
+   "modules": 1
+  },
+  "interfaces/stdlib-09a0f35d9ccb.zip": {
+   "bytes": 1043083,
+   "sha256": "8ae9461b96c96ab1127e73a0cb0b54a55a49d62a755a7fdb04ad2cc850638ccd",
+   "modules": 10
+  },
+  "interfaces/stdlib-0be645ef09d9.zip": {
+   "bytes": 1813525,
+   "sha256": "ebeff29f12456631998a4e7c4a9f151de67b276f3e1465d7990c396bb81a4b5e",
+   "modules": 16
+  },
+  "interfaces/stdlib-1b785cf59037.zip": {
+   "bytes": 75730,
+   "sha256": "4e83b537c0ab2aaf6d2cbf8e0d27ab7d4fcef357518ee2234f283aeb607ce2c1",
+   "modules": 2
+  },
+  "interfaces/stdlib-1e9c4faf60e2.zip": {
+   "bytes": 58320,
+   "sha256": "8188336794857d6c51a73861036195baa91475b4b1c5e56c1d92cee9b61b24ab",
+   "modules": 1
+  },
+  "interfaces/stdlib-3d61c12a37e1.zip": {
+   "bytes": 45198,
+   "sha256": "279f07ecd41b14855a08e17b23dd104ed9dbd6189430429a3ab1abb201ef4709",
+   "modules": 1
+  },
+  "interfaces/stdlib-43567bacd919.zip": {
+   "bytes": 276223,
+   "sha256": "c365a80374c6122cae8a3a1fa25e7c87256c72dc55f2aa683c3a4656346bfea1",
+   "modules": 10
+  },
+  "interfaces/stdlib-5603a1b8072d.zip": {
+   "bytes": 170254,
+   "sha256": "d92b539b164b1206a669c424b452b0f0cd01502232deb904dd20afa10257979d",
+   "modules": 9
+  },
+  "interfaces/stdlib-77ee82c89683.zip": {
+   "bytes": 99252,
+   "sha256": "af2db9e3a717884fa4a66fc13e86d7f5c29c3b6b9fd881645f6d1617916befdc",
+   "modules": 1
+  },
+  "interfaces/stdlib-86eecb8952f2.zip": {
+   "bytes": 4417,
+   "sha256": "71125bf7cdc032df988428b2ef40932442730dde3d7b0f3aff7a24c2a5a757e3",
+   "modules": 1
+  },
+  "interfaces/stdlib-9e7155097cdf.zip": {
+   "bytes": 21737,
+   "sha256": "0424c0566d018695586be89e45be55da907d3996ea0beb85a24b8e1c8b7d32e6",
+   "modules": 1
+  },
+  "interfaces/stdlib-d498f46a83e3.zip": {
+   "bytes": 168777,
+   "sha256": "14c2e88c5c760a7350975b6ea0d7f45b53ea607e308ae55417b7b7a9a50915ec",
+   "modules": 3
+  },
+  "interfaces/stdlib-ebb8ea6368b4.zip": {
+   "bytes": 410833,
+   "sha256": "3a51eee9cd1d40c1552ac91acfd33060c1f000399e7a3669f69f3255b8ea1308",
+   "modules": 3
+  }
+ },
+ "modules": {
+  "Agda.Builtin.Bool": {
+   "library": "builtins",
+   "source": "/lib/prim/Agda/Builtin/Bool.agda",
+   "interface": "/lib/prim/_build/2.9.0/agda/Agda/Builtin/Bool.agdai",
+   "bytes": 5022,
+   "archive": null,
+   "deps": [
+    "Agda.Primitive"
+   ]
+  },
+  "Agda.Builtin.Equality": {
+   "library": "builtins",
+   "source": "/lib/prim/Agda/Builtin/Equality.agda",
+   "interface": "/lib/prim/_build/2.9.0/agda/Agda/Builtin/Equality.agdai",
+   "bytes": 8948,
+   "archive": null,
+   "deps": [
+    "Agda.Primitive"
+   ]
+  },
+  "Agda.Builtin.Maybe": {
+   "library": "builtins",
+   "source": "/lib/prim/Agda/Builtin/Maybe.agda",
+   "interface": "/lib/prim/_build/2.9.0/agda/Agda/Builtin/Maybe.agdai",
+   "bytes": 6065,
+   "archive": null,
+   "deps": [
+    "Agda.Primitive"
+   ]
+  },
+  "Agda.Builtin.Sigma": {
+   "library": "builtins",
+   "source": "/lib/prim/Agda/Builtin/Sigma.agda",
+   "interface": "/lib/prim/_build/2.9.0/agda/Agda/Builtin/Sigma.agdai",
+   "bytes": 8669,
+   "archive": null,
+   "deps": [
+    "Agda.Primitive"
+   ]
+  },
+  "Agda.Builtin.Unit": {
+   "library": "builtins",
+   "source": "/lib/prim/Agda/Builtin/Unit.agda",
+   "interface": "/lib/prim/_build/2.9.0/agda/Agda/Builtin/Unit.agdai",
+   "bytes": 3779,
+   "archive": null,
+   "deps": [
+    "Agda.Primitive"
+   ]
+  },
+  "Agda.Primitive": {
+   "library": "builtins",
+   "source": "/lib/prim/Agda/Primitive.agda",
+   "interface": "/lib/prim/_build/2.9.0/agda/Agda/Primitive.agdai",
+   "bytes": 3803,
+   "archive": null,
+   "deps": []
+  },
+  "Algebra.Bundles": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Algebra/Bundles.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Algebra/Bundles.agdai",
+   "bytes": 547641,
+   "archive": "interfaces/stdlib-0be645ef09d9.zip",
+   "deps": [
+    "Algebra.Bundles.Raw",
+    "Algebra.Structures"
+   ]
+  },
+  "Algebra.Bundles.Raw": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Algebra/Bundles/Raw.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Algebra/Bundles/Raw.agdai",
+   "bytes": 65928,
+   "archive": "interfaces/stdlib-1b785cf59037.zip",
+   "deps": [
+    "Algebra.Core",
+    "Relation.Binary.Bundles.Raw"
+   ]
+  },
+  "Algebra.Consequences.Base": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Algebra/Consequences/Base.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Algebra/Consequences/Base.agdai",
+   "bytes": 24203,
+   "archive": "interfaces/stdlib-0be645ef09d9.zip",
+   "deps": [
+    "Algebra.Definitions",
+    "Relation.Binary.Consequences"
+   ]
+  },
+  "Algebra.Consequences.Setoid": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Algebra/Consequences/Setoid.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Algebra/Consequences/Setoid.agdai",
+   "bytes": 144325,
+   "archive": "interfaces/stdlib-0be645ef09d9.zip",
+   "deps": [
+    "Algebra.Consequences.Base",
+    "Function.Definitions",
+    "Relation.Binary.Reasoning.Setoid"
+   ]
+  },
+  "Algebra.Core": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Algebra/Core.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Algebra/Core.agdai",
+   "bytes": 4225,
+   "archive": "interfaces/stdlib-86eecb8952f2.zip",
+   "deps": [
+    "Level"
+   ]
+  },
+  "Algebra.Definitions": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Algebra/Definitions.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Algebra/Definitions.agdai",
+   "bytes": 58114,
+   "archive": "interfaces/stdlib-1e9c4faf60e2.zip",
+   "deps": [
+    "Algebra.Core",
+    "Relation.Binary.Definitions"
+   ]
+  },
+  "Algebra.Structures": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Algebra/Structures.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Algebra/Structures.agdai",
+   "bytes": 493611,
+   "archive": "interfaces/stdlib-0be645ef09d9.zip",
+   "deps": [
+    "Algebra.Consequences.Setoid"
+   ]
+  },
+  "Axiom.UniquenessOfIdentityProofs": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Axiom/UniquenessOfIdentityProofs.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Axiom/UniquenessOfIdentityProofs.agdai",
+   "bytes": 42030,
+   "archive": "interfaces/stdlib-0be645ef09d9.zip",
+   "deps": [
+    "Relation.Binary.PropositionalEquality.Properties"
+   ]
+  },
+  "Data.Bool.Base": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Data/Bool/Base.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Data/Bool/Base.agdai",
+   "bytes": 15929,
+   "archive": "interfaces/stdlib-5603a1b8072d.zip",
+   "deps": [
+    "Agda.Builtin.Bool",
+    "Data.Empty",
+    "Data.Unit.Base"
+   ]
+  },
+  "Data.Empty": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Data/Empty.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Data/Empty.agdai",
+   "bytes": 5775,
+   "archive": "interfaces/stdlib-5603a1b8072d.zip",
+   "deps": [
+    "Data.Irrelevant"
+   ]
+  },
+  "Data.Empty.Polymorphic": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Data/Empty/Polymorphic.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Data/Empty/Polymorphic.agdai",
+   "bytes": 5169,
+   "archive": "interfaces/stdlib-43567bacd919.zip",
+   "deps": [
+    "Data.Empty"
+   ]
+  },
+  "Data.Irrelevant": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Data/Irrelevant.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Data/Irrelevant.agdai",
+   "bytes": 9851,
+   "archive": "interfaces/stdlib-5603a1b8072d.zip",
+   "deps": [
+    "Level"
+   ]
+  },
+  "Data.Product": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Data/Product.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Data/Product.agdai",
+   "bytes": 21545,
+   "archive": "interfaces/stdlib-9e7155097cdf.zip",
+   "deps": [
+    "Data.Product.Base",
+    "Relation.Nullary.Negation.Core"
+   ]
+  },
+  "Data.Product.Base": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Data/Product/Base.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Data/Product/Base.agdai",
+   "bytes": 46318,
+   "archive": "interfaces/stdlib-5603a1b8072d.zip",
+   "deps": [
+    "Agda.Builtin.Sigma",
+    "Function.Base"
+   ]
+  },
+  "Data.Sum.Base": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Data/Sum/Base.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Data/Sum/Base.agdai",
+   "bytes": 24829,
+   "archive": "interfaces/stdlib-5603a1b8072d.zip",
+   "deps": [
+    "Data.Bool.Base",
+    "Function.Base"
+   ]
+  },
+  "Data.Unit.Base": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Data/Unit/Base.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Data/Unit/Base.agdai",
+   "bytes": 2893,
+   "archive": "interfaces/stdlib-5603a1b8072d.zip",
+   "deps": [
+    "Agda.Builtin.Unit"
+   ]
+  },
+  "Data.Unit.Polymorphic.Base": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Data/Unit/Polymorphic/Base.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Data/Unit/Polymorphic/Base.agdai",
+   "bytes": 5074,
+   "archive": "interfaces/stdlib-43567bacd919.zip",
+   "deps": [
+    "Data.Unit.Base",
+    "Level"
+   ]
+  },
+  "Function.Base": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Function/Base.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Function/Base.agdai",
+   "bytes": 36745,
+   "archive": "interfaces/stdlib-5603a1b8072d.zip",
+   "deps": [
+    "Level"
+   ]
+  },
+  "Function.Bundles": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Function/Bundles.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Function/Bundles.agdai",
+   "bytes": 236539,
+   "archive": "interfaces/stdlib-09a0f35d9ccb.zip",
+   "deps": [
+    "Function.Consequences.Propositional",
+    "Function.Structures"
+   ]
+  },
+  "Function.Consequences": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Function/Consequences.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Function/Consequences.agdai",
+   "bytes": 58365,
+   "archive": "interfaces/stdlib-09a0f35d9ccb.zip",
+   "deps": [
+    "Function.Definitions",
+    "Relation.Binary.Bundles"
+   ]
+  },
+  "Function.Consequences.Propositional": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Function/Consequences/Propositional.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Function/Consequences/Propositional.agdai",
+   "bytes": 18062,
+   "archive": "interfaces/stdlib-09a0f35d9ccb.zip",
+   "deps": [
+    "Function.Consequences.Setoid",
+    "Relation.Binary.PropositionalEquality.Properties"
+   ]
+  },
+  "Function.Consequences.Setoid": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Function/Consequences/Setoid.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Function/Consequences/Setoid.agdai",
+   "bytes": 42034,
+   "archive": "interfaces/stdlib-09a0f35d9ccb.zip",
+   "deps": [
+    "Function.Consequences"
+   ]
+  },
+  "Function.Definitions": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Function/Definitions.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Function/Definitions.agdai",
+   "bytes": 18236,
+   "archive": "interfaces/stdlib-09a0f35d9ccb.zip",
+   "deps": [
+    "Relation.Binary.Core"
+   ]
+  },
+  "Function.Dependent.Bundles": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Function/Dependent/Bundles.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Function/Dependent/Bundles.agdai",
+   "bytes": 44851,
+   "archive": "interfaces/stdlib-0be645ef09d9.zip",
+   "deps": [
+    "Relation.Binary.Bundles",
+    "Relation.Binary.Indexed.Heterogeneous"
+   ]
+  },
+  "Function.Indexed.Relation.Binary.Equality": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Function/Indexed/Relation/Binary/Equality.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Function/Indexed/Relation/Binary/Equality.agdai",
+   "bytes": 35427,
+   "archive": "interfaces/stdlib-0be645ef09d9.zip",
+   "deps": [
+    "Relation.Binary.Bundles",
+    "Relation.Binary.Indexed.Heterogeneous"
+   ]
+  },
+  "Function.Structures": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Function/Structures.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Function/Structures.agdai",
+   "bytes": 165717,
+   "archive": "interfaces/stdlib-09a0f35d9ccb.zip",
+   "deps": [
+    "Function.Definitions",
+    "Relation.Binary.Bundles"
+   ]
+  },
+  "Level": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Level.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Level.agdai",
+   "bytes": 8012,
+   "archive": "interfaces/stdlib-5603a1b8072d.zip",
+   "deps": [
+    "Agda.Primitive"
+   ]
+  },
+  "Overture.Basic": {
+   "library": "agda-algebras",
+   "source": "/agda-algebras/src/Overture/Basic.lagda.md",
+   "interface": "/agda-algebras/_build/2.9.0/agda/src/Overture/Basic.agdai",
+   "bytes": 83268,
+   "archive": "interfaces/Overture.Basic.zip",
+   "deps": [
+    "Data.Product",
+    "Relation.Binary",
+    "Relation.Binary.PropositionalEquality"
+   ]
+  },
+  "Overture.Signatures": {
+   "library": "agda-algebras",
+   "source": "/agda-algebras/src/Overture/Signatures.lagda.md",
+   "interface": "/agda-algebras/_build/2.9.0/agda/src/Overture/Signatures.agdai",
+   "bytes": 14722,
+   "archive": "interfaces/Overture.Signatures.zip",
+   "deps": [
+    "Data.Product"
+   ]
+  },
+  "Relation.Binary": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary.agdai",
+   "bytes": 45000,
+   "archive": "interfaces/stdlib-3d61c12a37e1.zip",
+   "deps": [
+    "Relation.Binary.Bundles",
+    "Relation.Binary.Structures.Biased"
+   ]
+  },
+  "Relation.Binary.Bundles": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Bundles.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Bundles.agdai",
+   "bytes": 177247,
+   "archive": "interfaces/stdlib-ebb8ea6368b4.zip",
+   "deps": [
+    "Relation.Binary.Bundles.Raw",
+    "Relation.Binary.Structures"
+   ]
+  },
+  "Relation.Binary.Bundles.Raw": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Bundles/Raw.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Bundles/Raw.agdai",
+   "bytes": 22498,
+   "archive": "interfaces/stdlib-d498f46a83e3.zip",
+   "deps": [
+    "Relation.Binary.Core",
+    "Relation.Nullary.Negation.Core"
+   ]
+  },
+  "Relation.Binary.Consequences": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Consequences.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Consequences.agdai",
+   "bytes": 104434,
+   "archive": "interfaces/stdlib-ebb8ea6368b4.zip",
+   "deps": [
+    "Relation.Unary"
+   ]
+  },
+  "Relation.Binary.Construct.Composition": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Construct/Composition.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Construct/Composition.agdai",
+   "bytes": 56923,
+   "archive": "interfaces/stdlib-09a0f35d9ccb.zip",
+   "deps": [
+    "Relation.Binary.Structures"
+   ]
+  },
+  "Relation.Binary.Core": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Core.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Core.agdai",
+   "bytes": 19113,
+   "archive": "interfaces/stdlib-43567bacd919.zip",
+   "deps": [
+    "Data.Product.Base"
+   ]
+  },
+  "Relation.Binary.Definitions": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Definitions.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Definitions.agdai",
+   "bytes": 74024,
+   "archive": "interfaces/stdlib-43567bacd919.zip",
+   "deps": [
+    "Relation.Binary.Core",
+    "Relation.Nullary"
+   ]
+  },
+  "Relation.Binary.Indexed.Heterogeneous": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Indexed/Heterogeneous.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Indexed/Heterogeneous.agdai",
+   "bytes": 6376,
+   "archive": "interfaces/stdlib-0be645ef09d9.zip",
+   "deps": [
+    "Relation.Binary.Indexed.Heterogeneous.Bundles"
+   ]
+  },
+  "Relation.Binary.Indexed.Heterogeneous.Bundles": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Indexed/Heterogeneous/Bundles.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Indexed/Heterogeneous/Bundles.agdai",
+   "bytes": 25734,
+   "archive": "interfaces/stdlib-0be645ef09d9.zip",
+   "deps": [
+    "Relation.Binary.Indexed.Heterogeneous.Structures"
+   ]
+  },
+  "Relation.Binary.Indexed.Heterogeneous.Construct.Trivial": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Indexed/Heterogeneous/Construct/Trivial.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Indexed/Heterogeneous/Construct/Trivial.agdai",
+   "bytes": 52861,
+   "archive": "interfaces/stdlib-0be645ef09d9.zip",
+   "deps": [
+    "Relation.Binary.Bundles",
+    "Relation.Binary.Indexed.Heterogeneous"
+   ]
+  },
+  "Relation.Binary.Indexed.Heterogeneous.Core": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Indexed/Heterogeneous/Core.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Indexed/Heterogeneous/Core.agdai",
+   "bytes": 9366,
+   "archive": "interfaces/stdlib-1b785cf59037.zip",
+   "deps": [
+    "Relation.Binary.Core"
+   ]
+  },
+  "Relation.Binary.Indexed.Heterogeneous.Definitions": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Indexed/Heterogeneous/Definitions.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Indexed/Heterogeneous/Definitions.agdai",
+   "bytes": 8682,
+   "archive": "interfaces/stdlib-0be645ef09d9.zip",
+   "deps": [
+    "Relation.Binary.Definitions",
+    "Relation.Binary.Indexed.Heterogeneous.Core"
+   ]
+  },
+  "Relation.Binary.Indexed.Heterogeneous.Structures": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Indexed/Heterogeneous/Structures.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Indexed/Heterogeneous/Structures.agdai",
+   "bytes": 38468,
+   "archive": "interfaces/stdlib-0be645ef09d9.zip",
+   "deps": [
+    "Relation.Binary.Indexed.Heterogeneous.Definitions",
+    "Relation.Binary.PropositionalEquality.Core"
+   ]
+  },
+  "Relation.Binary.Properties.Setoid": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Properties/Setoid.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Properties/Setoid.agdai",
+   "bytes": 67492,
+   "archive": "interfaces/stdlib-09a0f35d9ccb.zip",
+   "deps": [
+    "Relation.Binary.Bundles",
+    "Relation.Binary.Construct.Composition"
+   ]
+  },
+  "Relation.Binary.PropositionalEquality": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/PropositionalEquality.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/PropositionalEquality.agdai",
+   "bytes": 111418,
+   "archive": "interfaces/stdlib-0be645ef09d9.zip",
+   "deps": [
+    "Axiom.UniquenessOfIdentityProofs",
+    "Function.Dependent.Bundles",
+    "Function.Indexed.Relation.Binary.Equality",
+    "Relation.Binary.Indexed.Heterogeneous.Construct.Trivial",
+    "Relation.Binary.PropositionalEquality.Algebra",
+    "Relation.Nullary.Decidable"
+   ]
+  },
+  "Relation.Binary.PropositionalEquality.Algebra": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/PropositionalEquality/Algebra.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/PropositionalEquality/Algebra.agdai",
+   "bytes": 146578,
+   "archive": "interfaces/stdlib-0be645ef09d9.zip",
+   "deps": [
+    "Algebra.Bundles",
+    "Relation.Binary.PropositionalEquality.Properties"
+   ]
+  },
+  "Relation.Binary.PropositionalEquality.Core": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/PropositionalEquality/Core.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/PropositionalEquality/Core.agdai",
+   "bytes": 84835,
+   "archive": "interfaces/stdlib-d498f46a83e3.zip",
+   "deps": [
+    "Relation.Binary.Definitions"
+   ]
+  },
+  "Relation.Binary.PropositionalEquality.Properties": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/PropositionalEquality/Properties.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/PropositionalEquality/Properties.agdai",
+   "bytes": 295568,
+   "archive": "interfaces/stdlib-09a0f35d9ccb.zip",
+   "deps": [
+    "Relation.Binary.Properties.Setoid",
+    "Relation.Binary.Reasoning.Syntax"
+   ]
+  },
+  "Relation.Binary.Reasoning.Base.Single": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Reasoning/Base/Single.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Reasoning/Base/Single.agdai",
+   "bytes": 43874,
+   "archive": "interfaces/stdlib-0be645ef09d9.zip",
+   "deps": [
+    "Relation.Binary.Reasoning.Syntax"
+   ]
+  },
+  "Relation.Binary.Reasoning.Setoid": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Reasoning/Setoid.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Reasoning/Setoid.agdai",
+   "bytes": 43950,
+   "archive": "interfaces/stdlib-0be645ef09d9.zip",
+   "deps": [
+    "Relation.Binary.Bundles",
+    "Relation.Binary.Reasoning.Base.Single"
+   ]
+  },
+  "Relation.Binary.Reasoning.Syntax": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Reasoning/Syntax.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Reasoning/Syntax.agdai",
+   "bytes": 82087,
+   "archive": "interfaces/stdlib-09a0f35d9ccb.zip",
+   "deps": [
+    "Relation.Binary.PropositionalEquality.Core"
+   ]
+  },
+  "Relation.Binary.Structures": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Structures.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Structures.agdai",
+   "bytes": 128538,
+   "archive": "interfaces/stdlib-ebb8ea6368b4.zip",
+   "deps": [
+    "Relation.Binary.Consequences"
+   ]
+  },
+  "Relation.Binary.Structures.Biased": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Binary/Structures/Biased.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Binary/Structures/Biased.agdai",
+   "bytes": 47410,
+   "archive": "interfaces/stdlib-035d11e89ab6.zip",
+   "deps": [
+    "Relation.Binary.Structures"
+   ]
+  },
+  "Relation.Nullary": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Nullary.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Nullary.agdai",
+   "bytes": 13512,
+   "archive": "interfaces/stdlib-43567bacd919.zip",
+   "deps": [
+    "Relation.Nullary.Decidable.Core"
+   ]
+  },
+  "Relation.Nullary.Decidable": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Nullary/Decidable.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Nullary/Decidable.agdai",
+   "bytes": 99032,
+   "archive": "interfaces/stdlib-77ee82c89683.zip",
+   "deps": [
+    "Function.Bundles"
+   ]
+  },
+  "Relation.Nullary.Decidable.Core": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Nullary/Decidable/Core.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Nullary/Decidable/Core.agdai",
+   "bytes": 52215,
+   "archive": "interfaces/stdlib-43567bacd919.zip",
+   "deps": [
+    "Agda.Builtin.Maybe",
+    "Relation.Nullary.Reflects"
+   ]
+  },
+  "Relation.Nullary.Irrelevant": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Nullary/Irrelevant.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Nullary/Irrelevant.agdai",
+   "bytes": 4901,
+   "archive": "interfaces/stdlib-43567bacd919.zip",
+   "deps": [
+    "Agda.Builtin.Equality",
+    "Level"
+   ]
+  },
+  "Relation.Nullary.Negation.Core": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Nullary/Negation/Core.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Nullary/Negation/Core.agdai",
+   "bytes": 18304,
+   "archive": "interfaces/stdlib-5603a1b8072d.zip",
+   "deps": [
+    "Data.Sum.Base"
+   ]
+  },
+  "Relation.Nullary.Recomputable": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Nullary/Recomputable.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Nullary/Recomputable.agdai",
+   "bytes": 15223,
+   "archive": "interfaces/stdlib-43567bacd919.zip",
+   "deps": [
+    "Data.Product.Base",
+    "Relation.Nullary.Negation.Core",
+    "Relation.Nullary.Recomputable.Core"
+   ]
+  },
+  "Relation.Nullary.Recomputable.Core": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Nullary/Recomputable/Core.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Nullary/Recomputable/Core.agdai",
+   "bytes": 7636,
+   "archive": "interfaces/stdlib-43567bacd919.zip",
+   "deps": [
+    "Relation.Nullary.Irrelevant"
+   ]
+  },
+  "Relation.Nullary.Reflects": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Nullary/Reflects.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Nullary/Reflects.agdai",
+   "bytes": 77360,
+   "archive": "interfaces/stdlib-43567bacd919.zip",
+   "deps": [
+    "Data.Empty.Polymorphic",
+    "Data.Unit.Polymorphic.Base",
+    "Relation.Nullary.Recomputable"
+   ]
+  },
+  "Relation.Unary": {
+   "library": "standard-library",
+   "source": "/stdlib/src/Relation/Unary.agda",
+   "interface": "/stdlib/_build/2.9.0/agda/src/Relation/Unary.agdai",
+   "bytes": 60818,
+   "archive": "interfaces/stdlib-d498f46a83e3.zip",
+   "deps": [
+    "Relation.Binary.PropositionalEquality.Core"
+   ]
+  }
+ }
+}

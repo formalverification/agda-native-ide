@@ -19,7 +19,8 @@ Contents
   3.  The compiler: als-reactor-2.9.0.wasm.gz and als-reactor-2.9.0.js
   4.  Agda's builtin library: agda-data.zip
   5.  The Agda standard library 2.3, patched: agda-stdlib-2.3-patched.zip
-  6.  agda-algebras: agda-algebras-sources.zip, agda-algebras-modules.json
+  6.  agda-algebras: agda-algebras-sources.zip, agda-algebras-modules.json,
+      and agda-algebras/
   7.  PLFA: plfa/
   8.  JuliaMono: JuliaMono-*.woff2
   9.  The Agda mark: favicon.svg and favicon.png
@@ -465,7 +466,8 @@ Contents
     licenses/agda-stdlib.txt is the same text.
 
 
-6.  agda-algebras: agda-algebras-sources.zip, agda-algebras-modules.json
+6.  agda-algebras: agda-algebras-sources.zip, agda-algebras-modules.json,
+    and agda-algebras/
 
     The sources of https://github.com/ualib/agda-algebras at
     f067d57d367a4830834ce1fd80937820754f9a28 (2026-10-10), unchanged: its
@@ -480,6 +482,27 @@ Contents
     Apache License 2.0, Copyright 2018-2026 The agda-algebras development
     team: licenses/agda-algebras/LICENSE, with its NOTICE as
     licenses/agda-algebras/NOTICE, both the archive's files.
+
+    agda-algebras/interfaces/*.zip, 395 archives: the interfaces Agda 2.9.0
+    writes for agda-algebras' 350 modules and for the 251 modules of the
+    standard library (section 5) they import, built by the compiler's own
+    plain agda (section 3) from these sources, and packed so that an
+    import fetches its closure's interfaces and nothing else.  Made by
+    this repository's flake (packages.agda-algebras-interfaces and
+    packages.agda-algebras-archives).  The page fetches an archive only
+    when a check's imports need it, after it has stated the bytes and
+    the reader has agreed.  An interface holds its module's source text,
+    so each is licensed as its source is: agda-algebras' under the Apache
+    License 2.0, as above, and the standard library's under its MIT
+    license (section 5, licenses/agda-stdlib.txt).
+
+    agda-algebras/index.json, the archives' index: each module of their
+    closure with its paths, its archive and its successors in Agda's
+    dependency graph, and each archive with its bytes and SHA-256.  Made
+    by the same flake package.  A machine-extracted representation of
+    agda-algebras, under the Apache License 2.0 or CC0-1.0, at the
+    recipient's option: licenses/agda-algebras/LICENSE-data, the sources
+    archive's file.
 
 
 7.  PLFA: plfa/
