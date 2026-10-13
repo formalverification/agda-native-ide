@@ -54,16 +54,17 @@ export interface DriveFile {
   text: string;
 }
 
-/** What the drive is laid out from (./drive.ts, layOutDrive): the
- * archives, and the host's files. */
+/** The archives the drive is laid out from (./drive.ts, layOutDrive). */
 export interface DriveArchives {
   builtin: ArrayBuffer | null;
   stdlib: ArrayBuffer | null;
   libraries: DriveLibrary[];
-  files: DriveFile[];
 }
 
+/** What the drive is prepared from (./drive.ts, prepareDrive). */
 export interface DriveMount extends DriveArchives {
+  /** The host's files, written over everything else (issue 11). */
+  files: DriveFile[];
   /** The namespace of the drive's IndexedDB cache (src/lib/assets.ts). */
   cacheNamespace: string;
 }

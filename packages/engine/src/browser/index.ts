@@ -73,9 +73,9 @@ export interface BrowserConfig {
   };
   /** Sources the drive starts with, at their paths under the root: a
    * project's own `.agda-lib`, which Agda finds beside the module it checks
-   * (issue 11).  Written after the archives, before Agda starts; the drive
-   * persists one only once the host writes it again, so a restored cache
-   * never stands in for it until then. */
+   * (issue 11).  Written after the archives and over what the drive's
+   * cache restores, before Agda starts, so a cached copy never stands in
+   * for one. */
   files?: readonly { path: string; text: string }[];
   /** The namespace of the drive's IndexedDB cache. */
   cacheNamespace: string;

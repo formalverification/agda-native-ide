@@ -15,17 +15,13 @@
 // It is the engine package's browser transport's worker (issue 62),
 // moved from the page with the drive: the transport (../index.ts) creates
 // it through the host, which bundles it, and it reads one more function,
-// a source's text as Agda would read it.
+// a source's text as Agda would read it.  It writes the host's files over
+// what the cache restores (issue 11).
 
 import * as Comlink from "comlink";
 import * as Runno from "@runno/wasi";
 
-import {
-  attachDrive,
-  layOutDrive,
-  openCacheDatabase,
-  restoreCachedFiles,
-} from "./drive.js";
+import { attachDrive, openCacheDatabase, prepareDrive } from "./drive.js";
 import type {
   ALSWorkerInitObject,
   ALSWorkerInitResultProxied,
@@ -116,12 +112,9 @@ async function init({
   /** Lay out the drive, then instantiate the reactor over it; its
    * _initialize starts GHC's runtime, which reads the argv (the program's
    * name first, then any +RTS ... -RTS) and the environment. */
-  async function mount({ cacheNamespace, ...archives }: DriveMount) {
-    const fs = await layOutDrive(archives);
+  async function mount({ cacheNamespace, files, ...archives }: DriveMount) {
     const database = await openCacheDatabase(cacheNamespace);
-    await restoreCachedFiles(database, fs).catch((error) => {
-      console.warn("Could not restore the persistent Agda cache", error);
-    });
+    const fs = await prepareDrive(archives, files, database);
 
     const wasi = new Runno.WASI({
       args: ["als", ...args],

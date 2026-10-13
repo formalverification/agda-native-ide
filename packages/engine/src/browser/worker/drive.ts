@@ -29,13 +29,14 @@
 // PLFA's archive alone, and writes the registry from that list (issue 13).
 // It starts with the files the host names, a project's own `.agda-lib`,
 // where it held an empty /Main.agda for the page's buffer: the host writes
-// its sources where it keeps them (issue 11).
+// its sources where it keeps them.  They are written over what the cache
+// restores, so a host's file is always its current text (issue 11).
 
 import * as Runno from "@runno/wasi";
 import JSZip from "jszip";
 
 import { indexDrive } from "./drive-index.js";
-import type { DriveArchives } from "./protocol.js";
+import type { DriveArchives, DriveFile } from "./protocol.js";
 
 let lastTimestamp = Date.now();
 
@@ -121,10 +122,10 @@ async function extractZip(
 
 /** The drive's first record: Agda's builtin library (with its
  * interfaces), the standard library's sources at /stdlib, each library
- * extracted at the root in order, the host's files, and Agda's library
- * registry naming the libraries: the libraries file their `.agda-lib`
- * files, and the defaults file their names. */
-export async function layOutDrive({ builtin, stdlib, libraries, files }: DriveArchives) {
+ * extracted at the root in order, and Agda's library registry naming
+ * them: the libraries file their `.agda-lib` files, and the defaults file
+ * their names. */
+export async function layOutDrive({ builtin, stdlib, libraries }: DriveArchives) {
   const fs: Record<string, Runno.WASIFile> = {};
   const registered: { agdaLib: string; name: string }[] = [];
 
@@ -153,9 +154,6 @@ export async function layOutDrive({ builtin, stdlib, libraries, files }: DriveAr
     registered.push(library);
   }
 
-  // After the archives, so that a host's file is never an archive's.
-  for (const file of files) fsAssign(file.path, file.text, fs);
-
   if (registered.length) {
     const lines = (field: "agdaLib" | "name") =>
       registered.map((library) => `${library[field]}\n`).join("");
@@ -163,6 +161,23 @@ export async function layOutDrive({ builtin, stdlib, libraries, files }: DriveAr
     fsAssign("/home/root/.config/agda/defaults", lines("name"), fs);
   }
 
+  return fs;
+}
+
+/** The drive the worker mounts: the first record, then what an earlier
+ * visit persisted over it, then the host's files over both, so that a
+ * host's file is its current text, never an archive's entry or a copy the
+ * cache kept (issue 11). */
+export async function prepareDrive(
+  archives: DriveArchives,
+  files: readonly DriveFile[],
+  database: IDBDatabase | null,
+) {
+  const fs = await layOutDrive(archives);
+  await restoreCachedFiles(database, fs).catch((error) => {
+    console.warn("Could not restore the persistent Agda cache", error);
+  });
+  for (const file of files) fsAssign(file.path, file.text, fs);
   return fs;
 }
 

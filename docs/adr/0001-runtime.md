@@ -1010,9 +1010,9 @@ or a `TERMINATING` pragma is refused there as the library refuses it.  The
    `make assets-check`, with a cache token, in the drive cache's
    namespace, and in `NOTICE` under Apache-2.0.
 +  **The host names the drive's first files**: the engine lays out the
-   files the host names (`BrowserConfig.files`), after the archives and
-   inside the transport's root, where it held an empty `/Main.agda`; the
-   page names `play.agda-lib`.
+   files the host names (`BrowserConfig.files`), inside the transport's
+   root, after the archives and over what the drive's cache restores,
+   where it held an empty `/Main.agda`; the page names `play.agda-lib`.
 +  **The default `Main`** carries `{-# OPTIONS --without-K --exact-split
    --safe #-}`, imports only builtins, whose interfaces the site ships,
    and opens one goal on the first screen; after a load that leaves goals,

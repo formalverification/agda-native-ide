@@ -401,10 +401,11 @@ runs of the browser check ([#59]).
    transport's `mountArchives`) fetches zips and extracts them at `/`,
    which is how interface archives arrive; it does not touch the registry.
 +  **The host's files**: the drive starts with the files the host names
-   (`BrowserConfig.files`), written after the archives, before Agda
-   starts; the page names its playground's library file, below.  The
-   transport refuses one outside its root before it fetches anything.
-   Until [#11] the drive held an empty `/Main.agda` of its own.
+   (`BrowserConfig.files`), written after the archives and over what the
+   cache restores, before Agda starts (`prepareDrive`), so a cached copy
+   never stands in for one; the page names its playground's library file,
+   below.  The transport refuses one outside its root before it fetches
+   anything.  Until [#11] the drive held an empty `/Main.agda` of its own.
 
 ## The playground's project
 
