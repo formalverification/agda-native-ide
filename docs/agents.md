@@ -40,7 +40,9 @@ links, each excluded in the main checkout's `.git/info/exclude`, as follows:
    that directory.
 +  At each checkout's root: `.claude`, `.agents` and `AGENTS.md`, links to
    the three above.  claude-tooling's `link-worktrees.sh` makes them, and
-   William runs it after `git worktree add`.
+   William runs it after `git worktree add`.  [claude-tooling#49] makes
+   `.agents` a real directory holding a `skills` link instead, for Codex's
+   sandbox (below).
 +  For every project: `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md` and
    `~/.copilot/copilot-instructions.md`, three names for one file, and the
    same 39 skills in `~/.claude/skills` and `~/.agents/skills`.
@@ -141,7 +143,8 @@ The four gates, after `make assets`, were as follows on 2026-10-12
        writable symlink`.  In a scratch repository a real `.agents/` holding
        a `skills` link passed this step, and an `AGENTS.md` or `.claude`
        link did not trigger it.  So here the AppArmor fix alone would not
-       make the sandbox work; this is reported on [claude-tooling#27].
+       make the sandbox work.  [claude-tooling#49] changes the link to
+       that shape, from this report on [claude-tooling#27].
 
    A command runs only outside the sandbox, then, and only once approved.  In
    the trial of [#17] William approved each request as it came (71 of them),
@@ -371,3 +374,4 @@ this page gains how each harness registers them.
 [#63]: https://github.com/formalverification/agda-native-ide/issues/63
 [#65]: https://github.com/formalverification/agda-native-ide/issues/65
 [claude-tooling#27]: https://github.com/williamdemeo/claude-tooling/issues/27
+[claude-tooling#49]: https://github.com/williamdemeo/claude-tooling/pull/49
