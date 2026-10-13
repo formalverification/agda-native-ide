@@ -4,6 +4,7 @@
  "date": "2026-10-13",
  "clock": "Times are UTC where a run records them; the workstation's clock read MDT (UTC-6).",
  "revision": "7b4e3f0fe7b0837fba3c046bdca80ca459783ccf",
+ "revisions": "The revisions this record names are the branch's before its history was rewritten twice: split into thematic commits, then rebased onto main at 4a45506 (pull request 91, the Explorer).  4622928, d1ffafa and 7b4e3f0 were never pushed; 7427de4 and 442a463 were the pull request's first two heads.  Their code: d1ffafa's is 7427de4's; 7b4e3f0's and 814c942's are 442a463's, less this record; 4622928's is d1ffafa's before the review's fixes.  On main, 7427de4's code is a77488c's and 442a463's is b0b8c9b's; at e63412d (b0b8c9b with the plan's mirror of issue 9's closing) the gates, the browser check in Chromium with and without the isolation headers, its notices, and the browser check in Firefox 157 passed again, 2026-10-13, with the Explorer's steps beside these.",
  "machine": {
   "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
   "logicalCpus": 20,
