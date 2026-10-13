@@ -16,7 +16,8 @@ Codex CLI with GPT-6.1 Sol, on [#17] and [#63] (2026-10-10).  Copilot CLI
 has not; its listings are recorded beside the others for comparison.
 Everything below was observed on 2026-10-12, on Ubuntu 24.04, with Claude
 Code 2.1.282, Codex CLI 0.162.1 and Copilot CLI 1.0.95, at a worktree's
-root; the record is
+root, and Codex's sandbox again on 2026-10-13, after the two fixes this page
+called for; the record is
 [`docs/measurements/agent-harnesses-2026-10-12.json`][record].
 
 ## At a glance
@@ -24,7 +25,7 @@ root; the record is
 | Harness | Instructions loaded | Skills listed | MCP servers | Gates from a session |
 | --- | --- | --- | --- | --- |
 | Claude Code 2.1.282 | global and project | 39 global, 7 project (5 by name only) | none of this repository's | all four |
-| Codex CLI 0.162.1 | global and project | 39 global, 7 project, 4 of its own | none | three, by saved approvals; not `browser-check` |
+| Codex CLI 0.162.1 | global and project | 39 global, 7 project, 4 of its own | none | `check` in its sandbox; `test` and `build` by saved approvals; not `browser-check` |
 | Copilot CLI 1.0.95 | global and project | 39 global, 7 project, 2 built-in | its built-in GitHub server | not run |
 
 ## Instructions and skills
@@ -38,11 +39,12 @@ links, each excluded in the main checkout's `.git/info/exclude`, as follows:
    last line is `PROBE-MARKER: claude-tooling/agda-native-ide`; and the
    project's skills, in `.claude/skills/`, with `.agents/skills` a link to
    that directory.
-+  At each checkout's root: `.claude`, `.agents` and `AGENTS.md`, links to
-   the three above.  claude-tooling's `link-worktrees.sh` makes them, and
-   William runs it after `git worktree add`.  [claude-tooling#49] makes
-   `.agents` a real directory holding a `skills` link instead, for Codex's
-   sandbox (below).
++  At each checkout's root: `.claude` and `AGENTS.md`, links to the
+   parent's, and a real `.agents/` whose `skills` links to the parent's
+   `.agents/skills`.  claude-tooling's `link-worktrees.sh` makes them, and
+   William runs it after `git worktree add`.  Until 2026-10-13 `.agents`
+   was itself a link to the parent's, which kept Codex's sandbox from
+   starting (below); [claude-tooling#49] changed it.
 +  For every project: `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md` and
    `~/.copilot/copilot-instructions.md`, three names for one file, and the
    same 39 skills in `~/.claude/skills` and `~/.agents/skills`.
@@ -80,7 +82,9 @@ following:
    `~/.agents/skills` (39), Codex's own (4), and this project's through the
    worktree's `.agents` (7).  `codex mcp list`: none.  The prompt (GPT-6.1
    Sol at `low`) quoted both markers and the description's first sentence
-   verbatim.
+   verbatim.  On 2026-10-13, with `.agents` a real directory, the listing
+   still held both files and this project's skills (8 by then, a shared
+   Agda skill having been added).
 +  **Copilot CLI**.  `copilot instruction list`: the worktree's `AGENTS.md`,
    and `~/.copilot/copilot-instructions.md`.  `copilot skill list`: 7
    project, 39 personal and 2 built-in skills, each with its description.
@@ -111,58 +115,72 @@ skills load the same either way (Claude Code was observed both ways).
 assets check (33 files could not be read), and `make browser-check`, which
 needs `build/`, cannot start.
 
-The four gates, after `make assets`, were as follows on 2026-10-12
-(seconds where timed; the record has the commands):
+The four gates, after `make assets`, were as follows (seconds where timed;
+the record has the commands).  Codex's sandbox column is 2026-10-13's,
+`codex sandbox -P :workspace -- make <gate>` after the two fixes below; on
+2026-10-12 all four failed there before they started.  Its other column is
+`-P :danger-full-access`, which is how a command runs that a saved approval
+or `--sandbox danger-full-access` lets out.
 
-| Gate | Claude Code | Codex session, `workspace-write` | Codex, `danger-full-access` | Copilot CLI |
+| Gate | Claude Code | Codex, in its sandbox | Codex, outside it | Copilot CLI |
 | --- | ---: | --- | ---: | --- |
-| `make check` | 20 | passes, by a saved approval | 13 | not run |
-| `make test` | 8 | passes, by a saved approval | 7 | not run |
-| `make build` | 23 | passes, by a saved approval | 23 | not run |
-| `make browser-check` | 23 | fails: the sandbox does not start | 24 | not run |
+| `make check` | 20 | passes, 7 | 13 | not run |
+| `make test` | 8 | 19 native-engine tests fail | 7 | not run |
+| `make build` | 23 | fails: Nix's database is read-only | 23 | not run |
+| `make browser-check` | 23 | fails: Nix's database is read-only | 24 | not run |
 
 +  **Claude Code** has no sandbox here (its sandbox is off by default, and
    William's settings do not turn it on), and runs in the `auto` permission
    mode.  Every gate ran from the session, `make browser-check` included,
-   which needs the Nix daemon's socket and starts headless Chromium on
+   which runs Nix (here a single-user install, which writes its store's
+   database under `/nix/var/nix` itself) and starts headless Chromium on
    loopback.
 +  **Codex CLI** runs here in its `workspace-write` sandbox, with approval
    `on-request` in an interactive session (the trials' settings, from their
-   logs) and `never` under `codex exec`.  No command runs in that sandbox
-   on this machine, for two reasons, as follows:
+   logs) and `never` under `codex exec`.  On 2026-10-12 no command ran in
+   that sandbox, for two reasons, both fixed on 2026-10-13, as follows:
    1.  Ubuntu 24.04 restricts unprivileged user namespaces
        (`kernel.apparmor_restrict_unprivileged_userns = 1`), so bubblewrap
-       fails with `bwrap: loopback: Failed RTM_NEWADDR: Operation not
-       permitted`.  agda-native-air's page gives the fix, an AppArmor
-       profile ([Codex: known issues][air-codex-known]); it needs root and
-       has not been applied here.  `codex doctor` reports the sandbox
-       healthy all the same.
-   2.  The worktree's `.agents` is a link to a directory, and Codex's
-       workspace profile refuses to build its sandbox across it: `cannot
+       failed with `bwrap: loopback: Failed RTM_NEWADDR: Operation not
+       permitted`, while `codex doctor` reported the sandbox healthy.  The
+       fix is the AppArmor profile agda-native-air's page gives ([Codex:
+       known issues][air-codex-known]), `bwrap-userns-restrict` from
+       Ubuntu's `apparmor-profiles` package; it needs root, and William
+       loaded it.
+   2.  The worktree's `.agents` was a link to a directory, and Codex's
+       workspace profile refused to build its sandbox across it: `cannot
        enforce sandbox read-only path <worktree>/.agents because it crosses
-       writable symlink`.  In a scratch repository a real `.agents/` holding
-       a `skills` link passed this step, and an `AGENTS.md` or `.claude`
-       link did not trigger it.  So here the AppArmor fix alone would not
-       make the sandbox work.  [claude-tooling#49] changes the link to
-       that shape, from this report on [claude-tooling#27].
+       writable symlink`.  A real `.agents/` holding a `skills` link passes
+       that step, so the AppArmor fix alone was not enough here;
+       [claude-tooling#49] made `.agents` that shape, from this report on
+       [claude-tooling#27].
 
-   A command runs only outside the sandbox, then, and only once approved.  In
-   the trial of [#17] William approved each request as it came (71 of them),
-   and Codex keeps an approval it is told to keep as a prefix rule in
+   With both fixed, the sandbox starts here, and in it the gates fared as
+   the table shows, for the following reasons:
+   +  `make test` fails 19 of the native engine's tests, because inside the
+      sandbox Node's `spawnSync` returns `EPERM` for every child, although
+      the child runs and its output arrives (the asynchronous `execFile`
+      works), and the tests' fake Agdas are asked their version that way.
+   +  `make build` and `make browser-check` stop at `error: opening lock
+      file "/nix/var/nix/db/big-lock": Read-only file system`.  Nix here is a
+      single-user install, which opens its store's database itself, and the
+      sandbox mounts `/nix` read-only.  A `sandbox_workspace_write`
+      `writable_roots` override did not change that under `codex sandbox`,
+      and opening the store to sandboxed commands would defeat the sandbox.
+
+   So `make test`, `make build` and `make browser-check` run only outside
+   the sandbox, and only once approved.  In the trial of [#17] William
+   approved each request as it came (71 of them), and Codex keeps an
+   approval it is told to keep as a prefix rule in
    `~/.codex/rules/default.rules`.  The trial of [#63] ran with Codex's
-   automatic reviewer instead (`approvals_reviewer = "auto_review"`): its tool
-   calls asked for escalation 216 times, and the reviewer, a second model,
-   gave 207 verdicts, every one "allow".  This machine's rules, from the first
-   trial, hold `make check`, `make test` and `make build`, which is why those
-   three passed from `codex exec` sessions.  `make browser-check` has no rule,
-   and failed there on the `.agents` error; on a machine without the rules,
-   all four fail the same way (`codex sandbox -P :workspace -- make <gate>`).
-   To run it, approve it in an interactive session, or start the session with
-   `--sandbox danger-full-access`, under which all four gates passed (`codex
-   sandbox -P :danger-full-access -- make <gate>`, timed above).  Whether
-   `make browser-check` could run inside a working sandbox, which by default
-   denies the network and writes outside the worktree, is untested, since no
-   sandboxed command runs here.
+   automatic reviewer instead (`approvals_reviewer = "auto_review"`): its
+   tool calls asked for escalation 216 times, and the reviewer, a second
+   model, gave 207 verdicts, every one "allow".  This machine's rules, from
+   the first trial, hold `make check`, `make test` and `make build`, which is
+   why those three passed from `codex exec` sessions on 2026-10-12.  `make
+   browser-check` has no rule: approve it in an interactive session the
+   first time one needs it, or start the session with `--sandbox
+   danger-full-access`, under which all four gates passed.
 +  **Copilot CLI**'s sandbox is off by default and is not turned on here, so
    a session's commands would run as Claude Code's do; no gate was run from
    a Copilot session.

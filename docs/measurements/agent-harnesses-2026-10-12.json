@@ -182,5 +182,21 @@
     "generated": {"--agda-bin": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda (x86_64-linux at this flake.lock)", "AGDA_MCP_BIN": "<air>/agda-mcp/dist-newstyle/build/x86_64-linux/ghc-9.10.3/agda-mcp-0.2.0/x/agda-mcp/build/agda-mcp/agda-mcp"}
    }
   ]
+ },
+ "codexSandbox20261013": {
+  "what": "Codex's sandbox again, 2026-10-13 after 06:00 UTC, once William had loaded AppArmor's bwrap-userns-restrict profile (from apparmor-profiles, /etc/apparmor.d/bwrap-userns-restrict) and claude-tooling pull request 49 had made <worktree>/.agents a real directory whose skills links to <parent>/.agents/skills; kernel.apparmor_restrict_unprivileged_userns still 1",
+  "start": {"codex sandbox -P :workspace -C <worktree> -- echo hi": "hi", "codex sandbox -P :read-only -C <worktree> -- echo hi": "hi"},
+  "gates": {
+   "command": "nix develop --command codex sandbox -P :workspace -C <worktree> -- make <gate>",
+   "check": {"exit": 0, "seconds": 7},
+   "test": {"exit": 2, "seconds": 4, "failed": "19 tests in packages/engine/src/native (resolve, transport, registry): their fake Agdas answered with no version"},
+   "build": {"exit": 2, "seconds": 1, "message": "error: opening lock file \"/nix/var/nix/db/big-lock\": Read-only file system (assets-check)"},
+   "browser-check": {"exit": 2, "seconds": 0, "message": "the same"}
+  },
+  "causes": {
+   "test": "Inside the sandbox, Node's child_process.spawnSync returns status 0 and the child's output together with error EPERM, for /bin/echo, sh -c and the tests' node scripts alike; child_process.execFile (asynchronous) works; bash runs the same script with no error",
+   "nix": "Nix here is a single-user install (no daemon, no /nix/var/nix/daemon-socket; /nix/var/nix/db owned by the user; store = auto), which opens the store's database itself; the sandbox mounts /nix read-only.  -c 'sandbox_workspace_write.writable_roots=[\"/nix/var/nix\", \"~/.cache/nix\"]' on codex sandbox -P :workspace changed nothing"
+  },
+  "discovery": "codex debug prompt-input at <worktree>: both markers; skill roots ~/.agents/skills (39), Codex's own (4), <parent>/.claude/skills through the real .agents (8, a shared Agda skill having been added on 2026-10-12)"
  }
 }
