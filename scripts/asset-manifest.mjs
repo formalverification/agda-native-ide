@@ -7,14 +7,16 @@
 // IndexedDB cache.  vite.config.js hands the result to the page as
 // AGDA_ASSETS, and src/lib/assets.ts reads it.  The compiler is the
 // language server's reactor build, with the JavaScript glue its worker
-// imports (issue 59).
+// imports (issue 59).  agda-algebras' sources are a library on the drive,
+// which the playground's project depends on (issue 11).
 //
 // A token is the first 16 hex digits of a SHA-256 over a file's bytes or,
 // for a directory, over the SHA-256s and paths of its files, so a rebuilt
 // asset gets a new URL and is never served stale from a cache.  The
 // namespace is the same digest over everything Agda reads (the compiler
-// and its glue, the builtins, the standard library and PLFA), so files
-// persisted against one set of assets are never restored against another.
+// and its glue, the builtins, the standard library, agda-algebras' sources
+// and PLFA), so files persisted against one set of assets are never
+// restored against another.
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -29,6 +31,7 @@ export const ASSETS = {
   glue: "als-reactor-2.9.0.js",
   builtins: "agda-data.zip",
   stdlib: "agda-stdlib-2.3-patched.zip",
+  agdaAlgebras: "agda-algebras-sources.zip",
   plfaProject: "plfa/project.zip",
   plfaInterfaces: "plfa/interfaces",
 };

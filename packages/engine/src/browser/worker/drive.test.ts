@@ -4,12 +4,12 @@
 // The drive gives back the text it was given, as the native engine's
 // filesystem does: the session compares the two after every load.  And it
 // is laid out with a list of libraries, whose registry it writes (issue
-// 13).
+// 13), and the host's files over what the cache restores (issue 11).
 
 import * as Runno from "@runno/wasi";
 import JSZip from "jszip";
 
-import { attachDrive, layOutDrive } from "./drive.js";
+import { attachDrive, layOutDrive, prepareDrive } from "./drive.js";
 
 describe("the drive's sources", () => {
   it("reads back a source as it was written, with its byte order mark", () => {
@@ -28,6 +28,25 @@ async function zip(files: Record<string, string>) {
   const archive = new JSZip();
   for (const [path, text] of Object.entries(files)) archive.file(path, text);
   return archive.generateAsync({ type: "arraybuffer" });
+}
+
+/** An IndexedDB database as restoreCachedFiles reads it, holding these
+ * files as a visit would have persisted them. */
+function cached(files: { path: string; content: string }[]): IDBDatabase {
+  const records = files.map(({ path, content }) => ({
+    path,
+    mode: "string",
+    content,
+    timestamps: { access: 0, change: 0, modification: 0 },
+  }));
+  const store = {
+    getAll() {
+      const request: { result: unknown; onsuccess: (() => void) | null } = { result: records, onsuccess: null };
+      queueMicrotask(() => request.onsuccess?.());
+      return request;
+    },
+  };
+  return { transaction: () => ({ onerror: null, objectStore: () => store }) } as unknown as IDBDatabase;
 }
 
 const text = (fs: Record<string, Runno.WASIFile>, path: string) => {
@@ -68,7 +87,8 @@ describe("the drive's libraries", () => {
     expect(text(fs, "/agda-algebras/src/Overture/Basic.lagda.md")).toBe("# Overture.Basic\n");
     expect(text(fs, "/stdlib/src/Data/Nat.agda")).toBe("module Data.Nat where\n");
     expect(fs["/stdlib/README.md"]).toBeUndefined();
-    expect(text(fs, "/Main.agda")).toBe("");
+    // The page's buffer is the host's to write, where it keeps it.
+    expect(fs["/Main.agda"]).toBeUndefined();
   });
 
   it("writes the registry as the page's drive had it, for the standard library and PLFA", async () => {
@@ -101,5 +121,37 @@ describe("the drive's libraries", () => {
     const fs = await layOutDrive({ builtin: null, stdlib: null, libraries: [] });
     expect(fs["/home/root/.config/agda/libraries"]).toBeUndefined();
     expect(fs["/home/root/.config/agda/defaults"]).toBeUndefined();
+  });
+
+  it("writes the host's files over the archives and what the cache restores, and registers none of them", async () => {
+    const play = "name: play\ndepend: standard-library-2.3 agda-algebras\ninclude: .\n";
+    const fs = await prepareDrive(
+      {
+        builtin: null,
+        stdlib: await zip({ "agda-stdlib-2.3/standard-library.agda-lib": "name: standard-library-2.3\n" }),
+        libraries: [
+          {
+            data: await zip({
+              "agda-algebras/agda-algebras.agda-lib": "name: agda-algebras\n",
+              "play/play.agda-lib": "an archive's copy\n",
+            }),
+            agdaLib: "/agda-algebras/agda-algebras.agda-lib",
+            name: "agda-algebras",
+          },
+        ],
+      },
+      [{ path: "/play/play.agda-lib", text: play }],
+      cached([
+        { path: "/play/play.agda-lib", content: "a cached copy\n" },
+        { path: "/play/Main.agda", content: "module Main where\n" },
+      ]),
+    );
+    expect(text(fs, "/play/play.agda-lib")).toBe(play);
+    // What the cache restores stays, where the host names no file.
+    expect(text(fs, "/play/Main.agda")).toBe("module Main where\n");
+    expect(text(fs, "/home/root/.config/agda/libraries")).toBe(
+      "/stdlib/standard-library.agda-lib\n/agda-algebras/agda-algebras.agda-lib\n",
+    );
+    expect(text(fs, "/home/root/.config/agda/defaults")).toBe("standard-library\nagda-algebras\n");
   });
 });

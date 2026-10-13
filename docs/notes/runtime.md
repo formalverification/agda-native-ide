@@ -11,8 +11,9 @@ reference is to this repository's copy of the fork: upstream's `ae0aa84c`,
 with the changes `docs/provenance.md` lists; of those, the derived
 `?cache=` tokens, the drive's cache namespace, the drive's index, the
 builtins' archive, the compiler and standard library of Agda 2.9.0 ([#58]),
-and the server's reactor build with the drive in its worker ([#59]) touch
-what this note describes, and each is explained where it arises.  The facts
+the server's reactor build with the drive in its worker ([#59]), and the
+playground's own project ([#11]) touch what this note describes, and each
+is explained where it arises.  The facts
 come from reading that source, and the measurements from the issues that
 record them (their findings sections condense the 2026-10-04 investigation
 of the fork).
@@ -73,7 +74,8 @@ The page runs two threads.
    command module.  The same worker holds the drive
    (`src/lib/worker/drive.ts`): the in-memory filesystem Agda reads and
    writes, with the user's buffer, Agda's builtin library, the standard
-   library, PLFA, and the interfaces Agda produces.
+   library, agda-algebras' sources, PLFA, and the interfaces Agda
+   produces.
 
 The worker is a module worker that Vite inlines and emits as a separate
 file (`src/lib/index.js:73`), loaded relative to the bundle, so it works
@@ -231,9 +233,9 @@ cases in CI: a browser without `DecompressionStream`, a compiler request
 answered 404, a compiler that is not a gzip, and a standard library whose
 transfer breaks off.
 
-The user's buffer is `/Main.agda`, beside `/plfa.agda-lib` (`include: .`),
-so Agda treats `Main` as a module of the PLFA library, which depends on the
-standard library.
+The playground's buffer is `/play/Main.agda`, a module of a project of
+its own ("The playground's project", below); until [#11] it was
+`/Main.agda`, a module of the PLFA library at the drive's root.
 
 ## The transport
 
@@ -369,32 +371,114 @@ runs of the browser check ([#59]).
    the drive worker took numbered messages over shared rings.  They run on
    the server's thread, between its steps: extracting an archive delays the
    server's next step (not measured).
-+  **Persistence**: the drive keeps `/Main.agda`, any source the page
-   writes, and every interface Agda writes in an IndexedDB database named
++  **Persistence**: the drive keeps every source the page writes (the
+   playground's `/play/Main.agda`, a chapter's buffer), and every interface
+   Agda writes in an IndexedDB database named
    `agda-playground-drive-<namespace>` (`drive.ts:171-242`, `:332`), where
    the namespace is a digest of everything Agda reads (the compiler and its
-   glue, the builtins, the standard library and PLFA), which the build
-   derives from the files (`scripts/asset-manifest.mjs`, read by
-   `src/lib/assets.ts`), so that a cache is never restored against other
-   files.  Mounted archives are not persisted; restored records replace
-   archive entries at the same path.  It reads each dirty file from the
-   drive's own record, `drive.fs`, where Agda's writes land, so files at
-   paths made after startup (`Main`'s interface, a mounted archive's) are
-   persisted too.  The drive worker read them from the record the drive was
-   built from, which Runno copies, and so persisted only files at paths
-   that existed when the drive was built: measured 2026-10-06, after a cold
-   check that rewrote 8 builtin interfaces and wrote `Main`'s and 8 PLFA
-   modules' interfaces, the database held `/Main.agda` and the builtins'
-   interfaces, and none of the others ([#59]).  IndexedDB is optional: in
+   glue, the builtins, the standard library, agda-algebras' sources and
+   PLFA), which the build derives from the files
+   (`scripts/asset-manifest.mjs`, read by `src/lib/assets.ts`), so that a
+   cache is never restored against other files.  Mounted archives are not
+   persisted; restored records replace archive entries at the same path.
+   It reads each dirty file from the drive's own record, `drive.fs`, where
+   Agda's writes land, so files at paths made after startup (`Main`'s
+   interface, a mounted archive's) are persisted too.  The drive worker
+   read them from the record the drive was built from, which Runno copies,
+   and so persisted only files at paths that existed when the drive was
+   built: measured 2026-10-06, after a cold check that rewrote 8 builtin
+   interfaces and wrote `Main`'s and 8 PLFA modules' interfaces, the
+   database held `/Main.agda` and the builtins' interfaces, and none of the
+   others ([#59]).  IndexedDB is optional: in
    a worker without it the page checks and reloads, uncached (2026-10-08,
    headless Chromium 149, with `indexedDB` removed from the worker's global
    before it ran; no database was made).
 +  **More libraries**: the registry is written once, at startup, from the
    engine's list of libraries ([#13]), so a library the page will use is
    named in that list, its sources archive fetched with the standard
-   library's.  `mountDriveArchives(urls)` (`controller.svelte.ts`, through
-   the transport's `mountArchives`) fetches zips and extracts them at `/`,
+   library's; the page names agda-algebras' and PLFA's ([#11]).
+   `mountDriveArchives(urls)` (`controller.svelte.ts`, through the
+   transport's `mountArchives`) fetches zips and extracts them at `/`,
    which is how interface archives arrive; it does not touch the registry.
++  **The host's files**: the drive starts with the files the host names
+   (`BrowserConfig.files`), written after the archives and over what the
+   cache restores, before Agda starts (`prepareDrive`), so a cached copy
+   never stands in for one; the page names its playground's library file,
+   below.  The transport refuses one outside its root before it fetches
+   anything.  Until [#11] the drive held an empty `/Main.agda` of its own.
+
+## The playground's project
+
+The playground's `Main.agda` is a module of a project of its own, which
+depends on the standard library and agda-algebras, so that what the library
+refuses, `Main` refuses ([#11]).
+
++  **Where it lives**: `/play/Main.agda`, beside `/play/play.agda-lib`
+   (`name: play`, `depend: standard-library-2.3 agda-algebras`, `include:
+   .`), the play library that `scripts/library-archives/stage.sh` writes and
+   [#13]'s gate checks every root of agda-algebras under.  The page names
+   that file among the drive's first files (`PLAYGROUND` in
+   `controller.svelte.ts`).  Agda takes the nearest `.agda-lib` at or above
+   a module's directory as its project, so `/play/play.agda-lib` governs
+   `Main`, while PLFA's chapters, under `/plfa/`, keep `/plfa.agda-lib` at
+   the root (`include: .`), as before.
++  **The libraries**: agda-algebras' sources archive,
+   `agda-algebras-sources.zip` (985,864 bytes; the flake's
+   `mkAgdaAlgebrasSources`, the bytes agda-algebras' interfaces were built
+   from), is first in the drive's list, extracted at the root so that it
+   lands at `/agda-algebras`; PLFA's follows.  The libraries file names
+   `/stdlib/standard-library.agda-lib`,
+   `/agda-algebras/agda-algebras.agda-lib` and `/plfa.agda-lib`, and
+   agda-algebras' `depend: standard-library-2.3` resolves because the
+   shipped standard library, 2.3 with five patches, keeps that name.
+   Without agda-algebras in the list even the default `Main` fails, with
+   Agda's `[LibraryError]`, "Library 'agda-algebras' not found".
++  **Which flags apply to `Main`**: its own options line, `{-# OPTIONS
+   --without-K --exact-split --safe #-}`, which every module of
+   agda-algebras carries; `play.agda-lib` has no `flags:` line, and a
+   library's flags do not reach the modules of a library that depends on
+   it.  The standard library's `--warning=noUnsupportedIndexedMatch`
+   applies to its own modules when Agda checks them from source, and
+   silences a warning only `--cubical-compatible` raises.  Checked with the
+   native Agda at the compiler's commit: `--safe` added to the standard
+   library's `flags:` left a postulate in a module of the play library
+   accepted, and the same flag in `play.agda-lib` refused it.  The line is
+   `--without-K`, not `--cubical-compatible`, since a `--cubical-compatible`
+   module cannot import a `--without-K` one (`CoInfectiveImport`, [#61]).
++  **The default `Main`**: Agda's builtins alone (`Agda.Builtin.Equality`,
+   `.List` and `.Nat`), whose interfaces `agda-data.zip` ships, so a first
+   visit type-checks `Main` alone; and one goal, the last step of a proof
+   that the composite of two homomorphisms is one, placed to show on the
+   first screen, whose context holds the two hypotheses that fill it.
+   `--safe` refuses a postulate there (`[SafeFlagPostulate]`) and a
+   `TERMINATING` pragma (`[SafeFlagTerminating]`).  After a load that
+   leaves goals the controller asks for the selected goal's context, so
+   the inspector shows the goal with it, where it waited for a selection.
++  **The stored buffer**: the localStorage key is
+   `agda-web-ide-beta:doc:/play/Main.agda`, named by the buffer's path,
+   where it was `agda-web-ide-beta:doc`, so a document stored for the old
+   `/Main.agda` is not shown in its place.  Nothing is deployed, so only a
+   developer's browser holds one, and it stays there, unread.  The drive's
+   cache namespace now digests the sources archive too, so a drive
+   persisted under the old layout is not restored.
++  **What it costs** (2026-10-12, headless Chromium 149, this workstation
+   with other sessions' builds beside it;
+   [`docs/measurements/playground-2026-10-12.json`][playground-record]): a
+   first visit makes one more request, the sources archive's 985,864
+   bytes, fetched with the standard library's.  The first check of the
+   default took a median 0.40 s as the page reports it, against 0.27 s for
+   the previous default on the same layout, five runs of each, alternating,
+   on a quiet machine; the ratio held at loads near 3 and 10 (1.5 s against
+   1.0 s, 2.0 s against 1.3 s), and natively the whole check is about 100
+   ms.  A `Main` importing `Overture.Signatures`, which needs itself and 10
+   standard-library modules from source, took 2.0 s cold on the quiet
+   machine (7.9 s and 12.8 s under load); `Setoid.Algebras.Basic`, 170
+   modules from source, 1 min 38 s to 6 min 32 s cold over six runs (median
+   2 min 35 s; 1 min 38 s on the quiet machine), and 3.3 to 11.9 s on a
+   reload, from what the drive persisted.  With its 50
+   archives mounted, as [#14] will mount them, the same import type-checked
+   `Main` alone in 3.7 s ([#13]'s gate record), and still did with PLFA's
+   library on the drive beside agda-algebras.
 
 ## The checks
 
@@ -404,8 +488,11 @@ exports are called from JavaScript and no standalone runtime calls them.
 +  **The browser check** (`scripts/browser-check/run.mjs`, `make
    browser-check`) serves a built site, opens it with a fresh profile, and
    uses it as a reader would: "Agda ready", the first check of the default
-   `Main.agda` with `Main` alone type-checked, Infer, a give, and a type
-   error at its position, with the version Agda reports in the status bar.
+   `Main.agda` with `Main` alone type-checked and its one goal with its
+   context, Infer, a give, a type error at its position, a postulate
+   refused under `--safe`, and a module of agda-algebras imported and
+   type-checked from source, with the version Agda reports in the status
+   bar.
    It serves the site without the isolation headers and asserts
    `crossOriginIsolated` false, or with them (`--isolated`, `make
    browser-check ISOLATED=1`) and asserts it true; it fails at once on an
@@ -476,7 +563,9 @@ acceptance is counted, never inferred: the running info prints one
 [#3]: https://github.com/formalverification/agda-native-ide/issues/3
 [#6]: https://github.com/formalverification/agda-native-ide/issues/6
 [#8]: https://github.com/formalverification/agda-native-ide/issues/8
+[#11]: https://github.com/formalverification/agda-native-ide/issues/11
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
+[#14]: https://github.com/formalverification/agda-native-ide/issues/14
 [#49]: https://github.com/formalverification/agda-native-ide/issues/49
 [#50]: https://github.com/formalverification/agda-native-ide/issues/50
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
@@ -485,3 +574,4 @@ acceptance is counted, never inferred: the running info prints one
 [#62]: https://github.com/formalverification/agda-native-ide/issues/62
 [adr-0003]: ../adr/0003-the-shared-core.md
 [engine]: ../engine/overview.md
+[playground-record]: ../measurements/playground-2026-10-12.json

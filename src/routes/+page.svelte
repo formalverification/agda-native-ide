@@ -17,7 +17,9 @@
   // or its server stops of its own accord, the page says why, in the
   // banner, the inspector's heading and the status bar, rather than "Agda
   // ready" (issue 8).  Colors use the shared tokens in static/theme.css
-  // (issue 17).
+  // (issue 17).  The playground's Main.agda is /play/Main.agda, a module of
+  // a project of its own over the standard library and agda-algebras
+  // ($lib/controller.svelte, PLAYGROUND; issue 11).
 
   import { onDestroy, onMount } from "svelte";
   import { setThemePreference, watchTheme, type ThemePreference } from "$lib/theme";
@@ -51,7 +53,7 @@
     Zap,
   } from "@lucide/svelte";
 
-  import { AgdaController, LS_DOC_KEY } from "$lib/controller.svelte";
+  import { AgdaController, LS_DOC_KEY, PLAYGROUND } from "$lib/controller.svelte";
   import { missingFeatures, unsupportedBrowserNotice } from "$lib/support";
   import { cacheTokens } from "$lib/assets";
   import { myCodeMirrorTheme } from "$lib/codemirror/theme";
@@ -74,20 +76,52 @@
     type InterfaceManifest,
   } from "@agda-native-ide/manifest";
 
-  const DEFAULT_SOURCE = `module Main where
+  // The playground's default Main.agda (issue 11): agda-algebras' options
+  // line, builtins alone, and one goal whose context is worth reading.
+  const DEFAULT_SOURCE = `{-# OPTIONS --without-K --exact-split --safe #-}
 
-open import Agda.Builtin.Nat
-open import Agda.Builtin.Equality
+-- The playground.  Main's project depends on the standard library and
+-- agda-algebras, and Main has agda-algebras' options line: --safe refuses
+-- a postulate here as the library would.  Main imports only Agda's
+-- builtins, whose interfaces the page ships, so a check is quick; a module
+-- of either library (open import Setoid.Algebras.Basic, say) is checked
+-- from source the first time, with all it imports, which takes minutes.
+module Main where
 
-identity : {A : Set} → A → A
-identity x = {! x !}
+open import Agda.Builtin.Equality using (_≡_; refl)
+open import Agda.Builtin.List     using (List; []; _∷_)
+open import Agda.Builtin.Nat      using (Nat; zero; suc; _+_)
 
-cong : {A B : Set} {x y : A} → (f : A → B) → x ≡ y → f x ≡ f y
+cong : {A B : Set} (f : A → B) {x y : A} → x ≡ y → f x ≡ f y
 cong f refl = refl
+trans : {A : Set} {x y z : A} → x ≡ y → y ≡ z → x ≡ z
+trans refl q = q
 
-plus-zero : (n : Nat) → n + 0 ≡ n
-plus-zero zero = refl
-plus-zero (suc n) = cong suc {! plus-zero n !}
+-- h : A → B is a homomorphism when it carries _·_ to _*_.
+IsHom : {A B : Set} → (A → A → A) → (B → B → B) → (A → B) → Set
+IsHom _·_ _*_ h = ∀ x y → h (x · y) ≡ h x * h y
+
+-- The composite of two homomorphisms is one.  The goal is the last step:
+-- read its context, then give the term that fills it.
+∘-hom : {A B C : Set} {_·_ : A → A → A} {_*_ : B → B → B} {_⋆_ : C → C → C}
+        (g : B → C) (f : A → B)
+      → IsHom _*_ _⋆_ g → IsHom _·_ _*_ f → IsHom _·_ _⋆_ (λ a → g (f a))
+∘-hom g f g-hom f-hom x y = trans (cong g (f-hom x y)) {! !}
+
+-- The length of a list is a homomorphism from lists under _++_ to the
+-- naturals under _+_.
+infixr 5 _++_
+_++_ : {A : Set} → List A → List A → List A
+[]       ++ ys = ys
+(x ∷ xs) ++ ys = x ∷ xs ++ ys
+
+length : {A : Set} → List A → Nat
+length []       = zero
+length (x ∷ xs) = suc (length xs)
+
+length-hom : {A : Set} → IsHom _++_ _+_ (length {A})
+length-hom []       ys = refl
+length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
 `;
 
   type CommandKind = "give" | "refine" | "case" | "infer" | "normalize";
@@ -805,7 +839,7 @@ plus-zero (suc n) = cong suc {! plus-zero n !}
     editor?.dispatch({
       effects: sourceLanguageCompartment.reconfigure(agdaSourceLanguage()),
     });
-    controller.setDocument(source, "/Main.agda", LS_DOC_KEY);
+    controller.setDocument(source, PLAYGROUND.file, LS_DOC_KEY);
     setTimeout(() => editor?.focus());
     if (compilerReady)
       setTimeout(() => void runAction(() => controller.loadAgdaFile()), 50);

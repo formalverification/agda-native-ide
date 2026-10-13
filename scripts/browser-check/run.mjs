@@ -5,24 +5,32 @@
 // reader would, through the page alone, as follows:
 //
 //   1.  waits for "Agda ready", then for the automatic first check of the
-//       default Main.agda, and asserts crossOriginIsolated as the server
-//       made it (false by default: the page needs no isolation since issue
-//       59; true with --isolated, which sends the two headers), that no
-//       service worker controls the page, two open goals, and the version
-//       Agda reports in the status bar, which the page's description must
-//       name too;
-//   2.  runs Infer on plus-zero from the command strip, and asserts the
+//       default Main.agda (/play/Main.agda, in the playground's project
+//       over the standard library and agda-algebras, under agda-algebras'
+//       options line; issue 11), and asserts crossOriginIsolated as the
+//       server made it (false by default: the page needs no isolation
+//       since issue 59; true with --isolated, which sends the two
+//       headers), that no service worker controls the page, one open goal
+//       with its type and its context, and the version Agda reports in the
+//       status bar, which the page's description must name too;
+//   2.  runs Infer on length-hom from the command strip, and asserts the
 //       modules that first check type-checked: the `Checking` lines of
 //       Agda's running info, which the page shows only in the inspector's
 //       compiler log, after an Infer or Normalize result;
-//   3.  selects goal 1 and then goal 0 in the goal list, gives `x` at
-//       goal 0 from the command strip, and asserts one open goal is left
-//       and no error;
+//   3.  selects goal 0 in the goal list, gives the term that fills it from
+//       the command strip, and asserts no goal is left and no error;
 //   4.  appends a declaration with a type error, checks, and asserts the
 //       error comes back with its position and message, which shows the
 //       page elaborates against the shipped interfaces rather than
-//       skipping work.
-//   5.  in Chromium, exercises the theme choices, persistence, system
+//       skipping work;
+//   5.  replaces that declaration with a postulate, checks, and asserts
+//       Agda refuses it as agda-algebras would, under --safe, with its
+//       position and message;
+//   6.  replaces the buffer with a Main that imports a module of
+//       agda-algebras, checks, and asserts it resolves: the module and the
+//       standard-library modules it imports are type-checked from source,
+//       since the page mounts none of their interfaces yet (issue 14);
+//   7.  in Chromium, exercises the theme choices, persistence, system
 //       changes, first-frame colors and narrow viewports (issue 17).
 //
 // It writes browser-check.json (the timings, the requests, the console)
@@ -44,12 +52,58 @@ import * as bidi from "./bidi.mjs";
 import { serve } from "./serve.mjs";
 import { checkThemes } from "./themes.mjs";
 
+/** The playground's Main.agda on the drive: a module of a project of its
+ * own, beside /play/play.agda-lib (issue 11). */
+const MAIN = "/play/Main.agda";
+
 /** The modules a fresh profile's first check of the default Main.agda
  * type-checks, one `Checking` line each: Main alone, since every
  * interface the site ships is accepted.  A builtin here means the shipped
  * Agda rejected agda-data.zip's interfaces and checked them again (issue
  * 49), which is a defect. */
 export const EXPECTED_CHECKING = ["Main"];
+
+/** The default Main.agda's one goal, as the inspector shows it after the
+ * first check: its type and its context, in Agda's normal form (which
+ * unfolds IsHom), with the term step 3 gives and the line it leaves. */
+const GOAL = {
+  type: "g (f x * f y) ≡ (g (f x) ⋆ g (f y))",
+  context: [
+    ["A", "Set"],
+    ["B", "Set"],
+    ["C", "Set"],
+    ["_·_", "A → A → A"],
+    ["_*_", "B → B → B"],
+    ["_⋆_", "C → C → C"],
+    ["g", "B → C"],
+    ["f", "A → B"],
+    ["g-hom", "(x₁ y₁ : B) → g (x₁ * y₁) ≡ (g x₁ ⋆ g y₁)"],
+    ["f-hom", "(x₁ y₁ : A) → f (x₁ · y₁) ≡ (f x₁ * f y₁)"],
+    ["x", "A"],
+    ["y", "A"],
+  ],
+  give: "g-hom (f x) (f y)",
+  given: "∘-hom g f g-hom f-hom x y = trans (cong g (f-hom x y)) (g-hom (f x) (f y))",
+};
+
+/** What step 2 infers, and its type. */
+const INFER = {
+  expression: "length-hom",
+  type: "{A : Set} (x y : List A) → length (x ++ y) ≡ length x + length y",
+};
+
+/** Step 6's Main, which imports the agda-algebras module with the fewest
+ * imports of the standard library, and the modules its check must
+ * type-check from source: Main, that module, and the 10 standard-library
+ * modules it imports (agda-algebras' index; issue 11). */
+const LIBRARY = {
+  source:
+    "{-# OPTIONS --without-K --exact-split --safe #-}\n\nmodule Main where\n\n" +
+    "import Overture.Signatures\n",
+  module: "Overture.Signatures",
+  infer: "Overture.Signatures.Signature",
+  checking: 12,
+};
 
 /** The declaration step 4 appends, and the error Agda must report at
  * `refl`, after the position (Agda prints the naturals as numerals).
@@ -62,6 +116,18 @@ const TYPE_ERROR = {
   message:
     ": error: [UnequalTerms]\nThe terms\n  0\nand\n  1\nare not equal at type Nat\n" +
     "when checking that the expression refl has type zero ≡ 1",
+};
+
+/** The postulate step 5 puts in place of step 4's declaration, and the
+ * error Agda must report at its declaration: Main's own options line has
+ * --safe, which refuses a postulate (issue 11). */
+const POSTULATE = {
+  source: "postulate cheat : zero ≡ suc zero\n",
+  line: "postulate cheat : zero ≡ suc zero",
+  columns: "11-34",
+  message:
+    ": error: [SafeFlagPostulate]\nCannot postulate cheat with safe flag\n" +
+    "when scope checking the declaration\n  cheat : zero ≡ suc zero",
 };
 
 /** The version Agda reports when the page asks for it (Cmd_show_version,
@@ -145,6 +211,13 @@ const state = () => ({
     document
       .querySelector(".goal-card.active .goal-number")
       ?.textContent?.trim() ?? null,
+  goalTypes: [...document.querySelectorAll(".goal-card .goal-content")].map(
+    (type) => type.textContent?.trim(),
+  ),
+  // The selected goal's context, as name and type.
+  context: [...document.querySelectorAll(".context-row")].map((row) =>
+    [...row.querySelectorAll("code")].map((code) => code.textContent?.trim()),
+  ),
   problems: [...document.querySelectorAll(".problem-card")].map((card) => ({
     error: card.classList.contains("error"),
     message: card.querySelector("pre")?.textContent ?? "",
@@ -287,9 +360,11 @@ try {
 
   let first = /** @type {ReturnType<typeof state>} */ ({});
   await step("first check", async () => {
+    // The context arrives after the check, from a question of its own; a
+    // check that failed has none, and the assertions below say why.
     first = await waitFor(
-      (s) => finished(s.status) && !s.busy,
-      "the first check of Main.agda",
+      (s) => finished(s.status) && !s.busy && (s.context.length > 0 || s.problems.length > 0),
+      "the first check of Main.agda, and its goal's context",
     );
     const events = await page.eval(() => window.__browserCheck);
     const ready = events.find(
@@ -314,15 +389,24 @@ try {
       `the first check reported ${JSON.stringify(first.problems)}`,
     );
     assert(
-      first.status.startsWith("2 open goals"),
-      `the first check says "${first.status}", not 2 open goals`,
+      first.status.startsWith("1 open goal ·"),
+      `the first check says "${first.status}", not 1 open goal`,
     );
     assert(
-      first.goals.join() === "0,1",
-      `the goal list is [${first.goals}], not [0,1]`,
+      first.goals.join() === "0",
+      `the goal list is [${first.goals}], not [0]`,
     );
     assert(
-      first.bar.split(" | ").includes("2 goals"),
+      first.goalTypes.join() === GOAL.type,
+      `goal 0's type is "${first.goalTypes}", not "${GOAL.type}"`,
+    );
+    results.context = first.context;
+    assert(
+      JSON.stringify(first.context) === JSON.stringify(GOAL.context),
+      `goal 0's context is ${JSON.stringify(first.context)}`,
+    );
+    assert(
+      first.bar.split(" | ").includes("1 goal"),
       `the status bar says "${first.bar}"`,
     );
     assert(
@@ -338,7 +422,7 @@ try {
   await step("infer, and the first check's Checking lines", async () => {
     await click("Infer type");
     await waitFor((s) => s.minibuffer, "the Infer minibuffer");
-    await submit("plus-zero");
+    await submit(INFER.expression);
     const inferred = await waitFor(
       (s) =>
         !s.busy &&
@@ -358,8 +442,8 @@ try {
     results.checking = checking;
     results.inferred = inferred.result;
     assert(
-      /n \+ 0 ≡ n/.test(inferred.result ?? ""),
-      `Infer gave "${inferred.result}"`,
+      inferred.result === INFER.type,
+      `Infer gave "${inferred.result}", not "${INFER.type}"`,
     );
     assert(
       JSON.stringify([...checking].sort()) ===
@@ -370,20 +454,18 @@ try {
 
   await step("give at goal 0", async () => {
     // After Infer the inspector shows the result; a goal query brings the
-    // goal list back.  Selecting goal 1 first shows that selection works,
-    // since goal 0 is the one active by default.
+    // goal list back.
     await click("Goal type");
-    await waitFor((s) => !s.busy && s.goals.length === 2, "the goal list");
-    await selectGoal("1");
+    await waitFor((s) => !s.busy && s.goals.length === 1, "the goal list");
     await selectGoal("0");
     await click("Give hole contents");
     await waitFor((s) => s.minibuffer, "the Give minibuffer");
-    await submit("x");
+    await submit(GOAL.give);
     const given = await waitFor(
       (s) =>
         !s.busy &&
         !s.minibuffer &&
-        (s.goals.length !== 2 || s.problems.length > 0),
+        (s.goals.length !== 1 || s.problems.length > 0),
       "the give's answer",
     );
     results.goals = { before: first.goals.length, after: given.goals.length };
@@ -395,12 +477,12 @@ try {
     // bar counts errors whatever it shows.
     assert(!/\d+ error/.test(given.bar), `the status bar says "${given.bar}"`);
     assert(
-      given.goals.join() === "1",
-      `after the give the goals are [${given.goals}], not [1]`,
+      given.goals.length === 0,
+      `after the give the goals are [${given.goals}], not none`,
     );
     assert(
-      given.editor.includes("identity x = x"),
-      "the buffer does not read identity x = x",
+      given.editor.includes(GOAL.given),
+      `the buffer does not read ${GOAL.given}`,
     );
   });
 
@@ -417,11 +499,85 @@ try {
       "the type error",
     );
     const error = failed.problems.find((p) => p.error)?.message.trim() ?? "";
-    const expected = `/Main.agda:${line}.${TYPE_ERROR.columns}${TYPE_ERROR.message}`;
+    const expected = `${MAIN}:${line}.${TYPE_ERROR.columns}${TYPE_ERROR.message}`;
     results.typeError = error;
     assert(
       error === expected,
       `the error is ${JSON.stringify(error)}, expected ${JSON.stringify(expected)}`,
+    );
+  });
+
+  await step("refuse a postulate", async () => {
+    // Select step 4's two lines, from the end of the buffer, and type the
+    // postulate over them.
+    await page.eval(() => document.querySelector(".cm-content").focus());
+    await page.press("End", "End", 35, 2);
+    await page.press("ArrowUp", "ArrowUp", 38, 8);
+    await page.press("ArrowUp", "ArrowUp", 38, 8);
+    await page.type(POSTULATE.source);
+    const edited = await page.eval(state);
+    const line = edited.editor.indexOf(POSTULATE.line) + 1;
+    assert(line > 0, "the postulate is not in the buffer");
+    assert(
+      !edited.editor.includes(TYPE_ERROR.line),
+      "step 4's declaration is still in the buffer",
+    );
+    await page.press("Enter", "Enter", 13, 2);
+    // Step 4's error stays on screen until this check's verdict replaces
+    // it, whatever that is.
+    const refused = await waitFor(
+      (s) =>
+        !s.busy &&
+        finished(s.status) &&
+        !s.problems.some((p) => p.message.includes("[UnequalTerms]")),
+      "the postulate's check",
+    );
+    const error = refused.problems.find((p) => p.error)?.message.trim() ?? "";
+    const expected = `${MAIN}:${line}.${POSTULATE.columns}${POSTULATE.message}`;
+    results.postulate = error;
+    assert(
+      error === expected,
+      `the error is ${JSON.stringify(error)}, expected ${JSON.stringify(expected)}`,
+    );
+  });
+
+  await step("import a module of agda-algebras", async () => {
+    await page.eval(() => document.querySelector(".cm-content").focus());
+    await page.press("a", "KeyA", 65, 2);
+    await page.type(LIBRARY.source);
+    await page.press("Enter", "Enter", 13, 2);
+    const checked = await waitFor(
+      (s) =>
+        !s.busy &&
+        finished(s.status) &&
+        (s.status.startsWith("Module checked") || s.problems.some((p) => p.error)),
+      "the library import's check",
+    );
+    results.timings["library import, as the page reports it"] = milliseconds(checked.status);
+    assert(
+      checked.problems.length === 0,
+      `the import reported ${JSON.stringify(checked.problems)}`,
+    );
+    // An Infer shows the compiler log, with the check's Checking lines.
+    await click("Infer type");
+    await waitFor((s) => s.minibuffer, "the Infer minibuffer");
+    await submit(LIBRARY.infer);
+    const inferred = await waitFor(
+      (s) =>
+        !s.busy &&
+        !s.minibuffer &&
+        ((s.status === "Inferred type" && s.log !== null) || s.problems.length > 0),
+      "the library's inferred type and the compiler log",
+    );
+    assert(
+      inferred.problems.length === 0,
+      `Infer reported ${JSON.stringify(inferred.problems)}`,
+    );
+    const checking = [...inferred.log.matchAll(/Checking (\S+) \(/g)].map((m) => m[1]);
+    results.libraryChecking = checking;
+    assert(
+      checking.includes("Main") && checking.includes(LIBRARY.module) && checking.length === LIBRARY.checking,
+      `the import type-checked [${checking}], expected Main, ${LIBRARY.module} and the 10 modules it imports`,
     );
   });
   if (options.browser === "chromium") {

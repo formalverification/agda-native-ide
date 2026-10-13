@@ -11,13 +11,15 @@ File: `agda-native-ide/docs/adr/0001-runtime.md`
    2026-10-08 the server's reactor build, with the drive in its worker, so
    that the page needs no cross-origin isolation (§ 8), and it says so when
    a browser cannot run it (§ 9).
-+  **Date**: 2026-10-04; § 7 2026-10-07; § 8 and § 9 2026-10-08.
++  **Date**: 2026-10-04; § 7 2026-10-07; § 8 and § 9 2026-10-08; § 10
+   2026-10-11 and 2026-10-12; § 11 2026-10-12.
 +  **Tracking**: [#7] (this record); [#2] (the fork), [#48] (the notice),
    [#4] (the pins; its mirror and rebuild stay open), [#3] (its dev-shell
    clause); [#30] (the second lane); [#53] (the license questions deferred
    until before the repository goes public); [#58] (the 2.9.0 compiler,
    § 7); [#59] (the reactor and the drive in one worker, § 8); [#8] (the
-   page's notices, § 9).
+   page's notices, § 9); [#12] and [#13] (the library archives, § 10);
+   [#11] (the playground's project, § 11).
 +  **Ancestry**: agda-native-air's [browser IDE proposal][proposal], § 1
    "Fork the runtime"; agda-algebras PR [585][pr-585] and its
    [ADR-011][adr-011], which built and measured the second lane; the
@@ -74,6 +76,9 @@ library 2.3 patched to check under it, and binaries released from a public
 repository of this organization (§ 7); on 2026-10-08 the page moved to the
 server's reactor build and stopped needing isolation (§ 8), and it now
 names the browsers it is tested in and says so where it cannot run (§ 9).
+agda-algebras' archives are built and checked for it since 2026-10-11
+(§ 10), and since 2026-10-12 the playground's `Main` is a project of its
+own over agda-algebras, under the library's options line (§ 11).
 Hosting ([#6]), the license review before the repository goes public
 ([#53]), and the second lane, the plain checker as the verdict of record
 ([#30]), remain.
@@ -973,16 +978,86 @@ the local ones.
    404 Not Found)".
 
 **Status**.  Adopted 2026-10-11 in [#12]'s pull request; the gate and the
-drive's list of libraries 2026-10-12 in [#13]'s.  Open: mounting the
-archives in the page, their cache and their license notice ([#14]); the
-playground project, whose `Main` must be `--without-K` now that
-agda-algebras is ([#11]); the benchmark over these roots ([#18]); the
-cache's write token, without which `main` pushes nothing, so a change to
-the gate alone builds the interfaces again.
+drive's list of libraries 2026-10-12 in [#13]'s.  The site ships the
+sources archive since [#11]'s pull request, for the playground's project
+(§ 11).  Open: mounting the interface archives in the page, their cache
+and their license notice ([#14]); the benchmark over these roots ([#18]);
+the cache's write token, without which `main` pushes nothing, so a change
+to the gate alone builds the interfaces again.
 
 ---
 
-## 11.  Decision log
+## 11.  The playground's project
+
+(See also [#11], [#13], [#14], [#16], and
+[`docs/notes/runtime.md`][note]'s "The playground's project".)
+
+**Decision**.  The playground's `Main.agda` is a module of a project of its
+own, `/play/`, whose library depends on the standard library and
+agda-algebras, under agda-algebras' own options line, so that a postulate
+or a `TERMINATING` pragma is refused there as the library refuses it.  The
+*playground* is the page's scratch buffer, which the agda-algebras site's
+"Playground" link opens; a *root library* is a project's own `.agda-lib`.
+
++  **The layout**: `/play/Main.agda` beside `/play/play.agda-lib`
+   (`name: play`, `depend: standard-library-2.3 agda-algebras`, `include:
+   .`), as `stage.sh` writes it and the gate checks every root under;
+   agda-algebras' sources archive in the drive's list of libraries, at
+   `/agda-algebras`, before PLFA's, which stays at the root for its
+   chapters.
++  **The site ships the sources archive**, `agda-algebras-sources.zip`,
+   built by the flake from the pinned commit (decision 31), checked by
+   `make assets-check`, with a cache token, in the drive cache's
+   namespace, and in `NOTICE` under Apache-2.0.
++  **The host names the drive's first files**: the engine lays out the
+   files the host names (`BrowserConfig.files`), inside the transport's
+   root, after the archives and over what the drive's cache restores,
+   where it held an empty `/Main.agda`; the page names `play.agda-lib`.
++  **The default `Main`** carries `{-# OPTIONS --without-K --exact-split
+   --safe #-}`, imports only builtins, whose interfaces the site ships,
+   and opens one goal on the first screen; after a load that leaves goals,
+   the page asks for the selected goal's context and shows it with the
+   goal.
++  **The stored buffer's key is named by its path**,
+   `agda-web-ide-beta:doc:/play/Main.agda`; nothing migrates from the old
+   key, since nothing is deployed.
+
+**Evidence**.  Measured 2026-10-12 on this workstation in headless
+Chromium 149, with other sessions' builds beside it (load 1.4 to 10);
+`docs/measurements/playground-2026-10-12.json` has the runs.
+
++  **The browser check** passes on the new default: `Main` alone
+   type-checked, one goal with its type and its twelve context entries,
+   Infer, the give that closes the goal, a type error, a postulate refused
+   with `[SafeFlagPostulate]` at its position, and `import
+   Overture.Signatures` type-checked from source with its 10
+   standard-library modules.  Three controls, each restored afterward,
+   fail it: the default without `--safe` (the postulate is accepted),
+   agda-algebras left off the drive (the first check fails with Agda's
+   `[LibraryError]`, "Library 'agda-algebras' not found"), and no context
+   read after a load.
++  **Which flags reach `Main`**: only its own line and its library's
+   `flags:`; `--safe` in the standard library's `flags:` left a postulate
+   in a play module accepted, and in `play.agda-lib` refused it (native
+   Agda 2.9.0 at the compiler's commit).
++  **What it costs**: one more request on a first visit, 985,864 bytes;
+   the first check of the default 0.40 s against 0.27 s for the previous
+   default (medians of five alternating runs on a quiet machine; the ratio
+   held under load); `open import Setoid.Algebras.Basic`, 170 modules from
+   source, 1 min 38 s to 6 min 32 s cold over six runs (median 2 min 35 s)
+   and 3.3 to 11.9 s after a reload, against 3.7 s from its 50 archives
+   (decision 38's gate), which still type-check `Main` alone with PLFA's
+   library on the drive.
++  **The engine** passes the conformance suite, 12 of 12 on both engines
+   and identical, after the change to the drive's first record.
+
+**Status**.  Adopted 2026-10-12 in [#11]'s pull request.  Open: mounting
+the interface archives an import needs, with consent and a cache ([#14]);
+the three exercises, which land in `/play/` beside `Main` ([#16]).
+
+---
+
+## 12.  Decision log
 
 | # | Decision | Status | Evidence |
 |---|---|---|---|
@@ -1025,18 +1100,22 @@ the gate alone builds the interfaces again.
 | 37 | The engine lays the drive out from a list of libraries (archive, `.agda-lib`, name) and writes Agda's registry from it; the page passes PLFA as one; a root library is the host's | Adopted ([#13]) | One registry written at startup held only the standard library and PLFA ([#11], 2026-10-04); the registry pinned by unit tests, and the page's browser check, notices and conformance suite passing on it (§ 10) |
 | 38 | Every root of agda-algebras is checked under the site's reactor in headless Chromium, each in a fresh session with only its archives, exactly one `Checking` line, with two controls that must fail | Adopted ([#13]) | 350 of 350, 12 min 49 s four at once here; the controls 2 and 2; a shared session per job took 85 s but cannot show a root needs only its own archives (§ 10) |
 | 39 | CI runs the gate in the archives' job, every root, when the archives' derivation or the gate's code changes | Adopted ([#13]) | On the 4-core runner the gate's step took 17 min 18 s to 23 min 56 s, 350 of 350, in jobs of 49 to 66 minutes (runs 38209105006, 38213187621, 38243413321); it runs only when its own inputs change, so pull requests need no subset of the roots (§ 10) |
+| 40 | The playground's `Main` is `/play/Main.agda` in a project of its own, `play.agda-lib` depending on the standard library and agda-algebras; the site ships agda-algebras' sources archive, mounted at startup beside PLFA's | Adopted ([#11]) | The gate's layout; without agda-algebras on the drive the default fails with `[LibraryError]`; one more request, 985,864 bytes (§ 11) |
+| 41 | The engine lays out the files the host names in place of an empty `/Main.agda` of its own | Adopted ([#11]) | The conformance suite 12 of 12 on both engines and identical; a file outside the root is refused before anything is fetched (§ 11) |
+| 42 | The default `Main` carries agda-algebras' options line, imports only builtins, and opens one goal, whose context the page shows after the check | Adopted ([#11]) | `Main` alone type-checked; a postulate refused with `[SafeFlagPostulate]`; controls without `--safe` and without the context read fail the browser check (§ 11) |
+| 43 | The stored buffer's key is named by its path, with no migration from the old key | Adopted ([#11]) | Nothing is deployed, so no reader holds a document under the old key (§ 11) |
 
 ---
 
 ## References
 
 +  **Issues**: [#2] (the fork), [#3] (the Nix build), [#4] (the pins), [#5]
-   (CI), [#6] (hosting), [#7] (this record), [#8] (the page's notices, once
-   a page that could not isolate itself), [#11] (the playground project),
-   [#12] (the library archives, § 10), [#13] (interface acceptance), [#14]
-   (mounting the archives), [#18] (the benchmark),
-   [#20] (PLFA's removal), [#30] (the second lane), [#48] (the notice),
-   [#49] (the builtins), [#50] (the drive), [#53] (the license review
+   (CI), [#6] (hosting), [#7] (this record), [#8] (the page's notices, once a
+   page that could not isolate itself), [#11] (the playground's project,
+   § 11), [#12] (the library archives, § 10), [#13] (interface acceptance),
+   [#14] (mounting the archives), [#16] (the exercises), [#18] (the
+   benchmark), [#20] (PLFA's removal), [#30] (the second lane), [#48] (the
+   notice), [#49] (the builtins), [#50] (the drive), [#53] (the license review
    before going public), [#58] (the 2.9.0 compiler), [#59] (the reactor),
    [#61] (the library under 2.9.0), [#62] (the shared core), [#64] (the
    native engine).
@@ -1046,8 +1125,9 @@ the gate alone builds the interfaces again.
 +  **Documents**: [`docs/notes/runtime.md`][note] (how the runtime works),
    [`docs/notes/library-archives.md`][archives-note] (the library
    archives), `docs/measurements/library-archives-2026-10-11.json` (their
-   runs) and `docs/measurements/library-archives-browser-2026-10-12.json`
-   (the gate's), [`docs/provenance.md`][provenance] (the record),
+   runs), `docs/measurements/library-archives-browser-2026-10-12.json`
+   (the gate's) and `docs/measurements/playground-2026-10-12.json` (the
+   playground's), [`docs/provenance.md`][provenance] (the record),
    [`NOTICE`][notice].
 +  **Code**: `flake.nix` (`packages.assets`, the pins; `packages.site`;
    `apps.browser-check`; `packages.compiler`, `packages.stdlib`,
@@ -1064,7 +1144,12 @@ the gate alone builds the interfaces again.
    and the drive, in `src/lib/worker/` until [#62]),
    `src/lib/support.ts` (what the page needs), `scripts/browser-check/`
    (`run.mjs`, `notices.mjs`, `cdp.mjs`, `bidi.mjs`),
-   `.github/workflows/site.yml`; for the library archives,
+   `.github/workflows/site.yml`; for the playground's project,
+   `PLAYGROUND` and the drive's libraries in `src/lib/controller.svelte.ts`,
+   `DEFAULT_SOURCE` in `src/routes/+page.svelte`, `BrowserConfig.files` in
+   `packages/engine/src/browser/index.ts` with `layOutDrive` in its
+   worker's `drive.ts`, and `mkAgdaAlgebrasSources` in `flake.nix`, which
+   `packages.assets` installs; for the library archives,
    `packages.agda-algebras-interfaces`, `-archives` and `-check` in
    `flake.nix` (`agdaAlgebras`, the pin), `scripts/library-archives/`
    (`stage.sh`, `build.sh`, `pack.mjs`, `index.mjs`, `check.sh`, and the
@@ -1082,6 +1167,7 @@ the gate alone builds the interfaces again.
 [#12]: https://github.com/formalverification/agda-native-ide/issues/12
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
 [#14]: https://github.com/formalverification/agda-native-ide/issues/14
+[#16]: https://github.com/formalverification/agda-native-ide/issues/16
 [#18]: https://github.com/formalverification/agda-native-ide/issues/18
 [#20]: https://github.com/formalverification/agda-native-ide/issues/20
 [#30]: https://github.com/formalverification/agda-native-ide/issues/30

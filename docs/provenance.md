@@ -205,6 +205,26 @@ under the same license).
 |---|---:|---|
 | `static/agda-stdlib-2.3-patched.zip` | 1,536,421 | `773c59515bf4cd2ebf6d86aed6d57ec4493333538b28c1ace55509ece7e7aacd` |
 
+## agda-algebras' sources, built here
+
+`static/agda-algebras-sources.zip` is agda-algebras at
+[ualib/agda-algebras] `f067d57d367a4830834ce1fd80937820754f9a28` (its
+`master` on 2026-10-10), unchanged: `agda-algebras.agda-lib`, `src/`, and
+the license texts its `NOTICE` names for them (`LICENSE`, `LICENSE-data`,
+`NOTICE`), under `agda-algebras/`, 355 files.  The flake builds it
+(`mkAgdaAlgebrasSources` in `flake.nix`) from the commit `agdaAlgebras`
+pins, fetched by its NAR hash, deflated, with every entry dated 1980-01-01
+and in a fixed order, so that its bytes depend on the commit alone; the
+same derivation is the input of agda-algebras' interfaces and their index
+([#12]), which records this digest, and the page mounts it at
+`/agda-algebras`, a library the playground's project depends on ([#11]).
+License: Apache-2.0, the library's own for `src/` (`LICENSE`, with its
+`NOTICE`); `licenses/agda-algebras/` holds both, copied from the archive.
+
+| Path | Bytes | SHA-256 |
+|---|---:|---|
+| `static/agda-algebras-sources.zip` | 985,864 | `005b0f5576bf88d25d32b5b7af44bcc9ff47028faddc9a2c9eb38a18998ad961` |
+
 ## Retired pins
 
 Pinned from upstream until [#58] replaced them; no longer shipped.  The
@@ -393,6 +413,9 @@ Each change is its own commit, named here by its subject.
 | `vite.config.js` | The build refuses node's built-in modules in the page and in its worker, which Vite would replace with empty ones ([#62]'s self-review) | "Refuse node's built-in modules in the browser's bundle" |
 | `package-lock.json` | The companion's entry declares `@agda-native-ide/engine` and `@agda-native-ide/tools` (links in the workspace) and `rolldown` 1.2.6 (already locked, as Vite's bundler), as its manifest does; edited by hand, since npm 10 rewrites the file with fields lost, and nothing is re-resolved: the lockfile gains those five lines alone, and `npm ci` accepts it.  The flake's `npmDepsHash` changes with it ([#64]).  JSON carries no comment, so this row is the record. | "Host the native engine in the companion" |
 | `packages/engine/src/browser/worker/drive.ts`, `packages/engine/src/browser/worker/protocol.ts`, `packages/engine/src/browser/index.ts` (its startup), `src/lib/controller.svelte.ts` | The drive is laid out with a list of libraries, each an archive extracted at the root, its `.agda-lib` on the drive and its name, and writes Agda's libraries and defaults files from that list after the standard library, where it took PLFA's archive alone and wrote fixed text; the startup fetches each library, and names one it cannot fetch in the host's words, where it fetched one project archive; the page passes PLFA as one library, so its drive is as it was ([#13]) | "Lay out the drive from a list of libraries" |
+| `packages/engine/src/browser/worker/drive.ts`, `packages/engine/src/browser/worker/protocol.ts`, `src/lib/controller.svelte.ts`, `src/routes/+page.svelte` | The drive starts with the files the host names, where it held an empty `/Main.agda`; the playground's buffer is `/play/Main.agda`, beside `/play/play.agda-lib`, which the page names, a library depending on the standard library and agda-algebras, whose sources archive joins the drive's libraries; the buffer is kept under a localStorage key named by its path ([#11]) | "Put the playground in a project of its own, over agda-algebras" |
+| `src/routes/+page.svelte`, `src/lib/controller.svelte.ts` | The default `Main.agda` carries agda-algebras' options line, `{-# OPTIONS --without-K --exact-split --safe #-}`, imports only builtins, and opens one goal; after a load that leaves goals, the controller asks for the selected goal's context, so the inspector shows it with the goal ([#11]) | "Open the playground under agda-algebras' options, with one goal and its context" |
+| `packages/engine/src/browser/worker/drive.ts`, `packages/engine/src/browser/worker/als.ts`, `packages/engine/src/browser/worker/protocol.ts` | The host's files are written over what the drive's cache restores, in `prepareDrive`, rather than before it, so a cached copy never stands in for one; they are part of the mount, not of the archives the drive is laid out from ([#11], its review) | "Write the host's files over what the drive's cache restores" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
@@ -404,6 +427,8 @@ Each change is its own commit, named here by its subject.
 [#5]: https://github.com/formalverification/agda-native-ide/issues/5
 [#6]: https://github.com/formalverification/agda-native-ide/issues/6
 [#8]: https://github.com/formalverification/agda-native-ide/issues/8
+[#11]: https://github.com/formalverification/agda-native-ide/issues/11
+[#12]: https://github.com/formalverification/agda-native-ide/issues/12
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
 [#20]: https://github.com/formalverification/agda-native-ide/issues/20
 [#49]: https://github.com/formalverification/agda-native-ide/issues/49
@@ -415,6 +440,7 @@ Each change is its own commit, named here by its subject.
 [#64]: https://github.com/formalverification/agda-native-ide/issues/64
 [agda-web/als-demo]: https://github.com/agda-web/als-demo
 [agda/agda]: https://github.com/agda/agda
+[ualib/agda-algebras]: https://github.com/ualib/agda-algebras
 [cormullion/juliamono]: https://github.com/cormullion/juliamono
 [plfa/plfa.github.io]: https://github.com/plfa/plfa.github.io
 [gzuidhof/coi-serviceworker]: https://github.com/gzuidhof/coi-serviceworker

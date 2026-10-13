@@ -11,7 +11,8 @@ import { serve } from "./serve.mjs";
 import { palettes, resolveColor, rgba } from "./contrast.mjs";
 
 const THEME_KEY = "agda-web-ide-beta:theme";
-const DOC_KEY = "agda-web-ide-beta:doc";
+// The playground's buffer, by its path (src/lib/controller.svelte.ts).
+const DOC_KEY = "agda-web-ide-beta:doc:/play/Main.agda";
 const rgb = (hex) => `rgb(${rgba(hex).slice(0, 3).map((c) => Math.round(c * 255)).join(", ")})`;
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
 
@@ -79,7 +80,7 @@ export async function checkThemes(page, origin, site, out) {
   async function checked(previousNavigation) {
     for (let i = 0; i < 300; i++) {
       const current = await page.eval(state);
-      if (current.navigation !== previousNavigation && current.keyword && /^2 open goals.* · \d/.test(current.status) && current.frames.length >= 8) return;
+      if (current.navigation !== previousNavigation && current.keyword && /^1 open goal · \d/.test(current.status) && current.frames.length >= 8) return;
       await new Promise((done) => setTimeout(done, 100));
     }
     throw new Error("theme check timed out waiting for the default Main.agda");

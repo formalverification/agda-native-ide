@@ -1,0 +1,526 @@
+{
+ "run": "playground-2026-10-12",
+ "issue": 11,
+ "date": "2026-10-12",
+ "clock": "Times are UTC; the workstation's clock read MDT (UTC-6), 2026-10-12 early morning.",
+ "revision": "ac224ab5ecd2078831fa8e157a3bafc6127243b7",
+ "machine": {
+  "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+  "logicalCpus": 20,
+  "memoryBytes": 67068481536,
+  "kernel": "7.0.0-31-generic",
+  "note": "A laptop CPU shared with other sessions' builds; the load averages are given with each set, and times are indicative.  The counts (Checking lines, goals, requests) and the messages are the findings."
+ },
+ "inputs": {
+  "browser": "Chrome/149.0.7827.200 (the flake's chromium, headless)",
+  "agdaVersion": "2.9.0",
+  "site": {
+   "agda-algebras-sources.zip": "sha256:005b0f5576bf88d25d32b5b7af44bcc9ff47028faddc9a2c9eb38a18998ad961 (985,864 bytes)",
+   "agda-data.zip": "sha256:b250cb2154c15efb882139c6698b5b4c3514a3fb1e361bbde58f58a2eed943c0",
+   "agda-stdlib-2.3-patched.zip": "sha256:773c59515bf4cd2ebf6d86aed6d57ec4493333538b28c1ace55509ece7e7aacd",
+   "als-reactor-2.9.0.wasm": "sha256:a0c7ae5741dd3f11c6be9e9fac4281889f2861ec2b53b5379452d11a4a23e8c9",
+   "als-reactor-2.9.0.js": "sha256:c782dbaca349830299055c71ec9c4f72ec543c0d612d08b7c40fbb364e601dce"
+  },
+  "archives": "nix build .#agda-algebras-archives at agda-algebras f067d57d (index.json 285,618 bytes)"
+ },
+ "browserCheck": {
+  "what": "make browser-check on `make build` of the branch rebased onto main, with the review's fixes: the default Main's first check, Infer, the give, the type error, the postulate refused, the library import, then the themes",
+  "loadAverage": "about 3.4",
+  "timingsMs": {
+   "Agda ready, since navigation": 1564,
+   "first check done, since navigation": 2412,
+   "first check, as the page reports it": 754,
+   "first check": 2447,
+   "infer, and the first check's Checking lines": 146,
+   "give at goal 0": 357,
+   "check a type error": 404,
+   "refuse a postulate": 370,
+   "library import, as the page reports it": 3680,
+   "import a module of agda-algebras": 3953,
+   "themes": 13272
+  },
+  "checking": [
+   "Main"
+  ],
+  "context": [
+   [
+    "A",
+    "Set"
+   ],
+   [
+    "B",
+    "Set"
+   ],
+   [
+    "C",
+    "Set"
+   ],
+   [
+    "_·_",
+    "A → A → A"
+   ],
+   [
+    "_*_",
+    "B → B → B"
+   ],
+   [
+    "_⋆_",
+    "C → C → C"
+   ],
+   [
+    "g",
+    "B → C"
+   ],
+   [
+    "f",
+    "A → B"
+   ],
+   [
+    "g-hom",
+    "(x₁ y₁ : B) → g (x₁ * y₁) ≡ (g x₁ ⋆ g y₁)"
+   ],
+   [
+    "f-hom",
+    "(x₁ y₁ : A) → f (x₁ · y₁) ≡ (f x₁ * f y₁)"
+   ],
+   [
+    "x",
+    "A"
+   ],
+   [
+    "y",
+    "A"
+   ]
+  ],
+  "inferred": "{A : Set} (x y : List A) → length (x ++ y) ≡ length x + length y",
+  "typeError": "/play/Main.agda:46.9-13: error: [UnequalTerms]\nThe terms\n  0\nand\n  1\nare not equal at type Nat\nwhen checking that the expression refl has type zero ≡ 1",
+  "postulate": "/play/Main.agda:45.11-34: error: [SafeFlagPostulate]\nCannot postulate cheat with safe flag\nwhen scope checking the declaration\n  cheat : zero ≡ suc zero",
+  "libraryChecking": [
+   "Main",
+   "Overture.Signatures",
+   "Data.Product",
+   "Level",
+   "Relation.Nullary.Negation.Core",
+   "Data.Empty",
+   "Data.Irrelevant",
+   "Data.Sum.Base",
+   "Data.Bool.Base",
+   "Data.Unit.Base",
+   "Function.Base",
+   "Data.Product.Base"
+  ],
+  "goals": {
+   "before": 1,
+   "after": 0
+  },
+  "failure": null
+ },
+ "controls": {
+  "what": "The browser check against a build with one change each, restored by filename from the commit afterward; each must fail.",
+  "withoutSafe": {
+   "change": "the default's options line without --safe",
+   "failure": "the error is \"\", expected \"/play/Main.agda:45.11-34: error: [SafeFlagPostulate]\\nCannot postulate cheat with safe flag\\nwhen scope checking the declaration\\n  cheat : zero ≡ suc zero\""
+  },
+  "withoutAgdaAlgebras": {
+   "change": "agda-algebras left out of the drive's list of libraries",
+   "failure": "the first check reported [{\"error\":true,\"message\":\"error: [LibraryError]\\nLibrary 'agda-algebras' not found.\\nAdd the path to its .agda-lib file to\\n  '/home/root/.config/agda/libraries'\\nto install.\\nInstalled libraries:\\n  standard-library-2.3 (/stdlib/standard-library.agda-lib)\\n  plfa (/plfa.agda-lib)\"}]"
+  },
+  "withoutContext": {
+   "change": "no context read after a load",
+   "failure": "timed out after 180 s waiting for the first check of Main.agda, and its goal's context; the page shows {\"status\":\"1 open goal · 1.55 s\",\"bar\":\"Agda ready | 1 goal |  | Agda 2.9.0 | WASI · local | UTF-8\",\"banner\":null}"
+  }
+ },
+ "firstCheck": {
+  "what": "The first check of the default Main on a fresh profile, as the inspector reports its duration, alternating between the previous default (the layout commit, d48f634) and the new one (ac224ab), five runs each (first-check.mjs below).",
+  "builds": "Each site was built before the branch was rebased onto main (the commits were 50218fe and 8b083f9, on PR 88's earlier head) and before two comment-only edits were folded into them: the engine's comments in index.ts and drive.ts (stripped from the bundle), and the default Main's top comment, reworded in its six lines.  The browser check below ran after the rebase, on the review's fixes.",
+  "quiet": {
+   "loadAverage": "3.0 falling to 2.8",
+   "note": "Both sites are `nix build .#site` at their commits, before the folding (see builds).",
+   "old": {
+    "site": "d48f634",
+    "checkMs": [
+     285,
+     288,
+     260,
+     260,
+     273
+    ],
+    "readyMs": [
+     792,
+     758,
+     723,
+     709,
+     705
+    ],
+    "medianCheckMs": 273
+   },
+   "new": {
+    "site": "ac224ab",
+    "checkMs": [
+     399,
+     397,
+     400,
+     409,
+     409
+    ],
+    "readyMs": [
+     780,
+     766,
+     746,
+     744,
+     723
+    ],
+    "medianCheckMs": 400
+   }
+  },
+  "load3": {
+   "loadAverage": "2.2 to 3.9",
+   "note": "The new site here is `make build` of the working tree, whose default Main had five lines of top comment and a blank where the final has six lines; otherwise the code and assets of the new default's commit.",
+   "old": {
+    "site": "d48f634",
+    "checkMs": [
+     1030,
+     1040,
+     932,
+     981,
+     1010
+    ],
+    "readyMs": [
+     2629,
+     2435,
+     2544,
+     2487,
+     2676
+    ],
+    "medianCheckMs": 1010
+   },
+   "new": {
+    "site": "ac224ab",
+    "checkMs": [
+     1480,
+     1500,
+     1370,
+     1650,
+     1560
+    ],
+    "readyMs": [
+     2482,
+     2827,
+     2462,
+     2720,
+     2599
+    ],
+    "medianCheckMs": 1500
+   }
+  },
+  "load10": {
+   "loadAverage": "about 10.5",
+   "note": "Both sites are `nix build .#site` at their commits, before the folding (see builds).",
+   "old": {
+    "site": "d48f634",
+    "checkMs": [
+     1160,
+     1310,
+     1350,
+     1270,
+     1520
+    ],
+    "readyMs": [
+     3641,
+     3315,
+     3673,
+     3413,
+     3539
+    ],
+    "medianCheckMs": 1310
+   },
+   "new": {
+    "site": "ac224ab",
+    "checkMs": [
+     2030,
+     2040,
+     1850,
+     2020,
+     1880
+    ],
+    "readyMs": [
+     3841,
+     4047,
+     3343,
+     3469,
+     3311
+    ],
+    "medianCheckMs": 2020
+   }
+  },
+  "native": "The same file under the native Agda at the compiler's commit, --profile=internal: about 100 ms in all (type signatures 21 ms, deserialization 16 ms)."
+ },
+ "imports": {
+  "what": "A Main stored in the playground's localStorage key before the page loads, checked on a fresh profile (cold), then again after a reload in the same profile, which restores the interfaces the drive persisted (import-check.mjs below).  No interface archive of agda-algebras is mounted: the page mounts none yet.",
+  "overtureSignatures": {
+   "main": "{-# OPTIONS --without-K --exact-split --safe #-}\n\nmodule Main where\n\nimport Overture.Signatures\n",
+   "closure": "Overture.Signatures and 10 standard-library modules from source (4 builtins with shipped interfaces)",
+   "samples": [
+    {
+     "loadAverage": "about 3",
+     "runs": [
+      {
+       "label": "cold",
+       "status": "Module checked · 7.93 s",
+       "wallMs": 10516,
+       "requests": 26,
+       "bytes": 16811055,
+       "problems": []
+      },
+      {
+       "label": "reload",
+       "status": "Module checked · 675 ms",
+       "wallMs": 3188,
+       "requests": 0,
+       "bytes": 0,
+       "problems": []
+      }
+     ]
+    },
+    {
+     "loadAverage": "about 10.5",
+     "runs": [
+      {
+       "label": "cold",
+       "status": "Module checked · 12.80 s",
+       "wallMs": 16361,
+       "requests": 26,
+       "bytes": 16811118,
+       "problems": []
+      },
+      {
+       "label": "reload",
+       "status": "Module checked · 1.04 s",
+       "wallMs": 4449,
+       "requests": 0,
+       "bytes": 0,
+       "problems": []
+      }
+     ]
+    },
+    {
+     "loadAverage": "2.8 falling to 2.1",
+     "runs": [
+      {
+       "label": "cold",
+       "status": "Module checked · 2.00 s",
+       "wallMs": 2788,
+       "requests": 26,
+       "bytes": 16811118,
+       "problems": []
+      },
+      {
+       "label": "reload",
+       "status": "Module checked · 203 ms",
+       "wallMs": 1023,
+       "requests": 0,
+       "bytes": 0,
+       "problems": []
+      }
+     ]
+    }
+   ]
+  },
+  "setoidAlgebrasBasic": {
+   "main": "{-# OPTIONS --without-K --exact-split --safe #-}\n\nmodule Main where\n\nopen import Setoid.Algebras.Basic\n",
+   "closure": "179 modules: 20 of agda-algebras and 150 of the standard library from source, 9 builtins with shipped interfaces; its 50 archives hold 16,974,016 bytes",
+   "samples": [
+    {
+     "site": "the working-tree build (as firstCheck.quieter)",
+     "loadAverage": "2.7 to 4.2",
+     "runs": [
+      {
+       "label": "cold",
+       "status": "Module checked · 6m 31.7s",
+       "wallMs": 394765,
+       "requests": 26,
+       "bytes": 16811055,
+       "problems": []
+      },
+      {
+       "label": "reload",
+       "status": "Module checked · 11.93 s",
+       "wallMs": 14355,
+       "requests": 0,
+       "bytes": 0,
+       "problems": []
+      }
+     ]
+    },
+    {
+     "site": "nix build .#site of the new default",
+     "loadAverage": "10.6 falling to 8.1",
+     "runs": [
+      {
+       "label": "cold",
+       "status": "Module checked · 2m 32.7s",
+       "wallMs": 157010,
+       "requests": 26,
+       "bytes": 16811118,
+       "problems": []
+      },
+      {
+       "label": "reload",
+       "status": "Module checked · 5.09 s",
+       "wallMs": 6112,
+       "requests": 0,
+       "bytes": 0,
+       "problems": []
+      }
+     ]
+    },
+    {
+     "site": "nix build .#site of the new default",
+     "loadAverage": "7.6 to 8.0",
+     "runs": [
+      {
+       "label": "cold",
+       "status": "Module checked · 2m 36.8s",
+       "wallMs": 158087,
+       "requests": 26,
+       "bytes": 16811118,
+       "problems": []
+      },
+      {
+       "label": "reload",
+       "status": "Module checked · 6.20 s",
+       "wallMs": 7672,
+       "requests": 0,
+       "bytes": 0,
+       "problems": []
+      }
+     ]
+    },
+    {
+     "site": "nix build .#site of the new default",
+     "loadAverage": "8.0 to 7.5",
+     "runs": [
+      {
+       "label": "cold",
+       "status": "Module checked · 2m 39.3s",
+       "wallMs": 160714,
+       "requests": 26,
+       "bytes": 16811118,
+       "problems": []
+      },
+      {
+       "label": "reload",
+       "status": "Module checked · 4.03 s",
+       "wallMs": 5054,
+       "requests": 0,
+       "bytes": 0,
+       "problems": []
+      }
+     ]
+    },
+    {
+     "site": "the working-tree build again (as the first sample)",
+     "loadAverage": "7.1",
+     "runs": [
+      {
+       "label": "cold",
+       "status": "Module checked · 1m 55.8s",
+       "wallMs": 117004,
+       "requests": 26,
+       "bytes": 16811055,
+       "problems": []
+      },
+      {
+       "label": "reload",
+       "status": "Module checked · 4.09 s",
+       "wallMs": 5046,
+       "requests": 0,
+       "bytes": 0,
+       "problems": []
+      }
+     ]
+    },
+    {
+     "site": "nix build .#site of the new default",
+     "loadAverage": "2.1 falling to 1.4",
+     "runs": [
+      {
+       "label": "cold",
+       "status": "Module checked · 1m 38.0s",
+       "wallMs": 98853,
+       "requests": 26,
+       "bytes": 16811118,
+       "problems": []
+      },
+      {
+       "label": "reload",
+       "status": "Module checked · 3.25 s",
+       "wallMs": 4050,
+       "requests": 0,
+       "bytes": 0,
+       "problems": []
+      }
+     ]
+    }
+   ],
+   "summary": "Cold: 6 min 31.7 s, 2 min 32.7 s, 2 min 36.8 s, 2 min 39.3 s, 1 min 55.8 s, 1 min 38.0 s (median 2 min 34.8 s); after a reload: 11.93, 5.09, 6.20, 4.03, 4.09, 3.25 s (median 4.59 s).  The first sample's build, run again, took 1 min 55.8 s, so its 6 min 31.7 s was the machine, not the build.",
+   "note": "The cold times spread widely on this shared laptop, whose cores fall to 2.2 GHz under other sessions' builds; the load average does not predict them (the slowest run had the lowest load).",
+   "fromArchives": "3,718 ms, Main alone: library-archives-browser-2026-10-12.json, the gate's perRoot row"
+  }
+ },
+ "gateWithPlfa": {
+  "what": "The gate's page (make library-gate's harness) with PLFA's project.zip added to the drive's libraries after agda-algebras', as the page lays its drive out, from an untracked copy of gate.mjs; fresh session per root, --no-controls, two at once, load 5.4.",
+  "results": [
+   {
+    "name": "Setoid.Algebras.Basic",
+    "root": "Setoid.Algebras.Basic",
+    "modules": 179,
+    "archives": 50,
+    "bytes": 16974016,
+    "job": 0,
+    "startedAt": 187,
+    "startMs": 3359,
+    "ok": true,
+    "checking": [
+     "Main"
+    ],
+    "errors": [],
+    "warnings": 0,
+    "mountMs": 711,
+    "loadMs": 15112,
+    "totalMs": 19198,
+    "memoryBytes": 175702016
+   },
+   {
+    "name": "Setoid.Varieties.HSP",
+    "root": "Setoid.Varieties.HSP",
+    "modules": 313,
+    "archives": 128,
+    "bytes": 39251541,
+    "job": 1,
+    "startedAt": 192,
+    "startMs": 3303,
+    "ok": true,
+    "checking": [
+     "Main"
+    ],
+    "errors": [],
+    "warnings": 0,
+    "mountMs": 1058,
+    "loadMs": 28559,
+    "totalMs": 32927,
+    "memoryBytes": 367919104
+   }
+  ]
+ },
+ "nativeFlags": {
+  "what": "Which flags reach a module of the play library, under the native Agda 2.9.0 at the compiler's commit (nix develop .#vscode), with --library-file naming the standard library and agda-algebras as the page's registry does.",
+  "dependencySafe": "--safe added to the standard library's flags: a postulate in /play/P.agda (no options line) is accepted, exit 0",
+  "ownSafe": "--safe in play.agda-lib's flags: the same postulate is refused, 'Cannot postulate cheat with safe flag'",
+  "terminating": "The default Main with a TERMINATING pragma appended: 'error: [SafeFlagTerminating] Cannot use TERMINATING pragma with safe flag.'"
+ },
+ "probes": {
+  "firstCheck": "// A probe: the first check of a site's default Main.agda on a fresh\n// profile, alternating between sites, N rounds.  Prints, per run, the time\n// \"Agda ready\" appeared since navigation, the check's duration as the\n// inspector reports it, and the heading.\n//\n//   CHROME=... node first-check.mjs ROUNDS SITE...\n\nconst repo = process.env.REPO;\nconst cdp = await import(`${repo}/scripts/browser-check/cdp.mjs`);\nconst { serve } = await import(`${repo}/scripts/browser-check/serve.mjs`);\n\nconst RECORDER = `(() => {\n  const events = (window.__probe = []);\n  let last;\n  new MutationObserver(() => {\n    const bar = [...document.querySelectorAll(\".statusbar > span\")].map((e) => e.textContent.replace(/\\\\s+/g, \" \").trim()).join(\" | \");\n    if (bar !== last) { last = bar; events.push({ t: Math.round(performance.now()), bar }); }\n  }).observe(document, { subtree: true, childList: true, characterData: true });\n})();`;\n\nconst [rounds, ...sites] = process.argv.slice(2);\nconst rows = [];\nfor (let round = 0; round < Number(rounds); round++) {\n  for (const site of sites) {\n    const server = await serve({ root: site });\n    const chrome = await cdp.launch(process.env.CHROME);\n    const page = chrome.page;\n    await page.setViewport(1440, 900);\n    await page.addInitScript(RECORDER);\n    await page.navigate(`${server.origin}/`);\n    let status = \"\";\n    const started = Date.now();\n    for (;;) {\n      const s = await page.eval(() => ({\n        status: document.querySelector(\".inspector-status\")?.textContent?.trim() ?? \"\",\n        busy: document.querySelector(\".spin\") !== null,\n      }));\n      status = s.status;\n      if (/ · \\d/.test(s.status) && !s.busy) break;\n      if (Date.now() - started > 180_000) throw new Error(`timed out: ${s.status}`);\n      await new Promise((done) => setTimeout(done, 50));\n    }\n    const events = await page.eval(() => window.__probe);\n    const ready = events.find((e) => /Agda ready/.test(e.bar))?.t;\n    const ms = status.match(/([\\d.]+) (ms|s)$/);\n    const check = ms ? Math.round(Number(ms[1]) * (ms[2] === \"s\" ? 1000 : 1)) : NaN;\n    rows.push({ round, site, ready, check, status });\n    console.log(`${round} ${site.split(\"/\").pop()} ready ${ready} ms, check ${check} ms: ${status}`);\n    await chrome.close();\n    await server.close();\n  }\n}\nconsole.log(JSON.stringify(rows));\n",
+  "importCheck": "// A probe: the page's check of a Main.agda stored before the page loads\n// (in the playground's localStorage key), on a fresh profile, then again\n// after a reload in the same profile, which restores what the drive\n// persisted.  Prints each check's heading (with the duration the page\n// reports), its problems, the compiler log's last lines (after an Infer,\n// which shows it), and the requests the page made.\n//\n//   CHROME=... REPO=... node import-check.mjs SITE MAIN_FILE [OUT_JSON]\n\nimport { readFileSync, writeFileSync } from \"node:fs\";\n\nconst repo = process.env.REPO;\nconst cdp = await import(`${repo}/scripts/browser-check/cdp.mjs`);\nconst { serve } = await import(`${repo}/scripts/browser-check/serve.mjs`);\n\nconst [site, mainFile, outJson] = process.argv.slice(2);\nconst KEY = \"agda-web-ide-beta:doc:/play/Main.agda\";\nconst text = readFileSync(mainFile, \"utf8\");\n\nconst state = () => ({\n  status: document.querySelector(\".inspector-status\")?.textContent?.trim() ?? \"\",\n  bar: [...document.querySelectorAll(\".statusbar > span\")].map((e) => e.textContent.replace(/\\s+/g, \" \").trim()).join(\" | \"),\n  busy: document.querySelector(\".spin\") !== null,\n  problems: [...document.querySelectorAll(\".problem-card pre\")].map((pre) => pre.textContent),\n  banner: document.querySelector(\".fatal-banner\")?.textContent?.trim() ?? null,\n  heap: null,\n});\n\nasync function settle(page, label, timeoutMs) {\n  const started = Date.now();\n  let last;\n  for (;;) {\n    last = await page.eval(state);\n    if (last.banner) throw new Error(`${label}: the page says ${last.banner}`);\n    if (/ · \\d/.test(last.status) && !last.busy) return { ...last, wallMs: Date.now() - started };\n    if (Date.now() - started > timeoutMs) throw new Error(`${label}: timed out at ${last.status}`);\n    await new Promise((done) => setTimeout(done, 250));\n  }\n}\n\nconst server = await serve({ root: site });\nconst chrome = await cdp.launch(process.env.CHROME);\nconst page = chrome.page;\nawait page.setViewport(1440, 900);\n// Only on the first navigation: the reload must find what the page stored.\nawait page.addInitScript(`(() => {\n  if (!sessionStorage.getItem(\"probe-seeded\")) {\n    sessionStorage.setItem(\"probe-seeded\", \"1\");\n    localStorage.setItem(${JSON.stringify(KEY)}, ${JSON.stringify(text)});\n  }\n})();`);\nconst results = { site, date: new Date().toISOString(), browser: chrome.product, runs: [] };\nfor (const label of [\"cold\", \"reload\"]) {\n  const before = server.log.length;\n  // Give the cold run's persist, which the page does not await, time to\n  // commit before the reload.\n  if (label === \"reload\") await new Promise((done) => setTimeout(done, 15_000));\n  await page.navigate(`${server.origin}/`);\n  const checked = await settle(page, label, 20 * 60_000);\n  const requests = server.log.slice(before);\n  const run = {\n    label,\n    status: checked.status,\n    bar: checked.bar,\n    problems: checked.problems,\n    wallMs: checked.wallMs,\n    requests: requests.length,\n    bytes: requests.reduce((sum, r) => sum + r.bytes, 0),\n  };\n  results.runs.push(run);\n  console.log(JSON.stringify(run));\n}\nif (outJson) writeFileSync(outJson, JSON.stringify(results, null, 1) + \"\\n\");\nawait chrome.close();\nawait server.close();\n"
+ }
+}

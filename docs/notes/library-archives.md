@@ -6,11 +6,12 @@ This note explains how the IDE's copy of agda-algebras is built for the page:
 its interfaces built by the Agda the page runs, packed so that a reader's
 imports fetch what they need and nothing else, and indexed from the
 dependency graph Agda itself computes ([#12]).  [ADR 0001][adr] § 10 records
-the decisions; this note is the explanation it links.  Nothing here is
-mounted by the page yet: that is [#14]'s work, the playground project that
-imports the library is [#11]'s, and the Explorer that lists its modules is
-[#9]'s.  Every figure is from the runs of 2026-10-11 that [#12]'s findings
-describe: the local ones in
+the decisions; this note is the explanation it links.  The page ships and
+mounts the sources archive, for the playground's project, which depends on
+the library ([#11]; ADR 0001 § 11); mounting the interface archives is
+[#14]'s work, and the Explorer that lists the modules is [#9]'s.  Every
+figure is from the runs of 2026-10-11 that [#12]'s findings describe: the
+local ones in
 [`docs/measurements/library-archives-2026-10-11.json`][record], with the
 machine and its load, and the runner's in its run; and the gate's, which
 checks them under the page's own language server ([#13]), from the runs of
@@ -37,10 +38,11 @@ for the module checked.
 following:
 
 +  `index.json`, the index (below);
-+  `agda-algebras-sources.zip`, agda-algebras' sources as the page will
-   mount them: `agda-algebras/agda-algebras.agda-lib`, `agda-algebras/src/`,
++  `agda-algebras-sources.zip`, agda-algebras' sources as the page mounts
+   them: `agda-algebras/agda-algebras.agda-lib`, `agda-algebras/src/`,
    and the license texts its `NOTICE` names for them (`LICENSE`,
-   `LICENSE-data`, `NOTICE`), deflated;
+   `LICENSE-data`, `NOTICE`), deflated; the site ships the same file,
+   from the same derivation ([#11]);
 +  `interfaces/*.zip`, the interface archives: one per agda-algebras
    module, named by the module (`interfaces/Setoid.Varieties.HSP.zip`), and
    one per group of standard-library modules (below), named by a digest of
@@ -305,7 +307,7 @@ It is 285,618 bytes, 42,353 gzipped.
    language server the site ships, its reactor
    (`als-reactor-2.9.0.wasm`), in headless Chromium.  For each root, a
    fresh session of the engine's browser transport, over a drive laid out
-   from the site's own builtins and standard library and agda-algebras'
+   from the site's own builtins, standard library and agda-algebras'
    sources archive; a play library beside `/play/Main.agda`, written as
    `stage.sh` writes it; the archives the index names for the root
    (`index.mjs`'s `needs`, as `check.sh` stages them), mounted with the
@@ -313,9 +315,10 @@ It is 285,618 bytes, 42,353 gzipped.
    a `Main` that imports the root under agda-algebras' options line.  It
    passes when the load's `Checking` lines (the session's
    `LoadValue.checking`) name `Main` alone and Agda reports no error.
-   Before it starts, the site's builtins and standard library must have
-   the digests the index records, or it stops: archives built against
-   other inputs would be checked again, and the gate would measure that.
+   Before it starts, the site's builtins, standard library and (since the
+   site ships it, [#11]) agda-algebras' sources archive must have the
+   digests the index records, or it stops: archives built against other
+   inputs would be checked again, and the gate would measure that.
 +  **The drive's libraries**: the drive wrote Agda's registry once, as
    fixed text naming the standard library and PLFA, so agda-algebras
    could not be on it ([#11]'s finding of 2026-10-04).  The engine now
@@ -324,10 +327,10 @@ It is 285,618 bytes, 42,353 gzipped.
    the fields `index.json` records under `libraries`; `layOutDrive` writes
    the libraries file from it after the standard library's `.agda-lib`,
    which is the stage's file, and a defaults file from the names, which
-   Agda reads only for a file in no library.  The page passes PLFA as the
-   list's one entry, so its drive is as it was; the gate passes
-   agda-algebras'.  A list rather than a slot for agda-algebras, since the
-   engine is every host's, and [#14] and [#11] mount the same library.
+   Agda reads only for a file in no library.  The page passes
+   agda-algebras' and PLFA's ([#11]); the gate passes agda-algebras'.  A
+   list rather than a slot for agda-algebras, since the engine is every
+   host's, and [#14] and [#11] mount the same library.
 +  **Every root, every time**: 350 of 350 on 2026-10-12 here (headless
    Chromium 149, four at once, a 1-minute load of 3.0 at the start and 6.1
    at the end, from other sessions' builds), in 12 min 49 s.  Per root,
@@ -502,9 +505,12 @@ kept "so that the HTML and LaTeX backends can generate their output";
 +  **The standard library's interfaces: MIT**, like its sources, whose
    archive the page already ships with its `LICENCE`; **the builtins'**
    are already in `agda-data.zip`, under Agda's MIT license.
-+  **When the site ships them** ([#14]), `NOTICE` and `docs/provenance.md`
-   name them in the same change: agda-algebras at its commit under
-   Apache-2.0 with its `NOTICE`'s text, and the index under `LICENSE-data`.
++  **What the site ships**: the sources archive since [#11], which
+   `NOTICE` names, with agda-algebras' `LICENSE` and `NOTICE` copied into
+   `licenses/agda-algebras/`, and `docs/provenance.md` records.  When [#14]
+   ships the interfaces and the index, the same files name them: the
+   interfaces under Apache-2.0 like the sources, and the index under
+   `LICENSE-data`.
 
 (William's decision of 2026-10-11, on the session's recommendation.)
 
