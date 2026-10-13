@@ -1054,7 +1054,7 @@ The platform brief's native figures were measured on 2026-10-05 and kept beside 
 
 ---
 
-### Issue M0-16: Each agent harness, set up for this repository: instructions, skills, the gates, and agda-mcp (#82)
+### Issue M0-16: Each agent harness, set up for this repository: instructions, skills, the gates, and agda-mcp (#82, closed)
 
 **Labels:** `documentation`, `milestone-0-foundations`, `cross-repo`
 
