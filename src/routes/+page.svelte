@@ -29,7 +29,12 @@
   // are expanded is kept in localStorage, and the open file is revealed and
   // marked current.  Activating the open file's row moves to it rather than
   // loading it again.  Until issue 10 opens a library module, activating
-  // one selects it.
+  // one selects it.  Before a check of the playground's Main, the page
+  // mounts the interface archives its imports need, and before it fetches
+  // one it shows how many bytes and asks (issue 14): the question sits at
+  // the foot of the code pane, as the minibuffer does, with no spinner,
+  // since nothing is under way while it waits; the fetch shows its progress
+  // in the inspector's heading, with a STOP.
 
   import { onDestroy, onMount } from "svelte";
   import { setThemePreference, watchTheme, type ThemePreference } from "$lib/theme";
@@ -45,6 +50,7 @@
     Braces,
     CircleAlert,
     CircleCheck,
+    Download,
     FileCode,
     FolderOpen,
     Info,
@@ -60,7 +66,13 @@
     Zap,
   } from "@lucide/svelte";
 
-  import { AgdaController, LS_DOC_KEY, PLAYGROUND } from "$lib/controller.svelte";
+  import {
+    AgdaController,
+    LS_DOC_KEY,
+    MountStopped,
+    PLAYGROUND,
+    sizeWithBytes,
+  } from "$lib/controller.svelte";
   import { missingFeatures, unsupportedBrowserNotice } from "$lib/support";
   import { cacheTokens } from "$lib/assets";
   import { asset } from "$app/paths";
@@ -87,6 +99,8 @@
     parseInterfaceManifest,
     parseLibraryManifest,
     planChapterArchives,
+    statedProgress,
+    statedSize,
     type Chapter,
     type CorpusManifest,
     type InterfaceManifest,
@@ -100,9 +114,9 @@
 -- The playground.  Main's project depends on the standard library and
 -- agda-algebras, and Main has agda-algebras' options line: --safe refuses
 -- a postulate here as the library would.  Main imports only Agda's
--- builtins, whose interfaces the page ships, so a check is quick; a module
--- of either library (open import Setoid.Algebras.Basic, say) is checked
--- from source the first time, with all it imports, which takes minutes.
+-- builtins, whose interfaces the page ships, so a check is quick; for a
+-- module of either library (open import Setoid.Algebras.Basic, say) the
+-- page offers to fetch the interfaces it needs, stating the bytes first.
 module Main where
 
 open import Agda.Builtin.Equality using (_≡_; refl)
@@ -233,7 +247,14 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   );
 
   const isAgdaBusy = $derived(controller.iotcmStatus === "processing");
-  const isBusy = $derived(isAgdaBusy || controller.driveArchiveLoading);
+  // Work under way, which shows a spinner: Agda's, or a mount's.
+  const isWorking = $derived(isAgdaBusy || controller.driveArchiveLoading);
+  // Nothing else may start: work is under way, or the page waits for the
+  // reader's answer to its question (issue 14), which shows no spinner.
+  const isBusy = $derived(isWorking || controller.consent !== null || controller.planning);
+  const consentRequest = $derived(controller.consent);
+  let consentRemember = $state(false);
+  let consentForm = $state<HTMLFormElement>();
 
   // agda-algebras' rows, built once from its module list.
   const libraryItems = $derived(
@@ -354,12 +375,27 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       return "result";
     return "goals";
   });
+  // A mount's progress: by bytes, in the unit of their total.
+  const mountLabel = $derived.by(() => {
+    const mount = controller.mount;
+    if (!mount) return "";
+    if (!mount.fetching)
+      return `Mounting ${mount.library} interfaces kept in this browser: ${mount.mounted} of ${mount.archives}`;
+    // PLFA's archives come with no sizes: their count, and the bytes so far.
+    return mount.total
+      ? `Fetching ${mount.library} interfaces: ${statedProgress(mount.loaded, mount.total)}`
+      : `Fetching ${mount.library} interfaces: ${mount.mounted} of ${mount.archives} archives, ${statedSize(mount.loaded)}`;
+  });
   const inspectorHeading = $derived(
     agdaFailed
       ? agdaFailedLabel
       : compilerStarting
         ? `${compilerLoadingLabel} ${progress}%`
-        : isBusy
+        : consentRequest
+          ? `Fetch ${statedSize(consentRequest.bytes)} of agda-algebras' interfaces?`
+          : mountLabel
+            ? mountLabel
+            : isBusy
           ? controller.lastAction
           : inspectorMode === "problems"
             ? `${controller.problems.length} problem${controller.problems.length === 1 ? "" : "s"}${checkDurationLabel ? ` · ${checkDurationLabel}` : ""}`
@@ -484,8 +520,13 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
               run: () => showGoals(),
             },
             {
+              // Stops a mount or Agda's command: both are under way when it
+              // is pressed, so it is not held back as other commands are.
               key: "Ctrl-c Ctrl-x Ctrl-a",
-              run: () => runEditorAction(() => controller.abort()),
+              run: () => {
+                stopWork();
+                return true;
+              },
             },
             {
               key: "Ctrl-Space",
@@ -499,6 +540,8 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
         ),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
+            // The question was about the text before this edit.
+            if (controller.consent) answerConsent("cancel");
             inspectorPreference = "goals";
             if (workspaceMode === "plfa")
               plfaMarkdown = update.state.doc.toString();
@@ -575,7 +618,10 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
         event.stopPropagation();
         runCheck();
       } else if (event.key === "Escape") {
-        if (commandKind) {
+        if (controller.consent) {
+          event.preventDefault();
+          answerConsent("cancel");
+        } else if (commandKind) {
           commandKind = null;
           editor?.focus();
         }
@@ -660,7 +706,9 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     if (compilerReady && !didAutoLoad) {
       didAutoLoad = true;
       if (workspaceMode === "playground")
-        setTimeout(() => void runAction(() => controller.loadAgdaFile()), 50);
+        setTimeout(() => {
+          if (!isBusy) void runAction(() => checkCurrentFile({ automatic: true }));
+        }, 50);
     }
   });
 
@@ -814,7 +862,8 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     try {
       await action();
     } catch (error) {
-      actionError = readableError(error);
+      // A stopped mount is an outcome, which the status line states.
+      if (!(error instanceof MountStopped)) actionError = readableError(error);
     }
   }
 
@@ -830,14 +879,41 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   async function ensurePlfaInterfaces(chapter = selectedChapter) {
     if (!chapter) return Promise.resolve();
     await loadPlfaInterfaceManifest();
-    await controller.mountDriveArchives(plfaInterfaceUrls(chapter));
+    await controller.mountDriveArchives(plfaInterfaceUrls(chapter), "PLFA's");
   }
 
-  async function checkCurrentFile() {
+  async function checkCurrentFile({ automatic = false }: { automatic?: boolean } = {}) {
     if (workspaceMode === "plfa") await ensurePlfaInterfaces();
+    else {
+      // The minibuffer gives way to the question, if one is asked.
+      commandKind = null;
+      if (!(await controller.prepareImports({ automatic }))) return;
+    }
     await controller.loadAgdaFile();
   }
   controller.checkCurrentFile = checkCurrentFile;
+
+  /** The reader's answer to the question before a fetch. */
+  function answerConsent(choice: "fetch" | "source" | "cancel") {
+    const remember = consentRemember;
+    consentRemember = false;
+    controller.answer(choice, remember);
+    setTimeout(() => editor?.focus());
+  }
+
+  // The question takes the keyboard's focus only when the reader asked for
+  // the check: on the automatic first check, Enter in the editor must not
+  // answer it.
+  $effect(() => {
+    if (consentRequest?.focus && consentForm)
+      consentForm.querySelector<HTMLButtonElement>(".consent-fetch")?.focus();
+  });
+
+  /** Stop what is under way: a mount, or else Agda's command. */
+  function stopWork() {
+    if (controller.driveArchiveLoading) controller.stopMount();
+    else if (isAgdaBusy) void runAction(() => controller.abort());
+  }
 
   function runCheck() {
     if (!compilerReady || isBusy) return true;
@@ -958,7 +1034,9 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     controller.setDocument(source, PLAYGROUND.file, LS_DOC_KEY);
     setTimeout(() => editor?.focus());
     if (compilerReady)
-      setTimeout(() => void runAction(() => controller.loadAgdaFile()), 50);
+      setTimeout(() => {
+        if (!isBusy) void runAction(() => checkCurrentFile({ automatic: true }));
+      }, 50);
   }
 
   /** Which Explorer rows are expanded, kept for the next visit. */
@@ -1215,7 +1293,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
           >
         </div>
         <div class="editor-host" bind:this={editorHost}></div>
-        {#if commandKind}
+        {#if commandKind && !consentRequest}
           <form
             class="minibuffer"
             onsubmit={(event) => {
@@ -1249,12 +1327,62 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
             >
           </form>
         {/if}
+        {#if consentRequest}
+          <form
+            class="consent"
+            aria-label="Fetch agda-algebras' interfaces"
+            bind:this={consentForm}
+            onsubmit={(event) => {
+              event.preventDefault();
+              answerConsent("fetch");
+            }}
+          >
+            <p class="consent-text">
+              Checking {editorFileName} needs
+              <strong class="consent-size" data-bytes={consentRequest.bytes}
+                >{sizeWithBytes(consentRequest.bytes)}</strong
+              >
+              of agda-algebras' interfaces: <span class="consent-count"
+                >{consentRequest.archives}
+                {consentRequest.archives === 1 ? "archive" : "archives"} holding
+                {consentRequest.modules}
+                {consentRequest.modules === 1 ? "module" : "modules"}</span
+              >, from this site. Without them, Agda checks those modules from
+              source, which can take minutes.
+            </p>
+            {#if consentRequest.unknown.length}<p class="consent-note">
+                Not in agda-algebras' index, so checked from source either way:
+                {consentRequest.unknown.join(", ")}.
+              </p>{/if}
+            <div class="consent-actions">
+              <button type="submit" class="consent-fetch"
+                >Fetch {statedSize(consentRequest.bytes)}</button
+              >
+              <button
+                type="button"
+                class="consent-source"
+                onclick={() => answerConsent("source")}>Check from source</button
+              >
+              <button
+                type="button"
+                class="consent-cancel"
+                onclick={() => answerConsent("cancel")}>Cancel</button
+              >
+              <label class="consent-remember"
+                ><input type="checkbox" bind:checked={consentRemember} />
+                Remember my answer in this tab</label
+              >
+            </div>
+          </form>
+        {/if}
         <footer class="statusbar">
           {#if !compilerStarting}<span
               class:success={controller.checked &&
                 !controller.problems.some((p) => p.severity === "error")}
             >
-              {#if agdaFailed}<CircleAlert size={13} />{agdaFailedLabel}{:else if isBusy}<LoaderCircle
+              {#if agdaFailed}<CircleAlert size={13} />{agdaFailedLabel}{:else if consentRequest}<Download
+                  size={13}
+                />Fetch {statedSize(consentRequest.bytes)}?{:else if isWorking}<LoaderCircle
                   size={13}
                   class="spin"
                 />{controller.lastAction}{:else if controller.problems.some((p) => p.severity === "error")}<CircleAlert
@@ -1287,9 +1415,11 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     <aside class="inspector">
       <div class="inspector-header" aria-live="polite">
         <span class="inspector-title">
-          {#if compilerStarting || isBusy}<LoaderCircle
+          {#if compilerStarting || isWorking}<LoaderCircle
               size={14}
               class="spin"
+            />{:else if consentRequest}<Download
+              size={14}
             />{:else if inspectorMode === "problems"}<TriangleAlert
               size={14}
             />{:else if inspectorMode === "result"}<SquareTerminal
@@ -1299,10 +1429,12 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
         </span>
         <span class="inspector-state">
           <span class="inspector-status">{inspectorHeading}</span>
-          {#if isAgdaBusy}<button
+          {#if isAgdaBusy || controller.driveArchiveLoading}<button
               class="abort-action"
-              onclick={() => void runAction(() => controller.abort())}
-              title="Abort current Agda command (C-c C-x C-a)">STOP</button
+              onclick={stopWork}
+              title={controller.driveArchiveLoading
+                ? "Stop fetching (C-c C-x C-a)"
+                : "Abort current Agda command (C-c C-x C-a)"}>STOP</button
             >{/if}
         </span>
       </div>
@@ -1323,6 +1455,9 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
           />
         {:else}<ProblemList problems={controller.problems} />{/if}
       </div>
+      {#if controller.planNote && workspaceMode === "playground"}<div class="plan-note">
+          <Info size={15} /><span>{controller.planNote}</span>
+        </div>{/if}
       {#if actionError}<div class="action-error">
           <CircleAlert size={15} /><span>{actionError}</span><button
             onclick={() => (actionError = "")}
@@ -1849,6 +1984,76 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   }
   .minibuffer-cancel:hover {
     background: var(--input-button-hover-surface);
+  }
+  /* The question before a fetch (issue 14), at the foot of the code pane
+     as the minibuffer is, wrapping at any width. */
+  .consent {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--input-line);
+    background: var(--input-label-surface);
+    color: var(--input-label-text);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .consent p {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .consent-size {
+    color: var(--input-text);
+  }
+  .consent-note {
+    color: var(--muted);
+  }
+  .consent-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+  }
+  .consent-actions button {
+    min-height: 26px;
+    padding: 0 10px;
+    border: 1px solid var(--input-button-line);
+    background: var(--tab-surface);
+    color: var(--input-button-text);
+    font:
+      700 9px JuliaMono,
+      monospace;
+    letter-spacing: 0.035em;
+  }
+  .consent-actions .consent-fetch {
+    border-color: var(--accent-fill);
+    color: var(--input-badge-text);
+    background: var(--accent-fill);
+  }
+  .consent-actions .consent-fetch:hover {
+    background: var(--accent-fill-hover);
+  }
+  .consent-actions button:not(.consent-fetch):hover {
+    background: var(--input-button-hover-surface);
+  }
+  .consent-remember {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--input-label-text);
+  }
+  .plan-note {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 10px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 10px;
+  }
+  .plan-note span {
+    flex: 1;
+    overflow-wrap: anywhere;
   }
   .statusbar {
     height: 25px;

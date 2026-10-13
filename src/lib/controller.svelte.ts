@@ -49,11 +49,23 @@
 // When Agda cannot start, the page says why: the engine's startup failure
 // is shown as "Agda could not start: ...", and a server that fails or
 // exits on its own once started as "Agda stopped: ..." (issue 8).
+//
+// Before a check of the playground's Main, the controller mounts the
+// interfaces its imports need (issue 14): it reads the imports from the
+// buffer, plans their closure from agda-algebras' archive index (which it
+// fetches when Agda starts, with the library's sources), and mounts the
+// archives this session has not, reading those the browser keeps from the
+// engine's archive store and fetching the rest, but only once the reader
+// has been told how many bytes and has agreed (`consent`, which the page
+// shows).  A choice may be remembered for the tab (sessionStorage), and a
+// decline is remembered for the archives declined, so a later check does
+// not ask again for them.  At startup it also deletes the drive caches of
+// other namespaces, and the archives the index no longer names.
 
 import type { EditorView } from "@codemirror/view";
 import { Compartment } from "@codemirror/state";
 import { LSPClient, languageServerExtensions } from "@codemirror/lsp-client";
-import { messagesOf } from "@agda-native-ide/engine";
+import { messagesOf, sourceKind } from "@agda-native-ide/engine";
 import type {
   AgdaSession,
   CheckPlan,
@@ -62,12 +74,30 @@ import type {
   MakeCaseValue,
   Outcome,
 } from "@agda-native-ide/engine";
-import { startBrowserSession, type BrowserTransport } from "@agda-native-ide/engine/browser";
+import {
+  ARCHIVE_STORE,
+  ArchiveNotKept,
+  forgetOtherDriveCaches,
+  startBrowserSession,
+  type ArchiveRef as MountedArchive,
+  type BrowserTransport,
+} from "@agda-native-ide/engine/browser";
+import {
+  archiveRefs,
+  importedModules,
+  isBuiltinModule,
+  parseArchiveIndex,
+  parseLibraryDescription,
+  planImports,
+  statedSize,
+  type ArchiveIndex,
+  type LibraryDescription,
+} from "@agda-native-ide/manifest";
 import { createToolSurface, type ToolResult, type ToolSurface } from "@agda-native-ide/tools";
 
 import { hoverTooltips } from "$lib/codemirror/lsp-hover";
 import { asset } from "$app/paths";
-import { cacheTokens, compilerBytes, driveCacheNamespace } from "$lib/assets";
+import { assetFiles, cacheTokens, compilerBytes, driveCacheNamespace } from "$lib/assets";
 import { applyAgdaResponse } from "./agda/handlers";
 import { commit } from "./codemirror/offsets";
 import {
@@ -145,6 +175,10 @@ export const PLAYGROUND = {
     path: "/play/play.agda-lib",
     text: "name: play\ndepend: standard-library-2.3 agda-algebras\ninclude: .\n",
   },
+  /** Where Agda finds the modules Main imports: the project's own
+   * directory and its libraries' include directories, in that order
+   * (issue 14, for the imports agda-algebras' index does not list). */
+  includes: ["/play", "/agda-algebras/src", "/stdlib/src"],
 } as const;
 
 /** Where the editor keeps the playground's buffer: a key named by its path
@@ -152,6 +186,87 @@ export const PLAYGROUND = {
  * /Main.agda, a module of PLFA's library; nothing is deployed, so only a
  * developer's browser holds a document there, and it stays, unread. */
 export const LS_DOC_KEY = `agda-web-ide-beta:doc:${PLAYGROUND.file}`;
+
+/** agda-algebras as the page describes it (issue 14): its sources, which
+ * the drive mounts when it starts, its archive index, and where the index's
+ * archives are, each with its bytes and digest from the build.  Undefined,
+ * with the reason, where the build had no archives (the dev server before
+ * `make assets`); the page then checks every import from source. */
+export const AGDA_ALGEBRAS = (() => {
+  const parsed = parseLibraryDescription({
+    kind: "library",
+    name: "agda-algebras",
+    agdaLib: "/agda-algebras/agda-algebras.agda-lib",
+    sources: {
+      url: `${asset("/agda-algebras-sources.zip")}?cache=${cacheTokens.agdaAlgebras}`,
+      ...assetFiles.agdaAlgebras,
+    },
+    index: {
+      url: `${asset("/agda-algebras/index.json")}?cache=${cacheTokens.agdaAlgebrasIndex}`,
+      ...assetFiles.agdaAlgebrasIndex,
+    },
+    archives: { base: asset("/agda-algebras/") },
+  });
+  return parsed.ok ? { description: parsed.value } : { error: parsed.error };
+})();
+
+/** What the page asks before it fetches (issue 14): the archives a check
+ * needs that neither the drive nor the browser holds, their bytes, the
+ * interfaces they hold, and the imports the index lacks. */
+export interface ConsentRequest {
+  library: string;
+  archives: number;
+  bytes: number;
+  modules: number;
+  unknown: string[];
+  /** Whether the question takes the keyboard's focus: not on a check the
+   * reader did not ask for, where Enter in the editor would answer it. */
+  focus: boolean;
+}
+
+/** The reader's answer: fetch the archives, check without them, or do
+ * not check; and whether to give the same answer for the rest of the tab's
+ * life. */
+export type ConsentChoice = "fetch" | "source" | "cancel";
+
+/** How a mount is going, as the page shows it. */
+export interface MountState {
+  library: string;
+  loaded: number;
+  /** Their bytes, where every archive's is known (not PLFA's). */
+  total: number | undefined;
+  mounted: number;
+  archives: number;
+  /** Whether anything is downloaded, or every archive is the browser's. */
+  fetching: boolean;
+}
+
+/** sessionStorage, or nothing where the browser refuses it. */
+const tabStorage = {
+  get(key: string) {
+    try {
+      return sessionStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  set(key: string, value: string) {
+    try {
+      sessionStorage.setItem(key, value);
+    } catch {
+      // Refused: the choice lasts as long as the page.
+    }
+  },
+};
+
+/** The keys under which a tab remembers its answers for a library. */
+const rememberedChoiceKey = (library: string) => `agda-native-ide:fetch-choice:${library}`;
+const declinedKey = (library: string) => `agda-native-ide:declined:${library}`;
+
+/** A size as the page states it, with its exact count. */
+export function sizeWithBytes(count: number) {
+  return `${statedSize(count)} (${count.toLocaleString("en-US")} bytes)`;
+}
 
 function makeLspClient(rootUri: string = "/") {
   const lspExtsWithoutHover = languageServerExtensions().filter(
@@ -204,6 +319,24 @@ export class AgdaController {
   lastResult = $state<AgdaResult | null>(null);
   lastAction = $state("Waiting for Agda");
   lastCheckDurationMs = $state<number | undefined>();
+  /** The question the page shows before it fetches, while it waits for
+   * the answer (issue 14). */
+  consent = $state<ConsentRequest | null>(null);
+  /** A mount under way. */
+  mount = $state<MountState | null>(null);
+  /** What the last check's plan has to say: imports the index lacks, or an
+   * index that could not be read. */
+  planNote = $state("");
+
+  /** A plan under way, which the page counts as busy. */
+  planning = $state(false);
+  private planned?: Promise<boolean>;
+  /** agda-algebras' archive index, once fetched and read. */
+  private libraryIndex?: Promise<ArchiveIndex>;
+  /** Answers the consent question the page shows. */
+  private answerConsent?: (choice: ConsentChoice, remember: boolean) => void;
+  /** Stops the mount under way. */
+  private mountStopper?: AbortController;
 
   /** Set by terminateALSWASM, so the session's end is not reported. */
   private stopRequested = false;
@@ -213,8 +346,10 @@ export class AgdaController {
   /** Archive mounts in flight. */
   private mounting = 0;
   /** How the page checks the file on screen (in PLFA, with the chapter's
-   * interfaces mounted first); a plain check by default. */
-  checkCurrentFile: () => Promise<void> = () => this.loadAgdaFile();
+   * interfaces mounted first; in the playground, with what its imports need,
+   * issue 14); a plain check by default.  `automatic` is a check the reader
+   * did not ask for. */
+  checkCurrentFile: (options?: { automatic?: boolean }) => Promise<void> = () => this.loadAgdaFile();
   /** Stops the engine, during its startup or after. */
   private stopper?: AbortController;
 
@@ -273,6 +408,9 @@ export class AgdaController {
         },
         files: [PLAYGROUND.library],
         cacheNamespace: driveCacheNamespace,
+        // The interface archives the page mounts are kept by their digest
+        // (issue 14).
+        archiveStore: ARCHIVE_STORE,
         // --raw: the server answers in Agda's own JSON (ResponseJSONRaw),
         // which the engine reads.  ALS drives Agda through its interactive
         // command loop, but unlike the `agda --interaction` executable it
@@ -340,6 +478,15 @@ export class AgdaController {
 
     this.alsWorkerStatus = "active";
     this.iotcmStatus = "ready";
+    // The drive's caches of other namespaces are deleted; agda-algebras'
+    // index is read, and the archives it no longer names are evicted.
+    void forgetOtherDriveCaches(driveCacheNamespace).catch((error: unknown) =>
+      console.warn("Could not delete the stale drive caches", error),
+    );
+    void this.readLibraryIndex().then(
+      (index) => this.evictStaleArchives(index),
+      () => {},
+    );
     this.lspClient!.connect(transport.editorChannel);
     this.editorView!.dispatch({
       effects: this.lspClientCompartment.reconfigure(
@@ -352,6 +499,8 @@ export class AgdaController {
   terminateALSWASM() {
     this.stopRequested = true;
     this.stopper?.abort();
+    this.mountStopper?.abort();
+    this.answerConsent?.("cancel", false);
     const session = this.session;
     this.alsWorkerStatus = "terminated";
     this.wasmLoadingProgress = null;
@@ -562,21 +711,289 @@ export class AgdaController {
     }
   }
 
-  async mountDriveArchives(urls: string[]): Promise<void> {
+  /** Mount archives on the drive, those not yet mounted: `what` is whose
+   * interfaces they hold, for the status line ("PLFA's", "agda-algebras'"),
+   * `bytes`, when known, what they cost, which the status line states
+   * before the first byte is fetched, and `fetching` false for archives the
+   * browser keeps, which are read from its store and never downloaded.  A
+   * stop is not a failure: it throws `MountStopped`, which the page shows
+   * as the outcome it is, and an archive planned as kept that the store has
+   * lost throws `ArchiveNotKept`, so the plan is made again. */
+  async mountDriveArchives(
+    archives: readonly (string | MountedArchive)[],
+    what: string,
+    { bytes, fetching = true }: { bytes?: number; fetching?: boolean } = {},
+  ): Promise<void> {
     const transport = this.transport;
     if (!transport || !this.driveIsCreated) throw new Error("Agda filesystem is not ready");
-    const missing = transport.unmounted(urls);
+    const missing = transport.unmounted(archives);
     if (!missing.length) return;
+    const count = `${missing.length} ${missing.length === 1 ? "archive" : "archives"}`;
     this.mounting += 1;
     this.driveArchiveLoading = true;
-    this.lastAction = `Loading ${missing.length} PLFA cache ${missing.length === 1 ? "bundle" : "bundles"}…`;
+    this.lastAction = !fetching
+      ? `Mounting ${count} of ${what} interfaces, kept in this browser…`
+      : bytes === undefined
+        ? `Fetching ${count} of ${what} interfaces…`
+        : `Fetching ${count} of ${what} interfaces, ${sizeWithBytes(bytes)}…`;
+    const stopper = new AbortController();
+    this.mountStopper = stopper;
+    this.mount = { library: what, loaded: 0, total: bytes, mounted: 0, archives: missing.length, fetching };
     try {
-      await transport.mountArchives(missing);
-      this.lastAction = "PLFA cache ready";
+      await transport.mountArchives(missing, {
+        signal: stopper.signal,
+        onProgress: (progress) => {
+          this.mount = {
+            library: what,
+            loaded: progress.loaded,
+            total: progress.total ?? bytes,
+            mounted: progress.mounted,
+            archives: progress.archives,
+            fetching,
+          };
+        },
+      });
+      // A stop that came when nothing was left to download (the archives
+      // read from the store, or the last extractions) still stops.
+      if (stopper.signal.aborted) throw stopper.signal.reason;
+      this.lastAction = `${what[0].toUpperCase()}${what.slice(1)} interfaces are mounted`;
+    } catch (error) {
+      if (stopper.signal.aborted) {
+        const mounted = missing.length - transport.unmounted(missing).length;
+        this.lastAction = `Stopped: ${mounted} of ${count} mounted`;
+        throw new MountStopped(this.lastAction);
+      }
+      this.lastAction = "Ready";
+      if (error instanceof ArchiveNotKept) throw error;
+      throw new Error(`${describe(error)}.`, { cause: error });
     } finally {
       this.mounting -= 1;
       this.driveArchiveLoading = this.mounting > 0;
+      this.mount = null;
+      if (this.mountStopper === stopper) this.mountStopper = undefined;
     }
+  }
+
+  /** Stop the mount under way. */
+  stopMount() {
+    this.mountStopper?.abort();
+  }
+
+  /** agda-algebras' archive index: fetched once, its bytes checked against
+   * the digest the build recorded, and read.  A failure is not kept: the
+   * next check that needs the index asks for it again. */
+  readLibraryIndex(): Promise<ArchiveIndex> {
+    if (this.libraryIndex) return this.libraryIndex;
+    const library = AGDA_ALGEBRAS.description;
+    const what = "agda-algebras' archive index";
+    const reading = (async () => {
+      if (!library) throw new Error(`${what} is not in this build (${AGDA_ALGEBRAS.error})`);
+      let response: Response;
+      try {
+        response = await fetch(library.index.url);
+      } catch (error) {
+        throw new Error(`${what} could not be downloaded (${describe(error)})`, { cause: error });
+      }
+      if (!response.ok)
+        throw new Error(`${what} could not be downloaded (HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ""})`);
+      const data = await response.arrayBuffer();
+      const digest = await sha256Hex(data);
+      if (digest !== library.index.sha256)
+        throw new Error(`${what} is not the one this page was built with (its SHA-256 is ${digest.slice(0, 16)}, not ${library.index.sha256.slice(0, 16)})`);
+      const parsed = parseArchiveIndex(JSON.parse(new TextDecoder().decode(data)));
+      if (!parsed.ok) throw new Error(parsed.error);
+      return parsed.value;
+    })();
+    this.libraryIndex = reading;
+    reading.catch(() => {
+      if (this.libraryIndex === reading) this.libraryIndex = undefined;
+    });
+    return reading;
+  }
+
+  /** Evict the archives the browser keeps that the index no longer names:
+   * an archive whose digest changed is fetched again when a check needs it. */
+  private async evictStaleArchives(index: ArchiveIndex) {
+    const evicted = await this.transport
+      ?.retainArchives("agda-algebras", Object.values(index.archives).map((archive) => archive.sha256))
+      .catch((error: unknown) => {
+        console.warn("Could not evict the stale archives", error);
+        return [];
+      });
+    if (evicted?.length) console.info(`Evicted ${evicted.length} archives that agda-algebras' index no longer names`);
+  }
+
+  /** Before a check of the playground's Main: mount the archives its
+   * imports need, asking first when any is to be fetched (issue 14).
+   * `automatic` is a check the reader did not ask for (the first, when Agda
+   * is ready), whose question does not take the keyboard's focus.  False
+   * when the reader cancelled, or stopped the mount, and nothing is to be
+   * checked.  One plan at a time: a second check while one is planned
+   * waits for it, and the page counts planning as busy. */
+  prepareImports({ automatic = false }: { automatic?: boolean } = {}): Promise<boolean> {
+    if (this.planned) return this.planned;
+    this.planning = true;
+    const planned = this.planUntilSettled(automatic).finally(() => {
+      this.planned = undefined;
+      this.planning = false;
+    });
+    this.planned = planned;
+    return planned;
+  }
+
+  /** The plan of the text on screen, made again (at most twice) when the
+   * text's imports changed while it was made, or the store lost an archive
+   * the plan counted as kept: the check that follows reads the text then
+   * on screen, and its imports must be the planned ones. */
+  private async planUntilSettled(automatic: boolean): Promise<boolean> {
+    const imports = () => {
+      const view = this.editorView;
+      if (!view) return [];
+      const kind = sourceKind(this.currentFilePath) ?? "agda";
+      return (importedModules(view.state.doc.toString(), kind) ?? []).filter((name) => !isBuiltinModule(name));
+    };
+    for (let attempt = 0; ; attempt++) {
+      const planned = imports();
+      const outcome = await this.planOnce(planned, automatic);
+      if (outcome === "stop") return false;
+      const last = attempt >= 2;
+      if (outcome === "again" && !last) continue;
+      if (imports().join("\n") !== planned.join("\n") && !last) continue;
+      return true;
+    }
+  }
+
+  /** One plan, and its mount: "check" when the check may go on, "stop"
+   * when it must not, and "again" when an archive the plan counted as kept
+   * is gone. */
+  private async planOnce(imports: string[], automatic: boolean): Promise<"check" | "stop" | "again"> {
+    const transport = this.transport;
+    this.planNote = "";
+    // Builtins alone (the default Main) need no plan and no index.
+    if (!transport || !imports.length) return "check";
+    const library = AGDA_ALGEBRAS.description;
+    if (!library) {
+      this.planNote = `This build has no archives of agda-algebras' interfaces (${AGDA_ALGEBRAS.error}), so Agda checks its modules from source.`;
+      return "check";
+    }
+    if (!globalThis.crypto?.subtle) {
+      this.planNote =
+        "agda-algebras' interfaces cannot be checked against their digests here (the page is not served from a secure origin, https or localhost), so none is mounted, and Agda checks its modules from source.";
+      return "check";
+    }
+    let index: ArchiveIndex;
+    try {
+      index = await this.readLibraryIndex();
+    } catch (error) {
+      this.planNote = `${describe(error)}, so Agda checks agda-algebras' modules from source; reload the page to try again.`;
+      return "check";
+    }
+    if (this.reportedAgdaVersion && index.agda.version !== this.reportedAgdaVersion) {
+      this.planNote = `agda-algebras' interfaces are Agda ${index.agda.version}'s and this is Agda ${this.reportedAgdaVersion}, so Agda checks its modules from source.`;
+      return "check";
+    }
+    const plan = await planImports(index, imports, {
+      includes: PLAYGROUND.includes,
+      read: (source) => transport.readSource(source).catch(() => undefined),
+    });
+    const notes: string[] = [];
+    if (plan.fromSource.length)
+      notes.push(`Not in agda-algebras' index, so checked from source: ${plan.fromSource.join(", ")}.`);
+    if (plan.unread.length)
+      notes.push(`The page cannot read the imports of ${plan.unread.join(", ")}, so what they import is checked from source too.`);
+    if (plan.missing.length) notes.push(`Not found: ${plan.missing.join(", ")}.`);
+    const note = (more: string) => (this.planNote = [...notes, more].filter(Boolean).join(" "));
+    note("");
+    const refs = transport.unmounted(
+      archiveRefs(index, plan.archives, library).map((archive) => ({
+        ...archive,
+        library: "agda-algebras",
+        what: `agda-algebras' archive ${archive.path}`,
+      })),
+    );
+    // An archive whose every interface the drive already holds (an earlier
+    // check wrote them, and the drive's cache restored them) is not
+    // mounted: Agda accepts an interface by its source's hash and its
+    // imports' (iFullHash), which one built in the browser from the same
+    // sources shares with the archive's.
+    const interfaces = interfacesByArchive(index);
+    const present = await transport.present(refs.flatMap((archive) => interfaces.get(archive.path) ?? []));
+    const needed = refs.filter((archive) => !(interfaces.get(archive.path) ?? []).every((file) => present.has(file)));
+    if (!needed.length) return "check";
+    const kept = await transport.kept(needed.map((archive) => archive.sha256));
+    const keptRefs = needed.filter((archive) => kept.has(archive.sha256));
+    let fetchRefs = needed.filter((archive) => !kept.has(archive.sha256));
+    const bytes = fetchRefs.reduce((sum, archive) => sum + archive.bytes, 0);
+    if (fetchRefs.length) {
+      const choice = await this.choose(
+        {
+          library: "agda-algebras",
+          archives: fetchRefs.length,
+          bytes,
+          modules: fetchRefs.reduce((sum, archive) => sum + archive.modules, 0),
+          unknown: plan.fromSource,
+          focus: !automatic,
+        },
+        fetchRefs.map((archive) => archive.url),
+      );
+      if (choice === "cancel") {
+        this.lastAction = "Not checked";
+        return "stop";
+      }
+      if (choice === "source") {
+        // What the browser keeps costs nothing to mount, and is mounted.
+        note("agda-algebras' interfaces were not fetched, so Agda checks the modules they hold from source.");
+        fetchRefs = [];
+      }
+    }
+    try {
+      // What the browser keeps first, read from its store and never
+      // fetched, then what the reader agreed to fetch.
+      if (keptRefs.length)
+        await this.mountDriveArchives(
+          keptRefs.map((archive) => ({ ...archive, fetch: false as const })),
+          "agda-algebras'",
+          { fetching: false },
+        );
+      if (fetchRefs.length) await this.mountDriveArchives(fetchRefs, "agda-algebras'", { bytes });
+    } catch (error) {
+      if (error instanceof MountStopped) {
+        this.lastAction = `${error.message}; nothing was checked`;
+        return "stop";
+      }
+      // The store lost an archive it kept: plan again, which states and
+      // asks for what is now to be fetched.
+      if (error instanceof ArchiveNotKept) return "again";
+      throw new Error(`${describe(error)}; nothing was checked.`, { cause: error });
+    }
+    return "check";
+  }
+
+  /** The reader's answer to fetching `urls`: the one remembered for the
+   * tab, "source" when every one of them was declined before in this tab,
+   * or the page's question. */
+  private async choose(request: ConsentRequest, urls: string[]): Promise<ConsentChoice> {
+    const remembered = tabStorage.get(rememberedChoiceKey(request.library));
+    if (remembered === "fetch" || remembered === "source") return remembered;
+    const declined = new Set<string>(safeJsonArray(tabStorage.get(declinedKey(request.library))));
+    if (urls.every((url) => declined.has(url))) return "source";
+    // A question still open is answered "cancel" before another is asked.
+    this.answerConsent?.("cancel", false);
+    const { choice, remember } = await new Promise<{ choice: ConsentChoice; remember: boolean }>((resolve) => {
+      this.answerConsent = (choice, remember) => resolve({ choice, remember });
+      this.consent = request;
+    });
+    this.consent = null;
+    this.answerConsent = undefined;
+    if (remember && choice !== "cancel") tabStorage.set(rememberedChoiceKey(request.library), choice);
+    if (choice === "source")
+      tabStorage.set(declinedKey(request.library), JSON.stringify([...new Set([...declined, ...urls])]));
+    return choice;
+  }
+
+  /** The page's answer to the consent question it shows. */
+  answer(choice: ConsentChoice, remember = false) {
+    this.answerConsent?.(choice, remember);
   }
 
   getGoals() {
@@ -711,6 +1128,9 @@ export class AgdaController {
    * the file in the command, and Agda loaded it.) */
   private async holdCurrentFile() {
     if (this.requireSession().basis?.path !== this.currentFilePath) await this.checkCurrentFile();
+    // A check the reader cancelled leaves Agda without this file's scope.
+    if (this.requireSession().basis?.path !== this.currentFilePath)
+      throw new Error(`${this.currentFilePath.split("/").pop()} was not checked, so Agda cannot answer in its scope`);
   }
 
   async infer(expression: string) {
@@ -757,6 +1177,7 @@ export class AgdaController {
     this.activeGoalId = undefined;
     this.lastResult = null;
     this.lastCheckDurationMs = undefined;
+    this.planNote = "";
     const length = this.editorView.state.doc.length;
     this.editorView.dispatch({
       changes: { from: 0, to: length, insert: source },
@@ -770,4 +1191,49 @@ export class AgdaController {
     });
     this.persistDocument(source);
   }
+}
+
+/** An error in its own words. */
+function describe(error: unknown) {
+  return (error instanceof Error ? error.message : String(error)).replace(/\.$/, "");
+}
+
+/** A JSON array of strings from storage, or none. */
+function safeJsonArray(text: string | null): string[] {
+  try {
+    const value = JSON.parse(text ?? "[]");
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** The SHA-256 of `data`, in hex, by the browser's own implementation
+ * (a secure context: https, or localhost). */
+async function sha256Hex(data: ArrayBuffer) {
+  if (!globalThis.crypto?.subtle)
+    throw new Error("the page is not served from a secure origin (https, or localhost), so the browser computes no SHA-256");
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", data));
+  return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/** A mount the reader stopped: an outcome, not a failure. */
+export class MountStopped extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MountStopped";
+  }
+}
+
+/** Each archive's interfaces, by their paths on the drive. */
+const archiveInterfaces = new WeakMap<ArchiveIndex, Map<string, string[]>>();
+function interfacesByArchive(index: ArchiveIndex): Map<string, string[]> {
+  let map = archiveInterfaces.get(index);
+  if (!map) {
+    map = new Map();
+    for (const module of Object.values(index.modules))
+      if (module.archive !== null) map.set(module.archive, [...(map.get(module.archive) ?? []), module.interface]);
+    archiveInterfaces.set(index, map);
+  }
+  return map;
 }
