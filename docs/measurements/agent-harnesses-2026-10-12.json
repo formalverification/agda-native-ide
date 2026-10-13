@@ -78,7 +78,7 @@
   "cliVersion": "0.162.1",
   "turnContext": "model gpt-6.1-sol, effort xhigh, approval_policy on-request, sandbox_policy workspace-write with network_access false",
   "instructions": "Only PROBE-MARKER: claude-tooling/global (from ~/.codex/AGENTS.md); the project's CLAUDE.md was read by path, as the kickoff prompts said.",
-  "sandbox": "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted, in the root sessions of both trials; the sub-agents then requested sandbox_permissions require_escalated on 332, 22 and 10 commands",
+  "sandbox": "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted, in the root sessions of both trials; the sessions then asked to run commands outside the sandbox (require_escalated in their tool calls): issue 17's 71 and 1, approvals_reviewer user, so William approved each; issue 63's 200 and 16, approvals_reviewer auto_review, so Codex's reviewer sessions (parent_thread_id the trial's root) judged them, 207 verdicts, all allow.  An earlier count of 332 was the string in the reviewer session's own instructions, not requests.",
   "commits": "Ten commits (pull requests 83 and 84): author William DeMeo, each ending with the provenance line naming GPT-6.1 Sol via Codex CLI, none with a Co-authored-by trailer"
  },
  "gates": {
@@ -99,7 +99,7 @@
    "build": {"exit": 0, "session": "23 s", "how": "outside the sandbox, by the saved rule [\"make\", \"build\"]"},
    "browser-check": {"exit": 1, "how": "no saved rule; in the sandbox", "message": "error building bubblewrap command: Fatal error: cannot enforce sandbox read-only path <worktree>/.agents because it crosses writable symlink <worktree>/.agents"},
    "control": "A command no rule covers (readlink of the namespaces, a touch under the home directory, a curl) failed the same way in a session of the same settings, and wrote nothing.",
-   "rules": "~/.codex/rules/default.rules holds prefix rules for make check, make test and make build (approvals kept during the trials of 2026-10-10), none for make browser-check"
+   "rules": "~/.codex/rules/default.rules holds prefix rules for make check, make test and make build (approvals William kept during the trial of issue 17, 2026-10-10; the file was last written at 10:46 MDT that day), none for make browser-check"
   },
   "codex-sandbox-workspace": {
    "command": "nix develop --command codex sandbox -P :workspace -C <worktree> -- make <gate>",

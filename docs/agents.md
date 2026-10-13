@@ -143,21 +143,23 @@ The four gates, after `make assets`, were as follows on 2026-10-12
        link did not trigger it.  So here the AppArmor fix alone would not
        make the sandbox work; this is reported on [claude-tooling#27].
 
-   A command runs only outside the sandbox, then.  In the trials each one
-   was approved as it came (one of their sessions asked to run 332
-   commands outside the sandbox), and Codex keeps an approval it is told
-   to keep as a prefix rule in `~/.codex/rules/default.rules`.  This
-   machine's rules hold `make check`, `make test` and `make build`, which
-   is why those three passed from `codex exec` sessions.  `make
-   browser-check` has no rule, and failed there on the `.agents` error; on
-   a machine without the rules, all four fail the same way (`codex sandbox
-   -P :workspace -- make <gate>`).  To run it, approve it in an interactive
-   session, or start the session with `--sandbox danger-full-access`,
-   under which all four gates passed (`codex sandbox -P :danger-full-access
-   -- make <gate>`, timed above).
-   Whether `make browser-check` could run inside a working sandbox, which
-   by default denies the network and writes outside the worktree, is
-   untested, since no sandboxed command runs here.
+   A command runs only outside the sandbox, then, and only once approved.  In
+   the trial of [#17] William approved each request as it came (71 of them),
+   and Codex keeps an approval it is told to keep as a prefix rule in
+   `~/.codex/rules/default.rules`.  The trial of [#63] ran with Codex's
+   automatic reviewer instead (`approvals_reviewer = "auto_review"`): its tool
+   calls asked for escalation 216 times, and the reviewer, a second model,
+   gave 207 verdicts, every one "allow".  This machine's rules, from the first
+   trial, hold `make check`, `make test` and `make build`, which is why those
+   three passed from `codex exec` sessions.  `make browser-check` has no rule,
+   and failed there on the `.agents` error; on a machine without the rules,
+   all four fail the same way (`codex sandbox -P :workspace -- make <gate>`).
+   To run it, approve it in an interactive session, or start the session with
+   `--sandbox danger-full-access`, under which all four gates passed (`codex
+   sandbox -P :danger-full-access -- make <gate>`, timed above).  Whether
+   `make browser-check` could run inside a working sandbox, which by default
+   denies the network and writes outside the worktree, is untested, since no
+   sandboxed command runs here.
 +  **Copilot CLI**'s sandbox is off by default and is not turned on here, so
    a session's commands would run as Claude Code's do; no gate was run from
    a Copilot session.
