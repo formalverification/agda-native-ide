@@ -397,9 +397,11 @@ runs of the browser check ([#59]).
    engine's list of libraries ([#13]), so a library the page will use is
    named in that list, its sources archive fetched with the standard
    library's; the page names agda-algebras' and PLFA's ([#11]).
-   `mountDriveArchives(urls)` (`controller.svelte.ts`, through the
-   transport's `mountArchives`) fetches zips and extracts them at `/`,
-   which is how interface archives arrive; it does not touch the registry.
+   `mountDriveArchives` (`controller.svelte.ts`, through the transport's
+   `mountArchives`) extracts zips at `/`, which is how interface archives
+   arrive, fetched or read from the browser's archive store ([#14]); it
+   does not touch the registry, and a mounted archive's paths leave the
+   drive's cache.
 +  **The host's files**: the drive starts with the files the host names
    (`BrowserConfig.files`), written after the archives and over what the
    cache restores, before Agda starts (`prepareDrive`), so a cached copy
@@ -476,9 +478,11 @@ refuses, `Main` refuses ([#11]).
    modules from source, 1 min 38 s to 6 min 32 s cold over six runs (median
    2 min 35 s; 1 min 38 s on the quiet machine), and 3.3 to 11.9 s on a
    reload, from what the drive persisted.  With its 50
-   archives mounted, as [#14] will mount them, the same import type-checked
-   `Main` alone in 3.7 s ([#13]'s gate record), and still did with PLFA's
-   library on the drive beside agda-algebras.
+   archives mounted, the same import type-checked `Main` alone in 3.7 s
+   ([#13]'s gate record), and still did with PLFA's library on the drive
+   beside agda-algebras; since [#14] the page mounts them itself, after
+   asking, and checks it in 3.2 s (`docs/notes/library-archives.md`, "The
+   mount in the page").
 
 ## The checks
 

@@ -238,6 +238,30 @@ derived from the sources the section above names, under their license.
 |---|---:|---|
 | `static/agda-algebras-modules.json` | 59,754 | `ed3923d0a5d776433aebef7ecff72713f5b1af83cb7d6dfec5885494a95af9e4` |
 
+## agda-algebras' interface archives, built here
+
+`static/agda-algebras/` holds agda-algebras' archive index, `index.json`,
+and its 395 interface archives, `interfaces/*.zip`, as `nix build
+.#agda-algebras-archives` writes them ([#12]), copied by `make assets` and
+the site's derivation ([#14]).  The interfaces are built in the Nix sandbox
+by the compiler's own plain `agda.wasm` from the sources above and the
+patched standard library, and packed with their index from Agda's own
+dependency graph; the build reproduces byte for byte, here and on GitHub's
+runner (`docs/notes/library-archives.md`).  `make assets-check` compares
+the directory with the flake's, and the site's build refuses an archive
+whose bytes are not the SHA-256 the index records for it, so the index's
+digest, below, names every archive.  Licenses: agda-algebras' interfaces
+are Apache-2.0, like its sources, since an interface holds its module's
+source text; the standard library's are MIT, like its sources; the index
+is a machine-extracted representation under agda-algebras' `LICENSE-data`
+(Apache-2.0 or CC0-1.0), which `licenses/agda-algebras/` holds, copied from
+the sources archive.
+
+| Path | Bytes | SHA-256 |
+|---|---:|---|
+| `static/agda-algebras/index.json` | 285,618 | `7f94ac5807604672cc824bf9aea81d62471fe741726f221987d20f7b04a3d6a8` |
+| `static/agda-algebras/interfaces/` | 70,104,812 (395 files) | each the index's |
+
 ## Retired pins
 
 Pinned from upstream until [#58] replaced them; no longer shipped.  The
@@ -431,6 +455,8 @@ Each change is its own commit, named here by its subject.
 | `packages/engine/src/browser/worker/drive.ts`, `packages/engine/src/browser/worker/als.ts`, `packages/engine/src/browser/worker/protocol.ts` | The host's files are written over what the drive's cache restores, in `prepareDrive`, rather than before it, so a cached copy never stands in for one; they are part of the mount, not of the archives the drive is laid out from ([#11], its review) | "Write the host's files over what the drive's cache restores" |
 | `src/routes/+page.svelte` | The Explorer is one tree, `@agda-native-ide/views`' `ExplorerTree`, of three sections: the playground's `Main.agda`, every module of agda-algebras from the list the build writes (`agda-algebras-modules.json`), and PLFA's chapters by part, where it was two hard-coded levels; its rows stay enabled while Agda is busy (a file the page cannot open then is `aria-disabled`), which rows are expanded is kept in localStorage, and the open file is revealed and marked current; the Explorer's styles leave the page with its rows ([#9]) | "Show the Explorer as one tree, with every module of agda-algebras" |
 | `scripts/benchmark-plfa.mjs` | The benchmark opens PLFA's parts and finds its chapters by the Explorer's tree rows (`[role="treeitem"]`, by `data-id`), where it clicked the fork's `.tree-part` and `.chapter-row` buttons, which the tree replaced ([#9]'s review) | "Drive the PLFA benchmark through the Explorer's tree" |
+| `packages/engine/src/browser/worker/drive.ts`, `packages/engine/src/browser/worker/als.ts`, `packages/engine/src/browser/worker/protocol.ts` | A mounted archive's files leave the drive's cache (neither persisted nor restored again), the drive says which paths it holds, its database closes when a newer page deletes it, and its name's prefix is shared with the page ([#14]) | "Keep the mounted archives by their digests, and drop stale drive caches" |
+| `packages/engine/src/browser/index.ts` (its mount), `src/lib/controller.svelte.ts`, `src/routes/+page.svelte` | Before a check of the playground's Main, the page plans the archives its imports need from agda-algebras' index, mounts those the browser keeps, and states the bytes of the rest and asks before it fetches them; the transport fetches at most six at once with their progress, checks each against its SHA-256 and keeps it; the PLFA mount's labels are general; a stop is an outcome; the abort key reaches a command under way ([#14]) | "Mount what a check's imports need, after stating the bytes and asking" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
@@ -446,6 +472,7 @@ Each change is its own commit, named here by its subject.
 [#11]: https://github.com/formalverification/agda-native-ide/issues/11
 [#12]: https://github.com/formalverification/agda-native-ide/issues/12
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
+[#14]: https://github.com/formalverification/agda-native-ide/issues/14
 [#20]: https://github.com/formalverification/agda-native-ide/issues/20
 [#49]: https://github.com/formalverification/agda-native-ide/issues/49
 [#50]: https://github.com/formalverification/agda-native-ide/issues/50

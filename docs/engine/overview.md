@@ -403,16 +403,38 @@ manifests are the following:
    with its path and title, each name the module at its path, in the
    Explorer's order (`compareModuleNames`).
 
+It also describes a library whose interfaces come as archives named by an
+index (issue 14), and plans what a source's imports need from it, as
+follows:
+
++  `LibraryDescription` (`parseLibraryDescription`): `kind: "library"`, its
+   name as a `depend:` line names it, its `.agda-lib` on the drive, and
+   three downloads, each with its URL, bytes and SHA-256: its sources'
+   archive, its archive index, and (as a base URL) its interface archives.
+   The page builds agda-algebras' from the build's asset manifest.
++  `ArchiveIndex` (`parseArchiveIndex`): schema 1 of
+   `static/agda-algebras/index.json` (`docs/notes/library-archives.md`,
+   "The index"), with each module's archive, library and dependencies
+   checked to be the index's own.  A field's name quotes a key that holds
+   a dot (`modules["Overture.Basic"].deps`).
++  `importedModules` reads a source's imports by Agda 2.9.0's lexical and
+   literate rules; `planArchives` is `scripts/library-archives/index.mjs`'s
+   `needs`, and `planImports` follows an import the index lacks into its
+   source, through a reader the host supplies; `archiveRefs` gives each
+   archive's URL with its `?cache=` token; `statedSize` and
+   `statedProgress` state sizes in one convention (KB of 1,024 bytes, and
+   MiB).
+
 Issue 24's plugin manifest is what these become; the present formats map
 to it as follows, and nothing here loads a plugin:
 
-| Plugin manifest | In the present formats |
-|---|---|
-| kind | implicit: a corpus (PLFA's chapters, which the page shows and loads) |
-| pins: the Agda version, the source commit, the digests | the source commit only; the Agda version is the page's, and the archives' digests are the build's cache tokens, not the manifest's |
-| what it mounts | `plfa/project.zip` at the drive's root, named by the page; each chapter's interface archives, from the interface manifest |
-| what it registers | the chapters, as the Explorer's tree; no tools or search indices |
-| what it costs, in bytes | not stated |
+| Plugin manifest | In the PLFA formats | In a library's description (issue 14) |
+|---|---|---|
+| kind | implicit: a corpus (PLFA's chapters, which the page shows and loads) | `library` |
+| pins: the Agda version, the source commit, the digests | the source commit only; the Agda version is the page's, and the archives' digests are the build's cache tokens, not the manifest's | the digests of the sources, the index and (in the index) every archive; the index records the Agda version and the source commit, and the page compares the version with its Agda's |
+| what it mounts | `plfa/project.zip` at the drive's root, named by the page; each chapter's interface archives, from the interface manifest | the sources' archive at startup; the interface archives a source's imports need, planned from the index |
+| what it registers | the chapters, as the Explorer's tree; no tools or search indices | its `.agda-lib` in the drive's registry, and its name |
+| what it costs, in bytes | not stated | each download's bytes, which the page states before it fetches one |
 
 ## The views
 

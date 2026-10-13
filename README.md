@@ -175,8 +175,11 @@ session holding only its archives, must type-check `Main` alone, and two
 controls must not.  CI's [`library-archives.yml`][archives-ci] runs all
 three when what they are built from changes, and the gate alone (building
 the archives it mounts) when only what the gate is made of does.
-The page mounts the sources archive, for the playground's project
-([#11]), and none of the interface archives yet ([#14]);
+The site carries the sources archive, the index and the interface
+archives (`static/agda-algebras/`, which `make assets` copies from that
+build, 70 MB); the page mounts the sources for the playground's project
+([#11]) and, before a check, the interface archives its imports need, once
+it has stated their bytes and the reader has agreed ([#14]);
 [`docs/notes/library-archives.md`][archives-note] explains them.
 
 `make browser-check` (or `nix run .#browser-check -- <site>`, for any
@@ -187,7 +190,12 @@ asserts its one open goal with its context and the modules that check
 type-checked (the `Checking` lines of Agda's running info, read from the
 inspector after an Infer), gives at the goal, checks a deliberate type
 error, checks that a postulate is refused, and imports a module of
-agda-algebras, which is type-checked from source.  It uses the Explorer's
+agda-algebras: the page must ask before it fetches the archives the import
+needs, stating their bytes, fetch exactly those, and type-check `Main`
+alone.  It then reloads, and asserts that the archives come from the
+browser's store with no request; imports `Setoid.Varieties.HSP`, which
+must ask once; and changes an archive in the store, which must be fetched
+again, once, and its old copy evicted ([#14]).  It uses the Explorer's
 tree with the keyboard, as a screen reader's user would: its roles, the
 arrow keys to a module, every module listed in order, a filter, the keys
 and the filter while a check runs, and, after a reload, the rows still
@@ -210,7 +218,10 @@ checks what the page says when it cannot run: in a browser without
 tested in, and when the compiler's request fails, the compiler does not
 decompress, or the standard library's transfer breaks off, it says so; in
 each case the status bar says that Agda did not start, never "Agda ready".
-CI runs it too.
+Once Agda runs, when an archive a check needs is not found or is not the
+one its index names, the inspector says which and nothing is checked, and
+when the index is not found, `Main` is checked from source with a note
+saying why ([#14]).  CI runs it too.
 
 `make provenance-check` verifies that every imported file recorded as
 unchanged still is, and that `docs/provenance.md` lists every pin.  To
@@ -231,10 +242,15 @@ postulate or a `TERMINATING` pragma is refused there as the library
 refuses it; it imports only Agda's builtins, whose interfaces the site
 ships, so the first check type-checks `Main` alone, and it opens one goal,
 which the inspector shows with its context.  Any module of the standard
-library or agda-algebras can be imported, and is type-checked from source,
-with everything it imports, until the page mounts its interfaces ([#14]):
-`Setoid.Algebras.Basic` takes minutes the first time, and seconds after a
-reload, from what the page persisted.  The page keeps the buffer in the
+library or agda-algebras can be imported ([#14]).  Before the check, the
+page works out which of agda-algebras' interface archives the imports
+need, and asks: "Checking Main.agda needs 202.1 KB (206,933 bytes) of
+agda-algebras' interfaces: 3 archives holding 11 modules, from this
+site."  With them, `Main` alone is type-checked (`Setoid.Varieties.HSP`,
+128 archives, 37.4 MiB, in 7 to 9 s here from a local server); without them, Agda checks
+those modules from source, which takes minutes.  The browser keeps the
+archives it fetched, so a second visit fetches none.  The page keeps the
+buffer in the
 browser's storage under `agda-web-ide-beta:doc:/play/Main.agda`, and PLFA's
 chapters keep their own library, at the drive's root.
 [`docs/notes/runtime.md`][runtime-note] explains the layout and which

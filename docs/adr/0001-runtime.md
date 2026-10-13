@@ -10,16 +10,18 @@ File: `agda-native-ide/docs/adr/0001-runtime.md`
    page runs this repository's own build of Agda 2.9.0 (§ 7), and since
    2026-10-08 the server's reactor build, with the drive in its worker, so
    that the page needs no cross-origin isolation (§ 8), and it says so when
-   a browser cannot run it (§ 9).
+   a browser cannot run it (§ 9).  Since 2026-10-13 it mounts the interface
+   archives a check's imports need, after stating their bytes (§ 12).
 +  **Date**: 2026-10-04; § 7 2026-10-07; § 8 and § 9 2026-10-08; § 10
-   2026-10-11 and 2026-10-12; § 11 2026-10-12.
+   2026-10-11 and 2026-10-12; § 11 2026-10-12; § 12 2026-10-13.
 +  **Tracking**: [#7] (this record); [#2] (the fork), [#48] (the notice),
    [#4] (the pins; its mirror and rebuild stay open), [#3] (its dev-shell
    clause); [#30] (the second lane); [#53] (the license questions deferred
    until before the repository goes public); [#58] (the 2.9.0 compiler,
    § 7); [#59] (the reactor and the drive in one worker, § 8); [#8] (the
    page's notices, § 9); [#12] and [#13] (the library archives, § 10);
-   [#11] (the playground's project, § 11).
+   [#11] (the playground's project, § 11); [#14] (mounting what the
+   imports need, § 12).
 +  **Ancestry**: agda-native-air's [browser IDE proposal][proposal], § 1
    "Fork the runtime"; agda-algebras PR [585][pr-585] and its
    [ADR-011][adr-011], which built and measured the second lane; the
@@ -78,7 +80,9 @@ server's reactor build and stopped needing isolation (§ 8), and it now
 names the browsers it is tested in and says so where it cannot run (§ 9).
 agda-algebras' archives are built and checked for it since 2026-10-11
 (§ 10), and since 2026-10-12 the playground's `Main` is a project of its
-own over agda-algebras, under the library's options line (§ 11).
+own over agda-algebras, under the library's options line (§ 11); since
+2026-10-13 the site carries those archives, and the page mounts the ones a
+check's imports need, after stating their bytes and asking (§ 12).
 Hosting ([#6]), the license review before the repository goes public
 ([#53]), and the second lane, the plain checker as the verdict of record
 ([#30]), remain.
@@ -892,7 +896,7 @@ every module it imports, directly or not, itself included.
    builds the archives and runs the gate alone when only the gate's code
    did.  It reads the public
    `formalverification` Cachix cache and pushes to it from `main` only.
-   The site carries none of it until [#14] mounts the archives.
+   The site carries the index and the archives since [#14] (§ 12).
 +  **The gate** ([#13]): the check again under the language server the
    site ships, its reactor, in headless Chromium, through the engine's
    browser transport: every root in a fresh session holding only the
@@ -980,10 +984,12 @@ the local ones.
 **Status**.  Adopted 2026-10-11 in [#12]'s pull request; the gate and the
 drive's list of libraries 2026-10-12 in [#13]'s.  The site ships the
 sources archive since [#11]'s pull request, for the playground's project
-(§ 11).  Open: mounting the interface archives in the page, their cache
-and their license notice ([#14]); the benchmark over these roots ([#18]);
-the cache's write token, without which `main` pushes nothing, so a change
-to the gate alone builds the interfaces again.
+(§ 11), and the index and the interface archives, mounted as a check's
+imports need them, with their cache and their license notice, since
+[#14]'s (§ 12).  Open: the benchmark over these roots ([#18]); the cache's
+write token, without which `main` pushes nothing, so a change to the gate
+alone builds the interfaces again, and so does every build of the site
+(§ 12).
 
 ---
 
@@ -1051,13 +1057,111 @@ Chromium 149, with other sessions' builds beside it (load 1.4 to 10);
 +  **The engine** passes the conformance suite, 12 of 12 on both engines
    and identical, after the change to the drive's first record.
 
-**Status**.  Adopted 2026-10-12 in [#11]'s pull request.  Open: mounting
-the interface archives an import needs, with consent and a cache ([#14]);
-the three exercises, which land in `/play/` beside `Main` ([#16]).
+**Status**.  Adopted 2026-10-12 in [#11]'s pull request.  The interface
+archives an import needs are mounted, with consent and a cache, since
+[#14]'s (§ 12).  Open: the three exercises, which land in `/play/` beside
+`Main` ([#16]).
 
 ---
 
-## 12.  Decision log
+## 12.  Mounting what the imports need
+
+(See also [#14], [#12], [#13], [#11], [#6], [#24], and
+[`docs/notes/library-archives.md`][archives-note]'s "The mount in the
+page".)
+
+**Decision**.  The site serves agda-algebras' archive index and interface
+archives from its own origin, and before a check of the playground's `Main`
+the page mounts the archives its imports need: those the browser keeps are
+read from its store, and the rest are fetched only after the page has
+stated their bytes and the reader has agreed.  To *mount* an archive is to
+extract its interfaces onto the drive Agda reads; the *archive store* is an
+IndexedDB database in which the browser keeps fetched archives by their
+SHA-256; the drive's *cache* is the database, named by a digest of the
+assets (its *namespace*), in which the drive keeps what Agda wrote.
+
++  **The origin**: the site's own, `/agda-algebras/index.json` and
+   `/agda-algebras/interfaces/*.zip`, copied from `nix build
+   .#agda-algebras-archives` by the site's derivation and `make assets`,
+   with a `?cache=` token from each archive's SHA-256.  Not a GitHub
+   release: its files send no `Access-Control-Allow-Origin`, so the page
+   cannot read them.  `static/_headers` is unchanged; the host is [#6]'s.
++  **The plan**: the imports are read from the buffer by Agda's own
+   lexical and literate rules; builtins (`Agda.*`) need none; the closure
+   is the index's (`needs` of [#12]); an import the index lacks is followed
+   into its source on the drive, and its imports join the plan.  The plan
+   and the description of the library (its sources, its index, its
+   archives' base, each with its bytes and digest) are
+   `@agda-native-ide/manifest`'s, validated, for [#24]'s plugin manifest to
+   generalize.
++  **What is not mounted**: an archive already mounted, and one whose every
+   interface the drive holds (written by an earlier check from source):
+   Agda accepts an import by the hash of its source and its imports', not
+   by the interface's bytes.
++  **The question**: the bytes still to fetch (in bytes, KB of 1,024 bytes
+   or MiB, with the exact count), the archives, the modules, the origin;
+   Fetch, Check from source or Cancel; the answer remembered for the tab
+   if the reader asks, and a decline remembered for its archives.  Nothing
+   is fetched before the answer, and the question shows no spinner.
++  **The fetch and the store**: at most six archives at once, with their
+   progress in bytes; each checked against its SHA-256 and kept in the
+   store, which a second visit reads with no request; the index evicts what
+   it no longer names; STOP ends a fetch, and nothing is checked after a
+   stop or a failure, which names the archive.
++  **The drive's cache**: the index's digest joins its namespace; drive
+   databases of other namespaces are deleted when the page starts; a
+   mounted archive's paths leave the cache, so its bytes are kept once.
+
+**Evidence**.  Measured 2026-10-13 on this workstation in headless Chromium
+149 (`docs/measurements/library-mount-2026-10-13.json`).
+
++  **The origin**: a page at `127.0.0.1` fetching a GitHub release asset
+   of `agda-wasm-builds` failed (`TypeError: Failed to fetch`); a GitHub
+   Pages file fetched.  The built site went from 30,439,204 to 100,856,795
+   bytes, and its build from the archives' derivation reads the cache in
+   CI and builds the interfaces until `main` pushes them.
++  **The plan**: the reading's closure equals Agda's for 597 of the 601
+   modules of agda-algebras and the standard library, the other 4 by the
+   implicit `Agda.Primitive`; the plan equals `needs` for every root (a
+   unit test, and CI over the built site's index); `open import Data.Vec`
+   plans 29 archives where the index alone planned none.
++  **What is not mounted**: interfaces the page wrote from source were
+   byte-identical to the archives' (11 of 11, and 170 of 170 for
+   `Setoid.Algebras.Basic`'s closure, which took 5 min 0.5 s); the hash
+   Agda checks is `iFullHash` (`Agda.TypeChecking.Monad.Base`, and
+   `Agda.Interaction.Imports` at the compiler's commit).
++  **The browser check** (steps 6 to 9, with and without the isolation
+   headers): `import Overture.Signatures` asks for 202.1 KB (206,933 bytes),
+   3 archives holding 11 modules, with no request before the answer, Esc
+   cancelling and a second check asking again, then fetches exactly those
+   3 and type-checks `Main` alone; a second visit asks nothing, requests no
+   archive and type-checks nothing, and a drive database of another
+   namespace is gone; `Setoid.Varieties.HSP` asks once, for 37.2 MiB
+   (39,044,608 bytes), the 125 archives not yet mounted, fetches exactly
+   those and type-checks `Main` alone; an archive kept under another
+   digest is evicted and fetched again, once, its bytes stated 1 ms before
+   the request.  Three controls fail it: a store whose reads miss, a page
+   that requests an archive before the answer, and no eviction.  The
+   notices: an archive not found, an archive that is not its digest's, and
+   the index not found, after which `Main` checks from source.
++  **Times** (local server, a 1-minute load of 2 to 3, medians of three):
+   the mount took 58, 157 and 419 ms and the check 1.06, 3.21 and 6.54 s
+   for `Overture.Basic`, `Setoid.Algebras.Basic` and `Setoid.Varieties.HSP`
+   (14, 50 and 128 archives); a second visit mounted them from the store in
+   43, 96 and 188 ms.  A second sample at a load of 1.8 to 4.9 took 77,
+   176 and 599 ms, and 1.25, 3.73 and 8.56 s.  The gate passed both roots
+   it was given with the transport changed.
+
+**Status**.  Adopted 2026-10-13 in [#14]'s pull request.  Open: the site's
+build reads the cache but builds the interfaces until `main` pushes them
+(the write token, § 10); what the page loads when Agda starts, and PLFA's
+chapter archives, are not stated in bytes before they start, which
+Milestone 1's exit criterion asks of every download; [#24]'s plugin
+manifest, which generalizes the library's description.
+
+---
+
+## 13.  Decision log
 
 | # | Decision | Status | Evidence |
 |---|---|---|---|
@@ -1095,7 +1199,7 @@ the three exercises, which land in `/play/` beside `Main` ([#16]).
 | 32 | One archive per agda-algebras module; standard-library modules grouped by the agda-algebras modules that reach them; stored zips, each under 25 MiB | Adopted ([#12]); supersedes [#12]'s 2.8.0 tiers | Any set of agda-algebras imports fetches its closure and zip headers: the HSP root 39,251,541 bytes against 39,186,131; the 2.8.0 tiers fetch 15.9 MB for `Overture.Basic` against 4.3 MB (§ 10) |
 | 33 | The index is JSON beside the archives, schema 1, its closures from Agda's `--dependency-graph` | Adopted ([#12]) | Agda's graph is built from the interfaces' imports and reduced transitively, so reachability is exact; a regular expression misses nested imports ([#12], 2026-10-04) (§ 10) |
 | 34 | Every root is checked cold from the archives the index names, exactly one `Checking` line, with two controls that must fail | Adopted ([#12]) | 350 of 350, here and on GitHub's runner; the controls print 2 lines each (§ 10) |
-| 35 | CI builds, rebuilds, packs and checks them in a job of its own, path-filtered, and skipped when the check's derivation is the base's and the gate's code is unchanged (row 39); it reads the `formalverification` Cachix cache and writes it from `main`; the site does not carry them until [#14] | Adopted ([#12]; the cache and the rebuild on pull requests, William, 2026-10-11, the repository public) | 58 minutes on a 2-core runner, uncached; 21 s when nothing changed (§ 10) |
+| 35 | CI builds, rebuilds, packs and checks them in a job of its own, path-filtered, and skipped when the check's derivation is the base's and the gate's code is unchanged (row 39); it reads the `formalverification` Cachix cache and writes it from `main`; the site did not carry them until [#14] | Adopted ([#12]; the cache and the rebuild on pull requests, William, 2026-10-11, the repository public); the site carries them since [#14] (row 44) | 58 minutes on a 2-core runner, uncached; 21 s when nothing changed (§ 10) |
 | 36 | agda-algebras' interfaces are Apache-2.0 like its sources, not `LICENSE-data`'s extracted data; the index is `LICENSE-data`'s | Adopted (William, 2026-10-11, on the session's recommendation) | A 2.9.0 interface holds its module's source text (`iSource`); `LICENSE-data` excludes the sources in whole or in part (§ 10) |
 | 37 | The engine lays the drive out from a list of libraries (archive, `.agda-lib`, name) and writes Agda's registry from it; the page passes PLFA as one; a root library is the host's | Adopted ([#13]) | One registry written at startup held only the standard library and PLFA ([#11], 2026-10-04); the registry pinned by unit tests, and the page's browser check, notices and conformance suite passing on it (§ 10) |
 | 38 | Every root of agda-algebras is checked under the site's reactor in headless Chromium, each in a fresh session with only its archives, exactly one `Checking` line, with two controls that must fail | Adopted ([#13]) | 350 of 350, 12 min 49 s four at once here; the controls 2 and 2; a shared session per job took 85 s but cannot show a root needs only its own archives (§ 10) |
@@ -1104,6 +1208,13 @@ the three exercises, which land in `/play/` beside `Main` ([#16]).
 | 41 | The engine lays out the files the host names in place of an empty `/Main.agda` of its own | Adopted ([#11]) | The conformance suite 12 of 12 on both engines and identical; a file outside the root is refused before anything is fetched (§ 11) |
 | 42 | The default `Main` carries agda-algebras' options line, imports only builtins, and opens one goal, whose context the page shows after the check | Adopted ([#11]) | `Main` alone type-checked; a postulate refused with `[SafeFlagPostulate]`; controls without `--safe` and without the context read fail the browser check (§ 11) |
 | 43 | The stored buffer's key is named by its path, with no migration from the old key | Adopted ([#11]) | Nothing is deployed, so no reader holds a document under the old key (§ 11) |
+| 44 | The site serves agda-algebras' index and interface archives from its own origin, from the archives' derivation; not a GitHub release | Adopted (William, 2026-10-13, on the session's proposal, after the release was measured) | A release's files send no CORS header, so the page cannot fetch them; the site 30,439,204 to 100,856,795 bytes; its build reads the cache and builds the interfaces until `main` pushes them (§ 12) |
+| 45 | Before a check of the playground's `Main`, the page plans the archives from its imports by Agda's own reading rules and the index, following an import the index lacks into its source on the drive; builtins need no plan | Adopted ([#14]) | The reading's closure is Agda's for 597 of 601 modules, 4 by `Agda.Primitive`; the plan is `needs` for every root; `Data.Vec` plans 29 archives, not none (§ 12) |
+| 46 | The page states the bytes still to fetch, the archives, the modules and the origin, and asks; nothing is fetched before the answer; an answer may be remembered for the tab, and a decline is remembered for its archives | Adopted ([#14]) | The browser check's steps 6 and 8, and a control that requests an archive early fails step 6 (§ 12) |
+| 47 | The browser keeps fetched archives in IndexedDB by their SHA-256, checked on arrival, and the index evicts what it no longer names | Adopted ([#14]) | A second visit requests no archive; a changed archive is fetched once and its old copy evicted; controls without reads or without eviction fail (§ 12) |
+| 48 | A mount skips an archive whose interfaces the drive already holds | Adopted ([#14]) | Agda checks `iFullHash`, not the interface's bytes; the page's interfaces from source were byte-identical to the archives' (181 of 181) (§ 12) |
+| 49 | The index's digest joins the drive cache's namespace; drive databases of other namespaces are deleted when the page starts; a mounted archive's paths leave the drive's cache | Adopted ([#14]) | The browser check's step 7 deletes a planted database; a unit test of the drive (§ 12) |
+| 50 | `static/_headers` is unchanged; a second visit's lack of requests comes from the store, whatever the host caches | Adopted ([#14]) | Cloudflare Pages joins two `Cache-Control` rules with a comma; the host is [#6]'s (§ 12) |
 
 ---
 
@@ -1114,7 +1225,7 @@ the three exercises, which land in `/play/` beside `Main` ([#16]).
    page that could not isolate itself), [#9] (the Explorer, in
    [`docs/notes/explorer.md`][explorer-note]), [#11] (the playground's project,
    § 11), [#12] (the library archives, § 10), [#13] (interface acceptance),
-   [#14] (mounting the archives), [#16] (the exercises), [#18] (the
+   [#14] (mounting the archives, § 12), [#16] (the exercises), [#18] (the
    benchmark), [#20] (PLFA's removal), [#30] (the second lane), [#48] (the
    notice), [#49] (the builtins), [#50] (the drive), [#53] (the license review
    before going public), [#58] (the 2.9.0 compiler), [#59] (the reactor),
@@ -1128,8 +1239,9 @@ the three exercises, which land in `/play/` beside `Main` ([#16]).
    archives), `docs/measurements/library-archives-2026-10-11.json` (their
    runs), `docs/measurements/library-archives-browser-2026-10-12.json`
    (the gate's), `docs/measurements/playground-2026-10-12.json` (the
-   playground's) and `docs/measurements/explorer-2026-10-13.json` (the
-   Explorer's), [`docs/notes/explorer.md`][explorer-note] (the Explorer),
+   playground's), `docs/measurements/explorer-2026-10-13.json` (the
+   Explorer's) and `docs/measurements/library-mount-2026-10-13.json` (the
+   mount's), [`docs/notes/explorer.md`][explorer-note] (the Explorer),
    [`docs/provenance.md`][provenance] (the record),
    [`NOTICE`][notice].
 +  **Code**: `flake.nix` (`packages.assets`, the pins; `packages.site`;
@@ -1164,7 +1276,12 @@ the three exercises, which land in `/play/` beside `Main` ([#16]).
    `parseLibraryManifest` in `packages/manifest/src/index.ts`; the tree,
    `ExplorerTree.svelte` and `tree.ts` in `packages/views/src/`; the
    page's `explorerItems` and `openFromExplorer` in
-   `src/routes/+page.svelte`; and `scripts/browser-check/explorer.mjs`.
+   `src/routes/+page.svelte`; and `scripts/browser-check/explorer.mjs`;
+   for the mount, `packages/manifest/src/imports.ts` and `library.ts`,
+   `packages/engine/src/browser/index.ts` (`mountArchives`),
+   `archive-store.ts` and `drive-caches.ts`, `prepareImports` in
+   `src/lib/controller.svelte.ts`, and the browser check's steps on the
+   mount and its notices.
 
 [#2]: https://github.com/formalverification/agda-native-ide/issues/2
 [#3]: https://github.com/formalverification/agda-native-ide/issues/3
@@ -1181,6 +1298,7 @@ the three exercises, which land in `/play/` beside `Main` ([#16]).
 [#16]: https://github.com/formalverification/agda-native-ide/issues/16
 [#18]: https://github.com/formalverification/agda-native-ide/issues/18
 [#20]: https://github.com/formalverification/agda-native-ide/issues/20
+[#24]: https://github.com/formalverification/agda-native-ide/issues/24
 [#30]: https://github.com/formalverification/agda-native-ide/issues/30
 [#48]: https://github.com/formalverification/agda-native-ide/issues/48
 [#49]: https://github.com/formalverification/agda-native-ide/issues/49
