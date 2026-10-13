@@ -1120,7 +1120,7 @@ A library module opens read-only, since it is the checked library and its interf
 
 ---
 
-### Issue M1-3: playground project: Main.agda over standard library + agda-algebras (#11)
+### Issue M1-3: playground project: Main.agda over standard library + agda-algebras (#11, closed)
 
 **Labels:** `milestone-1-library-ide`, `libraries`
 
@@ -1212,7 +1212,7 @@ The modules count the builtins, which are on the drive from the start; the floor
 
 ---
 
-### Issue M1-5: Prove that the shipped compiler accepts the shipped interfaces (#13)
+### Issue M1-5: Prove that the shipped compiler accepts the shipped interfaces (#13, closed)
 
 **Labels:** `milestone-1-library-ide`, `runtime`, `libraries`, `measurement`
 

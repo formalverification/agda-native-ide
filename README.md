@@ -353,6 +353,11 @@ make populate-dry    # what populate would create
 Edit issue bodies on GitHub, not in the plan file's generated regions, and
 run `make update` afterwards.  `make help` lists every target.
 
+Agent sessions, in Claude Code and in Codex CLI, work on the issues here;
+[`docs/agents.md`][agents] says what each harness needs in this repository:
+the instructions and skills it loads, which gates run from its session,
+agda-mcp's registration and its Agda, and what leaves the machine.
+
 ## License
 
 MIT; see [`LICENSE`](LICENSE), which names upstream's copyright line ("Copyright
@@ -380,6 +385,7 @@ every artifact the app ships, with its license.
 [notice]: NOTICE
 [licenses]: licenses/
 [plan]: docs/GITHUB_PROJECT.md
+[agents]: docs/agents.md
 [proposal]: docs/notes/browser-ide-proposal.md
 [williamdemeo/github-project]: https://github.com/williamdemeo/github-project
 [formalverification/agda-wasm-builds]: https://github.com/formalverification/agda-wasm-builds
