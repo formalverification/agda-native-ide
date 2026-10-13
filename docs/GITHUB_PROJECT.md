@@ -1124,7 +1124,7 @@ A library module opens read-only, since it is the checked library and its interf
 
 **Labels:** `milestone-1-library-ide`, `libraries`
 
-A scratch project whose `.agda-lib` depends on `standard-library-2.3` and `agda-algebras`, with the library's flags (`-WnoUnsupportedIndexedMatch`).  The default `Main.agda` carries the library's own options line, `{-# OPTIONS --cubical-compatible --exact-split --safe #-}`, so that a postulate or a `TERMINATING` pragma is refused as the library would refuse it (PR 585's review found that an exercise without it reported a postulated "proof" as checked), and opens one goal.  Keep its imports light, so the first check is quick: `Overture.Basic` alone is 7.1 MB in three fetches under [M1-4]'s packing, and heavier imports load on demand ([M1-6]).
+A scratch project whose `.agda-lib` depends on `standard-library-2.3` and `agda-algebras`, with no flags of its own.  The default `Main.agda` carries the library's own options line, `{-# OPTIONS --without-K --exact-split --safe #-}`, so that a postulate or a `TERMINATING` pragma is refused as the library would refuse it (PR 585's review found that an exercise without it reported a postulated "proof" as checked), and opens one goal.  Keep its imports light, so the first check is quick: `Overture.Basic` alone needs 14 archives, 4,318,471 bytes, under [M1-4]'s packing, and heavier imports load on demand ([M1-6]).
 
 #### Acceptance criteria
 
@@ -1141,6 +1141,13 @@ A scratch project whose `.agda-lib` depends on `standard-library-2.3` and `agda-
 #### Revision, 2026-10-05: three platforms, Agda 2.9.0
 
 The scratch project depends on the standard-library version that checks under Agda 2.9.0 ([M1-17]), and agda-algebras' `depend:` line follows that decision.
+
+#### Revision, 2026-10-12: agda-algebras under `--without-K`
+
++  **The options line is `--without-K`**: agda-algebras moved from `--cubical-compatible` to `--without-K` (its PR 594), and a `--cubical-compatible` module cannot import a `--without-K` one (`CoInfectiveImport`, [M1-17]'s row 4).  Its `.agda-lib` has no `flags:` line since, so `-WnoUnsupportedIndexedMatch` is gone, and a library's flags never reach a dependent's modules: only `Main`'s own line applies to it.
++  **The packing and the paths**: `Overture.Basic` needs 14 archives, 4,318,471 bytes ([M1-4]'s index), where the 2.8.0 tiers fetched 7.1 MB in three; under the shipped Agda 2.9.0 the layout of 2026-10-04 has `_build/2.9.0/` where it says `_build/2.8.0/`.
++  **The standard library**: the page ships v2.3 with five patches, still named `standard-library-2.3`, so agda-algebras' `depend:` line resolves.
++  **The layout, as built**: `/play/Main.agda` beside `/play/play.agda-lib` (`name: play`, `depend: standard-library-2.3 agda-algebras`, `include: .`), the play library [M1-5]'s gate checks every root under; agda-algebras' sources at `/agda-algebras`, from the site's `agda-algebras-sources.zip`; PLFA's library kept at the root for its chapters.
 
 ---
 
@@ -1218,14 +1225,14 @@ The modules count the builtins, which are on the drive from the start; the floor
 
 Agda accepts an interface only when it was built by the same Agda under the same options, and a mismatch is silent: the module is type-checked again, and the page is merely slow.  So acceptance is measured, not assumed: the build checks every root under the shipped compiler with only its archives mounted and fails unless exactly one module was type-checked.  Count the `Checking` lines unanchored, since Agda indents nested ones (an anchored count reads 1 for every run; this cost PR 585 a defect).
 
-PR 585 proved this for `agda-opt.wasm` (native interfaces accepted unchanged; 1.89 to 1.92 s against 1.90 to 1.94 s for wasm-built ones).  The language server embeds its own build of Agda (agda-web/agda `e2f8c694`), which needs its own proof.
+PR 585 proved this for `agda-opt.wasm` under Agda 2.8.0.  Under 2.9.0 the page's Agda is the language server's reactor build of agda/agda `da66a8c7` ([M0-13], [M0-14]), a separate binary from the plain `agda.wasm` that builds the archives ([M1-4]), which proved the property for itself under wasmtime; the server needs its own proof, in a browser, since it cannot run under wasmtime.
 
 #### Acceptance criteria
 
-+  A build step, run in CI, checks every root under the shipped compiler and fails unless each checks exactly one module.
++  A build step, run in CI, checks every root under the shipped language server, in a browser, each with only its archives mounted, and fails unless each checks exactly one module.
 +  A deliberately stale interface makes it fail.
 
-#### Findings, 2026-10-04
+#### Findings, 2026-10-04: the 2.8.0 baseline
 
 +  **The language server accepts natively built interfaces**.  Its Agda reports "Agda v2.8.0 Language Server v6 (WebAssembly build RAW)", and both it and the flake's native Agda 2.8.0 use interface version 202507030; agda-web/agda `e2f8c694` is one commit ahead of `v2.8.0` (nonblocking stdin on wasm32, a lock file, packaging) and two behind (CI and the test suite), with no change to serialization.
 +  **Measured in headless Chromium 153** against a locally built, instrumented copy of the fork: a `Main` importing `Overture.Basic` reported one `Checking` line (13.6 to 18.5 s), where the sources-only control checked all 66 modules (92.2 s); a `Main` importing `Setoid.Varieties.HSP` (313 interfaces, 92 of agda-algebras) again checked only `Main`.  A deliberate type error came back with the right position and message, so the page elaborates against the shipped interfaces rather than skipping work.  The library's own `make check` output was accepted as it stood once placed in the browser's layout.
@@ -1255,13 +1262,31 @@ The proof is against the 2.9.0 compiler of [M0-13]; the 2026-10-04 findings are 
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59
 [#61]: https://github.com/formalverification/agda-native-ide/issues/61
 
+#### Findings, 2026-10-12: the gate under the 2.9.0 server
+
+[#88] adds the gate this issue asks for, under the server the page ships, and passes it.  What it found is as follows:
+
++  **The server is no longer agda-web's**.  The page runs this repository's build of Agda 2.9.0 (agda/agda `da66a8c7`) with the Agda Language Server v8, as its reactor build (`als-reactor-2.9.0.wasm`, SHA-256 `a0c7ae57...`, [#58], [#59]); its Agda reports version 2.9.0, and its interfaces are version 202610030, written at the writer's word size.  The archives are built by the plain `agda.wasm` of the same commit, toolchain and word size ([#12], [#86]), a separate binary, so the server needs its own proof, and only a browser can run it (it cannot run under wasmtime).
++  **[#86] met the criteria for the proxy**: the plain `agda.wasm` under wasmtime checks every root cold from the archives the index names, 350 of 350 with one `Checking` line, the two controls at 2, in CI.
++  **[#88] meets them for the server**: `make library-gate` checks every root in a fresh session of the engine's browser transport in headless Chromium, with only the archives the index names for it mounted, and passes only when Agda type-checked `Main` alone with no error: 350 of 350 on 2026-10-12 (Chromium 149, this workstation, four at once, 12 min 49 s, at a 1-minute load of 3.0 to 6.1 from other sessions' builds).  The controls (the root's own archive left out; one byte of its source changed under its interface, a stale interface) each type-checked 2 modules, and over archives with `Overture.Basic`'s emptied the gate exited 1.  `library-archives.yml` runs it, every root, when the archives' derivation or the gate's code changes; on GitHub's 4-core runner it passed 350 of 350 with the controls at 2 in 16 min 33 s (run [38209105006], dispatched on the branch).
++  **The browser timings**: Agda's load per root had a median of 7.9 s and a maximum of 16.8 s; the session's start 0.86 s (median); the fixed roots `Overture.Basic` 2.0 s, `Setoid.Algebras.Basic` 3.7 s, `Setoid.Varieties.HSP` 8.5 s, and the umbrella module `agda-algebras` 15.0 s at a heap of 735,248,384 bytes, a sixth of a wasm32 heap.  The 2026-10-04 findings' 13.6 to 18.5 s for `Overture.Basic`, under 2.8.0, were mostly the drive's lookups, before [#50] indexed them.  On one runner, four at once each, the gate's loads summed 3,369 s against 2,498 s for [#86]'s check under wasmtime, so the browser takes 1.3 to 1.6 times wasmtime's time.
++  **A session per root**: one session per job, checking its roots in turn, took 85 s instead of 769 s, but its drive keeps earlier roots' archives and Agda keeps what it decoded, so it cannot show that a root needs only its own archives.  The heap allowed either (shared sessions ended at 906,166,272 bytes at most).
+
+[#12]: https://github.com/formalverification/agda-native-ide/issues/12
+[#50]: https://github.com/formalverification/agda-native-ide/issues/50
+[#58]: https://github.com/formalverification/agda-native-ide/issues/58
+[#59]: https://github.com/formalverification/agda-native-ide/issues/59
+[#86]: https://github.com/formalverification/agda-native-ide/pull/86
+[#88]: https://github.com/formalverification/agda-native-ide/pull/88
+[38209105006]: https://github.com/formalverification/agda-native-ide/actions/runs/38209105006
+
 ---
 
-### Issue M1-6: Mount what the imports need, and say how much before fetching it (#14)
+### Issue M1-6: Mount what the imports need, and say how much before fetching it (#14, closed)
 
 **Labels:** `milestone-1-library-ide`, `ui`, `libraries`
 
-Mount only the closures `Main.agda`'s imports need.  When an import needs archives not yet present, compute them from the index, state the bytes, and fetch on consent; keep them in IndexedDB keyed by the archive's hash.  The fork's cache namespace is a hand-edited string that names the PLFA commit; derive it from the pins instead.  State sizes in one unit everywhere (a KB is 1,024 bytes).
+Mount only the closures `Main.agda`'s imports need.  When an import needs archives not yet present, compute them from the index, state the bytes, and fetch on consent; keep them in IndexedDB keyed by the archive's hash.  Join the index's digest to the drive cache's namespace, which the build derives from the pins.  State sizes in one unit everywhere (a KB is 1,024 bytes).
 
 #### Acceptance criteria
 
@@ -1273,7 +1298,17 @@ Mount only the closures `Main.agda`'s imports need.  When an import needs archiv
 
 The fork restores IndexedDB records over the shipped files at the same paths, so a reader's edit to a library file persists across deploys until the cache namespace changes, and is then dropped silently, while the old database (possibly tens of MB of interfaces built in the browser) is never deleted.  Delete databases whose namespace is stale on startup, and keep library modules read-only ([#10]).
 
+#### Revision, 2026-10-13: what was done before [#92], and what it leaves
+
++  **The namespace**: this body asked to derive the fork's hand-edited cache namespace from the pins.  [#3] did, with a digest of everything Agda reads; [#11] added agda-algebras' sources to it, and [#92] adds the archives' index.
++  **The 2026-10-04 finding**: [#11] writes the host's files (the playground's project) over what the cache restores; [#92] deletes the drive caches of other namespaces at startup (`indexedDB.databases()` in Chromium and in Firefox from 126, and a list in localStorage for Firefox 114 to 125), and drops a mounted archive's paths from the cache.  Library modules read-only remain [#10]'s.
++  **Not yet stated in bytes**: what the page fetches when Agda starts ([M1-18]) and PLFA's files ([#20]).
+
+[#3]: https://github.com/formalverification/agda-native-ide/issues/3
 [#10]: https://github.com/formalverification/agda-native-ide/issues/10
+[#11]: https://github.com/formalverification/agda-native-ide/issues/11
+[#20]: https://github.com/formalverification/agda-native-ide/issues/20
+[#92]: https://github.com/formalverification/agda-native-ide/pull/92
 
 ---
 
