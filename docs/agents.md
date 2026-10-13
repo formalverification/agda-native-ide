@@ -228,43 +228,50 @@ launcher, `scripts/run-server.sh`, is agda-native-air's, from a checkout of
 it where the server has been built once ([Before any harness: the
 server][air-server]); with `AGDA_MCP_BIN` and `--agda-bin` it starts the
 server directly, without its own shell.  First, from the worktree's root,
-lay out a chapter and a libraries file outside the worktree, as follows:
+lay out a chapter and a libraries file outside the worktree, and find the
+two binaries, as follows:
 
 ```sh
-scratch=/path/to/scratch   # outside the worktree
+scratch=/path/to/scratch       # outside the worktree
+air=/path/to/agda-native-air   # a checkout whose server is built
 agda=$(nix develop .#vscode --command printenv AGDA)
+server=$(cd "$air" && nix develop .#backend --command bash -c 'cd agda-mcp && cabal list-bin exe:agda-mcp' | tail -n 1)
 zip=$(nix build .#stdlib --no-link --print-out-paths)/agda-stdlib-2.3-patched.zip
 mkdir -p "$scratch/plfa/part1"
 unzip -q -o -d "$scratch" "$zip"
 echo "$scratch/agda-stdlib-2.3/standard-library.agda-lib" > "$scratch/libraries"
 printf 'name: plfa\ndepend: standard-library\ninclude: .\n' > "$scratch/plfa.agda-lib"
 cp static/plfa/content/part1/Naturals.lagda.md "$scratch/plfa/part1/"
-echo "$agda"   # /nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda
 ```
 
-Then the registration, per harness, as follows:
+`$agda` is a store path, which depends on the system and on the flake's
+pins: on x86_64-linux at this repository's `flake.lock` it was
+`/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda`.  The
+registrations below are written from the variables in the same shell,
+rather than copied, so they name what this machine built.  Then the
+registration, per harness, as follows:
 
-+  **Claude Code**: a file outside the worktree,
-   `/path/to/scratch/agda-mcp.json`, and `claude --mcp-config
-   /path/to/scratch/agda-mcp.json --strict-mcp-config`, which takes the
-   servers from that file for one session and ignores the others.
-   `/path/to/agda-mcp` is what `cabal list-bin exe:agda-mcp` prints in
-   agda-native-air's `agda-mcp/`, in its `.#backend` shell.
++  **Claude Code**: a file outside the worktree, and `claude --mcp-config
+   "$scratch/agda-mcp.json" --strict-mcp-config`, which takes the servers
+   from that file for one session and ignores the others.  The file is
+   written as follows:
 
-   ```json
+   ```sh
+   cat > "$scratch/agda-mcp.json" <<JSON
    {
      "mcpServers": {
        "agda": {
-         "command": "/path/to/agda-native-air/scripts/run-server.sh",
+         "command": "$air/scripts/run-server.sh",
          "args": [
-           "--agda-bin", "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
-           "--agda-flags", "--library-file=/path/to/scratch/libraries",
+           "--agda-bin", "$agda",
+           "--agda-flags", "--library-file=$scratch/libraries",
            "--timeout", "600"
          ],
-         "env": { "AGDA_MCP_BIN": "/path/to/agda-mcp" }
+         "env": { "AGDA_MCP_BIN": "$server" }
        }
      }
    }
+   JSON
    ```
 
 +  **Codex CLI**: the same as `-c` overrides, with the timeouts and the
@@ -275,9 +282,9 @@ Then the registration, per harness, as follows:
 
    ```sh
    codex exec -s read-only \
-     -c 'mcp_servers.agda.command="/path/to/agda-native-air/scripts/run-server.sh"' \
-     -c 'mcp_servers.agda.args=["--agda-bin", "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda", "--agda-flags", "--library-file=/path/to/scratch/libraries", "--timeout", "600"]' \
-     -c 'mcp_servers.agda.env={AGDA_MCP_BIN="/path/to/agda-mcp"}' \
+     -c "mcp_servers.agda.command=\"$air/scripts/run-server.sh\"" \
+     -c "mcp_servers.agda.args=[\"--agda-bin\", \"$agda\", \"--agda-flags\", \"--library-file=$scratch/libraries\", \"--timeout\", \"600\"]" \
+     -c "mcp_servers.agda.env={AGDA_MCP_BIN=\"$server\"}" \
      -c 'mcp_servers.agda.startup_timeout_sec=120' \
      -c 'mcp_servers.agda.tool_timeout_sec=660' \
      -c 'mcp_servers.agda.required=true' \
