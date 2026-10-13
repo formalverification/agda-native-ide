@@ -559,7 +559,10 @@ The page has one CodeMirror view and an editor state per open file
    nor an edit of Agda's changes it.  A line above it says that it is the
    checked library, at its pin, and links its page on agda-algebras' site,
    which renders each module at its path
-   (`https://agda-algebras.universalalgebra.org/Overture/Signatures/`).
+   (`https://agda-algebras.universalalgebra.org/Overture/Signatures/`).  The
+   link says it opens the site's current version: the site follows the
+   library's master branch, not the pin, and 6 of the pin's 350 modules
+   have no page there (2026-10-13); a page at the pin is [#19]'s.
 +  **The load**: the session's `load(path)` without text, which reads the
    source and writes nothing.  Before it, the page mounts the archives of
    the module's own closure: its name, not the imports of its text, so its
@@ -731,6 +734,7 @@ acceptance is counted, never inferred: the running info prints one
 [#11]: https://github.com/formalverification/agda-native-ide/issues/11
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
 [#14]: https://github.com/formalverification/agda-native-ide/issues/14
+[#19]: https://github.com/formalverification/agda-native-ide/issues/19
 [#49]: https://github.com/formalverification/agda-native-ide/issues/49
 [#50]: https://github.com/formalverification/agda-native-ide/issues/50
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58

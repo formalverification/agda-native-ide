@@ -266,7 +266,8 @@ undo never crosses files, and each file's edits are saved under its own
 key; the open files are tabs ([#10]).  A module of agda-algebras opens
 read-only from the Explorer: the tab shows the drive's copy, the checked
 library, which no keystroke changes and the page never writes, and a line
-above it says so and links the module's page on agda-algebras' site.  The
+above it says so and links the module's page on agda-algebras' site (the
+site's current version, which follows the library's master branch).  The
 page loads it as it is, after mounting the archives of its own closure
 (asking first, as for `Main`), so hover, Infer and Normalize answer in its
 scope.  From that line, "Copy to playground" copies the module, renamed,

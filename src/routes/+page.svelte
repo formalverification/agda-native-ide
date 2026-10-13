@@ -1215,14 +1215,16 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
 
   /** A name for a copy of `module` that Agda finds nowhere yet: its last
    * part, or that with a number after it (many modules share a last
-   * part, and some are a library's top-level module). */
+   * part, and some are a library's top-level module); none, for the reader
+   * to give, when the first hundred are taken.  It only fills the field:
+   * `copyToPlayground` checks the name submitted. */
   async function freeCopyName(module: string) {
     const base = module.split(".").pop() ?? module;
-    for (let n = 1; n < 100; n++) {
+    for (let n = 1; n <= 100; n++) {
       const name = n === 1 ? base : `${base}${n}`;
       if (!(await controller.findModule(name))) return name;
     }
-    return base;
+    return "";
   }
 
   /** Add `open import` of the library's module on screen to Main, and show
@@ -1515,7 +1517,8 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
                 href={libraryPage(currentLibrary.module)}
                 target="_blank"
                 rel="noreferrer"
-                title="Its page on the agda-algebras site, in a new tab"><ExternalLink size={13} />Its page</a
+                title="Its page on agda-algebras' site, in a new tab, as the site has it now: the site follows the library's master branch, not this pin, so the page may differ or be missing"
+                ><ExternalLink size={13} />Its page (the site's current version)</a
               >
             </div>
           </div>
