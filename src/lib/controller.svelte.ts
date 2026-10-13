@@ -219,6 +219,9 @@ export interface ConsentRequest {
   bytes: number;
   modules: number;
   unknown: string[];
+  /** Of those archives, the ones the reader declined earlier in the tab,
+   * which a question for new ones asks for again, saying so. */
+  declined: { archives: number; bytes: number };
   /** Whether the question takes the keyboard's focus: not on a check the
    * reader did not ask for, where Enter in the editor would answer it. */
   focus: boolean;
@@ -844,7 +847,9 @@ export class AgdaController {
   /** The plan of the text on screen, made again (at most twice) when the
    * text's imports changed while it was made, or the store lost an archive
    * the plan counted as kept: the check that follows reads the text then
-   * on screen, and its imports must be the planned ones. */
+   * on screen, and its imports must be the planned ones.  A plan still
+   * unsettled after that is not checked: the reader is told to check
+   * again. */
   private async planUntilSettled(automatic: boolean): Promise<boolean> {
     const imports = () => {
       const view = this.editorView;
@@ -856,10 +861,15 @@ export class AgdaController {
       const planned = imports();
       const outcome = await this.planOnce(planned, automatic);
       if (outcome === "stop") return false;
-      const last = attempt >= 2;
-      if (outcome === "again" && !last) continue;
-      if (imports().join("\n") !== planned.join("\n") && !last) continue;
-      return true;
+      if (outcome === "check" && imports().join("\n") === planned.join("\n")) return true;
+      if (attempt >= 2) {
+        // The note, not the status line, which a page at rest does not show.
+        this.planNote =
+          outcome === "again"
+            ? "Not checked: the browser's store lost archives as they were mounted; check again."
+            : "Not checked: the imports changed while their archives were planned; check again.";
+        return false;
+      }
     }
   }
 
@@ -934,7 +944,7 @@ export class AgdaController {
           unknown: plan.fromSource,
           focus: !automatic,
         },
-        fetchRefs.map((archive) => archive.url),
+        fetchRefs,
       );
       if (choice === "cancel") {
         this.lastAction = "Not checked";
@@ -958,7 +968,7 @@ export class AgdaController {
       if (fetchRefs.length) await this.mountDriveArchives(fetchRefs, "agda-algebras'", { bytes });
     } catch (error) {
       if (error instanceof MountStopped) {
-        this.lastAction = `${error.message}; nothing was checked`;
+        note(`${error.message}; nothing was checked.`);
         return "stop";
       }
       // The store lost an archive it kept: plan again, which states and
@@ -969,19 +979,31 @@ export class AgdaController {
     return "check";
   }
 
-  /** The reader's answer to fetching `urls`: the one remembered for the
-   * tab, "source" when every one of them was declined before in this tab,
-   * or the page's question. */
-  private async choose(request: ConsentRequest, urls: string[]): Promise<ConsentChoice> {
+  /** The reader's answer to fetching `archives`: the one remembered for
+   * the tab; "source" when every one of them was declined before in this
+   * tab; or the page's question, which states the bytes of all of them, the
+   * declined among them, since a check that needs new archives asks again
+   * for the whole set rather than fetch part of it with no word: nothing is
+   * fetched that the question did not state, and the reader may decline
+   * again. */
+  private async choose(
+    request: Omit<ConsentRequest, "declined">,
+    archives: readonly { url: string; bytes: number }[],
+  ): Promise<ConsentChoice> {
     const remembered = tabStorage.get(rememberedChoiceKey(request.library));
     if (remembered === "fetch" || remembered === "source") return remembered;
     const declined = new Set<string>(safeJsonArray(tabStorage.get(declinedKey(request.library))));
+    const urls = archives.map((archive) => archive.url);
     if (urls.every((url) => declined.has(url))) return "source";
+    const again = archives.filter((archive) => declined.has(archive.url));
     // A question still open is answered "cancel" before another is asked.
     this.answerConsent?.("cancel", false);
     const { choice, remember } = await new Promise<{ choice: ConsentChoice; remember: boolean }>((resolve) => {
       this.answerConsent = (choice, remember) => resolve({ choice, remember });
-      this.consent = request;
+      this.consent = {
+        ...request,
+        declined: { archives: again.length, bytes: again.reduce((sum, archive) => sum + archive.bytes, 0) },
+      };
     });
     this.consent = null;
     this.answerConsent = undefined;

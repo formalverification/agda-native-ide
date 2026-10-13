@@ -1350,6 +1350,13 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
               >, from this site. Without them, Agda checks those modules from
               source, which can take minutes.
             </p>
+            {#if consentRequest.declined.archives}<p class="consent-note">
+                {consentRequest.declined.archives === consentRequest.archives ? "All" : "Of them,"}
+                {consentRequest.declined.archives}
+                {consentRequest.declined.archives === 1 ? "archive" : "archives"},
+                {sizeWithBytes(consentRequest.declined.bytes)}, you declined earlier in this
+                tab.
+              </p>{/if}
             {#if consentRequest.unknown.length}<p class="consent-note">
                 Not in agda-algebras' index, so checked from source either way:
                 {consentRequest.unknown.join(", ")}.

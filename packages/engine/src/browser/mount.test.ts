@@ -247,7 +247,8 @@ describe("the drive's stale caches", () => {
       failed: [],
     });
     expect(h.deleted).toEqual(["agda-playground-drive-old1", "agda-playground-drive-old2"]);
-    expect(h.storage.get("agda-native-ide:drive-namespaces")).toBe('["now"]');
+    // The blocked one stays on the list, for the next start.
+    expect(h.storage.get("agda-native-ide:drive-namespaces")).toBe('["now","old2"]');
   });
 
   it("keeps on its list a namespace whose database it failed to delete", async () => {

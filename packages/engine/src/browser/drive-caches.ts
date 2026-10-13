@@ -99,11 +99,13 @@ export async function forgetOtherDriveCaches(
       failed.push(name);
     }
   }
-  // A blocked deletion completes later, so its namespace leaves the list;
-  // one that failed stays on it, for the next start to try again.
+  // A blocked deletion completes when the other tab lets go, unless this
+  // page closes first, and one that failed does not: both stay on the
+  // list, for the next start to try again (deleting a database that is
+  // gone succeeds).
   host.write(
     DRIVE_NAMESPACES_KEY,
-    JSON.stringify([current, ...failed.map((name) => name.slice(DRIVE_CACHE_PREFIX.length))]),
+    JSON.stringify([current, ...[...blocked, ...failed].map((name) => name.slice(DRIVE_CACHE_PREFIX.length))]),
   );
   return { deleted, blocked, failed };
 }

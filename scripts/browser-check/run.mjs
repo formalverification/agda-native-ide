@@ -67,7 +67,13 @@
 //       reloads, and asserts that the page asks nothing, states the bytes
 //       in the status bar before the request (on the page's clock, as
 //       measured), and fetches that archive alone;
-//  13.  in Chromium, exercises the theme choices, persistence, system
+//  13.  a declined fetch: with the remembered answer forgotten and one
+//       more archive gone, the page asks for it alone; Check from source
+//       requests nothing, says so in a note, mounts the archives the
+//       browser keeps, and Agda type-checks the declined archive's
+//       modules alone (with Main, or not), accepting the archived
+//       interfaces above them;
+//  14.  in Chromium, exercises the theme choices, persistence, system
 //       changes, first-frame colors and narrow viewports (issue 17).
 //
 // The server sends `no-store` for agda-algebras' index and archives, so
@@ -1045,6 +1051,41 @@ try {
     results.rememberedStated = { statedAt, requestedAt };
     assert(statedAt !== undefined, `the status bar never said "${stated}"`);
     assert(requestedAt !== undefined && statedAt < requestedAt, `the bytes were stated at ${statedAt} ms, not before the request at ${requestedAt} ms`);
+  });
+
+  await step("a declined fetch: what the browser keeps still mounts", async () => {
+    // Forget the remembered answer, and lose one more archive from the
+    // store: the next check asks for it alone.
+    await page.eval(() => sessionStorage.removeItem("agda-native-ide:fetch-choice:agda-algebras"));
+    const declined = needs([LIBRARY.module]).find((path) => path !== `interfaces/${LIBRARY.module}.zip` && path !== needs([LIBRARY.module]).find((p) => p !== `interfaces/${LIBRARY.module}.zip`));
+    const want = expected([declined]);
+    await replaceKept(INDEX.archives[declined].sha256);
+    const from = server.log.length;
+    await reload();
+    const asked = await waitFor((s) => s.consent !== null && !s.busy, "the question for one archive");
+    assert(asked.consentBytes === String(want.bytes), `the question states ${asked.consentBytes} bytes, not ${want.bytes}`);
+    await page.eval(() => document.querySelector(".consent-source").click());
+    const checked = await waitFor(
+      (s) => noQuestion(s, "the check after a decline") && !s.busy && s.status.startsWith("Module checked"),
+      "the check after the decline",
+    );
+    assert(checked.problems.length === 0, `the check reported ${JSON.stringify(checked.problems)}`);
+    assert(archiveRequests(from).length === 0, `a declined fetch requested ${archiveRequests(from)}`);
+    assert(/were not fetched/.test(checked.note ?? ""), `the note says ${JSON.stringify(checked.note)}`);
+    // The archives the browser kept were mounted; Agda checked the declined
+    // archive's modules from source, and accepted the archived interfaces
+    // above them, which name those modules by their sources' hashes, and
+    // Main's own restored interface, for the same reason (Main is not
+    // always among the Checking lines).
+    const fromSource = Object.entries(INDEX.modules)
+      .filter(([, module]) => module.archive === declined)
+      .map(([name]) => name);
+    const checking = await inferChecking(HSP.infer);
+    results.declinedChecking = { declined, fromSource, checking };
+    assert(
+      JSON.stringify(checking.filter((name) => name !== "Main").sort()) === JSON.stringify([...fromSource].sort()),
+      `after the decline the check type-checked [${checking}], not the declined archive's [${fromSource}] alone (and Main)`,
+    );
   });
 
   if (options.browser === "chromium") {
