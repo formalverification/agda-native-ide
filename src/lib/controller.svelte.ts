@@ -27,7 +27,8 @@
 // ($lib/agda/browser-source), when to persist, and the editor: it applies
 // Agda's highlighting, goals and edits to CodeMirror ($lib/agda/handlers)
 // as they arrive, and connects CodeMirror's language-server client, for
-// hover, to the engine's editor channel.
+// hover, to the engine's editor channel.  PLFA's archive is one library in
+// the engine's list of the drive's libraries (issue 13).
 //
 // The editor takes its text as the one Agda's positions refer to (the
 // offsets' commit) when the engine is about to load it, and only then,
@@ -224,10 +225,16 @@ export class AgdaController {
         archives: {
           builtin: spec.dataPath,
           stdlib: `${asset("/agda-stdlib-2.3-patched.zip")}?cache=${cacheTokens.stdlib}`,
-          project: `${asset("/plfa/project.zip")}?cache=${cacheTokens.plfaProject}`,
+          // PLFA at the root, where Main.agda is: one library on the drive.
+          libraries: [
+            {
+              url: `${asset("/plfa/project.zip")}?cache=${cacheTokens.plfaProject}`,
+              agdaLib: "/plfa.agda-lib",
+              name: "plfa",
+              what: "PLFA",
+            },
+          ],
         },
-        // What a failure to fetch the project's archive calls it.
-        projectName: "PLFA",
         cacheNamespace: driveCacheNamespace,
         // --raw: the server answers in Agda's own JSON (ResponseJSONRaw),
         // which the engine reads.  ALS drives Agda through its interactive

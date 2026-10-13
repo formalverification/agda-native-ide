@@ -117,6 +117,7 @@ make build                  # check the pins, then npm run build and the bundle 
 make browser-check          # check Main.agda in build/ in headless Chromium
 make browser-check-notices  # check what build/ says when it cannot run
 make conformance-browser    # the engine's conformance suite against build/'s reactor
+make library-gate           # agda-algebras' archives under build/'s reactor, every root
 make dev                    # serve the app at http://localhost:5173
 ```
 
@@ -165,9 +166,14 @@ minutes on a 20-core workstation, by its load), packed so that an import
 fetches its closure's interfaces and nothing else, with an index of every
 module and archive and the sources as one archive.  `nix build
 .#agda-algebras-check` checks every module of the library, cold, from the
-archives the index names for it, and CI's
-[`library-archives.yml`][archives-ci] runs both when what they are built
-from changes.  The page does not mount them yet ([#14]);
+archives the index names for it, under that `agda.wasm`; `make
+library-gate` checks them again under the language server the site ships,
+its reactor, in headless Chromium ([#13]): every root, each in a fresh
+session holding only its archives, must type-check `Main` alone, and two
+controls must not.  CI's [`library-archives.yml`][archives-ci] runs all
+three when what they are built from changes, and the gate alone (building
+the archives it mounts) when only what the gate is made of does.
+The page does not mount them yet ([#14]);
 [`docs/notes/library-archives.md`][archives-note] explains them.
 
 `make browser-check` (or `nix run .#browser-check -- <site>`, for any
@@ -354,6 +360,7 @@ every artifact the app ships, with its license.
 [formalverification/agda-wasm-builds]: https://github.com/formalverification/agda-wasm-builds
 [#8]: https://github.com/formalverification/agda-native-ide/issues/8
 [#12]: https://github.com/formalverification/agda-native-ide/issues/12
+[#13]: https://github.com/formalverification/agda-native-ide/issues/13
 [#14]: https://github.com/formalverification/agda-native-ide/issues/14
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59

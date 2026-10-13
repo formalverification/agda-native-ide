@@ -24,7 +24,9 @@
 //
 // It moved from the page into the engine package's browser transport with
 // the worker (issue 62), and reads a source back as Agda would read it,
-// which the engine compares with what it wrote.
+// which the engine compares with what it wrote.  It is laid out with a list
+// of libraries, each an archive, its `.agda-lib` and its name, where it took
+// PLFA's archive alone, and writes the registry from that list (issue 13).
 
 import * as Runno from "@runno/wasi";
 import JSZip from "jszip";
@@ -118,12 +120,15 @@ async function extractZip(
 const userSourceFilePath = "/Main.agda";
 
 /** The drive's first record: the user's buffer, Agda's builtin library
- * (with its interfaces), the standard library's sources at /stdlib, PLFA at
- * the root, and Agda's library registry naming them. */
-export async function layOutDrive({ builtin, stdlib, plfa }: DriveArchives) {
+ * (with its interfaces), the standard library's sources at /stdlib, each
+ * library extracted at the root in order, and Agda's library registry
+ * naming them: the libraries file their `.agda-lib` files, and the
+ * defaults file their names. */
+export async function layOutDrive({ builtin, stdlib, libraries }: DriveArchives) {
   const fs: Record<string, Runno.WASIFile> = Object.fromEntries([
     createFileEntry(userSourceFilePath, ""),
   ]);
+  const registered: { agdaLib: string; name: string }[] = [];
 
   if (builtin) {
     await extractZip(builtin, "/", fs);
@@ -139,22 +144,22 @@ export async function layOutDrive({ builtin, stdlib, plfa }: DriveArchives) {
       }
       return p.replace(/^agda-stdlib-[\.\d]+\//, "");
     });
-    fsAssign(
-      "/home/root/.config/agda/libraries",
-      "/stdlib/standard-library.agda-lib\n",
-      fs,
-    );
-    fsAssign("/home/root/.config/agda/defaults", "standard-library\n", fs);
+    registered.push({
+      agdaLib: "/stdlib/standard-library.agda-lib",
+      name: "standard-library",
+    });
   }
 
-  if (plfa) {
-    await extractZip(plfa, "/", fs);
-    fsAssign(
-      "/home/root/.config/agda/libraries",
-      "/stdlib/standard-library.agda-lib\n/plfa.agda-lib\n",
-      fs,
-    );
-    fsAssign("/home/root/.config/agda/defaults", "standard-library\nplfa\n", fs);
+  for (const library of libraries) {
+    await extractZip(library.data, "/", fs);
+    registered.push(library);
+  }
+
+  if (registered.length) {
+    const lines = (field: "agdaLib" | "name") =>
+      registered.map((library) => `${library[field]}\n`).join("");
+    fsAssign("/home/root/.config/agda/libraries", lines("agdaLib"), fs);
+    fsAssign("/home/root/.config/agda/defaults", lines("name"), fs);
   }
 
   return fs;

@@ -62,3 +62,6 @@ vite.config.js.timestamp-*
 # conformance runners write (`make conformance-native`, and the rest).
 /packages/*/dist/
 /conformance/
+
+# The report the gate writes (`make library-gate`).
+/library-gate/

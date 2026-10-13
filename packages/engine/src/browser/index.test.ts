@@ -109,6 +109,43 @@ describe("the browser transport when the engine fails", () => {
     expect(worker?.terminated).toBe(true);
   });
 
+  it("names a library it cannot fetch in the host's words, or by its name", async () => {
+    vi.stubGlobal("fetch", async (url: string) =>
+      url.endsWith(".zip") ? new Response("not found", { status: 404, statusText: "Not Found" }) : new Response(gzipSync(Buffer.alloc(64, 1))),
+    );
+    // A worker that never answers: the library's failure comes first.
+    const silent = () => Object.assign(new EventTarget(), { postMessage() {}, terminate() {} }) as unknown as Worker;
+    const start = (what?: string) =>
+      startBrowserSession({
+        createWorker: silent,
+        compiler: { url: "compiler.wasm.gz" },
+        glueUrl: "glue.js",
+        archives: { libraries: [{ url: "plfa.zip", agdaLib: "/plfa.agda-lib", name: "plfa", ...(what ? { what } : {}) }] },
+        cacheNamespace: "test",
+        args: ["--raw"],
+      });
+    expect(await start("PLFA")).toMatchObject({
+      kind: "failure",
+      reason: "startup",
+      message: "PLFA could not be downloaded (HTTP 404 Not Found)",
+    });
+    expect(await start()).toMatchObject({ message: "the library plfa could not be downloaded (HTTP 404 Not Found)" });
+  });
+
+  it("refuses a library with no URL, by name, rather than leaving it off the drive", async () => {
+    vi.stubGlobal("fetch", async () => new Response(gzipSync(Buffer.alloc(64, 1))));
+    const silent = () => Object.assign(new EventTarget(), { postMessage() {}, terminate() {} }) as unknown as Worker;
+    const started = await startBrowserSession({
+      createWorker: silent,
+      compiler: { url: "compiler.wasm.gz" },
+      glueUrl: "glue.js",
+      archives: { libraries: [{ url: "", agdaLib: "/agda-algebras/agda-algebras.agda-lib", name: "agda-algebras" }] },
+      cacheNamespace: "test",
+      args: ["--raw"],
+    });
+    expect(started).toMatchObject({ kind: "failure", reason: "startup", message: "the library agda-algebras has no URL" });
+  });
+
   it("ends a command the server fails, rather than waiting for its deadline", async () => {
     const { t, port2, server, events } = wired();
     port2.onmessage = (event: MessageEvent<string>) => {
