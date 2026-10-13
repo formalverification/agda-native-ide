@@ -13,10 +13,42 @@
 //
 // These are the present formats, not issue 24's plugin manifest: they
 // have no kind, no digests and no costs, and nothing here loads a plugin.
-// docs/engine/overview.md maps them to that format.
+// docs/engine/overview.md maps them to that format.  A library whose
+// interfaces come as archives named by an index (issue 14) has its own
+// description, which does have a kind, digests and costs (./library.ts),
+// and is the first of the plugin manifest's kinds.
+//
+// A field's name joins its path's keys with dots, and quotes a key that is
+// not a plain word, so that a key holding a dot (a module's name in an
+// archive index, `modules["Overture.Basic"].deps`) is not read as two.
 
 import { z } from "zod";
 import { isSourcePath, sourceKind } from "@agda-native-ide/engine";
+
+import {
+  archiveIndexSchema,
+  libraryDescriptionSchema,
+  type ArchiveIndex,
+  type LibraryDescription,
+} from "./library.js";
+
+export { importedModules } from "./imports.js";
+export {
+  archiveRefs,
+  isBuiltinModule,
+  planArchives,
+  planImports,
+  statedProgress,
+  statedSize,
+} from "./library.js";
+export type {
+  ArchiveIndex,
+  ArchivePlan,
+  ArchiveRef,
+  ImportPlan,
+  LibraryDescription,
+  SourceReader,
+} from "./library.js";
 
 const urlPath = z
   .string()
@@ -112,12 +144,36 @@ export type LibraryModule = z.infer<typeof libraryModule>;
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
+/** A field's path as the error names it: `groups.1.chapters.2.id`, or
+ * `modules["Overture.Basic"].deps` where a key is not a plain word. */
+function fieldName(path: readonly PropertyKey[]): string {
+  return path
+    .map((key, at) => {
+      const text = String(key);
+      if (/^[A-Za-z_$][\w$]*$|^\d+$/.test(text)) return at === 0 ? text : `.${text}`;
+      return `[${JSON.stringify(text)}]`;
+    })
+    .join("");
+}
+
 function parsed<T>(schema: z.ZodType<T>, what: string, json: unknown): Parsed<T> {
   const result = schema.safeParse(json);
   if (result.success) return { ok: true, value: result.data };
   const issue = result.error.issues[0];
-  const field = issue.path.length ? issue.path.map(String).join(".") : "(the manifest)";
+  const field = issue.path.length ? fieldName(issue.path) : "(the manifest)";
   return { ok: false, error: `${what}: ${field} ${issue.message}` };
+}
+
+/** A library's description, or the first field that is wrong. */
+export function parseLibraryDescription(json: unknown): Parsed<LibraryDescription> {
+  return parsed(libraryDescriptionSchema, "the library's description", json);
+}
+
+/** A library's archive index (schema 1), or the first field that is
+ * wrong: a module naming an archive, a library or a dependency the index
+ * does not have is wrong too. */
+export function parseArchiveIndex(json: unknown): Parsed<ArchiveIndex> {
+  return parsed(archiveIndexSchema, "the archive index", json);
 }
 
 /** The PLFA corpus manifest, or the first field that is wrong. */

@@ -4,7 +4,8 @@
 // docs/notes/library-archives.md): which archives a set of imports needs,
 // and a summary of the sizes.  check.sh uses it to stage each root from the
 // archives the index names, so the check proves the index, not a guess;
-// the page's mount (issue 14) is to compute the same thing.
+// the page's mount computes the same thing (packages/manifest's
+// planArchives, whose tests compare the two for every root; issue 14).
 //
 //   node index.mjs needs INDEX ROOT...   the archives the roots' closure
 //                                        needs, one per line
