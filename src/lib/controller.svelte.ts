@@ -50,6 +50,11 @@
 // is shown as "Agda could not start: ...", and a server that fails or
 // exits on its own once started as "Agda stopped: ..." (issue 8).
 //
+// Each open file has an editor state of its own (issue 10, ./documents):
+// the controller keeps those not on screen, and shows one with the
+// view's setState, so its history, its selection and its scroll are its
+// own; the language server's client follows the file on screen.
+//
 // Before a check of the playground's Main, the controller mounts the
 // interfaces its imports need (issue 14): it reads the imports from the
 // buffer, plans their closure from agda-algebras' archive index (which it
@@ -62,8 +67,8 @@
 // not ask again for them.  At startup it also deletes the drive caches of
 // other namespaces, and the archives the index no longer names.
 
-import type { EditorView } from "@codemirror/view";
-import { Compartment } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { Compartment, type EditorState, type StateEffect } from "@codemirror/state";
 import { LSPClient, languageServerExtensions } from "@codemirror/lsp-client";
 import { messagesOf, sourceKind } from "@agda-native-ide/engine";
 import type {
@@ -107,6 +112,7 @@ import {
   getAgdaGoals,
 } from "./agda/goals";
 import { browserAgdaSource } from "./agda/browser-source";
+import { OpenDocuments, fileOf, type DocumentFile } from "./documents";
 
 type ALSWorkerStatus =
   | "initial"
@@ -181,11 +187,18 @@ export const PLAYGROUND = {
   includes: ["/play", "/agda-algebras/src", "/stdlib/src"],
 } as const;
 
-/** Where the editor keeps the playground's buffer: a key named by its path
- * on the drive.  It was "agda-web-ide-beta:doc" while the buffer was
- * /Main.agda, a module of PLFA's library; nothing is deployed, so only a
- * developer's browser holds a document there, and it stays, unread. */
-export const LS_DOC_KEY = `agda-web-ide-beta:doc:${PLAYGROUND.file}`;
+/** Where the editor keeps a playground file's buffer: a key named by its
+ * path on the drive. */
+export const storageKeyOf = (path: string) => `agda-web-ide-beta:doc:${path}`;
+
+/** The key of the playground's Main.  It was "agda-web-ide-beta:doc" while
+ * the buffer was /Main.agda, a module of PLFA's library; nothing is
+ * deployed, so only a developer's browser holds a document there, and it
+ * stays, unread. */
+export const LS_DOC_KEY = storageKeyOf(PLAYGROUND.file);
+
+/** The playground's Main, as a document. */
+export const MAIN_FILE: DocumentFile = { path: PLAYGROUND.file, storageKey: LS_DOC_KEY };
 
 /** agda-algebras as the page describes it (issue 14): its sources, which
  * the drive mounts when it starts, its archive index, and where the index's
@@ -308,8 +321,11 @@ export class AgdaController {
   reportedAgdaVersion = $state<string | undefined>();
   driveIsCreated = $state(false);
   driveArchiveLoading = $state(false);
-  currentFilePath = $state<string>(PLAYGROUND.file);
-  currentStorageKey = LS_DOC_KEY;
+  /** The file on screen. */
+  currentFile = $state<DocumentFile>(MAIN_FILE);
+  /** The files open in the editor, in the order they were opened, as its
+   * tabs show them (issue 10). */
+  openFiles = $state<DocumentFile[]>([MAIN_FILE]);
   iotcmStatus = $state<AgdaIOTCMStatus>("init");
   checked = $state(false);
   showImplicitArgs = $state(false);
@@ -341,6 +357,14 @@ export class AgdaController {
   /** Stops the mount under way. */
   private mountStopper?: AbortController;
 
+  /** Each open file's editor state, as it was when another was shown. */
+  private readonly documents = new OpenDocuments();
+  /** Where each file kept off screen was scrolled to. */
+  private readonly scrolled = new Map<string, StateEffect<unknown>>();
+  /** Makes a file's editor state, the first time it opens: the page's
+   * editor, for that file. */
+  private createState?: (file: DocumentFile, text: string) => EditorState;
+
   /** Set by terminateALSWASM, so the session's end is not reported. */
   private stopRequested = false;
   /** Counts the documents the editor has shown: a check's answers that
@@ -364,8 +388,21 @@ export class AgdaController {
     this.lspClient = makeLspClient();
   }
 
-  connectEditorView(view: EditorView) {
+  /** The path of the file on screen. */
+  get currentFilePath() {
+    return this.currentFile.path;
+  }
+
+  /** The editor, and how to make a file's state in it.  The view's own
+   * state is the first file's. */
+  connectEditorView(view: EditorView, createState: (file: DocumentFile, text: string) => EditorState) {
     this.editorView = view;
+    this.createState = createState;
+    const file = fileOf(view.state);
+    if (file) {
+      this.currentFile = file;
+      this.openFiles = [file];
+    }
   }
 
   /** Start Agda.  The promise settles when the session ends: it rejects
@@ -549,7 +586,8 @@ export class AgdaController {
     const view = this.editorView;
     if (!view) throw new Error("The Agda editor is not ready");
     const session = this.session;
-    const path = this.currentFilePath;
+    const file = this.currentFile;
+    const path = file.path;
     const epoch = this.documentEpoch;
     const source = view.state.doc.toString();
     let plan: CheckPlan | undefined;
@@ -560,7 +598,7 @@ export class AgdaController {
         if (planned.kind === "load") {
           // The text Agda will read is now the one its positions refer to.
           view.dispatch({ effects: commit.of() });
-          this.persistDocument(source);
+          this.persistDocument(source, file);
         }
       },
     });
@@ -695,17 +733,18 @@ export class AgdaController {
   private async saveToDrive() {
     const view = this.editorView;
     const transport = this.transport;
+    const file = this.currentFile;
     if (!view || !transport) return;
     const doc = view.state.doc.toString();
-    this.persistDocument(doc);
+    this.persistDocument(doc, file);
     try {
-      await transport.writeSource(this.currentFilePath, browserAgdaSource(this.currentFilePath, doc));
+      await transport.writeSource(file.path, browserAgdaSource(file.path, doc));
     } catch (error) {
       console.warn("Could not save the buffer where Agda reads it", error);
       return;
     }
     this.lspClient!.notification("textDocument/didSave", {
-      textDocument: { uri: "file://" + this.currentFilePath },
+      textDocument: { uri: "file://" + file.path },
     });
     try {
       await transport.persist();
@@ -1176,22 +1215,48 @@ export class AgdaController {
     this.session?.abort();
   }
 
-  persistDocument(source: string) {
-    localStorage.setItem(this.currentStorageKey, source);
+  /** Keep `source` as `file`'s text in the browser, if the page saves it:
+   * a library's module it never does. */
+  persistDocument(source: string, file: DocumentFile = this.currentFile) {
+    if (file.storageKey) localStorage.setItem(file.storageKey, source);
   }
 
-  setDocument(
-    source: string,
-    filePath: string = PLAYGROUND.file,
-    storageKey = LS_DOC_KEY,
-  ) {
-    if (!this.editorView) return;
-    const pathChanged = filePath !== this.currentFilePath;
+  /** Whether `path` is open in the editor. */
+  isOpen(path: string) {
+    return this.openFiles.some((file) => file.path === path);
+  }
+
+  /** Show `file` in the editor: its state as it was last shown, or a new
+   * one with `text` the first time it opens.  Each file has a state of its
+   * own (issue 10), with its own history, so undo never crosses files, and
+   * the state left keeps its text, its selection and its history.  What
+   * Agda answered is the file's it answered for: the inspector starts
+   * afresh, a check still running is not applied, and the next check of a
+   * file loads it. */
+  showDocument(file: DocumentFile, text?: string) {
+    const view = this.editorView;
+    if (!view || file.path === this.currentFilePath) return;
+    let next = this.documents.get(file.path);
+    if (!next) {
+      if (text === undefined || !this.createState) throw new Error(`${file.path} is not open`);
+      next = this.createState(file, text);
+    }
+    // The state left is kept without the language server's plugin, which
+    // only the state on screen holds, and with where it was scrolled to.
+    this.scrolled.set(this.currentFilePath, view.scrollSnapshot());
+    this.documents.keep(view.state.update({ effects: this.lspClientCompartment.reconfigure([]) }).state);
+    this.documents.keep(next);
+    if (!this.isOpen(file.path)) this.openFiles = [...this.openFiles, fileOf(next) ?? file];
+    // The file shown gains it: the client opens the file on the server
+    // with the text shown (didOpen), as the left one's is closed.
+    if (this.alsWorkerStatus === "active")
+      next = next.update({
+        effects: this.lspClientCompartment.reconfigure(this.lspClient!.plugin(`file://${file.path}`)),
+      }).state;
     this.documentEpoch += 1;
-    // The editor no longer shows what Agda holds, nor its highlighting.
-    this.session?.reloadNext("the editor's text was replaced");
-    this.currentFilePath = filePath;
-    this.currentStorageKey = storageKey;
+    // The editor no longer shows what Agda holds.
+    this.session?.reloadNext("the editor shows another file");
+    this.currentFile = fileOf(next) ?? file;
     this.checked = false;
     this.problems = [];
     this.interactionPoints = [];
@@ -1200,19 +1265,20 @@ export class AgdaController {
     this.lastResult = null;
     this.lastCheckDurationMs = undefined;
     this.planNote = "";
-    const length = this.editorView.state.doc.length;
-    this.editorView.dispatch({
-      changes: { from: 0, to: length, insert: source },
-      selection: { anchor: 0 },
-      effects:
-        pathChanged && this.alsWorkerStatus === "active"
-          ? this.lspClientCompartment.reconfigure(
-              this.lspClient!.plugin(`file://${this.currentFilePath}`),
-            )
-          : undefined,
-    });
-    this.persistDocument(source);
+    view.setState(next);
+    // Where it was left, or a file opened for the first time at its top.
+    view.dispatch({ effects: this.scrolled.get(file.path) ?? EditorView.scrollIntoView(0, { y: "start" }) });
   }
+
+  /** Close a file that is not on screen: its state, and its history, are
+   * forgotten; its text stays where the page keeps it.  Main stays open. */
+  closeDocument(path: string) {
+    if (path === this.currentFilePath || path === PLAYGROUND.file) return;
+    this.documents.close(path);
+    this.scrolled.delete(path);
+    this.openFiles = this.openFiles.filter((file) => file.path !== path);
+  }
+
 }
 
 /** An error in its own words. */
@@ -1259,3 +1325,4 @@ function interfacesByArchive(index: ArchiveIndex): Map<string, string[]> {
   }
   return map;
 }
+

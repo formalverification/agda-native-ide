@@ -28,19 +28,23 @@
   // are aria-disabled then; agda-algebras' modules never are), which rows
   // are expanded is kept in localStorage, and the open file is revealed and
   // marked current.  Activating the open file's row moves to it rather than
-  // loading it again.  Until issue 10 opens a library module, activating
-  // one selects it.  Before a check of the playground's Main, the page
-  // mounts the interface archives its imports need, and before it fetches
-  // one it shows how many bytes and asks (issue 14): the question sits at
-  // the foot of the code pane, as the minibuffer does, with no spinner,
-  // since nothing is under way while it waits; the fetch shows its progress
-  // in the inspector's heading, with a STOP.
+  // loading it again.  Until a library module opens, activating one selects
+  // it.  The editor keeps a state of its own for each open file, with its
+  // own history, shown with setState (issue 10, $lib/documents), so undo
+  // never crosses files, and each file's edits are saved under its own key
+  // whichever file is on screen; the open files are tabs.  Before a check
+  // of the playground's Main, the page mounts the interface archives its
+  // imports need, and before it fetches one it shows how many bytes and
+  // asks (issue 14): the question sits at the foot of the code pane, as the
+  // minibuffer does, with no spinner, since nothing is under way while it
+  // waits; the fetch shows its progress in the inspector's heading, with a
+  // STOP.
 
   import { onDestroy, onMount } from "svelte";
   import { setThemePreference, watchTheme, type ThemePreference } from "$lib/theme";
   import { basicSetup } from "codemirror";
   import { startCompletion } from "@codemirror/autocomplete";
-  import { Compartment, Prec } from "@codemirror/state";
+  import { EditorState, Prec, type Extension } from "@codemirror/state";
   import { EditorView, keymap } from "@codemirror/view";
   import { marked } from "marked";
   import {
@@ -69,10 +73,16 @@
   import {
     AgdaController,
     LS_DOC_KEY,
+    MAIN_FILE,
     MountStopped,
     PLAYGROUND,
     sizeWithBytes,
   } from "$lib/controller.svelte";
+  import {
+    DocumentSaver,
+    documentFile,
+    type DocumentFile,
+  } from "$lib/documents";
   import { missingFeatures, unsupportedBrowserNotice } from "$lib/support";
   import { cacheTokens } from "$lib/assets";
   import { asset } from "$app/paths";
@@ -180,7 +190,18 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   const controller = new AgdaController({
     agdaVersion: "2.9.0",
   });
-  const sourceLanguageCompartment = new Compartment();
+  /** Each file's edits saved under its own key, 250 ms after the last
+   * (issue 10). */
+  const saver = new DocumentSaver((key, text) => {
+    try {
+      localStorage.setItem(key, text);
+    } catch (error) {
+      console.warn(`Could not keep ${key} in the browser`, error);
+    }
+  });
+  /** What every file's editor state has (the page's keys, its listener,
+   * its theme), made with the editor. */
+  let editorExtensions: Extension = [];
 
   let editorHost: HTMLDivElement;
   let editor: EditorView | undefined;
@@ -209,7 +230,6 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   let inspectorWidth = $state(390);
   let didAutoLoad = false;
   let stopWatchingThemeChanges: (() => void) | undefined;
-  let saveTimer: ReturnType<typeof setTimeout> | undefined;
   let globalKeydown: ((event: KeyboardEvent) => void) | undefined;
   let editorScrollHandler: (() => void) | undefined;
   let readerScrollFrame = 0;
@@ -240,11 +260,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     }
     return ranges;
   });
-  const editorFileName = $derived(
-    workspaceMode === "plfa" && selectedChapter
-      ? `${selectedChapter.name}.lagda.md`
-      : "Main.agda",
-  );
+  const editorFileName = $derived(fileName(controller.currentFilePath));
 
   const isAgdaBusy = $derived(controller.iotcmStatus === "processing");
   // Work under way, which shows a spinner: Agda's, or a mount's.
@@ -252,6 +268,10 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   // Nothing else may start: work is under way, or the page waits for the
   // reader's answer to its question (issue 14), which shows no spinner.
   const isBusy = $derived(isWorking || controller.consent !== null || controller.planning);
+  const compilerReady = $derived(
+    controller.alsWorkerStatus === "active" &&
+      controller.iotcmStatus === "ready",
+  );
   const consentRequest = $derived(controller.consent);
   let consentRemember = $state(false);
   let consentForm = $state<HTMLFormElement>();
@@ -326,10 +346,6 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
         : [message("plfa:message", plfaError, "Indexing")],
     },
   ]);
-  const compilerReady = $derived(
-    controller.alsWorkerStatus === "active" &&
-      controller.iotcmStatus === "ready",
-  );
   // Agda did not start (this browser lacks what the page needs, or a step
   // of the startup failed), or its server stopped of its own accord.  The
   // banner says which.
@@ -417,6 +433,11 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     return `${minutes}m ${seconds}s`;
   }
 
+  /** A path's last part: the name a tab shows. */
+  function fileName(path: string) {
+    return path.slice(path.lastIndexOf("/") + 1);
+  }
+
   const commandMeta: Record<
     CommandKind,
     { title: string; description: string; placeholder: string; action: string }
@@ -462,151 +483,147 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       ? "dark" : document.documentElement.dataset.theme === "light" ? "light" : "system";
     const stopWatchingTheme = watchTheme();
     stopWatchingThemeChanges = stopWatchingTheme;
-    editor = new EditorView({
-      doc: localStorage.getItem(LS_DOC_KEY) ?? DEFAULT_SOURCE,
-      parent: editorHost,
-      extensions: [
-        basicSetup,
-        myCodeMirrorTheme(),
-        agdaSupport(),
-        sourceLanguageCompartment.of(agdaSourceLanguage()),
-        agdaCompletions(),
-        controller.lspClientCompartment.of([]),
-        symbolInput(),
-        Prec.highest(
-          keymap.of([
-            {
-              key: "Ctrl-c Ctrl-l",
-              run: () => runCheck(),
+    editorExtensions = [
+      basicSetup,
+      myCodeMirrorTheme(),
+      agdaSupport(),
+      agdaCompletions(),
+      symbolInput(),
+      Prec.highest(
+        keymap.of([
+          {
+            key: "Ctrl-c Ctrl-l",
+            run: () => runCheck(),
+          },
+          {
+            key: "Ctrl-c Ctrl-f",
+            run: () => moveGoal(1),
+          },
+          {
+            key: "Ctrl-c Ctrl-b",
+            run: () => moveGoal(-1),
+          },
+          {
+            key: "Ctrl-c Ctrl-Space",
+            run: () => runEditorAction(() => controller.give()),
+          },
+          {
+            key: "Ctrl-c Ctrl-r",
+            run: () => runEditorAction(() => controller.refine()),
+          },
+          {
+            key: "Ctrl-c Ctrl-c",
+            run: () => openEditorCommand("case"),
+          },
+          {
+            key: "Ctrl-c Ctrl-t",
+            run: () => runEditorAction(() => controller.queryGoalType()),
+          },
+          {
+            key: "Ctrl-c Ctrl-e",
+            run: () => runEditorAction(() => controller.queryContext()),
+          },
+          {
+            key: "Ctrl-c Ctrl-d",
+            run: () => openEditorCommand("infer"),
+          },
+          {
+            key: "Ctrl-c Ctrl-n",
+            run: () => openEditorCommand("normalize"),
+          },
+          {
+            key: "Ctrl-c Ctrl-?",
+            run: () => showGoals(),
+          },
+          {
+            // Stops a mount or Agda's command: both are under way when it
+            // is pressed, so it is not held back as other commands are.
+            key: "Ctrl-c Ctrl-x Ctrl-a",
+            run: () => {
+              stopWork();
+              return true;
             },
-            {
-              key: "Ctrl-c Ctrl-f",
-              run: () => moveGoal(1),
-            },
-            {
-              key: "Ctrl-c Ctrl-b",
-              run: () => moveGoal(-1),
-            },
-            {
-              key: "Ctrl-c Ctrl-Space",
-              run: () => runEditorAction(() => controller.give()),
-            },
-            {
-              key: "Ctrl-c Ctrl-r",
-              run: () => runEditorAction(() => controller.refine()),
-            },
-            {
-              key: "Ctrl-c Ctrl-c",
-              run: () => openEditorCommand("case"),
-            },
-            {
-              key: "Ctrl-c Ctrl-t",
-              run: () => runEditorAction(() => controller.queryGoalType()),
-            },
-            {
-              key: "Ctrl-c Ctrl-e",
-              run: () => runEditorAction(() => controller.queryContext()),
-            },
-            {
-              key: "Ctrl-c Ctrl-d",
-              run: () => openEditorCommand("infer"),
-            },
-            {
-              key: "Ctrl-c Ctrl-n",
-              run: () => openEditorCommand("normalize"),
-            },
-            {
-              key: "Ctrl-c Ctrl-?",
-              run: () => showGoals(),
-            },
-            {
-              // Stops a mount or Agda's command: both are under way when it
-              // is pressed, so it is not held back as other commands are.
-              key: "Ctrl-c Ctrl-x Ctrl-a",
-              run: () => {
-                stopWork();
-                return true;
-              },
-            },
-            {
-              key: "Ctrl-Space",
-              run: startCompletion,
-            },
-            {
-              key: "Mod-Enter",
-              run: () => runCheck(),
-            },
-          ]),
-        ),
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
-            // The question was about the text before this edit.
-            if (controller.consent) answerConsent("cancel");
+          },
+          {
+            key: "Ctrl-Space",
+            run: startCompletion,
+          },
+          {
+            key: "Mod-Enter",
+            run: () => runCheck(),
+          },
+        ]),
+      ),
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          // The question was about the text before this edit.
+          if (controller.consent) answerConsent("cancel");
+          inspectorPreference = "goals";
+          if (workspaceMode === "plfa")
+            plfaMarkdown = update.state.doc.toString();
+          // Saved under the key of the file edited, whichever is on
+          // screen when the save runs (issue 10).
+          saver.schedule(update.state);
+        }
+        if (update.selectionSet) {
+          const head = update.state.selection.main.head;
+          const selected = controller
+            .getGoals()
+            .find((goal) => goal.from <= head && head <= goal.to);
+          if (selected) {
+            controller.activeGoalId = selected.id;
             inspectorPreference = "goals";
-            if (workspaceMode === "plfa")
-              plfaMarkdown = update.state.doc.toString();
-            if (saveTimer) clearTimeout(saveTimer);
-            saveTimer = setTimeout(
-              () => controller.persistDocument(update.state.doc.toString()),
-              250,
-            );
           }
-          if (update.selectionSet) {
-            const head = update.state.selection.main.head;
-            const selected = controller
-              .getGoals()
-              .find((goal) => goal.from <= head && head <= goal.to);
-            if (selected) {
-              controller.activeGoalId = selected.id;
-              inspectorPreference = "goals";
-            }
-          }
-        }),
-        EditorView.theme({
-          "&": { background: "var(--editor-surface)", color: "var(--editor-text)", fontSize: "14px" },
-          ".cm-scroller": { overscrollBehavior: "contain", lineHeight: "1.72" },
-          ".cm-content": { padding: "18px 0 80px" },
-          ".cm-gutters": {
-            background: "var(--editor-gutter-surface)",
-            color: "var(--editor-gutter-text)",
-            borderRight: "1px solid var(--editor-line)",
-          },
-          ".cm-activeLine, .cm-activeLineGutter": { background: "var(--editor-active-line)" },
-          ".cm-cursor": { borderLeftColor: "var(--editor-cursor)", borderLeftWidth: "2px" },
-          ".agda-hole": {
-            background: "var(--goal-surface)",
-            outline: "1px solid var(--goal-line)",
-            borderRadius: "0",
-          },
-          ".agda-goal-marker": {
-            background: "var(--editor-cursor)",
-            color: "var(--goal-marker-text)",
-            borderRadius: "0",
-            padding: "0 5px",
-            marginRight: "3px",
-            fontSize: "10px",
-            fontFamily: "Inter, sans-serif",
-          },
-          ".cm-tooltip": {
-            border: "1px solid var(--tooltip-line)",
-            borderRadius: "0",
-            boxShadow: "none",
-            background: "var(--surface)",
-          },
-          ".cm-lsp-documentation": {
-            padding: "9px 11px",
-            fontFamily: "JuliaMono, monospace",
-            fontSize: "12px",
-          },
-          ".symbol-input-candidates": {
-            background: "var(--surface)",
-            border: "1px solid var(--tooltip-line)",
-            boxShadow: "none",
-          },
-        }),
-      ],
+        }
+      }),
+      EditorView.theme({
+        "&": { background: "var(--editor-surface)", color: "var(--editor-text)", fontSize: "14px" },
+        ".cm-scroller": { overscrollBehavior: "contain", lineHeight: "1.72" },
+        ".cm-content": { padding: "18px 0 80px" },
+        ".cm-gutters": {
+          background: "var(--editor-gutter-surface)",
+          color: "var(--editor-gutter-text)",
+          borderRight: "1px solid var(--editor-line)",
+        },
+        ".cm-activeLine, .cm-activeLineGutter": { background: "var(--editor-active-line)" },
+        ".cm-cursor": { borderLeftColor: "var(--editor-cursor)", borderLeftWidth: "2px" },
+        ".agda-hole": {
+          background: "var(--goal-surface)",
+          outline: "1px solid var(--goal-line)",
+          borderRadius: "0",
+        },
+        ".agda-goal-marker": {
+          background: "var(--editor-cursor)",
+          color: "var(--goal-marker-text)",
+          borderRadius: "0",
+          padding: "0 5px",
+          marginRight: "3px",
+          fontSize: "10px",
+          fontFamily: "Inter, sans-serif",
+        },
+        ".cm-tooltip": {
+          border: "1px solid var(--tooltip-line)",
+          borderRadius: "0",
+          boxShadow: "none",
+          background: "var(--surface)",
+        },
+        ".cm-lsp-documentation": {
+          padding: "9px 11px",
+          fontFamily: "JuliaMono, monospace",
+          fontSize: "12px",
+        },
+        ".symbol-input-candidates": {
+          background: "var(--surface)",
+          border: "1px solid var(--tooltip-line)",
+          boxShadow: "none",
+        },
+      }),
+    ];
+    editor = new EditorView({
+      state: createEditorState(MAIN_FILE, localStorage.getItem(LS_DOC_KEY) ?? DEFAULT_SOURCE),
+      parent: editorHost,
     });
-    controller.connectEditorView(editor);
+    controller.connectEditorView(editor, createEditorState);
     editorScrollHandler = () => scheduleScrollSync("editor");
     editor.scrollDOM.addEventListener("scroll", editorScrollHandler, {
       passive: true,
@@ -628,6 +645,8 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       }
     };
     window.addEventListener("keydown", globalKeydown, { capture: true });
+    // A reload or a navigation away saves what waits.
+    window.addEventListener("pagehide", flushSaves);
 
     plfaManifestPromise = fetch("/plfa/manifest.json")
       .then((response) => {
@@ -674,6 +693,23 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     });
   });
 
+  const flushSaves = () => saver.flush();
+
+  /** A file's editor state (issue 10): its own text, history and language,
+   * the language server's place (empty until the file is shown with Agda
+   * up), and what every state has. */
+  function createEditorState(file: DocumentFile, text: string) {
+    return EditorState.create({
+      doc: text,
+      extensions: [
+        documentFile.of(file),
+        file.path.endsWith(".lagda.md") ? literateAgdaLanguage() : agdaSourceLanguage(),
+        controller.lspClientCompartment.of([]),
+        editorExtensions,
+      ],
+    });
+  }
+
   function loadPlfaInterfaceManifest() {
     if (plfaInterfaceManifestPromise) return plfaInterfaceManifestPromise;
     plfaInterfaceManifestPromise = fetch(
@@ -714,12 +750,15 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
 
   onDestroy(() => {
     stopWatchingThemeChanges?.();
-    if (saveTimer) clearTimeout(saveTimer);
+    // What waits to be saved is saved now, not dropped.
+    flushSaves();
     if (scrollSyncRelease) clearTimeout(scrollSyncRelease);
     if (readerScrollFrame) cancelAnimationFrame(readerScrollFrame);
     if (editorScrollFrame) cancelAnimationFrame(editorScrollFrame);
-    if (globalKeydown)
+    if (globalKeydown) {
       window.removeEventListener("keydown", globalKeydown, { capture: true });
+      window.removeEventListener("pagehide", flushSaves);
+    }
     if (editorScrollHandler && editor)
       editor.scrollDOM.removeEventListener("scroll", editorScrollHandler);
     controller.terminateALSWASM();
@@ -1000,18 +1039,21 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     plfaError = "";
 
     try {
-      const sourceResponse = await fetch(chapter.sourcePath);
-      if (!sourceResponse.ok) throw new Error(`Could not open ${chapter.name}`);
-      const originalSource = await sourceResponse.text();
-      if (request !== chapterRequest) return;
-
-      const storageKey = `agda-web-ide-beta:plfa-lagda:${chapter.id}`;
-      const source = localStorage.getItem(storageKey) ?? originalSource;
-      plfaMarkdown = source;
-      editor?.dispatch({
-        effects: sourceLanguageCompartment.reconfigure(literateAgdaLanguage()),
-      });
-      controller.setDocument(source, chapter.modulePath, storageKey);
+      const file: DocumentFile = {
+        path: chapter.modulePath,
+        storageKey: `agda-web-ide-beta:plfa-lagda:${chapter.id}`,
+      };
+      // A chapter open already is shown as it was left (issue 10).
+      let source: string | undefined;
+      if (!controller.isOpen(file.path)) {
+        const sourceResponse = await fetch(chapter.sourcePath);
+        if (!sourceResponse.ok) throw new Error(`Could not open ${chapter.name}`);
+        const originalSource = await sourceResponse.text();
+        if (request !== chapterRequest) return;
+        source = localStorage.getItem(file.storageKey!) ?? originalSource;
+      }
+      controller.showDocument(file, source);
+      plfaMarkdown = editor?.state.doc.toString() ?? "";
       readerContent?.scrollTo({ top: 0 });
       if (controller.driveIsCreated)
         void runAction(() => ensurePlfaInterfaces(chapter));
@@ -1022,16 +1064,17 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     }
   }
 
-  function openPlayground() {
+  /** Open the playground's Main, as it was left (issue 10), or from the
+   * text the browser keeps; then check it. */
+  function openPlayground(file: DocumentFile = MAIN_FILE) {
     if (isBusy) return;
     chapterRequest++;
     workspaceMode = "playground";
     activeResource = "agda";
-    const source = localStorage.getItem(LS_DOC_KEY) ?? DEFAULT_SOURCE;
-    editor?.dispatch({
-      effects: sourceLanguageCompartment.reconfigure(agdaSourceLanguage()),
-    });
-    controller.setDocument(source, PLAYGROUND.file, LS_DOC_KEY);
+    const source = controller.isOpen(file.path)
+      ? undefined
+      : (localStorage.getItem(file.storageKey!) ?? (file.path === PLAYGROUND.file ? DEFAULT_SOURCE : ""));
+    controller.showDocument(file, source);
     setTimeout(() => editor?.focus());
     if (compilerReady)
       setTimeout(() => {
@@ -1049,18 +1092,30 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     }
   }
 
-  /** A file the Explorer opens: the playground's, or a PLFA chapter.  A
-   * module of agda-algebras opens with issue 10; until then the tree
-   * selects it, and nothing more.  The file already open is not loaded
-   * again, which would put its stored copy in place of the last quarter
-   * second's typing (saving waits 250 ms) and reset the cursor and the
-   * reader; the focus moves to it instead. */
+  /** A file the Explorer or a tab opens: the playground's Main, or a PLFA
+   * chapter.  A module of agda-algebras does not open yet; the tree selects
+   * it, and nothing more.  The file on screen is not opened again, which
+   * would reset the cursor and the reader; the focus moves to it instead. */
   function openFromExplorer(item: TreeItem) {
     if (item.path === controller.currentFilePath)
       return focusResource(workspaceMode === "plfa" ? "markdown" : "agda");
-    if (item.path === PLAYGROUND.file) return openPlayground();
-    const chapter = plfaChapters.find((entry) => entry.modulePath === item.path);
+    if (item.path) openPath(item.path);
+  }
+
+  /** Open the file at `path`. */
+  function openPath(path: string) {
+    if (path === controller.currentFilePath) return focusResource(workspaceMode === "plfa" ? "markdown" : "agda");
+    if (path === PLAYGROUND.file) return openPlayground(MAIN_FILE);
+    const chapter = plfaChapters.find((entry) => entry.modulePath === path);
     if (chapter) void openPlfaChapter(chapter);
+  }
+
+  /** Close a tab: its file's state, and its history, are forgotten; the
+   * file on screen gives way to Main first. */
+  function closeTab(path: string) {
+    if (isBusy || path === PLAYGROUND.file) return;
+    if (path === controller.currentFilePath) openPlayground(MAIN_FILE);
+    if (path !== controller.currentFilePath) controller.closeDocument(path);
   }
 
   function focusResource(resource: ActiveResource) {
@@ -1229,12 +1284,30 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       {/if}
       <section class="code-pane">
         <div class="editor-tabs">
-          <button
-            class="editor-tab active"
-            onclick={() => focusResource("agda")}
-          >
-            <FileCode size={15} /><span>{editorFileName}</span>
-          </button>
+          <div class="editor-tab-list" role="toolbar" aria-label="Open files">
+            {#each controller.openFiles as file (file.path)}
+              {@const current = file.path === controller.currentFilePath}
+              <div class="editor-tab" class:active={current} title={file.path}>
+                <button
+                  class="editor-tab-open"
+                  aria-current={current ? "page" : undefined}
+                  aria-disabled={!current && isBusy ? "true" : undefined}
+                  onclick={() => (current ? focusResource("agda") : !isBusy && openPath(file.path))}
+                >
+                  <FileCode size={15} /><span
+                    >{fileName(file.path)}</span
+                  >
+                </button>
+                {#if file.path !== PLAYGROUND.file}<button
+                    class="tab-close"
+                    aria-label={`Close ${fileName(file.path)}`}
+                    title="Close"
+                    disabled={isBusy}
+                    onclick={() => closeTab(file.path)}><X size={12} /></button
+                  >{/if}
+              </div>
+            {/each}
+          </div>
           <label class="theme-control">
             <span>Theme</span>
             <select
@@ -1852,15 +1925,48 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     border-radius: 0;
     cursor: pointer;
   }
+  /* The open files, one tab each (issue 10), scrolling sideways when
+     they do not fit. */
+  .editor-tab-list {
+    min-width: 0;
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
   .editor-tab {
     min-width: 140px;
+    flex: none;
     display: flex;
     align-items: center;
     gap: 7px;
-    padding: 0 12px;
+    padding: 0 8px 0 12px;
     color: var(--muted);
     border-right: 1px solid var(--line);
     font-size: 12px;
+  }
+  .editor-tab-open {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+  }
+  .editor-tab-open[aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+  .tab-close {
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    color: inherit;
+  }
+  .tab-close:not(:disabled):hover {
+    opacity: 1;
+    color: var(--accent-strong);
+    background: var(--accent-soft);
   }
   .editor-tab.active {
     position: relative;
@@ -1874,7 +1980,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     height: 2px;
     background: var(--accent);
   }
-  .editor-tab :global(svg:first-child) {
+  .editor-tab-open :global(svg:first-child) {
     color: var(--accent);
   }
   :global(.tab-close) {
