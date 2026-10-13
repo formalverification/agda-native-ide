@@ -1087,7 +1087,7 @@ Work on this repository is no longer done by one harness.  Codex CLI with GPT-6.
 
 <!-- BEGIN GENERATED: milestone-1 -->
 
-### Issue M1-1: A library Explorer: every module, as a tree, from a manifest (#9)
+### Issue M1-1: A library Explorer: every module, as a tree, from a manifest (#9, closed)
 
 **Labels:** `milestone-1-library-ide`, `ui`
 
