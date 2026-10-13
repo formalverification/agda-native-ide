@@ -19,7 +19,14 @@
   // ready" (issue 8).  Colors use the shared tokens in static/theme.css
   // (issue 17).  The playground's Main.agda is /play/Main.agda, a module of
   // a project of its own over the standard library and agda-algebras
-  // ($lib/controller.svelte, PLAYGROUND; issue 11).
+  // ($lib/controller.svelte, PLAYGROUND; issue 11).  The Explorer is one
+  // tree (ExplorerTree, from the views package; issue 9) of three
+  // sections: the playground, every module of agda-algebras, from the
+  // list the build writes (agda-algebras-modules.json), and PLFA's
+  // chapters, by part.  Its rows stay enabled while Agda is busy, which
+  // rows are expanded is kept in localStorage, and the open file is
+  // revealed and marked current.  Until issue 10 opens a library module,
+  // activating one selects it.
 
   import { onDestroy, onMount } from "svelte";
   import { setThemePreference, watchTheme, type ThemePreference } from "$lib/theme";
@@ -33,13 +40,10 @@
     ArrowRight,
     BookOpen,
     Braces,
-    ChevronDown,
-    ChevronRight,
     CircleAlert,
     CircleCheck,
     FileCode,
     FolderOpen,
-    FileText,
     Info,
     ListChecks,
     LoaderCircle,
@@ -56,6 +60,7 @@
   import { AgdaController, LS_DOC_KEY, PLAYGROUND } from "$lib/controller.svelte";
   import { missingFeatures, unsupportedBrowserNotice } from "$lib/support";
   import { cacheTokens } from "$lib/assets";
+  import { asset } from "$app/paths";
   import { myCodeMirrorTheme } from "$lib/codemirror/theme";
   import { agdaCompletions } from "$lib/codemirror/completion";
   import { symbolInput } from "$lib/codemirror/symbol-input";
@@ -64,16 +69,25 @@
     literateAgdaLanguage,
   } from "$lib/codemirror/agda-language";
   import { agdaSupport } from "$lib/agda";
-  import { GoalList, ProblemList, ResultView } from "@agda-native-ide/views";
+  import {
+    ExplorerTree,
+    GoalList,
+    moduleTree,
+    ProblemList,
+    ResultView,
+    type TreeItem,
+  } from "@agda-native-ide/views";
   import {
     archiveUrls,
     chapters as corpusChapters,
     parseCorpusManifest,
     parseInterfaceManifest,
+    parseLibraryManifest,
     planChapterArchives,
     type Chapter,
     type CorpusManifest,
     type InterfaceManifest,
+    type LibraryManifest,
   } from "@agda-native-ide/manifest";
 
   // The playground's default Main.agda (issue 11): agda-algebras' options
@@ -131,6 +145,21 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
 
   type PlfaChapter = Chapter;
 
+  /** Where the Explorer keeps which of its rows are expanded, and what it
+   * shows on a first visit: its three sections, and PLFA's first part. */
+  const EXPLORER_KEY = "agda-web-ide-beta:explorer:expanded";
+  const EXPLORER_DEFAULT = ["section:play", "section:agda-algebras", "section:plfa", "plfa:part1"];
+
+  function storedExplorerExpanded(): string[] {
+    try {
+      const stored: unknown = JSON.parse(localStorage.getItem(EXPLORER_KEY) ?? "null");
+      if (Array.isArray(stored) && stored.every((id) => typeof id === "string")) return stored;
+    } catch {
+      // Refused or unreadable storage: the first visit's rows.
+    }
+    return EXPLORER_DEFAULT;
+  }
+
   const controller = new AgdaController({
     agdaVersion: "2.9.0",
   });
@@ -144,8 +173,9 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   let themePreference = $state<ThemePreference>("system");
   let workspaceMode = $state<WorkspaceMode>("playground");
   let activeResource = $state<ActiveResource>("agda");
-  let plfaExpanded = $state(true);
-  let expandedGroups = $state<Record<string, boolean>>({ part1: true });
+  let explorerExpanded = $state<string[]>(storedExplorerExpanded());
+  let libraryModules = $state<LibraryManifest | null>(null);
+  let libraryError = $state("");
   let plfaManifest = $state<CorpusManifest | null>(null);
   let plfaInterfaceManifest = $state<InterfaceManifest | null>(null);
   let plfaInterfaceManifestPromise: Promise<InterfaceManifest | null> | null =
@@ -201,6 +231,77 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
 
   const isAgdaBusy = $derived(controller.iotcmStatus === "processing");
   const isBusy = $derived(isAgdaBusy || controller.driveArchiveLoading);
+
+  // agda-algebras' rows, built once from its module list.
+  const libraryItems = $derived(
+    libraryModules ? moduleTree(libraryModules.modules, "agda-algebras:") : null,
+  );
+  // A section's rows while they load, or why they could not.
+  const message = (id: string, error: string, loading: string): TreeItem => ({
+    id,
+    label: error || loading,
+    kind: error ? "error" : "message",
+  });
+  // The Explorer's sections.  The playground's file and PLFA's chapters
+  // open only while Agda is idle, as the page has always done, so they are
+  // aria-disabled meanwhile; agda-algebras' modules, which do not open
+  // yet, never are.
+  const explorerItems = $derived.by((): TreeItem[] => [
+    {
+      id: "section:play",
+      label: "Playground",
+      kind: "section",
+      children: [
+        {
+          id: "play:Main",
+          label: "Main.agda",
+          kind: "file",
+          path: PLAYGROUND.file,
+          name: "Main",
+          title: PLAYGROUND.file,
+          mark: "Saved locally",
+          disabled: isBusy,
+        },
+      ],
+    },
+    {
+      id: "section:agda-algebras",
+      label: "agda-algebras",
+      kind: "section",
+      title: libraryModules
+        ? `agda-algebras at ${libraryModules.commit?.slice(0, 8) ?? "its pin"}: ${libraryModules.modules.length} modules`
+        : undefined,
+      children: libraryItems ?? [
+        message("agda-algebras:message", libraryError, "Loading the modules…"),
+      ],
+    },
+    {
+      id: "section:plfa",
+      label: "PLFA",
+      kind: "section",
+      children: plfaManifest
+        ? plfaManifest.groups.map((group) => ({
+            id: `plfa:${group.id}`,
+            label: group.title,
+            kind: "folder" as const,
+            title: group.title,
+            children: group.chapters.map((chapter) => ({
+              id: `plfa:${chapter.id}`,
+              label: `${chapter.name}.lagda.md`,
+              kind: "module" as const,
+              path: chapter.modulePath,
+              name: chapter.modulePath
+                .slice(1)
+                .replace(/\.lagda\.md$/, "")
+                .split("/")
+                .join("."),
+              title: chapter.title,
+              disabled: isBusy,
+            })),
+          }))
+        : [message("plfa:message", plfaError, "Indexing")],
+    },
+  ]);
   const compilerReady = $derived(
     controller.alsWorkerStatus === "active" &&
       controller.iotcmStatus === "ready",
@@ -496,6 +597,22 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       });
 
     void loadPlfaInterfaceManifest();
+
+    fetch(
+      `${asset("/agda-algebras-modules.json")}?cache=${cacheTokens.agdaAlgebrasModules}`,
+    )
+      .then((response) => {
+        if (!response.ok)
+          throw new Error(`Could not load agda-algebras' modules (HTTP ${response.status})`);
+        return response.json();
+      })
+      .then((json) => {
+        const parsed = parseLibraryManifest(json);
+        if (!parsed.ok)
+          throw new Error(`Could not read agda-algebras' modules: ${parsed.error}`);
+        libraryModules = parsed.value;
+      })
+      .catch((error) => (libraryError = readableError(error)));
 
     const missing = missingFeatures();
     if (missing.length) {
@@ -800,10 +917,6 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     workspaceMode = "plfa";
     activeResource = "markdown";
     selectedChapterId = chapter.id;
-    expandedGroups = {
-      ...expandedGroups,
-      [chapter.id.split("/")[0]]: true,
-    };
     plfaLoading = true;
     plfaError = "";
 
@@ -843,6 +956,25 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     setTimeout(() => editor?.focus());
     if (compilerReady)
       setTimeout(() => void runAction(() => controller.loadAgdaFile()), 50);
+  }
+
+  /** Which Explorer rows are expanded, kept for the next visit. */
+  function setExplorerExpanded(expanded: string[]) {
+    explorerExpanded = expanded;
+    try {
+      localStorage.setItem(EXPLORER_KEY, JSON.stringify(expanded));
+    } catch {
+      // A refused store still expands the rows for this visit.
+    }
+  }
+
+  /** A file the Explorer opens: the playground's, or a PLFA chapter.  A
+   * module of agda-algebras opens with issue 10; until then the tree
+   * selects it, and nothing more. */
+  function openFromExplorer(item: TreeItem) {
+    if (item.path === PLAYGROUND.file) return openPlayground();
+    const chapter = plfaChapters.find((entry) => entry.modulePath === item.path);
+    if (chapter) void openPlfaChapter(chapter);
   }
 
   function focusResource(resource: ActiveResource) {
@@ -939,75 +1071,17 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
         ><FolderOpen size={19} /></button
       >
     </aside>
-    <aside class="explorer">
+    <aside class="explorer" aria-label="Explorer">
       <div class="section-label">EXPLORER</div>
-      <div class="tree-root open">
-        <ChevronDown size={13} /><span>PLAYGROUND</span>
-      </div>
-      <button
-        class:active={workspaceMode === "playground"}
-        class="file-row"
-        onclick={openPlayground}
-        disabled={isBusy}
-        ><FileCode size={15} /><span>Main.agda</span><span
-          class="dirty-dot"
-          title="Saved locally"
-        ></span></button
-      >
-      <button
-        class:open={plfaExpanded}
-        class="tree-root tree-button"
-        onclick={() => (plfaExpanded = !plfaExpanded)}
-        aria-expanded={plfaExpanded}
-      >
-        {#if plfaExpanded}<ChevronDown size={13} />{:else}<ChevronRight
-            size={13}
-          />{/if}<span>PLFA</span>
-      </button>
-      {#if plfaExpanded}
-        {#if plfaManifest}
-          <div class="plfa-tree">
-            {#each plfaManifest.groups as group}
-              <button
-                class="tree-part"
-                onclick={() =>
-                  (expandedGroups = {
-                    ...expandedGroups,
-                    [group.id]: !expandedGroups[group.id],
-                  })}
-                aria-expanded={Boolean(expandedGroups[group.id])}
-                title={group.title}
-              >
-                {#if expandedGroups[group.id]}<ChevronDown
-                    size={12}
-                  />{:else}<ChevronRight size={12} />{/if}<span
-                  >{group.id.toUpperCase()}</span
-                >
-              </button>
-              {#if expandedGroups[group.id]}
-                {#each group.chapters as chapter}
-                  <button
-                    class:active={workspaceMode === "plfa" &&
-                      selectedChapterId === chapter.id}
-                    class="chapter-row"
-                    onclick={() => void openPlfaChapter(chapter)}
-                    disabled={isBusy}
-                    title={chapter.title}
-                  >
-                    <FileText size={14} /><span>{chapter.name}.lagda.md</span>
-                  </button>
-                {/each}
-              {/if}
-            {/each}
-          </div>
-        {:else if plfaError}
-          <div class="tree-message error">{plfaError}</div>
-        {:else}
-          <div class="tree-message">
-            <LoaderCircle size={13} class="spin" />Indexing
-          </div>
-        {/if}
-      {/if}
+      <ExplorerTree
+        label="Files"
+        filterLabel="Filter files by name"
+        items={explorerItems}
+        expanded={explorerExpanded}
+        current={controller.currentFilePath}
+        onexpandedchange={setExplorerExpanded}
+        onopen={openFromExplorer}
+      />
     </aside>
 
     <section class:lesson-open={workspaceMode === "plfa"} class="editor-pane">
@@ -1385,108 +1459,6 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     padding: 0 12px;
     font-size: 10px;
     letter-spacing: 0.09em;
-  }
-  .tree-root {
-    height: 27px;
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    padding: 0 7px;
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--explorer-heading);
-  }
-  .tree-button {
-    width: 100%;
-    flex: none;
-    text-align: left;
-  }
-  .tree-button:hover,
-  .tree-part:hover {
-    background: var(--activity-surface);
-  }
-  .file-row {
-    height: 31px;
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    width: 100%;
-    padding: 0 11px 0 22px;
-    color: var(--explorer-text);
-    text-align: left;
-    font-size: 12px;
-  }
-  .file-row.active {
-    color: var(--text);
-    background: var(--explorer-active-surface);
-    border-left: 3px solid var(--accent);
-  }
-  .file-row :global(svg) {
-    color: var(--accent);
-  }
-  .plfa-tree {
-    min-height: 0;
-    flex: 1;
-    overflow-y: auto;
-    padding-bottom: 12px;
-    border-top: 1px solid var(--explorer-line);
-  }
-  .tree-part,
-  .chapter-row {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    text-align: left;
-    color: var(--explorer-text);
-  }
-  .tree-part {
-    height: 27px;
-    gap: 3px;
-    padding: 0 9px;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-  }
-  .chapter-row {
-    height: 29px;
-    gap: 6px;
-    padding: 0 8px 0 23px;
-    font-size: 11px;
-  }
-  .chapter-row:hover {
-    background: var(--explorer-hover-surface);
-  }
-  .chapter-row.active {
-    color: var(--accent-strong);
-    background: var(--chapter-active-surface);
-  }
-  .chapter-row :global(svg) {
-    flex: none;
-    color: var(--chapter-icon);
-  }
-  .chapter-row span {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .tree-message {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 9px 13px 9px 22px;
-    color: var(--muted);
-    font-size: 10px;
-  }
-  .tree-message.error {
-    color: var(--error);
-  }
-  .dirty-dot {
-    width: 6px;
-    height: 6px;
-    margin-left: auto;
-    border-radius: 50%;
-    background: var(--saved-indicator);
   }
   .editor-pane {
     min-width: 0;
