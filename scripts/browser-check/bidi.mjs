@@ -30,6 +30,8 @@ const KEYS = /** @type {Record<string, string>} */ ({
   ArrowDown: "",
   End: "",
   Enter: "",
+  Backspace: "\uE003",
+  Delete: "\uE017",
   Control: "",
   Alt: "",
   Meta: "",

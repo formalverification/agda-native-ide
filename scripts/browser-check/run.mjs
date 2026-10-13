@@ -15,7 +15,7 @@
 //       status bar, which the page's description must name too;
 //   2.  checks the Explorer's tree (./explorer.mjs, issue 9): its roles,
 //       the open file marked current, the arrow keys from the tab stop to
-//       a module of agda-algebras, Enter selecting it without opening it,
+//       a module of agda-algebras, Space selecting it without opening it,
 //       every module listed, in the list's order, once every row is
 //       opened with the arrow keys, and the filter;
 //   3.  runs Infer on length-hom from the command strip, and asserts the
@@ -39,41 +39,63 @@
 //       archive requested while it waits; Esc cancels it, and a second
 //       check asks again; Fetch fetches exactly those archives, and the
 //       check type-checks Main alone;
-//   8.  closes the Explorer's section that holds the open file, and
+//   8.  a library module, read-only (issue 10): types into Main, then opens
+//       Overture.Signatures with Enter on its Explorer row, and asserts
+//       that the page asks nothing and fetches nothing (Main's import
+//       mounted its closure), that Agda type-checked nothing (it accepted
+//       the module's own interface), that a line says it is the checked
+//       library and links its page, that it is read-only and a keystroke,
+//       a newline, a deletion or an undo changes nothing, that Infer
+//       answers in its scope, that the drive's cache holds no copy of it
+//       (nothing was written), and, in Chromium, that hover over a name
+//       after two characters outside the Basic Multilingual Plane answers
+//       that name's type; then Main again, from its tab, still holds what
+//       was typed, and undo takes back that, and only that;
+//   9.  a copy into the playground: from the library's line, a name Agda
+//       finds already is refused; the module's copy, /play/Signatures,
+//       opens editable, is listed in the Explorer, checks with only itself
+//       type-checked, and a goal added to it answers its type, its context
+//       and a give; the control: the library's name in its module line is
+//       refused by Agda ([LibTooFarDown]), and undo puts its own back;
+//  10.  a selection's copy, of two lines selected with the keyboard (the
+//       module's code through them), checks with only itself type-checked;
+//       the library's line adds `open import` of the module to Main, which
+//       checks, and undo takes it back;
+//  11.  closes the Explorer's section that holds the open file, and
 //       reloads: the rows expanded before still are, and the open file is
 //       revealed; then opens a PLFA chapter from the reader's Next, in a
 //       part that is closed, far below the tree's top, and asserts the tree
 //       opens the part and scrolls the chapter's row into view (issue 9);
-//   9.  a second visit: once the browser keeps the archives, reloads in the
+//  12.  a second visit: once the browser keeps the archives, reloads in the
 //       same profile, and asserts that the automatic check asks nothing,
 //       requests no archive, mounts the 3 from the browser's store and
 //       type-checks Main alone, and that a drive cache of another
 //       namespace, made before the reload, is gone;
-//  10.  imports Setoid.Varieties.HSP, the milestone's import: the question
+//  13.  imports Setoid.Varieties.HSP, the milestone's import: the question
 //       states the bytes of the archives not yet mounted, Fetch fetches
 //       exactly those, and Main alone is type-checked; while the mount and
 //       the check run, it uses the Explorer, in one call inside the page: a
 //       key and the filter work, and only the rows the page cannot open
 //       then are aria-disabled (issue 9); a check after an edit that
 //       imports nothing new asks nothing and fetches nothing;
-//  11.  a changed archive: puts in the store what a browser that visited
+//  14.  a changed archive: puts in the store what a browser that visited
 //       an earlier deploy holds (one archive under another digest, its
 //       current copy absent), reloads, and asserts that the stale copy is
 //       evicted, that the automatic check asks for that archive alone,
 //       without taking the focus, and, answered with the answer
 //       remembered, fetches it once, at its current URL, and type-checks
 //       Main alone;
-//  12.  a remembered answer: with another archive gone from the store,
+//  15.  a remembered answer: with another archive gone from the store,
 //       reloads, and asserts that the page asks nothing, states the bytes
 //       in the status bar before the request (on the page's clock, as
 //       measured), and fetches that archive alone;
-//  13.  a declined fetch: with the remembered answer forgotten and one
+//  16.  a declined fetch: with the remembered answer forgotten and one
 //       more archive gone, the page asks for it alone; Check from source
 //       requests nothing, says so in a note, mounts the archives the
 //       browser keeps, and Agda type-checks the declined archive's
 //       modules alone (with Main, or not), accepting the archived
 //       interfaces above them;
-//  14.  in Chromium, exercises the theme choices, persistence, system
+//  17.  in Chromium, exercises the theme choices, persistence, system
 //       changes, first-frame colors and narrow viewports (issue 17).
 //
 // The server sends `no-store` for agda-algebras' index and archives, so
@@ -161,6 +183,43 @@ const HSP = {
     "import Setoid.Varieties.HSP\n",
   module: "Setoid.Varieties.HSP",
   infer: "Setoid.Varieties.HSP.Birkhoff",
+};
+
+/** The library step's module (issue 10), which the import step's Main
+ * imports, so its archives are mounted when it opens: its path on the
+ * drive and on agda-algebras' site, an expression only its scope types
+ * (Main imports it without opening it), with the type, and a line where
+ * `Signature` follows two characters outside the Basic Multilingual
+ * Plane, which hover must still find. */
+const READ_ONLY = {
+  module: "Overture.Signatures",
+  path: "/agda-algebras/src/Overture/Signatures.lagda.md",
+  tab: "Signatures.lagda.md",
+  page: "https://agda-algebras.universalalgebra.org/Overture/Signatures/",
+  infer: "Signature",
+  type: "(𝓞 𝓥 : Level) → Type (lsuc 𝓞 ⊔ lsuc 𝓥)",
+  hoverLine: "Level-of-Signature : {𝓞 𝓥 : Level} → Signature 𝓞 𝓥 → Level",
+  hover: "(𝓞 𝓥 : Agda.Primitive.Level) →",
+  /** An edit to Main before it opens, which undo there must take back. */
+  mainEdit: "\n-- an edit made before the library's module opens\n",
+};
+
+/** The copy step's copies (issue 10): the module's, its goal and the term
+ * that fills it (followed by prose, so that the give's highlighting stays
+ * inside the text Agda loaded), and the selection's. */
+const COPY = {
+  refused: "Overture",
+  name: "Signatures",
+  path: "/play/Signatures.lagda.md",
+  goal: "\n```agda\nsig-ops : Signature 𝓞 𝓥 → Type 𝓞\nsig-ops 𝑆 = {! !}\n```\n\nThe operation symbols of a signature.\n",
+  goalType: "Type 𝓞",
+  give: "proj₁ 𝑆",
+  given: "sig-ops 𝑆 = proj₁ 𝑆",
+  libTooFarDown:
+    ": error: [LibTooFarDown]\nAn .agda-lib file for Overture.Signatures\nmust not be located in the directory /play",
+  selectionFrom: "Signature : (𝓞 𝓥 : Level)",
+  selectionName: "SignatureType",
+  selectionPath: "/play/SignatureType.agda",
 };
 
 /** Where the page keeps the archives, and the drive's caches (the engine's
@@ -363,6 +422,14 @@ const state = () => ({
     (line) => line.textContent,
   ),
   banner: document.querySelector(".fatal-banner")?.textContent?.trim() ?? null,
+  // The open files, by path, and the one on screen; whether it is
+  // read-only, and the line that says so (issue 10).
+  tabs: [...document.querySelectorAll(".editor-tab")].map((tab) => tab.getAttribute("title")),
+  tab: document.querySelector(".editor-tab.active")?.getAttribute("title") ?? null,
+  readOnly: document.querySelector(".cm-content")?.getAttribute("aria-readonly") === "true",
+  editable: document.querySelector(".cm-content")?.getAttribute("contenteditable") === "true",
+  library: document.querySelector(".library-bar")?.textContent?.replace(/\s+/g, " ").trim() ?? null,
+  libraryPage: document.querySelector(".library-page")?.getAttribute("href") ?? null,
   // An action the page could not run (a command that threw).
   failedAction:
     document.querySelector(".action-error span")?.textContent?.trim() ?? null,
@@ -507,6 +574,35 @@ const storeKeys = () =>
     ARCHIVE_STORE,
   );
 
+/** The paths the drive's cache holds (every drive cache of the page's,
+ * which is one outside the second visit's step). */
+const driveCachePaths = () =>
+  page.eval(
+    (prefix) =>
+      indexedDB.databases().then((all) =>
+        Promise.all(
+          all
+            .map((database) => database.name)
+            .filter((name) => name?.startsWith(prefix))
+            .map(
+              (name) =>
+                new Promise((resolve) => {
+                  const open = indexedDB.open(name);
+                  open.onupgradeneeded = () => open.transaction?.abort();
+                  open.onerror = () => resolve([]);
+                  open.onsuccess = () => {
+                    const database = open.result;
+                    const keys = database.transaction("files").objectStore("files").getAllKeys();
+                    keys.onsuccess = () => (database.close(), resolve(keys.result.map(String)));
+                    keys.onerror = () => (database.close(), resolve([]));
+                  };
+                }),
+            ),
+        ).then((lists) => lists.flat()),
+      ),
+    DRIVE_CACHE_PREFIX,
+  );
+
 /** Delete an archive from the page's store, and put another record in its
  * place when one is given (the state an earlier deploy leaves). */
 const replaceKept = (/** @type {string} */ digest, /** @type {{ sha256: string, path: string } | undefined} */ instead) =>
@@ -592,6 +688,113 @@ async function inferChecking(expression) {
   const { log } = await page.eval(state);
   // Unanchored: Agda indents a nested module's line.
   return [...(log ?? "").matchAll(/Checking (\S+) \(/g)].map((m) => m[1]);
+}
+
+/** Open a module of agda-algebras as a reader would with the keyboard:
+ * the Explorer's filter finds its row, and Enter on the row opens it
+ * (issue 10).  @param {string} name */
+async function openModule(name) {
+  await page.eval(() => document.querySelector('.explorer input[type="search"]').focus());
+  await page.press("a", "KeyA", 65, 2);
+  await page.type(name);
+  const id = `agda-algebras:${name}`;
+  await waitFor(() => true, `the row of ${name}`, 5_000, () =>
+    page.eval((id) => document.querySelector(`.explorer [data-id="${id}"]`) !== null, id),
+  );
+  await page.eval((id) => document.querySelector(`.explorer [data-id="${id}"]`).focus(), id);
+  await page.press("Enter", "Enter", 13);
+}
+
+/** Clear the Explorer's filter, with Escape in it. */
+async function clearFilter() {
+  await page.eval(() => document.querySelector('.explorer input[type="search"]').focus());
+  await page.press("Escape", "Escape", 27);
+}
+
+/** Show the open file at `path`, from its tab. @param {string} path */
+const openTab = (path) =>
+  page.eval((path) => {
+    const tab = [...document.querySelectorAll(".editor-tab")].find((tab) => tab.getAttribute("title") === path);
+    if (!tab) throw new Error(`no tab for ${path}`);
+    tab.querySelector(".editor-tab-open").click();
+  }, path);
+
+/** Click the library line's button whose class is `name`. @param {string} name */
+const libraryAction = (name) =>
+  page.eval((name) => {
+    const button = document.querySelector(`.library-actions .${name}`);
+    if (!button || button.disabled) throw new Error(`no enabled ${name} in the library's line`);
+    button.click();
+  }, name);
+
+/** Select `text` in the editor with its search panel (Mod-f), as a reader
+ * would, and close the panel, which leaves the match selected.
+ * @param {string} text */
+async function findInEditor(text) {
+  await page.eval(() => document.querySelector(".cm-content").focus());
+  await page.press("f", "KeyF", 70, 2);
+  await waitFor(() => true, "the search panel", 5_000, () =>
+    page.eval(() => document.activeElement?.matches(".cm-search input[name=search]") ?? false),
+  );
+  await page.press("a", "KeyA", 65, 2);
+  await page.type(text);
+  // The panel takes its query on a key's release, which typing through
+  // CDP's insertText has none of.
+  await page.press("End", "End", 35);
+  await page.press("Enter", "Enter", 13);
+  await page.press("Escape", "Escape", 27);
+}
+
+/** Hover over the last character of the occurrence of `word` after the
+ * colon in the drawn line `line`, with the mouse, and return the language
+ * server's answer, and how long it took (Chromium: the driver moves the
+ * mouse through CDP).  The last character, so that a position counted in
+ * the wrong unit, which lands as many characters to the right as there are
+ * characters outside the Basic Multilingual Plane before it, is in the
+ * next token.  @param {string} line @param {string} word */
+async function hoverOver(line, word) {
+  const point = await page.eval(
+    async ({ line, word }) => {
+      const scroller = document.querySelector(".cm-scroller");
+      scroller.scrollTop = 0;
+      for (let tries = 0; tries < 100; tries++) {
+        const element = [...document.querySelectorAll(".cm-content .cm-line")].find((l) => l.textContent === line);
+        if (element) {
+          element.scrollIntoView({ block: "center" });
+          await new Promise((done) => requestAnimationFrame(() => setTimeout(done, 50)));
+          const offset = element.textContent.indexOf(word, element.textContent.indexOf(":")) + word.length - 2;
+          const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+          for (let seen = 0, node; (node = walker.nextNode()); seen += node.length)
+            if (seen + node.length > offset + 1) {
+              const range = document.createRange();
+              range.setStart(node, offset + 1 - seen);
+              range.setEnd(node, offset + 2 - seen);
+              const box = range.getBoundingClientRect();
+              return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+            }
+        }
+        scroller.scrollTop += 300;
+        await new Promise((done) => setTimeout(done, 50));
+      }
+      return null;
+    },
+    { line, word },
+  );
+  assert(point !== null, `the line ${JSON.stringify(line)} is not in the editor`);
+  await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x - 40, y: point.y - 40 });
+  await new Promise((done) => setTimeout(done, 100));
+  const start = performance.now();
+  await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
+  let answer = null;
+  await waitFor(() => true, `the language server's hover over ${word}`, 60_000, async () => {
+    answer = await page.eval(
+      () => document.querySelector(".cm-lsp-hover-tooltip:not(.cm-lsp-hover-tooltip--loading)")?.textContent ?? null,
+    );
+    return answer !== null;
+  });
+  const ms = Math.round(performance.now() - start);
+  await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 5, y: 5 });
+  return { answer, ms };
 }
 
 /** @param {string} name @param {() => Promise<void>} body */
@@ -867,6 +1070,215 @@ try {
       JSON.stringify(checking) === JSON.stringify(["Main"]),
       `the import type-checked [${checking}], not Main alone: an archive's interface was not accepted`,
     );
+  });
+  await step("a library module, read-only, and undo in its own file", async () => {
+    // An edit to Main, not checked.
+    await page.eval(() => document.querySelector(".cm-content").focus());
+    await page.press("End", "End", 35, 2);
+    await page.type(READ_ONLY.mainEdit);
+    const main = (await page.eval(state)).editor;
+    assert(main.includes(READ_ONLY.mainEdit.trim()), "the edit to Main is not in the buffer");
+    // Enter on its row in the Explorer: Main's import mounted its
+    // archives, so the page asks nothing and fetches nothing.
+    const from = server.log.length;
+    const since = await page.eval(() => performance.now());
+    await openModule(READ_ONLY.module);
+    const loaded = await waitFor(
+      (s) => noQuestion(s, "the library module's load") && !s.busy && s.tab === READ_ONLY.path && finished(s.status),
+      "the library module's load",
+    );
+    await clearFilter();
+    results.timings["library module's load, as the page reports it"] = milliseconds(loaded.status);
+    const events = (await page.eval(() => window.__browserCheck)).filter((e) => e.t >= since);
+    assert(
+      events.some((e) => e.name === "status" && e.text === `Loading ${READ_ONLY.module}…`),
+      `the inspector never said "Loading ${READ_ONLY.module}…"`,
+    );
+    assert(loaded.status.startsWith("Module checked ·") && loaded.problems.length === 0, `the load says "${loaded.status}"`);
+    assert(archiveRequests(from).length === 0, `opening the module requested ${archiveRequests(from)}`);
+    // It says what it is, and it is read-only.
+    results.library = { bar: loaded.library, tabs: loaded.tabs, page: loaded.libraryPage };
+    assert(
+      loaded.library?.startsWith(`Read-only: ${READ_ONLY.module} is agda-algebras`) && loaded.library.includes("the checked library"),
+      `the library's line says ${JSON.stringify(loaded.library)}`,
+    );
+    assert(loaded.libraryPage === READ_ONLY.page, `its page is ${loaded.libraryPage}, not ${READ_ONLY.page}`);
+    assert(loaded.readOnly && !loaded.editable, `the module is ${loaded.readOnly ? "" : "not "}read-only and ${loaded.editable ? "" : "not "}editable`);
+    assert(
+      JSON.stringify(loaded.tabs) === JSON.stringify([MAIN, READ_ONLY.path]),
+      `the tabs are ${JSON.stringify(loaded.tabs)}`,
+    );
+    const current = await page.eval(() => document.querySelector('.explorer [aria-current="true"]')?.getAttribute("data-id"));
+    assert(current === `agda-algebras:${READ_ONLY.module}`, `the Explorer marks ${current} current`);
+    // Agda accepted the module's own interface: it type-checked nothing,
+    // and answers in the module's scope (Main does not open it).
+    const checking = await inferChecking(READ_ONLY.infer);
+    results.libraryLoadChecking = checking;
+    assert(checking.length === 0, `the library module's load type-checked [${checking}]`);
+    const inferred = await page.eval(state);
+    assert(inferred.result === READ_ONLY.type, `Infer of ${READ_ONLY.infer} gave ${JSON.stringify(inferred.result)}`);
+    // Nothing was written: the drive's cache, which keeps every source
+    // the page writes (persisted after the load), has no copy of it.
+    await new Promise((done) => setTimeout(done, 1000));
+    const cached = await driveCachePaths();
+    results.libraryDriveCache = { paths: cached.length, module: cached.includes(READ_ONLY.path) };
+    assert(cached.includes(MAIN), `the drive's cache holds no Main, so it cannot show what was written: ${cached.length} paths`);
+    assert(!cached.includes(READ_ONLY.path), `opening ${READ_ONLY.module} wrote it: the drive's cache holds ${READ_ONLY.path}`);
+    // A keystroke, a deletion, a newline, an undo: nothing changes.
+    await page.eval(() => document.querySelector(".cm-content").focus());
+    await page.press("Home", "Home", 36, 2);
+    const before = (await page.eval(state)).editor;
+    await page.type("xyz");
+    await page.press("Enter", "Enter", 13);
+    await page.press("Delete", "Delete", 46);
+    await page.press("z", "KeyZ", 90, 2);
+    await new Promise((done) => setTimeout(done, 300));
+    const after = await page.eval(state);
+    assert(JSON.stringify(after.editor) === JSON.stringify(before), "a keystroke changed the library module");
+    assert(after.editor.join("\n").includes(READ_ONLY.module), "the library module's text is not on screen");
+    // Hover over a name after two characters outside the BMP.
+    if (options.browser === "chromium") {
+      const hover = await hoverOver(READ_ONLY.hoverLine, "Signature");
+      results.libraryHover = hover;
+      results.timings["hover in the library module"] = hover.ms;
+      assert(hover.answer?.startsWith(READ_ONLY.hover), `hover over Signature answered ${JSON.stringify(hover.answer)}`);
+    }
+    // Main again: its edit is there, and undo takes it back, and only it.
+    await openTab(MAIN);
+    const back = await waitFor((s) => !s.busy && s.tab === MAIN && finished(s.status), "Main again, checked");
+    assert(!back.readOnly && back.editable, "Main is read-only");
+    assert(JSON.stringify(back.editor) === JSON.stringify(main), `Main reads ${JSON.stringify(back.editor)}, not what was typed`);
+    await page.eval(() => document.querySelector(".cm-content").focus());
+    await page.press("z", "KeyZ", 90, 2);
+    const undone = await waitFor((s) => !s.editor.join("\n").includes(READ_ONLY.mainEdit.trim()), "the edit to Main undone", 5_000);
+    assert(
+      undone.editor.join("\n") === LIBRARY.source,
+      `after undo Main reads ${JSON.stringify(undone.editor)}`,
+    );
+  });
+
+  await step("a copy into the playground, checked, with a goal answered", async () => {
+    await openTab(READ_ONLY.path);
+    await waitFor((s) => !s.busy && s.tab === READ_ONLY.path && finished(s.status), "the library module again");
+    await libraryAction("library-copy");
+    const asked = await waitFor((s) => s.minibuffer, "the copy's minibuffer");
+    const offered = await page.eval(() => ({
+      label: document.querySelector(".minibuffer strong")?.textContent?.trim(),
+      value: document.querySelector("#command-input")?.value,
+    }));
+    assert(asked.readOnly, "the copy's minibuffer left the module");
+    assert(
+      offered.label === `Copy ${READ_ONLY.module} to /play/` && offered.value === COPY.name,
+      `the copy's minibuffer offers ${JSON.stringify(offered)}`,
+    );
+    // A name Agda finds already is refused, and nothing is written.
+    await submit(COPY.refused);
+    let refusal = null;
+    for (let tries = 0; tries < 100 && !refusal; tries++) {
+      refusal = await page.eval(() => document.querySelector(".action-error span")?.textContent?.trim() ?? null);
+      if (!refusal) await new Promise((done) => setTimeout(done, 100));
+    }
+    results.copyRefused = refusal;
+    assert(
+      refusal?.startsWith(`Agda finds ${COPY.refused} at /agda-algebras/src/${COPY.refused}.lagda.md already`),
+      `copying as ${COPY.refused} said ${JSON.stringify(refusal)}`,
+    );
+    await page.eval(() => document.querySelector(".action-error button").click());
+    assert((await page.eval(state)).tabs.length === 2, "a refused copy opened a file");
+    // The module's copy: a file of the playground, editable, checked, with
+    // its module line renamed, and only itself type-checked.
+    await submit(COPY.name);
+    const copied = await waitFor((s) => !s.busy && s.tab === COPY.path && finished(s.status), "the copy's check");
+    assert(copied.editable && !copied.readOnly && copied.library === null, "the copy is not an editable playground file");
+    assert(
+      copied.status.startsWith("Module checked") && copied.problems.length === 0,
+      `the copy's check says "${copied.status}": ${JSON.stringify(copied.problems)}`,
+    );
+    const listed = await page.eval(() =>
+      [...document.querySelectorAll('.explorer [role="treeitem"]')]
+        .filter((row) => row.getAttribute("data-id").startsWith("play:"))
+        .map((row) => row.textContent.trim()),
+    );
+    results.playgroundRows = listed;
+    assert(listed.some((label) => label.startsWith(COPY.path.slice("/play/".length))), `the Explorer's playground lists ${JSON.stringify(listed)}`);
+    const checking = await inferChecking(READ_ONLY.infer);
+    results.copyChecking = checking;
+    assert(JSON.stringify(checking) === JSON.stringify([COPY.name]), `the copy's check type-checked [${checking}]`);
+    // A goal in the copy: its type, its context, and a give.
+    await page.eval(() => document.querySelector(".cm-content").focus());
+    await page.press("End", "End", 35, 2);
+    await page.type(COPY.goal);
+    await page.press("Enter", "Enter", 13, 2);
+    const goal = await waitFor((s) => !s.busy && s.status.startsWith("1 open goal ·") && s.goals.length === 1, "the copy's goal");
+    assert(goal.goalTypes.join() === COPY.goalType, `the copy's goal has type ${JSON.stringify(goal.goalTypes)}`);
+    await selectGoal("0");
+    const context = await waitFor((s) => s.context.length > 0, "the goal's context", 30_000);
+    results.copyContext = context.context;
+    assert(context.context.some(([name]) => name === "𝑆"), `the goal's context is ${JSON.stringify(context.context)}`);
+    await click("Give hole contents");
+    await waitFor((s) => s.minibuffer, "the Give minibuffer");
+    await submit(COPY.give);
+    const given = await waitFor((s) => !s.busy && !s.minibuffer && (s.goals.length === 0 || s.problems.length > 0), "the give's answer");
+    assert(given.problems.length === 0, `the give reported ${JSON.stringify(given.problems)}`);
+    assert(given.editor.includes(COPY.given), `the copy does not read ${COPY.given}`);
+    // The control: the library's name in the copy's module line, which
+    // Agda refuses.
+    await findInEditor(`module ${COPY.name} where`);
+    await page.type(`module ${READ_ONLY.module} where`);
+    const sinceControl = await page.eval(() => performance.now());
+    await page.press("Enter", "Enter", 13, 2);
+    const refused = await waitForCheck(sinceControl, "the check of the copy under the library's name");
+    const error = refused.problems.find((problem) => problem.error)?.message.trim() ?? "";
+    results.copyControl = error;
+    assert(error === `${COPY.path}:1.1${COPY.libTooFarDown}`, `under the library's name the copy's check said ${JSON.stringify(error)}`);
+    await page.eval(() => document.querySelector(".cm-content").focus());
+    await page.press("z", "KeyZ", 90, 2);
+    const sinceBack = await page.eval(() => performance.now());
+    await page.press("Enter", "Enter", 13, 2);
+    const restored = await waitForCheck(sinceBack, "the copy's check under its own name again");
+    assert(restored.status.startsWith("Module checked") && restored.problems.length === 0, `the copy checks as "${restored.status}"`);
+  });
+
+  await step("a selection's copy, and an import in Main", async () => {
+    await openTab(READ_ONLY.path);
+    await waitFor((s) => !s.busy && s.tab === READ_ONLY.path && finished(s.status), "the library module again");
+    // Two lines, selected with the keyboard.
+    await findInEditor(COPY.selectionFrom);
+    await page.press("Home", "Home", 36);
+    await page.press("ArrowDown", "ArrowDown", 40, 8);
+    await page.press("ArrowDown", "ArrowDown", 40, 8);
+    await libraryAction("library-copy");
+    await waitFor((s) => s.minibuffer, "the selection copy's minibuffer");
+    const label = await page.eval(() => document.querySelector(".minibuffer strong")?.textContent?.trim());
+    assert(label === "Copy the selection (2 lines), with the code above it, to /play/", `the minibuffer says ${JSON.stringify(label)}`);
+    await submit(COPY.selectionName);
+    const copied = await waitFor((s) => !s.busy && s.tab === COPY.selectionPath && finished(s.status), "the selection copy's check");
+    assert(
+      copied.status.startsWith("Module checked") && copied.problems.length === 0,
+      `the selection copy's check says "${copied.status}": ${JSON.stringify(copied.problems)}`,
+    );
+    const checking = await inferChecking(READ_ONLY.infer);
+    results.selectionChecking = checking;
+    assert(JSON.stringify(checking) === JSON.stringify([COPY.selectionName]), `the selection copy type-checked [${checking}]`);
+    // Import in Main: Main shown, the line added, and checked.
+    await openTab(READ_ONLY.path);
+    await waitFor((s) => !s.busy && s.tab === READ_ONLY.path && finished(s.status), "the library module once more");
+    const sinceImport = await page.eval(() => performance.now());
+    await libraryAction("library-import");
+    const imported = await waitForCheck(sinceImport, "Main's check with the import added");
+    assert(imported.tab === MAIN, `the import showed ${imported.tab}, not Main`);
+    assert(imported.problems.length === 0, `Main with the import reported ${JSON.stringify(imported.problems)}`);
+    assert(imported.editor.includes(`open import ${READ_ONLY.module}`), `Main reads ${JSON.stringify(imported.editor)}`);
+    // Undo takes the line back, and Main is the import step's again.
+    await page.eval(() => document.querySelector(".cm-content").focus());
+    await page.press("z", "KeyZ", 90, 2);
+    const undone = await waitFor((s) => !s.editor.includes(`open import ${READ_ONLY.module}`), "the import undone", 5_000);
+    assert(undone.editor.join("\n") === LIBRARY.source, `after undo Main reads ${JSON.stringify(undone.editor)}`);
+    const sinceCheck = await page.eval(() => performance.now());
+    await page.press("Enter", "Enter", 13, 2);
+    await waitForCheck(sinceCheck, "Main's check after the undo");
+    // Saved before the steps that reload (the save waits 250 ms).
+    await new Promise((done) => setTimeout(done, 500));
   });
   // Keep the runtime check's screenshot and event record before the steps
   // that navigate: the Explorer's reload, and the theme check's fresh
