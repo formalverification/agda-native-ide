@@ -22,6 +22,12 @@ const COMMAND_TIMEOUT_MS = 60_000;
 
 /** WebDriver's key values for the keys the check presses. */
 const KEYS = /** @type {Record<string, string>} */ ({
+  Escape: "",
+  Home: "",
+  ArrowLeft: "",
+  ArrowUp: "",
+  ArrowRight: "",
+  ArrowDown: "",
   End: "",
   Enter: "",
   Control: "",
