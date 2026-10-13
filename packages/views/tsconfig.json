@@ -1,6 +1,7 @@
 {
   // The views alone, as svelte-check reads them: no alias of the page's,
-  // so a view that imports from a host does not check.
+  // so a view that imports from a host does not check.  The tests, which
+  // read files under node, are vitest's, as in the other packages.
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
@@ -12,5 +13,6 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "src/**/*.svelte"]
+  "include": ["src/**/*.ts", "src/**/*.svelte"],
+  "exclude": ["src/**/*.test.ts"]
 }

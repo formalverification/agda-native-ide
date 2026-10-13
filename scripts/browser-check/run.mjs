@@ -13,24 +13,37 @@
 //       headers), that no service worker controls the page, one open goal
 //       with its type and its context, and the version Agda reports in the
 //       status bar, which the page's description must name too;
-//   2.  runs Infer on length-hom from the command strip, and asserts the
+//   2.  checks the Explorer's tree (./explorer.mjs, issue 9): its roles,
+//       the open file marked current, the arrow keys from the tab stop to
+//       a module of agda-algebras, Enter selecting it without opening it,
+//       every module listed, in the list's order, once every row is
+//       opened with the arrow keys, and the filter;
+//   3.  runs Infer on length-hom from the command strip, and asserts the
 //       modules that first check type-checked: the `Checking` lines of
 //       Agda's running info, which the page shows only in the inspector's
 //       compiler log, after an Infer or Normalize result;
-//   3.  selects goal 0 in the goal list, gives the term that fills it from
+//   4.  selects goal 0 in the goal list, gives the term that fills it from
 //       the command strip, and asserts no goal is left and no error;
-//   4.  appends a declaration with a type error, checks, and asserts the
+//   5.  appends a declaration with a type error, checks, and asserts the
 //       error comes back with its position and message, which shows the
 //       page elaborates against the shipped interfaces rather than
 //       skipping work;
-//   5.  replaces that declaration with a postulate, checks, and asserts
+//   6.  replaces that declaration with a postulate, checks, and asserts
 //       Agda refuses it as agda-algebras would, under --safe, with its
 //       position and message;
-//   6.  replaces the buffer with a Main that imports a module of
+//   7.  replaces the buffer with a Main that imports a module of
 //       agda-algebras, checks, and asserts it resolves: the module and the
 //       standard-library modules it imports are type-checked from source,
 //       since the page mounts none of their interfaces yet (issue 14);
-//   7.  in Chromium, exercises the theme choices, persistence, system
+//       while that check runs, it uses the Explorer, in one call inside
+//       the page: a key and the filter work, and only the rows the page
+//       cannot open then are aria-disabled (issue 9);
+//   8.  closes the Explorer's section that holds the open file, and
+//       reloads: the rows expanded before still are, and the open file is
+//       revealed; then opens a PLFA chapter from the reader's Next, in a
+//       part that is closed, far below the tree's top, and asserts the tree
+//       opens the part and scrolls the chapter's row into view (issue 9);
+//   9.  in Chromium, exercises the theme choices, persistence, system
 //       changes, first-frame colors and narrow viewports (issue 17).
 //
 // It writes browser-check.json (the timings, the requests, the console)
@@ -51,6 +64,7 @@ import * as cdp from "./cdp.mjs";
 import * as bidi from "./bidi.mjs";
 import { serve } from "./serve.mjs";
 import { checkThemes } from "./themes.mjs";
+import { checkExplorer, checkExplorerAfterReload, useExplorerWhileBusy } from "./explorer.mjs";
 
 /** The playground's Main.agda on the drive: a module of a project of its
  * own, beside /play/play.agda-lib (issue 11). */
@@ -65,7 +79,8 @@ export const EXPECTED_CHECKING = ["Main"];
 
 /** The default Main.agda's one goal, as the inspector shows it after the
  * first check: its type and its context, in Agda's normal form (which
- * unfolds IsHom), with the term step 3 gives and the line it leaves. */
+ * unfolds IsHom), with the term the give step gives and the line it
+ * leaves. */
 const GOAL = {
   type: "g (f x * f y) ≡ (g (f x) ⋆ g (f y))",
   context: [
@@ -86,16 +101,19 @@ const GOAL = {
   given: "∘-hom g f g-hom f-hom x y = trans (cong g (f-hom x y)) (g-hom (f x) (f y))",
 };
 
-/** What step 2 infers, and its type. */
+/** What the Infer step infers, and its type. */
 const INFER = {
   expression: "length-hom",
   type: "{A : Set} (x y : List A) → length (x ++ y) ≡ length x + length y",
 };
 
-/** Step 6's Main, which imports the agda-algebras module with the fewest
- * imports of the standard library, and the modules its check must
- * type-check from source: Main, that module, and the 10 standard-library
- * modules it imports (agda-algebras' index; issue 11). */
+/** The import step's Main, which imports the agda-algebras module with
+ * the fewest imports of the standard library, and the modules its check
+ * must type-check from source: Main, that module, and the 10
+ * standard-library modules it imports (agda-algebras' index; issue 11).
+ * The Explorer is used while this check runs (issue 9), in one call that
+ * takes some tens of milliseconds, so the check must outlast that: from
+ * source it takes seconds, and from archives (issue 14) still far more. */
 const LIBRARY = {
   source:
     "{-# OPTIONS --without-K --exact-split --safe #-}\n\nmodule Main where\n\n" +
@@ -105,8 +123,9 @@ const LIBRARY = {
   checking: 12,
 };
 
-/** The declaration step 4 appends, and the error Agda must report at
- * `refl`, after the position (Agda prints the naturals as numerals).
+/** The declaration the type error's step appends, and the error Agda must
+ * report at `refl`, after the position (Agda prints the naturals as
+ * numerals).
  * Agda 2.9.0 words it so; 2.8.0 wrote `0 != 1 of type Nat` in place of
  * the first five lines (issue 58). */
 const TYPE_ERROR = {
@@ -118,9 +137,9 @@ const TYPE_ERROR = {
     "when checking that the expression refl has type zero ≡ 1",
 };
 
-/** The postulate step 5 puts in place of step 4's declaration, and the
- * error Agda must report at its declaration: Main's own options line has
- * --safe, which refuses a postulate (issue 11). */
+/** The postulate its step puts in place of the type error's declaration,
+ * and the error Agda must report at its declaration: Main's own options
+ * line has --safe, which refuses a postulate (issue 11). */
 const POSTULATE = {
   source: "postulate cheat : zero ≡ suc zero\n",
   line: "postulate cheat : zero ≡ suc zero",
@@ -261,6 +280,8 @@ const results = {
   expectedChecking: EXPECTED_CHECKING,
   timings: /** @type {Record<string, number>} */ ({}),
   steps: /** @type {string[]} */ ([]),
+  /** What the Explorer's steps found, filled as they go (./explorer.mjs). */
+  explorer: /** @type {Record<string, any>} */ ({}),
 };
 let failure = /** @type {string | null} */ (null);
 const consoleLog = /** @type {object[]} */ ([]);
@@ -419,6 +440,10 @@ try {
     );
   });
 
+  await step("the Explorer", async () => {
+    await checkExplorer(page, site, results.explorer);
+  });
+
   await step("infer, and the first check's Checking lines", async () => {
     await click("Infer type");
     await waitFor((s) => s.minibuffer, "the Infer minibuffer");
@@ -508,8 +533,8 @@ try {
   });
 
   await step("refuse a postulate", async () => {
-    // Select step 4's two lines, from the end of the buffer, and type the
-    // postulate over them.
+    // Select the type error's two lines, from the end of the buffer, and
+    // type the postulate over them.
     await page.eval(() => document.querySelector(".cm-content").focus());
     await page.press("End", "End", 35, 2);
     await page.press("ArrowUp", "ArrowUp", 38, 8);
@@ -520,10 +545,10 @@ try {
     assert(line > 0, "the postulate is not in the buffer");
     assert(
       !edited.editor.includes(TYPE_ERROR.line),
-      "step 4's declaration is still in the buffer",
+      "the type error's declaration is still in the buffer",
     );
     await page.press("Enter", "Enter", 13, 2);
-    // Step 4's error stays on screen until this check's verdict replaces
+    // The type error stays on screen until this check's verdict replaces
     // it, whatever that is.
     const refused = await waitFor(
       (s) =>
@@ -546,6 +571,8 @@ try {
     await page.press("a", "KeyA", 65, 2);
     await page.type(LIBRARY.source);
     await page.press("Enter", "Enter", 13, 2);
+    // The Explorer, while that check runs (issue 9).
+    await useExplorerWhileBusy(page, (results.explorer.whileBusy = {}));
     const checked = await waitFor(
       (s) =>
         !s.busy &&
@@ -580,12 +607,28 @@ try {
       `the import type-checked [${checking}], expected Main, ${LIBRARY.module} and the 10 modules it imports`,
     );
   });
+  // Keep the runtime check's screenshot and event record before the steps
+  // that navigate: the Explorer's reload, and the theme check's fresh
+  // copies of the default document.
+  writeFileSync(join(out, "browser-check.png"), await page.screenshot());
+  results.events = await page.eval(() => window.__browserCheck ?? []);
+  runtimeCaptured = true;
+  await step("the Explorer after a reload", async () => {
+    try {
+      await checkExplorerAfterReload(
+        page,
+        server.origin,
+        site,
+        () => waitFor((s) => finished(s.status) && !s.busy, "the check after the reload"),
+        (results.explorer.afterReload = {}),
+      );
+    } catch (error) {
+      // The runtime's screenshot is kept already; this one is the reload's.
+      writeFileSync(join(out, "explorer-reload.png"), await page.screenshot());
+      throw error;
+    }
+  });
   if (options.browser === "chromium") {
-    // Keep the runtime check's error screenshot and event record before
-    // the theme check navigates to fresh copies of the default document.
-    writeFileSync(join(out, "browser-check.png"), await page.screenshot());
-    results.events = await page.eval(() => window.__browserCheck ?? []);
-    runtimeCaptured = true;
     await step("themes", async () => {
       results.themes = await checkThemes(page, server.origin, site, join(out, "themes"));
     });
@@ -639,6 +682,9 @@ function summary() {
     "",
     `Checking: ${JSON.stringify(results.checking ?? null)}; goals: ${JSON.stringify(results.goals ?? null)}; ` +
       `${results.requested?.count} requests, ${results.requested?.bytes} bytes.`,
+    "",
+    `Explorer: ${results.explorer?.modules ?? "no"} modules; all expanded, ` +
+      `${JSON.stringify(results.explorer?.allExpanded ?? null)}; filter ${JSON.stringify(results.explorer?.filter ?? null)}.`,
     "",
   ].join("\n");
 }

@@ -242,9 +242,11 @@ library-gate: packages ## Check agda-algebras' archives under $(SITE)'s language
 # .#compiler`, fetched by its pins in compiler/agda-2.9.0.sha256), and
 # the standard library, agda-stdlib-2.3-patched.zip (`nix build
 # .#stdlib`), and agda-algebras' sources, agda-algebras-sources.zip, for
-# the playground's project (issue 11).  `make assets` copies the set into
-# static/, and `make build` refuses to build unless every pinned file there
-# still matches its pin and those five are the flake's.  (Inside the Nix
+# the playground's project (issue 11), with the list of its modules,
+# agda-algebras-modules.json, for the Explorer (issue 9).  `make assets`
+# copies the set into static/, and `make build` refuses to build unless
+# every pinned file there still matches its pin, those six are the flake's,
+# and the list is the archive's (scripts/library-modules.mjs --check).  (Inside the Nix
 # sandbox, where `nix build .#site` runs the same `make build`, there is
 # no nix to ask, and the site's derivation copies them in itself.)  docs/provenance.md
 # records them all.  `make build` also publishes NOTICE (as NOTICE.txt)
@@ -271,14 +273,15 @@ PINS      ?= upstream/assets.sha256
 # The files in static/ that are the flake's own (built, or pinned by
 # compiler/agda-2.9.0.sha256) rather than upstream's.
 OWN_ASSETS := agda-data.zip als-reactor-2.9.0.wasm als-reactor-2.9.0.js \
-              agda-stdlib-2.3-patched.zip agda-algebras-sources.zip
+              agda-stdlib-2.3-patched.zip agda-algebras-sources.zip \
+              agda-algebras-modules.json
 UNCHANGED ?= upstream/unchanged.sha256
 SITE_REVISION ?= $(shell rev=$$(git rev-parse HEAD 2>/dev/null) && \
   if [ -n "$$(git status --porcelain 2>/dev/null)" ]; then echo $$rev-dirty; else echo $$rev; fi)
 
 assets: ## Fetch the pinned binaries, build the flake's own (nix build .#assets) into static/
 	@out=$$(nix build .#assets --no-link --print-out-paths) && \
-	  for f in static/*.wasm static/*.wasm.gz static/als-*.js static/*.zip; do \
+	  for f in static/*.wasm static/*.wasm.gz static/als-*.js static/*.zip static/*-modules.json; do \
 	    if [ -e "$$f" ] && [ ! -e "$$out/$$f" ]; then \
 	      rm "$$f" && echo "assets: removed $$f, which the set no longer has"; \
 	    fi; \
@@ -301,6 +304,8 @@ assets-check: ## Check the pinned binaries in static/, and that the flake's own 
 	    fi; \
 	  done; \
 	fi
+	@node scripts/library-modules.mjs --check static/agda-algebras-sources.zip \
+	  static/agda-algebras-modules.json
 
 dev: packages assets-check ## Serve the app at http://localhost:5173, reloading on change
 	npm run dev

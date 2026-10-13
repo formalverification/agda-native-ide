@@ -240,7 +240,10 @@ three together, against a floor of 54.3 MB.
 
 `index.json`, schema 1, is the contract with the issues that read it: [#14]
 reads which archives an import needs and their bytes before it fetches,
-[#13] reads the roots to check, and [#9] reads every module with its path.
+and [#13] reads the roots to check.  [#9]'s Explorer lists the same
+modules from a list of its own, written from the sources archive alone,
+which agrees with `roots` and with each module's `source`
+([`docs/notes/explorer.md`][explorer-note]).
 `scripts/library-archives/index.mjs` reads it through two functions,
 `closure` and `needs`, which compute what those issues are to compute, and
 the check stages each root from what `needs` says.
@@ -533,6 +536,7 @@ kept "so that the HTML and LaTeX backends can generate their output";
    other archives.
 
 [adr]: ../adr/0001-runtime.md
+[explorer-note]: explorer.md
 [record]: ../measurements/library-archives-2026-10-11.json
 [gate-record]: ../measurements/library-archives-browser-2026-10-12.json
 [gate-run]: https://github.com/formalverification/agda-native-ide/actions/runs/38209105006

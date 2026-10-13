@@ -387,7 +387,7 @@ rest of agda-mcp's table, and the searches over a corpus, are issue 29's.
 
 ## The manifest, and the plugin format to come
 
-`@agda-native-ide/manifest` validates the two manifests the page reads,
+`@agda-native-ide/manifest` validates the three manifests the page reads,
 naming the first field that is wrong, and plans a chapter's archives; the
 manifests are the following:
 
@@ -396,7 +396,12 @@ manifests are the following:
    of its text and the drive path of its module (an absolute Agda source
    path, by the engine's rules);
 +  `static/plfa/interfaces/manifest.json`: for each chapter, the archives
-   of interfaces a check of it reads, which must be chapters.
+   of interfaces a check of it reads, which must be chapters;
++  `static/agda-algebras-modules.json`, which the build writes from
+   agda-algebras' sources archive (issue 9; `scripts/library-modules.mjs`):
+   the library, its commit, the directories it includes, and every module
+   with its path and title, each name the module at its path, in the
+   Explorer's order (`compareModuleNames`).
 
 Issue 24's plugin manifest is what these become; the present formats map
 to it as follows, and nothing here loads a plugin:
@@ -415,7 +420,13 @@ to it as follows, and nothing here loads a plugin:
 (each goal and its type, and the selected goal's context), its result
 (Agda's answer and the compiler log) and its problem list.  Each takes
 plain data (`GoalSummary`, `ContextEntry`, `Result`, `Problem`) and
-reports a selection by a callback; none imports from a host.  Their styles
+reports a selection by a callback; none imports from a host.
+`ExplorerTree` is the Explorer's tree (issue 9): it takes `TreeItem`s
+(`moduleTree` builds a library's from its module list), the ids of the
+rows expanded and the open file's path, and reports a change of what is
+expanded, a row opened and the selection; `tree.ts` holds its rows and its
+keys as plain functions.  [`docs/notes/explorer.md`][explorer-note]
+explains it.  Their styles
 moved with them, and the contrast check reads them
 (`scripts/browser-check/contrast.mjs`).  The theory and proof views are
 issues 41 and 44, and their hosting in the companion's webview issue 66.
@@ -501,3 +512,4 @@ native Agda, and the browser suite in the site's browser job.
 [adr]: ../adr/0003-the-shared-core.md
 [adr-0002]: ../adr/0002-where-the-workbench-lives.md
 [runtime]: ../notes/runtime.md
+[explorer-note]: ../notes/explorer.md

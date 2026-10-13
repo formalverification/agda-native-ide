@@ -18,6 +18,7 @@ result
 /static/*.wasm.gz
 /static/als-*.js
 /static/*.zip
+/static/*-modules.json
 /static/*.woff2
 /static/favicon.png
 /static/plfa/**/*.zip

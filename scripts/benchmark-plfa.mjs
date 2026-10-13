@@ -1,3 +1,12 @@
+// File: scripts/benchmark-plfa.mjs
+//
+// Changed from upstream: this is SeungheonOh/plfa-playground's
+// scripts/benchmark-plfa.mjs at ae0aa84c24363a8d6dadc292b6eb8f88f7f38705
+// (docs/provenance.md).  The Explorer is one tree since issue 9, so the
+// benchmark opens PLFA's parts and finds its chapters by the tree's rows
+// (`[role="treeitem"]`, `data-id` "plfa:part1" and "plfa:part1/Naturals"),
+// where it clicked the fork's `.tree-part` and `.chapter-row` buttons.
+
 import { execFileSync } from "node:child_process";
 import { chromium } from "playwright-core";
 
@@ -43,15 +52,17 @@ try {
     '.command-strip button[title^="Normalize"]:not([disabled])',
     { timeout: 180_000 },
   );
-  await page.waitForSelector(".tree-part", { timeout: 10_000 });
+  await page.waitForSelector('[role="treeitem"][data-id^="plfa:part"]', {
+    timeout: 10_000,
+  });
 
-  for (const group of ["PART1", "PART2", "PART3"]) {
-    const button = page.locator(".tree-part").filter({ hasText: group });
+  for (const group of ["part1", "part2", "part3"]) {
+    const part = page.locator(`[role="treeitem"][data-id="plfa:${group}"]`);
     if (
-      (await button.count()) &&
-      (await button.getAttribute("aria-expanded")) === "false"
+      (await part.count()) &&
+      (await part.getAttribute("aria-expanded")) === "false"
     ) {
-      await button.click();
+      await part.click();
     }
   }
 
@@ -82,7 +93,8 @@ try {
     };
   }
 
-  const chapterNames = (await page.locator(".chapter-row").allInnerTexts())
+  const chapterRows = '[role="treeitem"][data-id^="plfa:part"][data-id*="/"]';
+  const chapterNames = (await page.locator(chapterRows).allInnerTexts())
     .map((text) => text.match(/([^\s]+)\.lagda\.md/)?.[1])
     .filter(Boolean)
     .filter(
@@ -92,7 +104,7 @@ try {
 
   for (const chapter of chapterNames) {
     const row = page
-      .locator(".chapter-row")
+      .locator(chapterRows)
       .filter({ hasText: `${chapter}.lagda.md` });
     await row.click();
     await page.waitForFunction(

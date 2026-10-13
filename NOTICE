@@ -19,7 +19,7 @@ Contents
   3.  The compiler: als-reactor-2.9.0.wasm.gz and als-reactor-2.9.0.js
   4.  Agda's builtin library: agda-data.zip
   5.  The Agda standard library 2.3, patched: agda-stdlib-2.3-patched.zip
-  6.  agda-algebras: agda-algebras-sources.zip
+  6.  agda-algebras: agda-algebras-sources.zip, agda-algebras-modules.json
   7.  PLFA: plfa/
   8.  JuliaMono: JuliaMono-*.woff2
   9.  The Agda mark: favicon.svg and favicon.png
@@ -465,7 +465,7 @@ Contents
     licenses/agda-stdlib.txt is the same text.
 
 
-6.  agda-algebras: agda-algebras-sources.zip
+6.  agda-algebras: agda-algebras-sources.zip, agda-algebras-modules.json
 
     The sources of https://github.com/ualib/agda-algebras at
     f067d57d367a4830834ce1fd80937820754f9a28 (2026-10-10), unchanged: its
@@ -473,7 +473,10 @@ Contents
     NOTICE, under agda-algebras/.  Made by this repository's flake
     (mkAgdaAlgebrasSources in flake.nix), which zips that commit.  The
     page mounts it at /agda-algebras, a library the playground's project
-    depends on.
+    depends on.  agda-algebras-modules.json lists its modules for the
+    Explorer: each module's name, its path, and the title its front
+    matter gives, which the flake (mkAgdaAlgebrasModules, running
+    scripts/library-modules.mjs) takes from the archive.
     Apache License 2.0, Copyright 2018-2026 The agda-algebras development
     team: licenses/agda-algebras/LICENSE, with its NOTICE as
     licenses/agda-algebras/NOTICE, both the archive's files.

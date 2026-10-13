@@ -1,0 +1,246 @@
+{
+ "run": "explorer-2026-10-13",
+ "issue": 9,
+ "date": "2026-10-13",
+ "clock": "The workstation's clock read MDT (UTC-6), 2026-10-13, about 02:00 to 02:40.",
+ "machine": {
+  "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+  "logicalCpus": 20,
+  "memoryKiB": 65496564,
+  "kernel": "7.0.0-31-generic",
+  "note": "Shared with other sessions' builds, load averages 7 to 20; the times are indicative, the counts are the findings."
+ },
+ "browsers": [
+  "Chrome/149.0.7827.200 (the flake's chromium, headless)",
+  "Firefox/157.0 (Ubuntu's snap, through WebDriver BiDi)"
+ ],
+ "moduleList": {
+  "file": "static/agda-algebras-modules.json",
+  "sha256": "ed3923d0a5d776433aebef7ecff72713f5b1af83cb7d6dfec5885494a95af9e4",
+  "bytes": 59754,
+  "gzip9": 4985,
+  "gzip6": 5034,
+  "modules": 350,
+  "titled": 349,
+  "untitled": [
+   "Setoid.Homomorphisms.HomomorphicImages (its file begins n---)"
+  ],
+  "agreesWithIndex": "the archives' index.json (285,618 bytes): the same 350 names, paths and commit"
+ },
+ "shape": {
+  "pin": "f067d57d367a4830834ce1fd80937820754f9a28",
+  "modules": 350,
+  "folders": 65,
+  "foldersBesideTheirModule": 64,
+  "foldersAlone": [
+   "Legacy"
+  ],
+  "deepestFolders": 4,
+  "rowsAllOpen": 351,
+  "treeRowsAllOpen": 368,
+  "deepestLevel": 6,
+  "issueBody2026-10-04": {
+   "modules": 344,
+   "folders": 64,
+   "rows": 408,
+   "paired": 63
+  }
+ },
+ "renderMs": {
+  "what": "the agda-algebras section closed and opened by a click with every row open (351 rows mounted), from the click to the frame after it, 11 rounds a run",
+  "iconsAlternating": {
+   "lucideComponents": {
+    "medians": [
+     144.1,
+     237.5,
+     347.0
+    ],
+    "mins": [
+     108.9,
+     147.8,
+     284.7
+    ]
+   },
+   "plainSvg": {
+    "medians": [
+     74.9,
+     93.2,
+     90.8
+    ],
+    "mins": [
+     58.6,
+     64.3,
+     64.0
+    ]
+   },
+   "load": "17.9 to 20.5"
+  },
+  "finalCode": {
+   "openMedians": [
+    47.3,
+    38.3,
+    37.4
+   ],
+   "openMins": [
+    40.1,
+    32.6,
+    34.0
+   ],
+   "closeMedians": [
+    7.1,
+    5.7,
+    5.0
+   ],
+   "load": "13 to 15"
+  },
+  "iconsAlternatingQuiet": {
+   "what": "the skill's explorer-costs.mjs, 7 rounds a run, the two builds alternating twice, at a load near 2 (about 09:50 UTC-6)",
+   "lucideComponents": {
+    "openMedians": [
+     59.2,
+     65.5
+    ],
+    "openMins": [
+     51.3,
+     50.9
+    ],
+    "filterAMedians": [
+     20.3,
+     24.6
+    ]
+   },
+   "plainSvg": {
+    "openMedians": [
+     31.0,
+     30.1
+    ],
+    "openMins": [
+     29.9,
+     24.5
+    ],
+    "filterAMedians": [
+     18.9,
+     18.4
+    ]
+   }
+  }
+ },
+ "filterMs": {
+  "what": "one letter typed, from the input event to the frame after it; final code, three runs of 11",
+  "a": {
+   "medians": [
+    26.5,
+    25.5,
+    23.8
+   ],
+   "matches": 345,
+   "rows": 363
+  },
+  "s": {
+   "medians": [
+    23.8,
+    24.0,
+    21.4
+   ],
+   "matches": 354,
+   "rows": 363
+  },
+  "h": {
+   "medians": [
+    8.6,
+    9.2,
+    8.4
+   ],
+   "matches": 45,
+   "rows": 70
+  },
+  "clearMedians": {
+   "a": [
+    20.8,
+    21.2,
+    18.6
+   ],
+   "h": [
+    32.9,
+    35.7,
+    30.5
+   ]
+  }
+ },
+ "firstCheck": {
+  "what": "timing-checks-in-the-page's first-check.mjs, 8 alternating rounds on fresh profiles, main (444452a, nix build) against the branch",
+  "readyMedianMs": {
+   "main": 864.5,
+   "branch": 851.0
+  },
+  "checkMedianMs": {
+   "main": 454.5,
+   "branch": 445.5
+  },
+  "load": "9.5 to 12.1"
+ },
+ "browserCheck": {
+  "chromium": "passed, every step, the themes included",
+  "firefox": "passed, every step but the themes (Chromium only)",
+  "explorer": {
+   "firstVisitRows": 25,
+   "keysToOverture.Signatures": 19,
+   "allOpen": {
+    "libraryRows": 351,
+    "moduleRows": 350,
+    "parentsOpened": 65
+   },
+   "filterHsp": {
+    "matches": 3,
+    "libraryRows": 8
+   },
+   "whileBusy": {
+    "ms": 64,
+    "disabled": 11,
+    "libraryDisabled": 0
+   },
+   "chapterRevealedScrollTop": 8472
+  }
+ },
+ "controls": [
+  [
+   "agda-algebras' rows disabled while busy",
+   "Explorer: 8 rows of agda-algebras are disabled while Agda is busy"
+  ],
+  [
+   "expansion not stored",
+   "Explorer: the page did not store every expanded row"
+  ],
+  [
+   "the open file's ancestors not expanded",
+   "Explorer: timed out waiting for agda-algebras' rows and Main.agda's, after the reload"
+  ],
+  [
+   "the reveal not scrolling",
+   "Explorer: timed out waiting for plfa:part2/Lambda revealed"
+  ],
+  [
+   "a module left out of the tree",
+   "Explorer: agda-algebras' rows, all expanded, are not the list's modules in its order: row 47 is ..."
+  ],
+  [
+   "keys on the tab stop, focus not moving it",
+   "Explorer: timed out waiting for ArrowRight: agda-algebras:Classical expanded"
+  ],
+  [
+   "aria-setsize counting every row",
+   "Explorer: ... row 0 is {name: agda-algebras, ..., setsize: 368}"
+  ]
+ ],
+ "benchmarkPlfa": {
+  "Naturals": {
+   "initialMs": 13545,
+   "editedMs": 956
+  },
+  "Lambda": {
+   "initialMs": 35699,
+   "editedMs": 1458
+  },
+  "problems": 0
+ }
+}
