@@ -18,7 +18,8 @@
 # agda-data.zip, which `nix build .#agda-data` builds from the compiler's
 # own lib/prim (mkAgdaData, below); the standard library, which `nix
 # build .#stdlib` builds patched; and agda-algebras' sources, zipped from
-# its pinned commit (mkAgdaAlgebrasSources).  `make assets` copies the
+# its pinned commit (mkAgdaAlgebrasSources), with the list of its modules
+# (mkAgdaAlgebrasModules).  `make assets` copies the
 # result into static/, and `make build` checks the files there against
 # their pins before it builds.  docs/provenance.md records where each file
 # comes from and its license.
@@ -237,6 +238,22 @@
             | TZ=UTC zip -X -D -9 -q "$out/agda-algebras-sources.zip" -@
         '';
 
+      # The list of agda-algebras' modules (scripts/library-modules.mjs), from
+      # its sources archive: each module's dotted name, its path on the
+      # page's drive and its title, in the Explorer's order, with the commit.
+      # The site ships it (`assets`, below) for the Explorer's tree (issue
+      # 9); it is its own derivation, so the archive's, and the interfaces
+      # built from it, are unchanged.
+      mkAgdaAlgebrasModules = pkgs: sources:
+        pkgs.runCommand "agda-algebras-modules" { nativeBuildInputs = [ pkgs.nodejs_22 ]; } ''
+          mkdir "$out"
+          node ${lib.fileset.toSource {
+            root = ./scripts;
+            fileset = ./scripts/library-modules.mjs;
+          }}/library-modules.mjs ${sources}/agda-algebras-sources.zip \
+            --commit ${agdaAlgebras.rev} > "$out/agda-algebras-modules.json"
+        '';
+
       # The interfaces and the graph (scripts/library-archives/build.sh),
       # built by the compiler's agda.wasm under nixpkgs' wasmtime over a stage
       # laid out from the three archives the page mounts.  wasmtime caches
@@ -349,6 +366,7 @@
           ./tsconfigs
           ./scripts/asset-manifest.mjs
           ./scripts/check-bundle.mjs
+          ./scripts/library-modules.mjs
           ./scripts/prepare-cloudflare-assets.mjs
           ./src
           ./static
@@ -375,6 +393,7 @@
         stdlib = mkStdlib pkgs;
         agdaData = mkAgdaData pkgs (agdaDataInput pkgs compiler);
         agdaAlgebrasSources = mkAgdaAlgebrasSources pkgs;
+        agdaAlgebrasModules = mkAgdaAlgebrasModules pkgs agdaAlgebrasSources;
       in rec {
         # Agda's builtin library, built (mkAgdaData).
         agda-data = agdaData;
@@ -413,7 +432,8 @@
         # Every binary the app ships at its path in the tree (static/...):
         # upstream's pinned ones, agda-data.zip, the compiler's language
         # server, the standard library, and agda-algebras' sources, which
-        # the playground's project depends on (issue 11).  The server is
+        # the playground's project depends on (issue 11), with the list of
+        # its modules, which the Explorer shows (issue 9).  The server is
         # its reactor build, as als-reactor-2.9.0.wasm, with its JavaScript
         # glue as als-reactor-2.9.0.js (issue 59); the command build,
         # als.wasm, stays pinned for the compiler's records and is not
@@ -427,6 +447,7 @@
             install -D -m 444 ${compiler}/als-reactor.js "$out/static/als-reactor-2.9.0.js"
             install -D -m 444 ${stdlib}/agda-stdlib-2.3-patched.zip "$out/static/agda-stdlib-2.3-patched.zip"
             install -D -m 444 ${agdaAlgebrasSources}/agda-algebras-sources.zip "$out/static/agda-algebras-sources.zip"
+            install -D -m 444 ${agdaAlgebrasModules}/agda-algebras-modules.json "$out/static/agda-algebras-modules.json"
           '');
 
         # The static site, as `make build` writes it into build/.

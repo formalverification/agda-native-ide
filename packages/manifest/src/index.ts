@@ -3,10 +3,13 @@
 // The manifests the page reads today, validated, and the planning it does
 // with them, in a package every host imports (issue 62): the PLFA corpus
 // manifest (static/plfa/manifest.json: the book, its pin, and its chapters,
-// each a literate module the engine loads) and its interface manifest
+// each a literate module the engine loads), its interface manifest
 // (static/plfa/interfaces/manifest.json: for each chapter, the archives of
-// interfaces a check of it reads).  A manifest that is not what the page
-// can use is refused with a message naming the field.
+// interfaces a check of it reads), and a library's module list (issue 9;
+// agda-algebras-modules.json, which the build writes from the library's
+// sources archive: every module, with its path and title, for the
+// Explorer).  A manifest that is not what the page can use is refused with
+// a message naming the field.
 //
 // These are the present formats, not issue 24's plugin manifest: they
 // have no kind, no digests and no costs, and nothing here loads a plugin.
@@ -60,9 +63,52 @@ const interfaces = z.object({
   chapters: z.record(z.string(), z.array(z.string().min(1))),
 });
 
+/** A part of a module name: no whitespace, and none of Agda's reserved
+ * characters, the dot among them. */
+const namePart = String.raw`[^\s.;{}()@"]+`;
+
+const libraryModule = z.object({
+  name: z.string().regex(new RegExp(`^${namePart}(?:\\.${namePart})*$`, "u"), "must be a dotted module name"),
+  path: z.string().refine(isSourcePath, "must be an absolute path to an Agda source on the engine's drive"),
+  title: z.string().min(1).optional(),
+});
+
+// The module list: each name is the module at its path (the path under an
+// included directory, its suffix dropped and its slashes read as dots), no
+// name is listed twice, and the modules are in the Explorer's order, the
+// order the build writes and the tree shows.
+const library = z
+  .object({
+    version: z.literal(1),
+    library: z.string().min(1),
+    commit: z.string().regex(/^[0-9a-f]{40}$/, "must be a full commit hash").optional(),
+    include: z
+      .array(z.string().regex(/^\/(?:(?:[^/\s]+\/)*[^/\s]+)?$/, "must be an absolute directory on the engine's drive"))
+      .min(1),
+    modules: z.array(libraryModule).min(1),
+  })
+  .superRefine((value, context) => {
+    const seen = new Set<string>();
+    value.modules.forEach((entry, index) => {
+      const path = ["modules", index, "name"];
+      if (!value.include.some((dir) => moduleAt(dir, entry.path) === entry.name))
+        context.addIssue({ code: "custom", path, message: `is not the module at ${entry.path}` });
+      else if (seen.has(entry.name)) context.addIssue({ code: "custom", path, message: `repeats ${entry.name}` });
+      else if (index > 0 && compareModuleNames(value.modules[index - 1].name, entry.name) > 0)
+        context.addIssue({
+          code: "custom",
+          path,
+          message: `comes after ${value.modules[index - 1].name} in the Explorer's order`,
+        });
+      seen.add(entry.name);
+    });
+  });
+
 export type CorpusManifest = z.infer<typeof corpus>;
 export type Chapter = z.infer<typeof chapter>;
 export type InterfaceManifest = z.infer<typeof interfaces>;
+export type LibraryManifest = z.infer<typeof library>;
+export type LibraryModule = z.infer<typeof libraryModule>;
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -93,6 +139,35 @@ export function parseInterfaceManifest(json: unknown, against?: CorpusManifest):
       return { ok: false, error: `the interface manifest: chapters.${id} names ${unknown}, which is not a chapter` };
   }
   return result;
+}
+
+/** A library's module list, or the first field that is wrong. */
+export function parseLibraryManifest(json: unknown): Parsed<LibraryManifest> {
+  return parsed(library, "the module list", json);
+}
+
+/** The module a source path holds when `dir` is on the include path, or
+ * undefined when the path is not under it. */
+function moduleAt(dir: string, path: string): string | undefined {
+  const kind = sourceKind(path);
+  const prefix = dir === "/" ? dir : `${dir}/`;
+  if (!kind || !path.startsWith(prefix)) return undefined;
+  return path.slice(prefix.length, -(kind.length + 1)).split("/").join(".");
+}
+
+const compareCodePoints = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+/** The Explorer's order of two dotted names: segment by segment, case
+ * aside first and then by code point; a name before the names under it,
+ * so a module comes before the modules in the folder of its name. */
+export function compareModuleNames(left: string, right: string): number {
+  const a = left.split(".");
+  const b = right.split(".");
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    const order = compareCodePoints(a[i].toLowerCase(), b[i].toLowerCase()) || compareCodePoints(a[i], b[i]);
+    if (order) return order;
+  }
+  return a.length - b.length;
 }
 
 /** The chapters in reading order. */

@@ -4,7 +4,8 @@
 // when the site is built (scripts/asset-manifest.mjs, which vite.config.js
 // hands to the page as AGDA_ASSETS), where upstream maintained each value
 // by hand (issue 3).  agda-algebras' sources joined them with the
-// playground's project (issue 11).
+// playground's project (issue 11), and the list of its modules with the
+// Explorer (issue 9).
 
 declare const AGDA_ASSETS: {
   tokens: {
@@ -13,6 +14,7 @@ declare const AGDA_ASSETS: {
     builtins: string;
     stdlib: string;
     agdaAlgebras: string;
+    agdaAlgebrasModules: string;
     plfaProject: string;
     plfaInterfaces: string;
   };

@@ -225,6 +225,19 @@ License: Apache-2.0, the library's own for `src/` (`LICENSE`, with its
 |---|---:|---|
 | `static/agda-algebras-sources.zip` | 985,864 | `005b0f5576bf88d25d32b5b7af44bcc9ff47028faddc9a2c9eb38a18998ad961` |
 
+`static/agda-algebras-modules.json` is the list of the modules in that
+archive, which the Explorer shows ([#9]): each module's dotted name, its
+path on the page's drive, and the `title` of its front matter, with the
+library's name, its include path and the commit.  The flake writes it from
+the archive (`mkAgdaAlgebrasModules`, running
+`scripts/library-modules.mjs`), and `make assets-check` writes it again
+from the archive in `static/` and refuses a list that differs.  It is
+derived from the sources the section above names, under their license.
+
+| Path | Bytes | SHA-256 |
+|---|---:|---|
+| `static/agda-algebras-modules.json` | 59,754 | `ed3923d0a5d776433aebef7ecff72713f5b1af83cb7d6dfec5885494a95af9e4` |
+
 ## Retired pins
 
 Pinned from upstream until [#58] replaced them; no longer shipped.  The
@@ -427,6 +440,7 @@ Each change is its own commit, named here by its subject.
 [#5]: https://github.com/formalverification/agda-native-ide/issues/5
 [#6]: https://github.com/formalverification/agda-native-ide/issues/6
 [#8]: https://github.com/formalverification/agda-native-ide/issues/8
+[#9]: https://github.com/formalverification/agda-native-ide/issues/9
 [#11]: https://github.com/formalverification/agda-native-ide/issues/11
 [#12]: https://github.com/formalverification/agda-native-ide/issues/12
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13

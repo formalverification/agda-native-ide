@@ -5,7 +5,8 @@
 // (scripts/asset-manifest.mjs, issue 3): each token follows its own
 // asset's content and nothing else, and the build refuses to run without
 // an asset.  agda-algebras' sources are among them, since Agda reads them
-// (issue 11).
+// (issue 11); the list of its modules is too, outside the drive cache's
+// namespace, since Agda does not read it (issue 9).
 
 import { createHash } from "node:crypto";
 import {
@@ -35,6 +36,7 @@ beforeEach(() => {
   write("agda-data.zip", "builtins v1");
   write("agda-stdlib-2.3-patched.zip", "stdlib v1");
   write("agda-algebras-sources.zip", "agda-algebras v1");
+  write("agda-algebras-modules.json", "modules v1");
   write("plfa/project.zip", "plfa v1");
   write(
     "plfa/interfaces/manifest.json",
@@ -55,6 +57,7 @@ describe("the asset manifest", () => {
     expect(manifest.tokens.glue).toBe(sha256("glue v1").slice(0, 16));
     expect(manifest.tokens.stdlib).toBe(sha256("stdlib v1").slice(0, 16));
     expect(manifest.tokens.agdaAlgebras).toBe(sha256("agda-algebras v1").slice(0, 16));
+    expect(manifest.tokens.agdaAlgebrasModules).toBe(sha256("modules v1").slice(0, 16));
     expect(manifest.compilerBytes).toBe("compiler v1".length);
     expect(assetManifest(dir)).toEqual(manifest);
   });
@@ -73,6 +76,16 @@ describe("the asset manifest", () => {
         else expect(after.tokens[other]).toBe(before.tokens[other]);
       expect(after.driveCacheNamespace).not.toBe(before.driveCacheNamespace);
     }
+  });
+
+  it("changes the list of modules' token, and not the namespace, when the list changes", () => {
+    const before = assetManifest(dir);
+    write("agda-algebras-modules.json", "modules v2");
+    const after = assetManifest(dir);
+    for (const name of Object.keys(before.tokens))
+      if (name === "agdaAlgebrasModules") expect(after.tokens[name]).not.toBe(before.tokens[name]);
+      else expect(after.tokens[name]).toBe(before.tokens[name]);
+    expect(after.driveCacheNamespace).toBe(before.driveCacheNamespace);
   });
 
   it("changes a directory's token when a file in it changes, appears or moves", () => {

@@ -8,7 +8,8 @@
 // AGDA_ASSETS, and src/lib/assets.ts reads it.  The compiler is the
 // language server's reactor build, with the JavaScript glue its worker
 // imports (issue 59).  agda-algebras' sources are a library on the drive,
-// which the playground's project depends on (issue 11).
+// which the playground's project depends on (issue 11); the list of its
+// modules is what the Explorer shows (issue 9).
 //
 // A token is the first 16 hex digits of a SHA-256 over a file's bytes or,
 // for a directory, over the SHA-256s and paths of its files, so a rebuilt
@@ -16,7 +17,8 @@
 // namespace is the same digest over everything Agda reads (the compiler
 // and its glue, the builtins, the standard library, agda-algebras' sources
 // and PLFA), so files persisted against one set of assets are never
-// restored against another.
+// restored against another; the list of modules, which Agda does not read,
+// is left out of it.
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -32,9 +34,15 @@ export const ASSETS = {
   builtins: "agda-data.zip",
   stdlib: "agda-stdlib-2.3-patched.zip",
   agdaAlgebras: "agda-algebras-sources.zip",
+  agdaAlgebrasModules: "agda-algebras-modules.json",
   plfaProject: "plfa/project.zip",
   plfaInterfaces: "plfa/interfaces",
 };
+
+/** The assets Agda does not read, which the drive's cache namespace
+ * leaves out: a new list of modules is no reason to drop a reader's
+ * drive. */
+const NOT_READ_BY_AGDA = new Set(["agdaAlgebrasModules"]);
 
 const sha256 = (/** @type {string | Buffer} */ data) =>
   createHash("sha256").update(data).digest("hex");
@@ -126,6 +134,7 @@ export function assetManifest(staticDir, { strict = true } = {}) {
     compilerBytes: existsSync(compiler) ? statSync(compiler).size : null,
     driveCacheNamespace: sha256(
       digests
+        .filter(([name]) => !NOT_READ_BY_AGDA.has(name))
         .map(([name, hex]) => `${hex ?? "missing"}  ${ASSETS[name]}\n`)
         .join(""),
     ).slice(0, 16),
