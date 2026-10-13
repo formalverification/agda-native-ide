@@ -1111,7 +1111,8 @@ the three exercises, which land in `/play/` beside `Main` ([#16]).
 
 +  **Issues**: [#2] (the fork), [#3] (the Nix build), [#4] (the pins), [#5]
    (CI), [#6] (hosting), [#7] (this record), [#8] (the page's notices, once a
-   page that could not isolate itself), [#11] (the playground's project,
+   page that could not isolate itself), [#9] (the Explorer, in
+   [`docs/notes/explorer.md`][explorer-note]), [#11] (the playground's project,
    § 11), [#12] (the library archives, § 10), [#13] (interface acceptance),
    [#14] (mounting the archives), [#16] (the exercises), [#18] (the
    benchmark), [#20] (PLFA's removal), [#30] (the second lane), [#48] (the
@@ -1126,8 +1127,10 @@ the three exercises, which land in `/play/` beside `Main` ([#16]).
    [`docs/notes/library-archives.md`][archives-note] (the library
    archives), `docs/measurements/library-archives-2026-10-11.json` (their
    runs), `docs/measurements/library-archives-browser-2026-10-12.json`
-   (the gate's) and `docs/measurements/playground-2026-10-12.json` (the
-   playground's), [`docs/provenance.md`][provenance] (the record),
+   (the gate's), `docs/measurements/playground-2026-10-12.json` (the
+   playground's) and `docs/measurements/explorer-2026-10-13.json` (the
+   Explorer's), [`docs/notes/explorer.md`][explorer-note] (the Explorer),
+   [`docs/provenance.md`][provenance] (the record),
    [`NOTICE`][notice].
 +  **Code**: `flake.nix` (`packages.assets`, the pins; `packages.site`;
    `apps.browser-check`; `packages.compiler`, `packages.stdlib`,
@@ -1154,7 +1157,14 @@ the three exercises, which land in `/play/` beside `Main` ([#16]).
    `flake.nix` (`agdaAlgebras`, the pin), `scripts/library-archives/`
    (`stage.sh`, `build.sh`, `pack.mjs`, `index.mjs`, `check.sh`, and the
    gate, `gate.mjs` and `gate/`, with `apps.library-gate`) and
-   `.github/workflows/library-archives.yml`.
+   `.github/workflows/library-archives.yml`; for the Explorer, the list of
+   agda-algebras' modules, `scripts/library-modules.mjs`, which
+   `mkAgdaAlgebrasModules` in `flake.nix` runs and `packages.assets`
+   installs, and `make assets-check` runs again, with its schema,
+   `parseLibraryManifest` in `packages/manifest/src/index.ts`; the tree,
+   `ExplorerTree.svelte` and `tree.ts` in `packages/views/src/`; the
+   page's `explorerItems` and `openFromExplorer` in
+   `src/routes/+page.svelte`; and `scripts/browser-check/explorer.mjs`.
 
 [#2]: https://github.com/formalverification/agda-native-ide/issues/2
 [#3]: https://github.com/formalverification/agda-native-ide/issues/3
@@ -1163,6 +1173,7 @@ the three exercises, which land in `/play/` beside `Main` ([#16]).
 [#6]: https://github.com/formalverification/agda-native-ide/issues/6
 [#7]: https://github.com/formalverification/agda-native-ide/issues/7
 [#8]: https://github.com/formalverification/agda-native-ide/issues/8
+[#9]: https://github.com/formalverification/agda-native-ide/issues/9
 [#11]: https://github.com/formalverification/agda-native-ide/issues/11
 [#12]: https://github.com/formalverification/agda-native-ide/issues/12
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
@@ -1186,6 +1197,7 @@ the three exercises, which land in `/play/` beside `Main` ([#16]).
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [note]: ../notes/runtime.md
 [archives-note]: ../notes/library-archives.md
+[explorer-note]: ../notes/explorer.md
 [recipe]: ../../compiler/build-agda-2.9.0.sh
 [provenance]: ../provenance.md
 [notice]: ../../NOTICE

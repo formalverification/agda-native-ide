@@ -65,8 +65,9 @@ together from one `package-lock.json`.
 +  [`docs/adr/0001-runtime.md`][adr-0001]: ADR 0001, the runtime: why this
    fork, how it is imported and pinned, and the second lane.  Its
    companion, [`docs/notes/runtime.md`][runtime-note], explains how the
-   runtime works, and [`docs/notes/library-archives.md`][archives-note]
-   explains agda-algebras' archives (its § 10).
+   runtime works, [`docs/notes/library-archives.md`][archives-note]
+   explains agda-algebras' archives (its § 10), and
+   [`docs/notes/explorer.md`][explorer-note] explains the Explorer.
 +  [`docs/adr/0002-where-the-workbench-lives.md`][adr-0002]: ADR 0002, where
    the workbench lives: three platforms with different jobs, one shared
    core, and Agda 2.9.0, with the measurements behind them and the risks.
@@ -186,7 +187,12 @@ asserts its one open goal with its context and the modules that check
 type-checked (the `Checking` lines of Agda's running info, read from the
 inspector after an Infer), gives at the goal, checks a deliberate type
 error, checks that a postulate is refused, and imports a module of
-agda-algebras, which is type-checked from source.  It serves
+agda-algebras, which is type-checked from source.  It uses the Explorer's
+tree with the keyboard, as a screen reader's user would: its roles, the
+arrow keys to a module, every module listed in order, a filter, the keys
+and the filter while a check runs, and, after a reload, the rows still
+expanded, the open file revealed, and a PLFA chapter in a closed part
+opened and scrolled into view ([#9]).  It serves
 the site without the two isolation headers and asserts that the page is
 not cross-origin isolated; `make browser-check ISOLATED=1` (`--isolated`)
 sends them and asserts that it is.  It writes its timings, every request
@@ -233,6 +239,21 @@ browser's storage under `agda-web-ide-beta:doc:/play/Main.agda`, and PLFA's
 chapters keep their own library, at the drive's root.
 [`docs/notes/runtime.md`][runtime-note] explains the layout and which
 flags apply to `Main`.
+
+The Explorer is one tree of three sections ([#9]): the playground's
+`Main.agda`; every module of agda-algebras, from
+`agda-algebras-modules.json`, the list the flake writes from the sources
+archive (`make assets-check` writes it again and refuses a list that
+differs); and PLFA's chapters, until [#20].  A folder beside a module of
+its own name is one row, whose chevron shows the folder's rows and whose
+label is the module.  The tree is an ARIA tree, one tab stop, with the
+arrow keys, Home, End, Enter and type-ahead; a filter above it finds a
+module by any part of its dotted name; it keeps which rows are expanded in
+the browser's storage, and reveals the open file.  Its rows stay usable
+while Agda is busy.  Opening a module of agda-algebras is [#10]'s, so for
+now a module's row is selected and nothing opens; the Explorer still hides
+at 800 px and below ([#22]).
+[`docs/notes/explorer.md`][explorer-note] explains the list and the tree.
 
 ## Theme
 
@@ -373,6 +394,7 @@ every artifact the app ships, with its license.
 [adr-0001]: docs/adr/0001-runtime.md
 [runtime-note]: docs/notes/runtime.md
 [archives-note]: docs/notes/library-archives.md
+[explorer-note]: docs/notes/explorer.md
 [archives-ci]: .github/workflows/library-archives.yml
 [adr-0002]: docs/adr/0002-where-the-workbench-lives.md
 [adr-0003]: docs/adr/0003-the-shared-core.md
@@ -390,9 +412,13 @@ every artifact the app ships, with its license.
 [williamdemeo/github-project]: https://github.com/williamdemeo/github-project
 [formalverification/agda-wasm-builds]: https://github.com/formalverification/agda-wasm-builds
 [#8]: https://github.com/formalverification/agda-native-ide/issues/8
+[#9]: https://github.com/formalverification/agda-native-ide/issues/9
+[#10]: https://github.com/formalverification/agda-native-ide/issues/10
 [#11]: https://github.com/formalverification/agda-native-ide/issues/11
 [#12]: https://github.com/formalverification/agda-native-ide/issues/12
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
 [#14]: https://github.com/formalverification/agda-native-ide/issues/14
+[#20]: https://github.com/formalverification/agda-native-ide/issues/20
+[#22]: https://github.com/formalverification/agda-native-ide/issues/22
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59
