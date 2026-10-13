@@ -1,0 +1,2408 @@
+{
+ "run": "library-tabs-2026-10-13",
+ "issue": 10,
+ "date": "2026-10-13",
+ "clock": "Times are UTC where a run records them; the workstation's clock read MDT (UTC-6), 2026-10-13, about 12:55 to 14:40.",
+ "revision": "38351d6ab9b326c059c0127339bebd157312ec9d",
+ "machine": {
+  "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+  "logicalCpus": 20,
+  "memoryBytes": 67068481536,
+  "kernel": "7.0.0-31-generic",
+  "note": "Other sessions' builds ran beside these runs, at the loads given, so the times are indicative; the counts and the messages are the findings."
+ },
+ "inputs": {
+  "browser": "Chrome/149.0.7827.200 (the flake's chromium, headless); Firefox 157.0 (the system's) for one browser check",
+  "agdaVersion": "2.9.0",
+  "agdaAlgebras": "f067d57d (the page's pin)",
+  "site": "build/ from make build at the revision, served by scripts/browser-check/serve.mjs on loopback, no-store for /agda-algebras/"
+ },
+ "openTimes": {
+  "what": "timing-checks-in-the-page's library-open.mjs: a fresh profile per module and round; once the default Main is checked, Enter on the module's Explorer row; the question answered Fetch (or Check from source); mountMs from the answer (or the Enter, when nothing is asked) to the heading's 'Loading <module>…'; loadS the page's own duration of the load; checking the count of Checking lines of the load (an Infer of Set shows the compiler log); hoverMs from the pointer's arrival on the last character of a word to the language server's tooltip.  Then a reload in the same profile and the same module opened again (the second visit).",
+  "fetch": {
+   "Overture.Signatures": {
+    "first": {
+     "runs": 3,
+     "mountMs": 27,
+     "loadS": 0.209,
+     "hoverMs": 668,
+     "checking": [
+      0
+     ],
+     "archives": [
+      3
+     ],
+     "bytes": [
+      206933
+     ],
+     "loads": [
+      2.74,
+      2.85,
+      1.8
+     ]
+    },
+    "second": {
+     "runs": 3,
+     "mountMs": 40,
+     "loadS": 0.192,
+     "hoverMs": 550,
+     "checking": [
+      0
+     ],
+     "archives": [
+      0
+     ],
+     "bytes": [
+      0
+     ],
+     "loads": [
+      2.63,
+      3.04,
+      1.6
+     ]
+    }
+   },
+   "Setoid.Algebras.Basic": {
+    "first": {
+     "runs": 3,
+     "mountMs": 185,
+     "loadS": 3.15,
+     "hoverMs": 6242,
+     "checking": [
+      0
+     ],
+     "archives": [
+      50
+     ],
+     "bytes": [
+      16974016
+     ],
+     "loads": [
+      3.19,
+      2.81,
+      1.67
+     ]
+    },
+    "second": {
+     "runs": 3,
+     "mountMs": 135,
+     "loadS": 3.36,
+     "hoverMs": 6002,
+     "checking": [
+      0
+     ],
+     "archives": [
+      0
+     ],
+     "bytes": [
+      0
+     ],
+     "loads": [
+      2.78,
+      2.3,
+      1.93
+     ]
+    }
+   },
+   "Setoid.Varieties.HSP": {
+    "first": {
+     "runs": 3,
+     "mountMs": 415,
+     "loadS": 6.69,
+     "hoverMs": 12617,
+     "checking": [
+      0
+     ],
+     "archives": [
+      128
+     ],
+     "bytes": [
+      39251541
+     ],
+     "loads": [
+      2.83,
+      2.18,
+      2.25
+     ]
+    },
+    "second": {
+     "runs": 3,
+     "mountMs": 234,
+     "loadS": 6.7,
+     "hoverMs": 12543,
+     "checking": [
+      0
+     ],
+     "archives": [
+      0
+     ],
+     "bytes": [
+      0
+     ],
+     "loads": [
+      2.85,
+      1.8,
+      2.41
+     ]
+    }
+   }
+  },
+  "source": {
+   "what": "One round, the question answered Check from source; then a reload, where the declined archives are remembered for the tab and the drive's cache restores the interfaces Agda wrote.",
+   "note": "The page's compiler log keeps its last 50 messages, so a count of 50 is a floor: agda-algebras' index counts 170 modules of Setoid.Algebras.Basic's closure from source (11 for Overture.Signatures, which the log shows whole).",
+   "runs": [
+    {
+     "round": 0,
+     "module": "Overture.Signatures",
+     "visit": "first",
+     "answer": "source",
+     "load": 2.56,
+     "stated": 206933,
+     "archives": 0,
+     "bytes": 0,
+     "mountMs": 3,
+     "loadS": 2.12,
+     "status": "Module checked · 2.12 s",
+     "note": "agda-algebras' interfaces were not fetched, so Agda checks the modules they hold from source. Loading Overture.Signatures from source can take minutes.",
+     "checking": 11,
+     "checkingFirst": [
+      "Overture.Signatures",
+      "Data.Product",
+      "Level"
+     ],
+     "hoverMs": 701,
+     "hover": "(𝓞 𝓥 : Agda.Primitive.Level) → Agda.Primitive.Set (Agda.Primitive.lsuc 𝓞 Agda.Primitive.⊔ Agda.Primitive.lsuc 𝓥)"
+    },
+    {
+     "round": 0,
+     "module": "Overture.Signatures",
+     "visit": "second",
+     "answer": "not asked",
+     "load": 2.71,
+     "stated": null,
+     "archives": 0,
+     "bytes": 0,
+     "mountMs": 27,
+     "loadS": 0.21,
+     "status": "Module checked · 210 ms",
+     "note": null,
+     "checking": 0,
+     "checkingFirst": [],
+     "hoverMs": 702,
+     "hover": "(𝓞 𝓥 : Agda.Primitive.Level) → Agda.Primitive.Set (Agda.Primitive.lsuc 𝓞 Agda.Primitive.⊔ Agda.Primitive.lsuc 𝓥)"
+    },
+    {
+     "round": 0,
+     "module": "Setoid.Algebras.Basic",
+     "visit": "first",
+     "answer": "source",
+     "load": 8.69,
+     "stated": 16974016,
+     "archives": 0,
+     "bytes": 0,
+     "mountMs": 4,
+     "loadS": 130.1,
+     "status": "Module checked · 2m 10.1s",
+     "note": "agda-algebras' interfaces were not fetched, so Agda checks the modules they hold from source. Loading Setoid.Algebras.Basic from source can take minutes.",
+     "checking": 50,
+     "checkingFirst": [
+      "Algebra.Lattice.Properties.Semilattice",
+      "Relation.Binary.Lattice",
+      "Relation.Binary.Lattice.Definitions"
+     ],
+     "hoverMs": 6963,
+     "hover": "{𝓞 𝓥 : Agda.Primitive.Level} {𝑆 : Overture.Signatures.Signature 𝓞 𝓥} (α ρ : Agda.Primitive.Level) → Agda.Primitive."
+    },
+    {
+     "round": 0,
+     "module": "Setoid.Algebras.Basic",
+     "visit": "second",
+     "answer": "not asked",
+     "load": 7.44,
+     "stated": null,
+     "archives": 0,
+     "bytes": 0,
+     "mountMs": 36,
+     "loadS": 3.7,
+     "status": "Module checked · 3.70 s",
+     "note": null,
+     "checking": 0,
+     "checkingFirst": [],
+     "hoverMs": 6725,
+     "hover": "{𝓞 𝓥 : Agda.Primitive.Level} {𝑆 : Overture.Signatures.Signature 𝓞 𝓥} (α ρ : Agda.Primitive.Level) → Agda.Primitive."
+    }
+   ]
+  },
+  "samples": [
+   {
+    "round": 0,
+    "module": "Overture.Signatures",
+    "visit": "first",
+    "answer": "fetch",
+    "load": 2.74,
+    "stated": 206933,
+    "archives": 3,
+    "bytes": 206933,
+    "mountMs": 16,
+    "loadS": 0.209,
+    "status": "Module checked · 209 ms",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 654,
+    "hover": "(𝓞 𝓥 : Agda.Primitive.Level) → Agda.Primitive.Set (Agda.Primitive.lsuc 𝓞 Agda.Primitive.⊔ Agda.Primitive.lsuc 𝓥)"
+   },
+   {
+    "round": 0,
+    "module": "Overture.Signatures",
+    "visit": "second",
+    "answer": "not asked",
+    "load": 2.63,
+    "stated": null,
+    "archives": 0,
+    "bytes": 0,
+    "mountMs": 40,
+    "loadS": 0.21,
+    "status": "Module checked · 210 ms",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 550,
+    "hover": "(𝓞 𝓥 : Agda.Primitive.Level) → Agda.Primitive.Set (Agda.Primitive.lsuc 𝓞 Agda.Primitive.⊔ Agda.Primitive.lsuc 𝓥)"
+   },
+   {
+    "round": 0,
+    "module": "Setoid.Algebras.Basic",
+    "visit": "first",
+    "answer": "fetch",
+    "load": 3.19,
+    "stated": 16974016,
+    "archives": 50,
+    "bytes": 16974016,
+    "mountMs": 186,
+    "loadS": 3.85,
+    "status": "Module checked · 3.85 s",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 7132,
+    "hover": "{𝓞 𝓥 : Agda.Primitive.Level} {𝑆 : Overture.Signatures.Signature 𝓞 𝓥} (α ρ : Agda.Primitive.Level) → Agda.Primitive."
+   },
+   {
+    "round": 0,
+    "module": "Setoid.Algebras.Basic",
+    "visit": "second",
+    "answer": "not asked",
+    "load": 2.78,
+    "stated": null,
+    "archives": 0,
+    "bytes": 0,
+    "mountMs": 123,
+    "loadS": 3.4,
+    "status": "Module checked · 3.40 s",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 5818,
+    "hover": "{𝓞 𝓥 : Agda.Primitive.Level} {𝑆 : Overture.Signatures.Signature 𝓞 𝓥} (α ρ : Agda.Primitive.Level) → Agda.Primitive."
+   },
+   {
+    "round": 0,
+    "module": "Setoid.Varieties.HSP",
+    "visit": "first",
+    "answer": "fetch",
+    "load": 2.83,
+    "stated": 39251541,
+    "archives": 128,
+    "bytes": 39251541,
+    "mountMs": 417,
+    "loadS": 6.69,
+    "status": "Module checked · 6.69 s",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 12694,
+    "hover": "{α ρᵃ β ρᵇ : Agda.Primitive.Level} {𝐴 : Relation.Binary.Bundles.Setoid α ρᵃ} {𝐵 : Relation.Binary.Bundles.Setoid β ρᵇ}"
+   },
+   {
+    "round": 0,
+    "module": "Setoid.Varieties.HSP",
+    "visit": "second",
+    "answer": "not asked",
+    "load": 2.85,
+    "stated": null,
+    "archives": 0,
+    "bytes": 0,
+    "mountMs": 234,
+    "loadS": 6.7,
+    "status": "Module checked · 6.70 s",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 12668,
+    "hover": "{α ρᵃ β ρᵇ : Agda.Primitive.Level} {𝐴 : Relation.Binary.Bundles.Setoid α ρᵃ} {𝐵 : Relation.Binary.Bundles.Setoid β ρᵇ}"
+   },
+   {
+    "round": 1,
+    "module": "Overture.Signatures",
+    "visit": "first",
+    "answer": "fetch",
+    "load": 2.85,
+    "stated": 206933,
+    "archives": 3,
+    "bytes": 206933,
+    "mountMs": 28,
+    "loadS": 0.218,
+    "status": "Module checked · 218 ms",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 700,
+    "hover": "(𝓞 𝓥 : Agda.Primitive.Level) → Agda.Primitive.Set (Agda.Primitive.lsuc 𝓞 Agda.Primitive.⊔ Agda.Primitive.lsuc 𝓥)"
+   },
+   {
+    "round": 1,
+    "module": "Overture.Signatures",
+    "visit": "second",
+    "answer": "not asked",
+    "load": 3.04,
+    "stated": null,
+    "archives": 0,
+    "bytes": 0,
+    "mountMs": 30,
+    "loadS": 0.175,
+    "status": "Module checked · 175 ms",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 670,
+    "hover": "(𝓞 𝓥 : Agda.Primitive.Level) → Agda.Primitive.Set (Agda.Primitive.lsuc 𝓞 Agda.Primitive.⊔ Agda.Primitive.lsuc 𝓥)"
+   },
+   {
+    "round": 1,
+    "module": "Setoid.Algebras.Basic",
+    "visit": "first",
+    "answer": "fetch",
+    "load": 2.81,
+    "stated": 16974016,
+    "archives": 50,
+    "bytes": 16974016,
+    "mountMs": 185,
+    "loadS": 3.15,
+    "status": "Module checked · 3.15 s",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 6242,
+    "hover": "{𝓞 𝓥 : Agda.Primitive.Level} {𝑆 : Overture.Signatures.Signature 𝓞 𝓥} (α ρ : Agda.Primitive.Level) → Agda.Primitive."
+   },
+   {
+    "round": 1,
+    "module": "Setoid.Algebras.Basic",
+    "visit": "second",
+    "answer": "not asked",
+    "load": 2.3,
+    "stated": null,
+    "archives": 0,
+    "bytes": 0,
+    "mountMs": 135,
+    "loadS": 3.23,
+    "status": "Module checked · 3.23 s",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 6002,
+    "hover": "{𝓞 𝓥 : Agda.Primitive.Level} {𝑆 : Overture.Signatures.Signature 𝓞 𝓥} (α ρ : Agda.Primitive.Level) → Agda.Primitive."
+   },
+   {
+    "round": 1,
+    "module": "Setoid.Varieties.HSP",
+    "visit": "first",
+    "answer": "fetch",
+    "load": 2.18,
+    "stated": 39251541,
+    "archives": 128,
+    "bytes": 39251541,
+    "mountMs": 388,
+    "loadS": 6.11,
+    "status": "Module checked · 6.11 s",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 11368,
+    "hover": "{α ρᵃ β ρᵇ : Agda.Primitive.Level} {𝐴 : Relation.Binary.Bundles.Setoid α ρᵃ} {𝐵 : Relation.Binary.Bundles.Setoid β ρᵇ}"
+   },
+   {
+    "round": 1,
+    "module": "Setoid.Varieties.HSP",
+    "visit": "second",
+    "answer": "not asked",
+    "load": 1.8,
+    "stated": null,
+    "archives": 0,
+    "bytes": 0,
+    "mountMs": 219,
+    "loadS": 5.8,
+    "status": "Module checked · 5.80 s",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 11065,
+    "hover": "{α ρᵃ β ρᵇ : Agda.Primitive.Level} {𝐴 : Relation.Binary.Bundles.Setoid α ρᵃ} {𝐵 : Relation.Binary.Bundles.Setoid β ρᵇ}"
+   },
+   {
+    "round": 2,
+    "module": "Overture.Signatures",
+    "visit": "first",
+    "answer": "fetch",
+    "load": 1.8,
+    "stated": 206933,
+    "archives": 3,
+    "bytes": 206933,
+    "mountMs": 27,
+    "loadS": 0.179,
+    "status": "Module checked · 179 ms",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 668,
+    "hover": "(𝓞 𝓥 : Agda.Primitive.Level) → Agda.Primitive.Set (Agda.Primitive.lsuc 𝓞 Agda.Primitive.⊔ Agda.Primitive.lsuc 𝓥)"
+   },
+   {
+    "round": 2,
+    "module": "Overture.Signatures",
+    "visit": "second",
+    "answer": "not asked",
+    "load": 1.6,
+    "stated": null,
+    "archives": 0,
+    "bytes": 0,
+    "mountMs": 52,
+    "loadS": 0.192,
+    "status": "Module checked · 192 ms",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 499,
+    "hover": "(𝓞 𝓥 : Agda.Primitive.Level) → Agda.Primitive.Set (Agda.Primitive.lsuc 𝓞 Agda.Primitive.⊔ Agda.Primitive.lsuc 𝓥)"
+   },
+   {
+    "round": 2,
+    "module": "Setoid.Algebras.Basic",
+    "visit": "first",
+    "answer": "fetch",
+    "load": 1.67,
+    "stated": 16974016,
+    "archives": 50,
+    "bytes": 16974016,
+    "mountMs": 171,
+    "loadS": 2.91,
+    "status": "Module checked · 2.91 s",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 6065,
+    "hover": "{𝓞 𝓥 : Agda.Primitive.Level} {𝑆 : Overture.Signatures.Signature 𝓞 𝓥} (α ρ : Agda.Primitive.Level) → Agda.Primitive."
+   },
+   {
+    "round": 2,
+    "module": "Setoid.Algebras.Basic",
+    "visit": "second",
+    "answer": "not asked",
+    "load": 1.93,
+    "stated": null,
+    "archives": 0,
+    "bytes": 0,
+    "mountMs": 147,
+    "loadS": 3.36,
+    "status": "Module checked · 3.36 s",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 6412,
+    "hover": "{𝓞 𝓥 : Agda.Primitive.Level} {𝑆 : Overture.Signatures.Signature 𝓞 𝓥} (α ρ : Agda.Primitive.Level) → Agda.Primitive."
+   },
+   {
+    "round": 2,
+    "module": "Setoid.Varieties.HSP",
+    "visit": "first",
+    "answer": "fetch",
+    "load": 2.25,
+    "stated": 39251541,
+    "archives": 128,
+    "bytes": 39251541,
+    "mountMs": 415,
+    "loadS": 6.75,
+    "status": "Module checked · 6.75 s",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 12617,
+    "hover": "{α ρᵃ β ρᵇ : Agda.Primitive.Level} {𝐴 : Relation.Binary.Bundles.Setoid α ρᵃ} {𝐵 : Relation.Binary.Bundles.Setoid β ρᵇ}"
+   },
+   {
+    "round": 2,
+    "module": "Setoid.Varieties.HSP",
+    "visit": "second",
+    "answer": "not asked",
+    "load": 2.41,
+    "stated": null,
+    "archives": 0,
+    "bytes": 0,
+    "mountMs": 260,
+    "loadS": 6.7,
+    "status": "Module checked · 6.70 s",
+    "note": null,
+    "checking": 0,
+    "checkingFirst": [],
+    "hoverMs": 12543,
+    "hover": "{α ρᵃ β ρᵇ : Agda.Primitive.Level} {𝐴 : Relation.Binary.Bundles.Setoid α ρᵃ} {𝐵 : Relation.Binary.Bundles.Setoid β ρᵇ}"
+   }
+  ]
+ },
+ "hover": {
+  "what": "The language server answers a hover with a load of its own, of the hovered file from the drive in a fresh Agda state, then an inference of the token in its scope, and reads no other message meanwhile (its onHover, at the server's pinned commit), so a hover costs about a load of the module from its interfaces.",
+  "medianMs": {
+   "Overture.Signatures": 661.0,
+   "Setoid.Algebras.Basic": 6153.5,
+   "Setoid.Varieties.HSP": 12580.0
+  }
+ },
+ "browserCheck": {
+  "chromium": {
+   "browser": "Chrome/149.0.7827.200",
+   "date": "2026-10-13T20:24:13.736Z",
+   "served": "without the isolation headers",
+   "failure": null,
+   "timings": {
+    "Agda ready, since navigation": 871,
+    "first check done, since navigation": 1550,
+    "first check, as the page reports it": 596,
+    "first check": 1548,
+    "the Explorer": 1568,
+    "infer, and the first check's Checking lines": 154,
+    "give at goal 0": 415,
+    "check a type error": 272,
+    "refuse a postulate": 293,
+    "library import, as the page reports it": 140,
+    "import a module of agda-algebras, asked first": 2045,
+    "library module's load, as the page reports it": 127,
+    "hover in the library module": 667,
+    "a library module, read-only, and undo in its own file": 3302,
+    "a copy into the playground, checked, with a goal answered": 1612,
+    "a selection's copy, and an import in Main": 2321,
+    "the Explorer after a reload": 1894,
+    "second visit's check, as the page reports it": 282,
+    "a second visit, from the browser's store": 1190,
+    "HSP: from the answer to the check's end": 7403,
+    "HSP import, as the page reports it": 6910,
+    "import Setoid.Varieties.HSP, asked once": 8636,
+    "a changed archive, fetched again": 9924,
+    "a remembered answer: the bytes stated, then fetched": 7797,
+    "a declined fetch: what the browser keeps still mounts": 7561,
+    "themes": 8142
+   },
+   "steps": [
+    "first check",
+    "the Explorer",
+    "infer, and the first check's Checking lines",
+    "give at goal 0",
+    "check a type error",
+    "refuse a postulate",
+    "import a module of agda-algebras, asked first",
+    "a library module, read-only, and undo in its own file",
+    "a copy into the playground, checked, with a goal answered",
+    "a selection's copy, and an import in Main",
+    "the Explorer after a reload",
+    "a second visit, from the browser's store",
+    "import Setoid.Varieties.HSP, asked once",
+    "a changed archive, fetched again",
+    "a remembered answer: the bytes stated, then fetched",
+    "a declined fetch: what the browser keeps still mounts",
+    "themes"
+   ],
+   "library": {
+    "bar": "Read-only: Overture.Signatures is agda-algebras at f067d57d, the checked library, as the playground imports it. Copy it to the playground to change it. Copy to playground Import in Main Its page",
+    "tabs": [
+     "/play/Main.agda",
+     "/agda-algebras/src/Overture/Signatures.lagda.md"
+    ],
+    "page": "https://agda-algebras.universalalgebra.org/Overture/Signatures/"
+   },
+   "libraryLoadChecking": [],
+   "libraryHover": {
+    "answer": "(𝓞 𝓥 : Agda.Primitive.Level) →\nAgda.Primitive.Set\n(Agda.Primitive.lsuc 𝓞 Agda.Primitive.⊔ Agda.Primitive.lsuc 𝓥)\n\n",
+    "ms": 667
+   },
+   "libraryDriveCache": {
+    "paths": 2,
+    "module": false
+   },
+   "copyRefused": "Agda finds Overture at /agda-algebras/src/Overture.lagda.md already, so a copy named so would not check; name it otherwise",
+   "playgroundRows": [
+    "Main.agda",
+    "Signatures.lagda.md"
+   ],
+   "copyChecking": [
+    "Signatures"
+   ],
+   "copyContext": [
+    [
+     "𝓞",
+     "Level"
+    ],
+    [
+     "𝓥",
+     "Level"
+    ],
+    [
+     "𝑆",
+     "Data.Product.Σ (Type 𝓞) (λ F → F → Type 𝓥)"
+    ]
+   ],
+   "copyControl": "/play/Signatures.lagda.md:1.1: error: [LibTooFarDown]\nAn .agda-lib file for Overture.Signatures\nmust not be located in the directory /play",
+   "selectionChecking": [
+    "SignatureType"
+   ],
+   "checking": [
+    "Main"
+   ],
+   "libraryChecking": [
+    "Main"
+   ],
+   "hspChecking": [
+    "Main"
+   ]
+  },
+  "chromiumIsolated": {
+   "browser": "Chrome/149.0.7827.200",
+   "date": "2026-10-13T20:25:13.069Z",
+   "served": "with the isolation headers",
+   "failure": null,
+   "timings": {
+    "Agda ready, since navigation": 770,
+    "first check done, since navigation": 1248,
+    "first check, as the page reports it": 402,
+    "first check": 1308,
+    "the Explorer": 1201,
+    "infer, and the first check's Checking lines": 149,
+    "give at goal 0": 411,
+    "check a type error": 286,
+    "refuse a postulate": 200,
+    "library import, as the page reports it": 149,
+    "import a module of agda-algebras, asked first": 2042,
+    "library module's load, as the page reports it": 144,
+    "hover in the library module": 759,
+    "a library module, read-only, and undo in its own file": 3311,
+    "a copy into the playground, checked, with a goal answered": 1886,
+    "a selection's copy, and an import in Main": 2523,
+    "the Explorer after a reload": 2084,
+    "second visit's check, as the page reports it": 302,
+    "a second visit, from the browser's store": 1308,
+    "HSP: from the answer to the check's end": 8074,
+    "HSP import, as the page reports it": 7520,
+    "import Setoid.Varieties.HSP, asked once": 9229,
+    "a changed archive, fetched again": 9073,
+    "a remembered answer: the bytes stated, then fetched": 8882,
+    "a declined fetch: what the browser keeps still mounts": 9569,
+    "themes": 9573
+   },
+   "steps": [
+    "first check",
+    "the Explorer",
+    "infer, and the first check's Checking lines",
+    "give at goal 0",
+    "check a type error",
+    "refuse a postulate",
+    "import a module of agda-algebras, asked first",
+    "a library module, read-only, and undo in its own file",
+    "a copy into the playground, checked, with a goal answered",
+    "a selection's copy, and an import in Main",
+    "the Explorer after a reload",
+    "a second visit, from the browser's store",
+    "import Setoid.Varieties.HSP, asked once",
+    "a changed archive, fetched again",
+    "a remembered answer: the bytes stated, then fetched",
+    "a declined fetch: what the browser keeps still mounts",
+    "themes"
+   ],
+   "library": {
+    "bar": "Read-only: Overture.Signatures is agda-algebras at f067d57d, the checked library, as the playground imports it. Copy it to the playground to change it. Copy to playground Import in Main Its page",
+    "tabs": [
+     "/play/Main.agda",
+     "/agda-algebras/src/Overture/Signatures.lagda.md"
+    ],
+    "page": "https://agda-algebras.universalalgebra.org/Overture/Signatures/"
+   },
+   "libraryLoadChecking": [],
+   "libraryHover": {
+    "answer": "(𝓞 𝓥 : Agda.Primitive.Level) →\nAgda.Primitive.Set\n(Agda.Primitive.lsuc 𝓞 Agda.Primitive.⊔ Agda.Primitive.lsuc 𝓥)\n\n",
+    "ms": 759
+   },
+   "libraryDriveCache": {
+    "paths": 2,
+    "module": false
+   },
+   "copyRefused": "Agda finds Overture at /agda-algebras/src/Overture.lagda.md already, so a copy named so would not check; name it otherwise",
+   "playgroundRows": [
+    "Main.agda",
+    "Signatures.lagda.md"
+   ],
+   "copyChecking": [
+    "Signatures"
+   ],
+   "copyContext": [
+    [
+     "𝓞",
+     "Level"
+    ],
+    [
+     "𝓥",
+     "Level"
+    ],
+    [
+     "𝑆",
+     "Data.Product.Σ (Type 𝓞) (λ F → F → Type 𝓥)"
+    ]
+   ],
+   "copyControl": "/play/Signatures.lagda.md:1.1: error: [LibTooFarDown]\nAn .agda-lib file for Overture.Signatures\nmust not be located in the directory /play",
+   "selectionChecking": [
+    "SignatureType"
+   ],
+   "checking": [
+    "Main"
+   ],
+   "libraryChecking": [
+    "Main"
+   ],
+   "hspChecking": [
+    "Main"
+   ]
+  },
+  "firefox157": {
+   "browser": "Firefox/157.0",
+   "date": "2026-10-13T20:23:11.588Z",
+   "served": "without the isolation headers",
+   "failure": null,
+   "timings": {
+    "Agda ready, since navigation": 1067,
+    "first check done, since navigation": 1342,
+    "first check, as the page reports it": 202,
+    "first check": 1334,
+    "the Explorer": 3466,
+    "infer, and the first check's Checking lines": 49,
+    "give at goal 0": 394,
+    "check a type error": 531,
+    "refuse a postulate": 446,
+    "library import, as the page reports it": 118,
+    "import a module of agda-algebras, asked first": 2175,
+    "library module's load, as the page reports it": 101,
+    "a library module, read-only, and undo in its own file": 2198,
+    "a copy into the playground, checked, with a goal answered": 2641,
+    "a selection's copy, and an import in Main": 2336,
+    "the Explorer after a reload": 2755,
+    "second visit's check, as the page reports it": 182,
+    "a second visit, from the browser's store": 1675,
+    "HSP: from the answer to the check's end": 7705,
+    "HSP import, as the page reports it": 7010,
+    "import Setoid.Varieties.HSP, asked once": 9352,
+    "a changed archive, fetched again": 7884,
+    "a remembered answer: the bytes stated, then fetched": 8758,
+    "a declined fetch: what the browser keeps still mounts": 7643
+   },
+   "steps": [
+    "first check",
+    "the Explorer",
+    "infer, and the first check's Checking lines",
+    "give at goal 0",
+    "check a type error",
+    "refuse a postulate",
+    "import a module of agda-algebras, asked first",
+    "a library module, read-only, and undo in its own file",
+    "a copy into the playground, checked, with a goal answered",
+    "a selection's copy, and an import in Main",
+    "the Explorer after a reload",
+    "a second visit, from the browser's store",
+    "import Setoid.Varieties.HSP, asked once",
+    "a changed archive, fetched again",
+    "a remembered answer: the bytes stated, then fetched",
+    "a declined fetch: what the browser keeps still mounts"
+   ],
+   "library": {
+    "bar": "Read-only: Overture.Signatures is agda-algebras at f067d57d, the checked library, as the playground imports it. Copy it to the playground to change it. Copy to playground Import in Main Its page",
+    "tabs": [
+     "/play/Main.agda",
+     "/agda-algebras/src/Overture/Signatures.lagda.md"
+    ],
+    "page": "https://agda-algebras.universalalgebra.org/Overture/Signatures/"
+   },
+   "libraryLoadChecking": [],
+   "libraryHover": null,
+   "libraryDriveCache": {
+    "paths": 2,
+    "module": false
+   },
+   "copyRefused": "Agda finds Overture at /agda-algebras/src/Overture.lagda.md already, so a copy named so would not check; name it otherwise",
+   "playgroundRows": [
+    "Main.agda",
+    "Signatures.lagda.md"
+   ],
+   "copyChecking": [
+    "Signatures"
+   ],
+   "copyContext": [
+    [
+     "𝓞",
+     "Level"
+    ],
+    [
+     "𝓥",
+     "Level"
+    ],
+    [
+     "𝑆",
+     "Data.Product.Σ (Type 𝓞) (λ F → F → Type 𝓥)"
+    ]
+   ],
+   "copyControl": "/play/Signatures.lagda.md:1.1: error: [LibTooFarDown]\nAn .agda-lib file for Overture.Signatures\nmust not be located in the directory /play",
+   "selectionChecking": [
+    "SignatureType"
+   ],
+   "checking": [
+    "Main"
+   ],
+   "libraryChecking": [
+    "Main"
+   ],
+   "hspChecking": [
+    "Main"
+   ]
+  }
+ },
+ "controls": {
+  "what": "The browser check against a build with one change each, in a detached worktree at the revision, restored by filename afterwards (timing-checks-in-the-page's controls.py); each must fail.",
+  "runs": [
+   {
+    "control": "one state for every file (the fork's switch: the document replaced in the state on screen)",
+    "build": 0,
+    "check": 1,
+    "failure": "the module is not read-only and editable"
+   },
+   {
+    "control": "a library module editable (no read-only document)",
+    "build": 0,
+    "check": 1,
+    "failure": "the page threw: TypeError: Cannot read properties of undefined (reading 'extension')\n    at a (http://127.0.0.1:33865/_app/immutable/nodes/2.C6uPFWZ3.js:4:17829)\n    at a (http://127.0.0.1:33865/_app/immutable/nodes/2.C6uPFWZ3.js:4:17434)\n    at Nt (http://127.0.0.1:33865/_app/immutable/nodes/2.C6uPFWZ3.js:4:18040)\n    at e.resolve (http://127.0.0.1:33865/_app/immutable/nodes/2.C6uPFWZ3.js:4:16551)\n    at e.create (http://127.0.0.1:33865/_app/immutable/nodes/2.C6uPFWZ3.js:4:25595)\n    at Et (http://127.0.0.1:33"
+   },
+   {
+    "control": "a library module written when it opens (checked as a buffer, not loaded where it is)",
+    "build": 0,
+    "check": 1,
+    "failure": "the inspector never said \"Loading Overture.Signatures…\""
+   },
+   {
+    "control": "a copy that keeps the library's module line",
+    "build": 0,
+    "check": 1,
+    "failure": "the copy's check says \"1 problem · 36 ms\": [{\"error\":true,\"message\":\"/play/Signatures.lagda.md:1.1: error: [LibTooFarDown]\\nAn .agda-lib file for Overture.Signatures\\nmust not be located in the directory /play\"}]"
+   },
+   {
+    "control": "no refusal of a name Agda finds already",
+    "build": 0,
+    "check": 1,
+    "failure": "copying as Overture said null"
+   },
+   {
+    "control": "hover positions in UTF-16 code units, as the fork sent them",
+    "build": 0,
+    "check": 0,
+    "failure": null
+   },
+   {
+    "control": "agda-algebras' modules openable while Agda is busy",
+    "build": 0,
+    "check": 1,
+    "failure": "Explorer: while Agda is busy the rows aria-disabled are [play:Main,play:/play/Signatures.lagda.md,play:/play/SignatureType.agda,plfa:part2/Lambda,plfa:part2/Properties,plfa:part2/DeBruijn,plfa:part2/More,plfa:part2/Bisimulation,plfa:part2/Inference,plfa:part2/Untyped,plfa:part2/Substitution,plfa:part2/BigStep,plfa:part2/Confluence], not the playground's files, the chapters and the modules shown, [play:Main,play:/play/Signatures.lagda.md,play:/play/SignatureType.agda,agda-algebras:agda-algebras,agda-algebras:Classical,agda-algebras:Classical.Bundles,agda-algebras:Classical.Bundles.AbelianGroup,agda-algebras:Classical.Bundles.CommutativeMonoid,agda-algebras:Classical.Bundles.CommutativeRing,agda-algebras:Classical.Bundles.CommutativeSemigroup,agda-algebras:Classical.Bundles.DistributiveLattice,agda-algebras:Classical.Bundles.Group,agda-algebras:Classical.Bundles.Lattice,agda-algebras:Classical.Bundles.Magma,agda-algebras:Classical.Bundles.Monoid,agda-algebras:Classical.Bundles.Ring,agda-algebras:Classical.Bundles.Semigroup,agda-algebras:Classical.Bundles.Semilattice,agda-algebras:Classical.Categories,agda-algebras:Classical.Categories.AdjoinUnit,agda-algebras:Classical.Categories.Forgetful,agda-algebras:Classical.Equations,agda-algebras:Classical.Interpretations,agda-algebras:Classical.Interpretations.Maltsev,agda-algebras:Classical.Operations,agda-algebras:Classical.Properties,agda-algebras:Classical.Properties.Lattice,agda-algebras:Classical.Signatures,agda-algebras:Classical.Signatures.Finite,agda-algebras:Classical.Signatures.Group,agda-algebras:Classical.Signatures.Lattice,agda-algebras:Classical.Signatures.Magma,agda-algebras:Classical.Signatures.Monoid,agda-algebras:Classical.Signatures.Ring,agda-algebras:Classical.Signatures.Unary,agda-algebras:Classical.Small,agda-algebras:Classical.Small.Structures,agda-algebras:Classical.Small.Structures.AbelianGroup,agda-algebras:Classical.Small.Structures.CommutativeMonoid,agda-algebras:Classical.Small.Structures.CommutativeRing,agda-algebras:Classical.Small.Structures.CommutativeSemigroup,agda-algebras:Classical.Small.Structures.DistributiveLattice,agda-algebras:Classical.Small.Structures.Group,agda-algebras:Classical.Small.Structures.Lattice,agda-algebras:Classical.Small.Structures.Magma,agda-algebras:Classical.Small.Structures.Monoid,agda-algebras:Classical.Small.Structures.Ring,agda-algebras:Classical.Small.Structures.Semigroup,agda-algebras:Classical.Small.Structures.Semilattice,agda-algebras:Classical.Structures,agda-algebras:Classical.Structures.CommutativeMonoid,agda-algebras:Classical.Structures.CommutativeRing,agda-algebras:Classical.Structures.CommutativeSemigroup,agda-algebras:Classical.Structures.Group,agda-algebras:Classical.Structures.Group.AbelianGroup,agda-algebras:Classical.Structures.Group.Basic,agda-algebras:Classical.Structures.Group.Centralizer,agda-algebras:Classical.Structures.Group.Commutator,agda-algebras:Classical.Structures.Group.Complements,agda-algebras:Classical.Structures.Group.Complexes,agda-algebras:Classical.Structures.Group.Congruences,agda-algebras:Classical.Structures.Group.Conjugation,agda-algebras:Classical.Structures.Group.Cosets,agda-algebras:Classical.Structures.Group.Dedekind,agda-algebras:Classical.Structures.Group.Diagonal,agda-algebras:Classical.Structures.Group.GSet,agda-algebras:Classical.Structures.Group.IndexAction,agda-algebras:Classical.Structures.Group.MaximalSubgroup,agda-algebras:Classical.Structures.Group.MinimalNormal,agda-algebras:Classical.Structures.Group.MinimalNormalDescent,agda-algebras:Classical.Structures.Group.NormalClosure,agda-algebras:Classical.Structures.Group.NormalCore,agda-algebras:Classical.Structures.Group.NormalSubgroupLattice,agda-algebras:Classical.Structures.Group.PartitionSubgroup,agda-algebras:Classical.Structures.Group.Power,agda-algebras:Classical.Structures.Group.PowerCollapse,agda-algebras:Classical.Structures.Group.Product,agda-algebras:Classical.Structures.Group.RegularAction,agda-algebras:Classical.Structures.Group.Simple,agda-algebras:Classical.Structures.Group.SubgroupClassification,agda-algebras:Classical.Structures.Group.SubgroupLattice,agda-algebras:Classical.Structures.Group.Subgroups,agda-algebras:Classical.Structures.Group.TableGroup,agda-algebras:Classical.Structures.Group.Wreath,agda-algebras:Classical.Structures.Interpret,agda-algebras:Classical.Structures.Lattice,agda-algebras:Classical.Structures.Lattice.Basic,agda-algebras:Classical.Structures.Lattice.DistributiveLattice,agda-algebras:Classical.Structures.Lattice.Dual,agda-algebras:Classical.Structures.Lattice.FilterIdeal,agda-algebras:Classical.Structures.Lattice.Free,agda-algebras:Classical.Structures.Lattice.Free.Derivability,agda-algebras:Classical.Structures.Lattice.Free.Term,agda-algebras:Classical.Structures.Lattice.Free.Universal,agda-algebras:Classical.Structures.Lattice.Free.Whitman,agda-algebras:Classical.Structures.Lattice.OrdinalSum,agda-algebras:Classical.Structures.Lattice.Partitions,agda-algebras:Classical.Structures.Lattice.Product,agda-algebras:Classical.Structures.Magma,agda-algebras:Classical.Structures.Monoid,agda-algebras:Classical.Structures.Ring,agda-algebras:Classical.Structures.Semigroup,agda-algebras:Classical.Structures.Semilattice,agda-algebras:Classical.Structures.Unary,agda-algebras:Classical.Theories,agda-algebras:Classical.Theories.AbelianGroup,agda-algebras:Classical.Theories.CommutativeMonoid,agda-algebras:Classical.Theories.CommutativeRing,agda-algebras:Classical.Theories.CommutativeSemigroup,agda-algebras:Classical.Theories.DistributiveLattice,agda-algebras:Classical.Theories.Group,agda-algebras:Classical.Theories.Lattice,agda-algebras:Classical.Theories.Monoid,agda-algebras:Classical.Theories.Ring,agda-algebras:Classical.Theories.Semigroup,agda-algebras:Classical.Theories.Semilattice,agda-algebras:Examples,agda-algebras:Examples.Classical,agda-algebras:Examples.Classical.CommutativeIdempotentMagma,agda-algebras:Examples.Classical.CommutativeMonoid,agda-algebras:Examples.Classical.CommutativeRing,agda-algebras:Examples.Classical.CommutativeSemigroup,agda-algebras:Examples.Classical.Groups,agda-algebras:Examples.Classical.Groups.AbelianGroup,agda-algebras:Examples.Classical.Groups.AlternatingGroup5,agda-algebras:Examples.Classical.Groups.AlternatingGroup5.Tables,agda-algebras:Examples.Classical.Groups.CyclicGroup,agda-algebras:Examples.Classical.Groups.CyclicGroup3,agda-algebras:Examples.Classical.Groups.KleinFourGroup,agda-algebras:Examples.Classical.Groups.SymmetricGroup3,agda-algebras:Examples.Classical.Lattices,agda-algebras:Examples.Classical.Lattices.FreeLattice3,agda-algebras:Examples.Classical.Lattices.L2,agda-algebras:Examples.Classical.Lattices.L2Distributive,agda-algebras:Examples.Classical.Lattices.L3Heyting,agda-algebras:Examples.Classical.Magma,agda-algebras:Examples.Classical.Monoid,agda-algebras:Examples.Classical.Semigroup,agda-algebras:Examples.Classical.Semilattice,agda-algebras:Examples.Demos,agda-algebras:Examples.Demos.ContraX,agda-algebras:Examples.Demos.GeneralOperationsAndRelations,agda-algebras:Examples.Demos.HSP,agda-algebras:Examples.FunctionTypeBijections,agda-algebras:Examples.PolynomialFunctors,agda-algebras:Examples.PolynomialFunctors.Functors,agda-algebras:Examples.Setoid,agda-algebras:Examples.Setoid.CongruenceLattice,agda-algebras:Examples.Setoid.FinitarySignatures,agda-algebras:Examples.Setoid.FiniteQuotient,agda-algebras:Examples.Setoid.FreeMagma,agda-algebras:Examples.Setoid.FreeSemigroup,agda-algebras:Examples.Setoid.HSPCommutativeMonoid,agda-algebras:Examples.Setoid.Presentation,agda-algebras:Examples.Setoid.SubalgebraLattice,agda-algebras:Examples.Setoid.SubgroupLattice,agda-algebras:Examples.Structures,agda-algebras:Examples.Structures.Basic,agda-algebras:Examples.Structures.Signatures,agda-algebras:Exercises,agda-algebras:Exercises.Complexity,agda-algebras:Exercises.Complexity.FiniteCSP,agda-algebras:Legacy.Base,agda-algebras:Legacy.Base.Adjunction,agda-algebras:Legacy.Base.Adjunction.Closure,agda-algebras:Legacy.Base.Adjunction.Galois,agda-algebras:Legacy.Base.Adjunction.Residuation,agda-algebras:Legacy.Base.Algebras,agda-algebras:Legacy.Base.Algebras.Basic,agda-algebras:Legacy.Base.Algebras.Congruences,agda-algebras:Legacy.Base.Algebras.Products,agda-algebras:Legacy.Base.Categories,agda-algebras:Legacy.Base.Categories.Functors,agda-algebras:Legacy.Base.Complexity,agda-algebras:Legacy.Base.Complexity.Basic,agda-algebras:Legacy.Base.Complexity.CSP,agda-algebras:Legacy.Base.Equality,agda-algebras:Legacy.Base.Equality.Extensionality,agda-algebras:Legacy.Base.Equality.Truncation,agda-algebras:Legacy.Base.Equality.Welldefined,agda-algebras:Legacy.Base.Functions,agda-algebras:Legacy.Base.Functions.Injective,agda-algebras:Legacy.Base.Functions.Inverses,agda-algebras:Legacy.Base.Functions.Surjective,agda-algebras:Legacy.Base.Functions.Transformers,agda-algebras:Legacy.Base.Homomorphisms,agda-algebras:Legacy.Base.Homomorphisms.Basic,agda-algebras:Legacy.Base.Homomorphisms.Factor,agda-algebras:Legacy.Base.Homomorphisms.HomomorphicImages,agda-algebras:Legacy.Base.Homomorphisms.Isomorphisms,agda-algebras:Legacy.Base.Homomorphisms.Kernels,agda-algebras:Legacy.Base.Homomorphisms.Noether,agda-algebras:Legacy.Base.Homomorphisms.Products,agda-algebras:Legacy.Base.Homomorphisms.Properties,agda-algebras:Legacy.Base.Relations,agda-algebras:Legacy.Base.Relations.Continuous,agda-algebras:Legacy.Base.Relations.Discrete,agda-algebras:Legacy.Base.Relations.Properties,agda-algebras:Legacy.Base.Relations.Quotients,agda-algebras:Legacy.Base.Structures,agda-algebras:Legacy.Base.Structures.Basic,agda-algebras:Legacy.Base.Structures.Congruences,agda-algebras:Legacy.Base.Structures.EquationalLogic,agda-algebras:Legacy.Base.Structures.Graphs,agda-algebras:Legacy.Base.Structures.Homs,agda-algebras:Legacy.Base.Structures.Isos,agda-algebras:Legacy.Base.Structures.Products,agda-algebras:Legacy.Base.Structures.Sigma,agda-algebras:Legacy.Base.Structures.Sigma.Basic,agda-algebras:Legacy.Base.Structures.Sigma.Congruences,agda-algebras:Legacy.Base.Structures.Sigma.Homs,agda-algebras:Legacy.Base.Structures.Sigma.Isos,agda-algebras:Legacy.Base.Structures.Sigma.Products,agda-algebras:Legacy.Base.Structures.Substructures,agda-algebras:Legacy.Base.Structures.Terms,agda-algebras:Legacy.Base.Subalgebras,agda-algebras:Legacy.Base.Subalgebras.Properties,agda-algebras:Legacy.Base.Subalgebras.Subalgebras,agda-algebras:Legacy.Base.Subalgebras.Subuniverses,agda-algebras:Legacy.Base.Terms,agda-algebras:Legacy.Base.Terms.Basic,agda-algebras:Legacy.Base.Terms.Operations,agda-algebras:Legacy.Base.Terms.Properties,agda-algebras:Legacy.Base.Varieties,agda-algebras:Legacy.Base.Varieties.Closure,agda-algebras:Legacy.Base.Varieties.EquationalLogic,agda-algebras:Legacy.Base.Varieties.FreeAlgebras,agda-algebras:Legacy.Base.Varieties.Invariants,agda-algebras:Legacy.Base.Varieties.Preservation,agda-algebras:Legacy.Base.Varieties.Properties,agda-algebras:Order,agda-algebras:Order.CompleteLattice,agda-algebras:Order.Interval,agda-algebras:Order.Iso,agda-algebras:Overture,agda-algebras:Overture.Adjunction,agda-algebras:Overture.Adjunction.Closure,agda-algebras:Overture.Adjunction.Galois,agda-algebras:Overture.Adjunction.Residuation,agda-algebras:Overture.Basic,agda-algebras:Overture.Cayley,agda-algebras:Overture.Counting,agda-algebras:Overture.Functions,agda-algebras:Overture.Operations,agda-algebras:Overture.Operations.Properties,agda-algebras:Overture.Preface,agda-algebras:Overture.Relations,agda-algebras:Overture.Signatures,agda-algebras:Overture.Signatures.Morphisms,agda-algebras:Overture.Terms,agda-algebras:Overture.Terms.Basic,agda-algebras:Overture.Terms.Interpretation,agda-algebras:Overture.Terms.Translation,agda-algebras:Setoid,agda-algebras:Setoid.Algebras,agda-algebras:Setoid.Algebras.Basic,agda-algebras:Setoid.Algebras.Finite,agda-algebras:Setoid.Algebras.Finite.Irredundant,agda-algebras:Setoid.Algebras.Products,agda-algebras:Setoid.Algebras.Products.Finite,agda-algebras:Setoid.Algebras.Reduct,agda-algebras:Setoid.Categories,agda-algebras:Setoid.Categories.Adjunction,agda-algebras:Setoid.Categories.Algebra,agda-algebras:Setoid.Categories.Category,agda-algebras:Setoid.Categories.FullSubcategory,agda-algebras:Setoid.Categories.Functor,agda-algebras:Setoid.Categories.Monad,agda-algebras:Setoid.Categories.NaturalTransformation,agda-algebras:Setoid.Categories.Reduct,agda-algebras:Setoid.Complexity,agda-algebras:Setoid.Complexity.Basic,agda-algebras:Setoid.Complexity.CSP,agda-algebras:Setoid.Congruences,agda-algebras:Setoid.Congruences.Basic,agda-algebras:Setoid.Congruences.Certificates,agda-algebras:Setoid.Congruences.Certificates.Congruence,agda-algebras:Setoid.Congruences.Certificates.Lattice,agda-algebras:Setoid.Congruences.Certificates.Schema,agda-algebras:Setoid.Congruences.ChainJoin,agda-algebras:Setoid.Congruences.CompleteLattice,agda-algebras:Setoid.Congruences.Finite,agda-algebras:Setoid.Congruences.Finite.Basic,agda-algebras:Setoid.Congruences.Finite.Decidable,agda-algebras:Setoid.Congruences.Generation,agda-algebras:Setoid.Congruences.Lattice,agda-algebras:Setoid.Congruences.Monolith,agda-algebras:Setoid.Congruences.Permutability,agda-algebras:Setoid.Congruences.Presented,agda-algebras:Setoid.Congruences.Presented.Basic,agda-algebras:Setoid.Congruences.Presented.Decidable,agda-algebras:Setoid.Congruences.Properties,agda-algebras:Setoid.Congruences.Simple,agda-algebras:Setoid.Functions,agda-algebras:Setoid.Functions.Basic,agda-algebras:Setoid.Functions.Bijective,agda-algebras:Setoid.Functions.Injective,agda-algebras:Setoid.Functions.Inverses,agda-algebras:Setoid.Functions.Surjective,agda-algebras:Setoid.Homomorphisms,agda-algebras:Setoid.Homomorphisms.Basic,agda-algebras:Setoid.Homomorphisms.Factor,agda-algebras:Setoid.Homomorphisms.HomomorphicImages,agda-algebras:Setoid.Homomorphisms.Isomorphisms,agda-algebras:Setoid.Homomorphisms.Kernels,agda-algebras:Setoid.Homomorphisms.Noether,agda-algebras:Setoid.Homomorphisms.Products,agda-algebras:Setoid.Homomorphisms.Properties,agda-algebras:Setoid.Operations,agda-algebras:Setoid.Operations.Properties,agda-algebras:Setoid.Relations,agda-algebras:Setoid.Relations.Continuous,agda-algebras:Setoid.Relations.Discrete,agda-algebras:Setoid.Relations.Properties,agda-algebras:Setoid.Relations.Quotients,agda-algebras:Setoid.Signatures,agda-algebras:Setoid.Signatures.Finite,agda-algebras:Setoid.Signatures.Functor,agda-algebras:Setoid.Subalgebras,agda-algebras:Setoid.Subalgebras.Basic,agda-algebras:Setoid.Subalgebras.CompleteLattice,agda-algebras:Setoid.Subalgebras.Properties,agda-algebras:Setoid.Subalgebras.Subdirect,agda-algebras:Setoid.Subalgebras.Subdirect.Basic,agda-algebras:Setoid.Subalgebras.Subdirect.BirkhoffSI,agda-algebras:Setoid.Subalgebras.Subdirect.Finite,agda-algebras:Setoid.Subalgebras.Subdirect.Irreducible,agda-algebras:Setoid.Subalgebras.Subuniverses,agda-algebras:Setoid.Terms,agda-algebras:Setoid.Terms.Basic,agda-algebras:Setoid.Terms.Interpretation,agda-algebras:Setoid.Terms.Monad,agda-algebras:Setoid.Terms.Operations,agda-algebras:Setoid.Terms.Properties,agda-algebras:Setoid.Terms.Translation,agda-algebras:Setoid.Varieties,agda-algebras:Setoid.Varieties.Closure,agda-algebras:Setoid.Varieties.EquationalLogic,agda-algebras:Setoid.Varieties.FreeAlgebras,agda-algebras:Setoid.Varieties.FreeSubstitution,agda-algebras:Setoid.Varieties.HSP,agda-algebras:Setoid.Varieties.Interpretation,agda-algebras:Setoid.Varieties.Invariance,agda-algebras:Setoid.Varieties.Invariants,agda-algebras:Setoid.Varieties.Maltsev,agda-algebras:Setoid.Varieties.Maltsev.Basic,agda-algebras:Setoid.Varieties.Maltsev.Distributivity,agda-algebras:Setoid.Varieties.Maltsev.Modularity,agda-algebras:Setoid.Varieties.Maltsev.Permutability,agda-algebras:Setoid.Varieties.Preservation,agda-algebras:Setoid.Varieties.Properties,agda-algebras:Setoid.Varieties.Reducts,agda-algebras:Setoid.Varieties.SoundAndComplete,plfa:part2/Lambda,plfa:part2/Properties,plfa:part2/DeBruijn,plfa:part2/More,plfa:part2/Bisimulation,plfa:part2/Inference,plfa:part2/Untyped,plfa:part2/Substitution,plfa:part2/BigStep,plfa:part2/Confluence]"
+   },
+   {
+    "control": "a library module editable (no read-only document)",
+    "build": 0,
+    "check": 1,
+    "failure": "the module is not read-only and editable"
+   },
+   {
+    "control": "a library module written when it is loaded (its text given to the load)",
+    "build": 0,
+    "check": 0,
+    "failure": null
+   },
+   {
+    "control": "hover positions in UTF-16 code units, as the fork sent them",
+    "build": 0,
+    "check": 1,
+    "failure": "hover over Signature answered \"Error: 1.1-2: error: [GeneralizeNotSupportedHere]\\nGeneralizable variable Overture.Signatures.𝓞 is not supported here\\nwhen scope checking 𝓞\\n\\n\""
+   },
+   {
+    "control": "a library module written when it is loaded, with a changed text (a newline added)",
+    "build": 0,
+    "check": 1,
+    "failure": "the library module's load type-checked [Overture.Signatures]"
+   }
+  ],
+  "notes": [
+   "'a library module editable' first ran with an edit that put an undefined extension in the state, which crashed the page; it was run again with the read-only document left out, and failed where it should.",
+   "'a library module written when it is loaded (its text given to the load)' passed: the drive treats a write of identical bytes as no change (replaceFileContent in drive.ts), so it is neither marked dirty nor persisted, and leaves nothing to see.  With a changed text (a newline added) the check failed: Agda type-checked the module again.",
+   "'hover positions in UTF-16 code units' first passed, since the step hovered over a word's second character, where a shift of two code points stays in the word; the step now hovers over the word's last character, and the control fails with the server's error for the token two characters to the right."
+  ],
+  "revisions": "The first seven ran at cbec2c4, an unpushed earlier version of 38ecdc2 whose hover step pointed at a word's second character; the other four at 38ecdc2.  The browser checks in browserCheck ran at the revision above, which adds the review's fixes."
+ },
+ "siteLinks": {
+  "what": "Each of the 350 modules of the page's pin probed at https://agda-algebras.universalalgebra.org/<A>/<B>/ (curl, at the time given).",
+  "when": "2026-10-13T19:50:34Z",
+  "counts": {
+   "200": 344,
+   "404": 6
+  },
+  "missing": [
+   "Classical.Structures.Lattice.Free",
+   "Classical.Structures.Lattice.Free.Derivability",
+   "Classical.Structures.Lattice.Free.Term",
+   "Classical.Structures.Lattice.Free.Universal",
+   "Classical.Structures.Lattice.Free.Whitman",
+   "Examples.Classical.Lattices.FreeLattice3"
+  ]
+ },
+ "copyRules": {
+  "what": "The page's own moduleCopy and selectionCopy (src/lib/playground.ts, imported by node 22 with --experimental-strip-types) over agda-algebras' sources at the pin, each copy checked by the native Agda 2.9.0 at the page's compiler commit (/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin) with the page's standard library and agda-algebras' interfaces built natively, in a project like the playground's (depend: standard-library-2.3 agda-algebras, include: .).  Not the page's reactor: the verdicts are Agda's at the same commit; the page's own copies are in the browser check.",
+  "wholeModule": {
+   "copies": "every module, as /<project>/W<k>.lagda.md, its module line renamed",
+   "summary": {
+    "checked": "350/350",
+    "renamedOneLine": 350,
+    "libraryRechecked": 0,
+    "errors": []
+   }
+  },
+  "selection": {
+   "copies": "for every module, the last code block that defines something, as a selection (278 modules have one), as /<project>/M<k>.agda: the module's code through the selection",
+   "summary": {
+    "all": "278/278",
+    "topLevel": "204/204",
+    "indented": "74/74",
+    "libraryRechecked": 0,
+    "errors": []
+   },
+   "selections": [
+    {
+     "module": "Classical.Bundles.AbelianGroup",
+     "lines": "47-126",
+     "indented": false
+    },
+    {
+     "module": "Classical.Bundles.CommutativeMonoid",
+     "lines": "45-105",
+     "indented": false
+    },
+    {
+     "module": "Classical.Bundles.CommutativeRing",
+     "lines": "149-192",
+     "indented": false
+    },
+    {
+     "module": "Classical.Bundles.CommutativeSemigroup",
+     "lines": "45-90",
+     "indented": false
+    },
+    {
+     "module": "Classical.Bundles.DistributiveLattice",
+     "lines": "64-152",
+     "indented": false
+    },
+    {
+     "module": "Classical.Bundles.Group",
+     "lines": "131-156",
+     "indented": false
+    },
+    {
+     "module": "Classical.Bundles.Lattice",
+     "lines": "56-140",
+     "indented": false
+    },
+    {
+     "module": "Classical.Bundles.Magma",
+     "lines": "124-129",
+     "indented": false
+    },
+    {
+     "module": "Classical.Bundles.Monoid",
+     "lines": "116-135",
+     "indented": false
+    },
+    {
+     "module": "Classical.Bundles.Ring",
+     "lines": "153-201",
+     "indented": false
+    },
+    {
+     "module": "Classical.Bundles.Semigroup",
+     "lines": "129-134",
+     "indented": false
+    },
+    {
+     "module": "Classical.Bundles.Semilattice",
+     "lines": "46-96",
+     "indented": false
+    },
+    {
+     "module": "Classical.Categories.AdjoinUnit",
+     "lines": "515-516",
+     "indented": false
+    },
+    {
+     "module": "Classical.Categories.Forgetful",
+     "lines": "124-155",
+     "indented": false
+    },
+    {
+     "module": "Classical.Equations",
+     "lines": "205-217",
+     "indented": true
+    },
+    {
+     "module": "Classical.Interpretations.Maltsev",
+     "lines": "85-151",
+     "indented": false
+    },
+    {
+     "module": "Classical.Operations",
+     "lines": "61-81",
+     "indented": false
+    },
+    {
+     "module": "Classical.Properties.Lattice",
+     "lines": "246-269",
+     "indented": false
+    },
+    {
+     "module": "Classical.Signatures.Finite",
+     "lines": "130-138",
+     "indented": false
+    },
+    {
+     "module": "Classical.Signatures.Group",
+     "lines": "42-51",
+     "indented": false
+    },
+    {
+     "module": "Classical.Signatures.Lattice",
+     "lines": "41-49",
+     "indented": false
+    },
+    {
+     "module": "Classical.Signatures.Magma",
+     "lines": "93-94",
+     "indented": false
+    },
+    {
+     "module": "Classical.Signatures.Monoid",
+     "lines": "40-48",
+     "indented": false
+    },
+    {
+     "module": "Classical.Signatures.Ring",
+     "lines": "44-55",
+     "indented": false
+    },
+    {
+     "module": "Classical.Signatures.Unary",
+     "lines": "59-60",
+     "indented": false
+    },
+    {
+     "module": "Classical.Small.Structures.AbelianGroup",
+     "lines": "31-40",
+     "indented": false
+    },
+    {
+     "module": "Classical.Small.Structures.CommutativeMonoid",
+     "lines": "28-36",
+     "indented": false
+    },
+    {
+     "module": "Classical.Small.Structures.CommutativeRing",
+     "lines": "31-45",
+     "indented": false
+    },
+    {
+     "module": "Classical.Small.Structures.CommutativeSemigroup",
+     "lines": "28-35",
+     "indented": false
+    },
+    {
+     "module": "Classical.Small.Structures.DistributiveLattice",
+     "lines": "31-46",
+     "indented": false
+    },
+    {
+     "module": "Classical.Small.Structures.Group",
+     "lines": "33-41",
+     "indented": false
+    },
+    {
+     "module": "Classical.Small.Structures.Lattice",
+     "lines": "30-43",
+     "indented": false
+    },
+    {
+     "module": "Classical.Small.Structures.Magma",
+     "lines": "52-53",
+     "indented": false
+    },
+    {
+     "module": "Classical.Small.Structures.Monoid",
+     "lines": "33-40",
+     "indented": false
+    },
+    {
+     "module": "Classical.Small.Structures.Ring",
+     "lines": "33-46",
+     "indented": false
+    },
+    {
+     "module": "Classical.Small.Structures.Semigroup",
+     "lines": "52-55",
+     "indented": false
+    },
+    {
+     "module": "Classical.Small.Structures.Semilattice",
+     "lines": "28-36",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.CommutativeMonoid",
+     "lines": "130-141",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.CommutativeRing",
+     "lines": "151-180",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.CommutativeSemigroup",
+     "lines": "119-127",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Group.AbelianGroup",
+     "lines": "119-133",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Group.Basic",
+     "lines": "404-441",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Group.Centralizer",
+     "lines": "142-189",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.Commutator",
+     "lines": "163-171",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.Complements",
+     "lines": "325-337",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.Complexes",
+     "lines": "93-102",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.Congruences",
+     "lines": "813-861",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.Conjugation",
+     "lines": "257-279",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.Cosets",
+     "lines": "175-176",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.Dedekind",
+     "lines": "56-121",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Group.Diagonal",
+     "lines": "110-132",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.GSet",
+     "lines": "165-167",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.IndexAction",
+     "lines": "223-238",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.MaximalSubgroup",
+     "lines": "73-86",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Group.MinimalNormal",
+     "lines": "298-309",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.MinimalNormalDescent",
+     "lines": "596-612",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.NormalClosure",
+     "lines": "245-259",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.NormalCore",
+     "lines": "156-179",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.NormalSubgroupLattice",
+     "lines": "452-474",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.PartitionSubgroup",
+     "lines": "211-215",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.Power",
+     "lines": "163-166",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Group.PowerCollapse",
+     "lines": "882-888",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.Product",
+     "lines": "440-443",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Group.RegularAction",
+     "lines": "255-285",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.Simple",
+     "lines": "321-335",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Group.SubgroupClassification",
+     "lines": "288-373",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.SubgroupLattice",
+     "lines": "135-135",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.Subgroups",
+     "lines": "212-229",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.TableGroup",
+     "lines": "159-200",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Group.Wreath",
+     "lines": "540-544",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Interpret",
+     "lines": "72-77",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Lattice.Basic",
+     "lines": "512-554",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Lattice.DistributiveLattice",
+     "lines": "195-222",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Lattice.Dual",
+     "lines": "144-145",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Lattice.FilterIdeal",
+     "lines": "110-132",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Lattice.Free.Derivability",
+     "lines": "185-192",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Lattice.Free.Term",
+     "lines": "192-209",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Lattice.Free.Universal",
+     "lines": "333-347",
+     "indented": true
+    },
+    {
+     "module": "Classical.Structures.Lattice.Free.Whitman",
+     "lines": "343-358",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Lattice.OrdinalSum",
+     "lines": "526-528",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Lattice.Partitions",
+     "lines": "568-573",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Lattice.Product",
+     "lines": "194-197",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Magma",
+     "lines": "165-175",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Monoid",
+     "lines": "368-377",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Ring",
+     "lines": "582-623",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Semigroup",
+     "lines": "245-251",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Semilattice",
+     "lines": "125-135",
+     "indented": false
+    },
+    {
+     "module": "Classical.Structures.Unary",
+     "lines": "87-99",
+     "indented": false
+    },
+    {
+     "module": "Classical.Theories.AbelianGroup",
+     "lines": "36-45",
+     "indented": false
+    },
+    {
+     "module": "Classical.Theories.CommutativeMonoid",
+     "lines": "34-41",
+     "indented": false
+    },
+    {
+     "module": "Classical.Theories.CommutativeRing",
+     "lines": "38-55",
+     "indented": false
+    },
+    {
+     "module": "Classical.Theories.CommutativeSemigroup",
+     "lines": "36-41",
+     "indented": false
+    },
+    {
+     "module": "Classical.Theories.DistributiveLattice",
+     "lines": "50-66",
+     "indented": false
+    },
+    {
+     "module": "Classical.Theories.Group",
+     "lines": "45-53",
+     "indented": false
+    },
+    {
+     "module": "Classical.Theories.Lattice",
+     "lines": "48-61",
+     "indented": false
+    },
+    {
+     "module": "Classical.Theories.Monoid",
+     "lines": "44-50",
+     "indented": false
+    },
+    {
+     "module": "Classical.Theories.Ring",
+     "lines": "55-71",
+     "indented": false
+    },
+    {
+     "module": "Classical.Theories.Semigroup",
+     "lines": "82-83",
+     "indented": false
+    },
+    {
+     "module": "Classical.Theories.Semilattice",
+     "lines": "37-43",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.CommutativeIdempotentMagma",
+     "lines": "140-143",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.CommutativeMonoid",
+     "lines": "43-53",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.CommutativeRing",
+     "lines": "83-99",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.CommutativeSemigroup",
+     "lines": "39-45",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.Groups.AbelianGroup",
+     "lines": "66-76",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.Groups.AlternatingGroup5",
+     "lines": "284-293",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.Groups.AlternatingGroup5.Tables",
+     "lines": "312-501",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.Groups.CyclicGroup",
+     "lines": "65-74",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.Groups.CyclicGroup3",
+     "lines": "127-137",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.Groups.KleinFourGroup",
+     "lines": "125-135",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.Groups.SymmetricGroup3",
+     "lines": "154-164",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.Lattices.FreeLattice3",
+     "lines": "146-151",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.Lattices.L2",
+     "lines": "82-89",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.Lattices.L2Distributive",
+     "lines": "91-98",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.Lattices.L3Heyting",
+     "lines": "174-189",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.Magma",
+     "lines": "65-68",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.Monoid",
+     "lines": "64-71",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.Semigroup",
+     "lines": "82-85",
+     "indented": false
+    },
+    {
+     "module": "Examples.Classical.Semilattice",
+     "lines": "34-40",
+     "indented": false
+    },
+    {
+     "module": "Examples.Demos.ContraX",
+     "lines": "50-73",
+     "indented": false
+    },
+    {
+     "module": "Examples.Demos.HSP",
+     "lines": "1498-1512",
+     "indented": false
+    },
+    {
+     "module": "Examples.FunctionTypeBijections",
+     "lines": "142-176",
+     "indented": false
+    },
+    {
+     "module": "Examples.PolynomialFunctors.Functors",
+     "lines": "153-217",
+     "indented": false
+    },
+    {
+     "module": "Examples.Setoid.CongruenceLattice",
+     "lines": "103-105",
+     "indented": false
+    },
+    {
+     "module": "Examples.Setoid.FinitarySignatures",
+     "lines": "58-59",
+     "indented": false
+    },
+    {
+     "module": "Examples.Setoid.FiniteQuotient",
+     "lines": "138-159",
+     "indented": false
+    },
+    {
+     "module": "Examples.Setoid.FreeMagma",
+     "lines": "135-140",
+     "indented": false
+    },
+    {
+     "module": "Examples.Setoid.FreeSemigroup",
+     "lines": "170-175",
+     "indented": false
+    },
+    {
+     "module": "Examples.Setoid.HSPCommutativeMonoid",
+     "lines": "136-150",
+     "indented": false
+    },
+    {
+     "module": "Examples.Setoid.Presentation",
+     "lines": "91-103",
+     "indented": false
+    },
+    {
+     "module": "Examples.Setoid.SubalgebraLattice",
+     "lines": "85-90",
+     "indented": false
+    },
+    {
+     "module": "Examples.Setoid.SubgroupLattice",
+     "lines": "250-293",
+     "indented": false
+    },
+    {
+     "module": "Examples.Structures.Basic",
+     "lines": "67-81",
+     "indented": false
+    },
+    {
+     "module": "Examples.Structures.Signatures",
+     "lines": "46-77",
+     "indented": false
+    },
+    {
+     "module": "Exercises.Complexity.FiniteCSP",
+     "lines": "128-167",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Adjunction.Closure",
+     "lines": "143-160",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Adjunction.Galois",
+     "lines": "136-148",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Adjunction.Residuation",
+     "lines": "77-93",
+     "indented": true
+    },
+    {
+     "module": "Legacy.Base.Algebras.Basic",
+     "lines": "229-235",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Algebras.Congruences",
+     "lines": "160-167",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Algebras.Products",
+     "lines": "153-156",
+     "indented": true
+    },
+    {
+     "module": "Legacy.Base.Categories.Functors",
+     "lines": "111-123",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Complexity.CSP",
+     "lines": "176-184",
+     "indented": true
+    },
+    {
+     "module": "Legacy.Base.Equality.Extensionality",
+     "lines": "85-106",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Equality.Truncation",
+     "lines": "232-252",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Equality.Welldefined",
+     "lines": "185-263",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Functions.Injective",
+     "lines": "48-53",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Functions.Inverses",
+     "lines": "113-119",
+     "indented": true
+    },
+    {
+     "module": "Legacy.Base.Functions.Surjective",
+     "lines": "147-177",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Functions.Transformers",
+     "lines": "144-185",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Homomorphisms.Basic",
+     "lines": "156-162",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Homomorphisms.Factor",
+     "lines": "98-116",
+     "indented": true
+    },
+    {
+     "module": "Legacy.Base.Homomorphisms.HomomorphicImages",
+     "lines": "89-131",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Homomorphisms.Isomorphisms",
+     "lines": "216-247",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Homomorphisms.Kernels",
+     "lines": "161-168",
+     "indented": true
+    },
+    {
+     "module": "Legacy.Base.Homomorphisms.Noether",
+     "lines": "205-212",
+     "indented": true
+    },
+    {
+     "module": "Legacy.Base.Homomorphisms.Products",
+     "lines": "84-87",
+     "indented": true
+    },
+    {
+     "module": "Legacy.Base.Homomorphisms.Properties",
+     "lines": "74-88",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Relations.Continuous",
+     "lines": "120-133",
+     "indented": true
+    },
+    {
+     "module": "Legacy.Base.Relations.Discrete",
+     "lines": "183-202",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Relations.Quotients",
+     "lines": "236-256",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Structures.Congruences",
+     "lines": "97-102",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Structures.Graphs",
+     "lines": "127-139",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Structures.Homs",
+     "lines": "217-269",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Structures.Isos",
+     "lines": "244-281",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Structures.Sigma.Congruences",
+     "lines": "73-81",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Structures.Sigma.Homs",
+     "lines": "152-160",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Structures.Sigma.Isos",
+     "lines": "141-174",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Structures.Substructures",
+     "lines": "281-310",
+     "indented": true
+    },
+    {
+     "module": "Legacy.Base.Subalgebras.Properties",
+     "lines": "168-184",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Subalgebras.Subalgebras",
+     "lines": "166-169",
+     "indented": true
+    },
+    {
+     "module": "Legacy.Base.Subalgebras.Subuniverses",
+     "lines": "246-267",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Terms.Basic",
+     "lines": "99-102",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Terms.Operations",
+     "lines": "283-302",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Terms.Properties",
+     "lines": "122-135",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Varieties.Closure",
+     "lines": "326-386",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Varieties.EquationalLogic",
+     "lines": "110-116",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Varieties.FreeAlgebras",
+     "lines": "393-394",
+     "indented": true
+    },
+    {
+     "module": "Legacy.Base.Varieties.Preservation",
+     "lines": "667-672",
+     "indented": false
+    },
+    {
+     "module": "Legacy.Base.Varieties.Properties",
+     "lines": "263-294",
+     "indented": false
+    },
+    {
+     "module": "Order.CompleteLattice",
+     "lines": "47-64",
+     "indented": false
+    },
+    {
+     "module": "Order.Interval",
+     "lines": "133-160",
+     "indented": true
+    },
+    {
+     "module": "Order.Iso",
+     "lines": "84-111",
+     "indented": false
+    },
+    {
+     "module": "Overture.Adjunction.Closure",
+     "lines": "135-150",
+     "indented": true
+    },
+    {
+     "module": "Overture.Adjunction.Galois",
+     "lines": "131-142",
+     "indented": false
+    },
+    {
+     "module": "Overture.Adjunction.Residuation",
+     "lines": "90-106",
+     "indented": true
+    },
+    {
+     "module": "Overture.Basic",
+     "lines": "327-329",
+     "indented": false
+    },
+    {
+     "module": "Overture.Cayley",
+     "lines": "127-139",
+     "indented": false
+    },
+    {
+     "module": "Overture.Counting",
+     "lines": "64-93",
+     "indented": false
+    },
+    {
+     "module": "Overture.Functions",
+     "lines": "176-206",
+     "indented": false
+    },
+    {
+     "module": "Overture.Operations",
+     "lines": "61-63",
+     "indented": false
+    },
+    {
+     "module": "Overture.Operations.Properties",
+     "lines": "124-135",
+     "indented": false
+    },
+    {
+     "module": "Overture.Relations",
+     "lines": "172-178",
+     "indented": false
+    },
+    {
+     "module": "Overture.Signatures",
+     "lines": "140-144",
+     "indented": false
+    },
+    {
+     "module": "Overture.Signatures.Morphisms",
+     "lines": "97-105",
+     "indented": false
+    },
+    {
+     "module": "Overture.Terms.Basic",
+     "lines": "81-85",
+     "indented": false
+    },
+    {
+     "module": "Overture.Terms.Interpretation",
+     "lines": "147-148",
+     "indented": false
+    },
+    {
+     "module": "Overture.Terms.Translation",
+     "lines": "83-90",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Algebras.Basic",
+     "lines": "307-308",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Algebras.Finite",
+     "lines": "95-112",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Algebras.Finite.Irredundant",
+     "lines": "171-190",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Algebras.Products",
+     "lines": "164-172",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Algebras.Products.Finite",
+     "lines": "62-93",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Algebras.Reduct",
+     "lines": "107-126",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Categories.Adjunction",
+     "lines": "95-132",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Categories.Algebra",
+     "lines": "88-101",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Categories.Category",
+     "lines": "71-99",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Categories.FullSubcategory",
+     "lines": "74-91",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Categories.Functor",
+     "lines": "101-115",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Categories.Monad",
+     "lines": "153-186",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Categories.NaturalTransformation",
+     "lines": "88-102",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Categories.Reduct",
+     "lines": "62-72",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Complexity.CSP",
+     "lines": "175-182",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Congruences.Basic",
+     "lines": "169-190",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Congruences.Certificates.Congruence",
+     "lines": "897-916",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Congruences.Certificates.Lattice",
+     "lines": "598-605",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Congruences.Certificates.Schema",
+     "lines": "238-268",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Congruences.ChainJoin",
+     "lines": "335-342",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Congruences.CompleteLattice",
+     "lines": "216-228",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Congruences.Finite.Basic",
+     "lines": "163-176",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Congruences.Finite.Decidable",
+     "lines": "396-402",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Congruences.Generation",
+     "lines": "168-171",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Congruences.Lattice",
+     "lines": "228-239",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Congruences.Monolith",
+     "lines": "206-217",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Congruences.Permutability",
+     "lines": "116-122",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Congruences.Presented.Basic",
+     "lines": "197-209",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Congruences.Presented.Decidable",
+     "lines": "753-761",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Congruences.Properties",
+     "lines": "73-74",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Congruences.Simple",
+     "lines": "195-206",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Functions.Basic",
+     "lines": "68-94",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Functions.Bijective",
+     "lines": "41-56",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Functions.Injective",
+     "lines": "78-106",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Functions.Inverses",
+     "lines": "173-177",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Functions.Surjective",
+     "lines": "119-166",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Homomorphisms.Basic",
+     "lines": "173-177",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Homomorphisms.Factor",
+     "lines": "128-150",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Homomorphisms.HomomorphicImages",
+     "lines": "131-191",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Homomorphisms.Isomorphisms",
+     "lines": "391-566",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Homomorphisms.Kernels",
+     "lines": "160-161",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Homomorphisms.Noether",
+     "lines": "114-119",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Homomorphisms.Products",
+     "lines": "96-104",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Homomorphisms.Properties",
+     "lines": "201-258",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Operations.Properties",
+     "lines": "303-315",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Relations.Continuous",
+     "lines": "131-141",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Relations.Discrete",
+     "lines": "78-91",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Relations.Quotients",
+     "lines": "94-109",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Signatures",
+     "lines": "79-86",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Signatures.Finite",
+     "lines": "119-133",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Signatures.Functor",
+     "lines": "127-145",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Subalgebras.Basic",
+     "lines": "173-175",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Subalgebras.CompleteLattice",
+     "lines": "262-274",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Subalgebras.Properties",
+     "lines": "214-241",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Subalgebras.Subdirect.Basic",
+     "lines": "133-138",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Subalgebras.Subdirect.BirkhoffSI",
+     "lines": "93-95",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Subalgebras.Subdirect.Finite",
+     "lines": "425-427",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Subalgebras.Subdirect.Irreducible",
+     "lines": "249-255",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Subalgebras.Subuniverses",
+     "lines": "233-260",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Terms.Basic",
+     "lines": "163-196",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Terms.Interpretation",
+     "lines": "227-236",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Terms.Monad",
+     "lines": "269-276",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Terms.Operations",
+     "lines": "156-163",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Terms.Properties",
+     "lines": "200-208",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Terms.Translation",
+     "lines": "126-137",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Varieties.Closure",
+     "lines": "285-330",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Varieties.EquationalLogic",
+     "lines": "113-114",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Varieties.FreeAlgebras",
+     "lines": "118-220",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Varieties.FreeSubstitution",
+     "lines": "215-232",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Varieties.HSP",
+     "lines": "234-238",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Varieties.Interpretation",
+     "lines": "287-300",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Varieties.Invariance",
+     "lines": "180-186",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Varieties.Invariants",
+     "lines": "39-40",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Varieties.Maltsev.Basic",
+     "lines": "167-169",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Varieties.Maltsev.Distributivity",
+     "lines": "715-719",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Varieties.Maltsev.Modularity",
+     "lines": "810-812",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Varieties.Maltsev.Permutability",
+     "lines": "226-309",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Varieties.Preservation",
+     "lines": "209-213",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Varieties.Properties",
+     "lines": "251-268",
+     "indented": false
+    },
+    {
+     "module": "Setoid.Varieties.Reducts",
+     "lines": "280-290",
+     "indented": true
+    },
+    {
+     "module": "Setoid.Varieties.SoundAndComplete",
+     "lines": "294-306",
+     "indented": true
+    }
+   ],
+   "comparison": "A shorter rule, the selection under the module's imports and `open import <module> <args> hiding (<names the selection defines>)`, checked 225 of the same 278 (198 of 204 top-level, 27 of 74 indented); the selection under the module's imports alone fails whenever it uses a name defined above it in its module (NotInScope; OperationSymbolsOf and ArityOf in Overture.Signatures, which use Signature)."
+  }
+ },
+ "giveAtTheEnd": {
+  "what": "Not this issue's: a give at a ? near the end of a file makes the page log 'A session listener failed: RangeError: Invalid UTF-8 position' for the given term's highlighting, on main (987d97f) as on this branch.  Main with 'last : Nat\\nlast = ?' appended, checked, then Give 'suc (suc zero)' at that goal.",
+  "main987d97f": [
+   "Invalid UTF-8 position 1824 in document of UTF-8 length 1822",
+   "Invalid UTF-8 position 1823 in document of UTF-8 length 1822"
+  ],
+  "branch": [
+   "Invalid UTF-8 position 1824 in document of UTF-8 length 1822",
+   "Invalid UTF-8 position 1823 in document of UTF-8 length 1822"
+  ]
+ },
+ "probes": {
+  "library-open.mjs": "// File: library-open.mjs (the timing-checks-in-the-page skill)\n//\n// A probe: a module of agda-algebras opened read-only from the Explorer\n// (issue 10).  For each module, a fresh profile; once the default Main is\n// checked, Enter on the module's row in the Explorer; the page asks before\n// it fetches the module's closure, and the probe answers FETCH (fetch) or\n// SOURCE (check from source).  It times the mount (from the answer to the\n// heading's \"Loading <module>…\"), the load (the page's own duration), and\n// a hover over a word of the module (from the pointer's arrival to the\n// language server's tooltip), and counts the load's Checking lines (an\n// Infer of `Set` shows the compiler log).  Then a reload in the same\n// profile, and the same module opened again: mounted from the browser's\n// store (or, after SOURCE, from what the drive persisted).  One JSON line\n// per visit, with the load average.\n//\n//   CHROME=... REPO=... node library-open.mjs SITE ROUNDS fetch|source MODULE|LINE|WORD...\n//\n// where LINE is a line of the module, exactly as the editor draws it, and\n// WORD a word after its colon to hover over (its last character).\n\nimport { readFileSync } from \"node:fs\";\nimport { loadavg } from \"node:os\";\n\nconst repo = process.env.REPO;\nconst cdp = await import(`${repo}/scripts/browser-check/cdp.mjs`);\nconst { serve } = await import(`${repo}/scripts/browser-check/serve.mjs`);\nconst [site, roundsText, answer, ...specs] = process.argv.slice(2);\nconst rounds = Number(roundsText);\nconst RECORDER = readFileSync(`${repo}/scripts/browser-check/run.mjs`, \"utf8\").match(/const RECORDER = `([\\s\\S]*?)`;\\n/)[1]\n  .replaceAll(\"\\\\\\\\\", \"\\\\\").replace('${JSON.stringify(\"/agda-algebras/interfaces/\")}', '\"/agda-algebras/interfaces/\"');\nconst look = () => ({\n  status: document.querySelector(\".inspector-status\")?.textContent?.trim() ?? \"\",\n  consent: document.querySelector(\".consent-size\")?.dataset.bytes ?? null,\n  busy: document.querySelector(\".spin\") !== null,\n  error: document.querySelector(\".action-error span\")?.textContent?.trim() ?? null,\n  tab: document.querySelector(\".editor-tab.active\")?.getAttribute(\"title\") ?? null,\n  note: document.querySelector(\".plan-note\")?.textContent?.trim() ?? null,\n  result: document.querySelector(\".result-card pre\")?.textContent ?? null,\n  log: document.querySelector(\".compiler-log pre\")?.textContent ?? null,\n  now: performance.now(),\n});\nconst sleep = (ms) => new Promise((done) => setTimeout(done, ms));\nconst until = async (page, predicate, ms = 900_000) => {\n  const start = Date.now();\n  for (;;) {\n    let s;\n    try { s = await page.eval(look); } catch { s = null; }\n    if (s?.error) throw new Error(s.error);\n    if (s && predicate(s)) return s;\n    if (Date.now() - start > ms) throw new Error(`timed out; last ${JSON.stringify(s)}`);\n    await sleep(50);\n  }\n};\nconst seconds = (text) => { const m = text.match(/· (?:(\\d+)m )?([\\d.]+) ?(ms|s)$/); return m ? Number(m[1] ?? 0) * 60 + Number(m[2]) / (m[3] === \"ms\" ? 1000 : 1) : NaN; };\nconst open = async (page, module) => {\n  await page.eval(() => document.querySelector('.explorer input[type=\"search\"]').focus());\n  await page.press(\"a\", \"KeyA\", 65, 2);\n  await page.type(module);\n  await until(page, () => true, 5_000);\n  for (let i = 0; i < 50; i++) {\n    if (await page.eval((id) => document.querySelector(`.explorer [data-id=\"${id}\"]`) !== null, `agda-algebras:${module}`)) break;\n    await sleep(100);\n  }\n  await page.eval((id) => document.querySelector(`.explorer [data-id=\"${id}\"]`).focus(), `agda-algebras:${module}`);\n  const at = await page.eval(() => performance.now());\n  await page.press(\"Enter\", \"Enter\", 13);\n  return at;\n};\nconst hover = async (page, line, word) => {\n  const point = await page.eval(async ({ line, word }) => {\n    const scroller = document.querySelector(\".cm-scroller\");\n    scroller.scrollTop = 0;\n    for (let tries = 0; tries < 200; tries++) {\n      const element = [...document.querySelectorAll(\".cm-content .cm-line\")].find((l) => l.textContent === line);\n      if (element) {\n        element.scrollIntoView({ block: \"center\" });\n        await new Promise((done) => requestAnimationFrame(() => setTimeout(done, 50)));\n        const offset = element.textContent.indexOf(word, element.textContent.indexOf(\":\")) + word.length - 1;\n        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);\n        for (let seen = 0, node; (node = walker.nextNode()); seen += node.length)\n          if (seen + node.length > offset) {\n            const range = document.createRange();\n            range.setStart(node, offset - seen);\n            range.setEnd(node, offset + 1 - seen);\n            const box = range.getBoundingClientRect();\n            return { x: box.left + box.width / 2, y: box.top + box.height / 2 };\n          }\n      }\n      scroller.scrollTop += 300;\n      await new Promise((done) => setTimeout(done, 50));\n    }\n    return null;\n  }, { line, word });\n  if (!point) return { answer: null, ms: null };\n  await page.send(\"Input.dispatchMouseEvent\", { type: \"mouseMoved\", x: point.x - 40, y: point.y - 40 });\n  await sleep(100);\n  const start = Date.now();\n  await page.send(\"Input.dispatchMouseEvent\", { type: \"mouseMoved\", x: point.x, y: point.y });\n  for (;;) {\n    const got = await page.eval(() => document.querySelector(\".cm-lsp-hover-tooltip:not(.cm-lsp-hover-tooltip--loading)\")?.textContent ?? null);\n    if (got !== null) { await page.send(\"Input.dispatchMouseEvent\", { type: \"mouseMoved\", x: 5, y: 5 }); return { answer: got.replace(/\\s+/g, \" \").trim().slice(0, 120), ms: Date.now() - start }; }\n    if (Date.now() - start > 300_000) return { answer: null, ms: null };\n    await sleep(50);\n  }\n};\nconst checking = async (page) => {\n  await page.eval(() => [...document.querySelectorAll(\".command-strip button\")].find((b) => b.title.startsWith(\"Infer\")).click());\n  await sleep(200);\n  await page.eval(() => { const i = document.querySelector(\"#command-input\"); i.value = \"Set\"; i.dispatchEvent(new Event(\"input\", { bubbles: true })); i.form.requestSubmit(); });\n  const s = await until(page, (s) => !s.busy && s.status === \"Inferred type\", 120_000);\n  return [...(s.log ?? \"\").matchAll(/Checking (\\S+) \\(/g)].map((m) => m[1]);\n};\nconst visit = async (page, server, module, line, word, first) => {\n  const from = server.log.length;\n  const opened = await open(page, module);\n  const s0 = await until(page, (s) => s.consent !== null || (!s.busy && s.tab?.includes(module.split(\".\").join(\"/\")) && / · /.test(s.status)));\n  let answered = null, stated = null;\n  if (s0.consent !== null) {\n    stated = Number(s0.consent);\n    answered = await page.eval((answer) => { document.querySelector(answer === \"fetch\" ? \".consent-fetch\" : \".consent-source\").click(); return performance.now(); }, answer);\n  }\n  const done = await until(page, (s) => !s.busy && s.consent === null && / · /.test(s.status));\n  const events = await page.eval(() => window.__browserCheck);\n  const loading = events.find((e) => e.t >= (answered ?? opened) && e.name === \"status\" && /^Loading /.test(e.text ?? \"\"))?.t;\n  const archives = server.log.slice(from).filter((r) => r.url.startsWith(\"/agda-algebras/interfaces/\"));\n  const h = await hover(page, line, word);\n  const checked = await checking(page);\n  return {\n    module, visit: first ? \"first\" : \"second\", answer: s0.consent !== null ? answer : \"not asked\", load: Number(loadavg()[0].toFixed(2)),\n    stated, archives: archives.length, bytes: archives.reduce((a, r) => a + r.bytes, 0),\n    mountMs: loading === undefined ? null : Math.round(loading - (answered ?? opened)),\n    loadS: seconds(done.status), status: done.status, note: done.note, checking: checked.length, checkingFirst: checked.slice(0, 3),\n    hoverMs: h.ms, hover: h.answer,\n  };\n};\nfor (let round = 0; round < rounds; round++)\n  for (const spec of specs) {\n    const [module, line, word] = spec.split(\"|\");\n    const server = await serve({ root: site, noStore: [\"/agda-algebras/\"] });\n    const chrome = await cdp.launch(process.env.CHROME);\n    const { page } = chrome;\n    try {\n      await page.setViewport(1440, 900);\n      await page.addInitScript(RECORDER);\n      await page.navigate(`${server.origin}/`);\n      await until(page, (s) => /open goal ·/.test(s.status) && !s.busy);\n      console.log(JSON.stringify({ round, ...(await visit(page, server, module, line, word, true)) }));\n      // Let the drive persist what the load wrote before the page is left.\n      await sleep(5000);\n      const before = await page.eval(() => performance.timeOrigin);\n      await page.navigate(`${server.origin}/`);\n      for (;;) { try { if ((await page.eval(() => performance.timeOrigin)) !== before) break; } catch {} await sleep(50); }\n      await until(page, (s) => /open goal ·/.test(s.status) && !s.busy);\n      console.log(JSON.stringify({ round, ...(await visit(page, server, module, line, word, false)) }));\n    } catch (error) {\n      console.log(JSON.stringify({ round, module, failed: String(error) }));\n    } finally {\n      await chrome.close();\n      await server.close();\n    }\n  }\n",
+  "give-at-the-end.mjs": "const repo = process.env.REPO;\nconst cdp = await import(`${repo}/scripts/browser-check/cdp.mjs`);\nconst { serve } = await import(`${repo}/scripts/browser-check/serve.mjs`);\nconst server = await serve({ root: process.argv[2], noStore: [\"/agda-algebras/\"] });\nconst chrome = await cdp.launch(process.env.CHROME);\nconst { page } = chrome;\nconst log = [];\nawait page.onConsole((e) => log.push(e));\nawait page.setViewport(1440, 900);\nawait page.navigate(`${server.origin}/`);\nconst sleep = (ms) => new Promise((d) => setTimeout(d, ms));\nconst st = () => page.eval(() => ({ status: document.querySelector(\".inspector-status\")?.textContent ?? \"\", busy: !!document.querySelector(\".spin\"), goals: document.querySelectorAll(\".goal-card\").length, problems: [...document.querySelectorAll(\".problem-card pre\")].map((p) => p.textContent.slice(0, 200)) }));\nconst until = async (p, ms = 120000) => { const t = Date.now(); for (;;) { const s = await st(); if (p(s)) return s; if (Date.now() - t > ms) throw new Error(JSON.stringify(s)); await sleep(100); } };\nconst submit = (value) => page.eval((value) => { const i = document.querySelector(\"#command-input\"); i.value = value; i.dispatchEvent(new Event(\"input\", { bubbles: true })); i.form.requestSubmit(); }, value);\nawait until((s) => /open goal ·/.test(s.status) && !s.busy);\nawait page.eval(() => document.querySelector(\".cm-content\").focus());\nawait page.press(\"End\", \"End\", 35, 2);\nawait page.type(\"\\nlast : Nat\\nlast = ?\\n\");\nawait page.press(\"Enter\", \"Enter\", 13, 2);\nawait until((s) => !s.busy && /2 open goals/.test(s.status));\nconst before = log.length;\nawait page.eval(() => [...document.querySelectorAll(\".goal-card\")].at(-1).click());\nawait sleep(500);\nawait until((s) => !s.busy);\nawait page.eval(() => [...document.querySelectorAll(\".command-strip button\")].find((b) => b.title.startsWith(\"Give\")).click());\nawait sleep(200);\nawait submit(\"suc (suc zero)\");\nawait until((s) => !s.busy && s.goals === 1);\nawait sleep(500);\nconsole.log(JSON.stringify(await st()), JSON.stringify(log.slice(before).filter((e) => e.type === \"error\").map((e) => e.text.slice(0, 160))));\nawait chrome.close(); await server.close();\n",
+  "whole-mine.mjs": "// The page's moduleCopy (src/lib/playground.ts) over every module of\n// agda-algebras at the pin, each copy /wholemine/W<k>.lagda.md checked by\n// native Agda 2.9.0 at the page's commit.\nimport { readFileSync, writeFileSync } from \"node:fs\";\nimport { spawn } from \"node:child_process\";\nconst [helper, here, repo] = process.argv.slice(2);\nconst { moduleCopy } = await import(helper);\nconst AGDA = \"/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda\";\nconst DIR = `${here}/wholemine`;\nwriteFileSync(`${DIR}/wholemine.agda-lib`, \"name: wholemine\\ndepend: standard-library-2.3 agda-algebras\\ninclude: .\\n\");\nconst modules = JSON.parse(readFileSync(`${repo}/static/agda-algebras-modules.json`, \"utf8\")).modules;\nconst jobs = modules.map((m, k) => {\n  const source = readFileSync(`${here}/src/agda-algebras/src/${m.name.split(\".\").join(\"/\")}.lagda.md`, \"utf8\");\n  const name = `W${k}`;\n  const text = moduleCopy(source, m.name, name);\n  if (text !== undefined) writeFileSync(`${DIR}/${name}.lagda.md`, text);\n  return { module: m.name, name, made: text !== undefined, changedLines: text === undefined ? null : text.split(\"\\n\").filter((l, i) => l !== source.split(\"\\n\")[i]).length };\n});\nconst run = (job) => new Promise((done) => {\n  if (!job.made) return done({ ...job, exit: null });\n  let out = \"\";\n  const p = spawn(AGDA, [\"+RTS\", \"-M3G\", \"-RTS\", `${job.name}.lagda.md`], { cwd: DIR, env: { ...process.env, AGDA_DIR: `${here}/agdadir-w` } });\n  p.stdout.on(\"data\", (d) => (out += d));\n  p.stderr.on(\"data\", (d) => (out += d));\n  p.on(\"close\", (code) => {\n    const checking = [...out.matchAll(/Checking (\\S+) \\(/g)].map((x) => x[1]);\n    done({ ...job, exit: code, checked: checking.filter((n) => n !== job.name).length, error: /error: \\[(\\w+)\\]/.exec(out)?.[1] ?? null });\n  });\n});\nconst results = [];\nlet next = 0;\nawait Promise.all(Array.from({ length: 6 }, async () => { while (next < jobs.length) results.push(await run(jobs[next++])); }));\nwriteFileSync(`${here}/whole-mine.json`, JSON.stringify(results, null, 1));\nconsole.log(JSON.stringify({ checked: `${results.filter((r) => r.exit === 0).length}/${results.length}`, renamedOneLine: results.filter((r) => r.changedLines === 1).length, libraryRechecked: results.reduce((n, r) => n + (r.checked ?? 0), 0), errors: results.filter((r) => r.exit !== 0).map((r) => [r.module, r.error]) }));\n",
+  "sel-mine.mjs": "// The page's selectionCopy (src/lib/playground.ts) over the reader's 278\n// selections (sel-results-3.json: a module and 1-based source lines), each\n// copy checked by native Agda 2.9.0 at the page's commit.\nimport { readFileSync, writeFileSync } from \"node:fs\";\nimport { spawn } from \"node:child_process\";\nconst [helper, here] = process.argv.slice(2);\nconst { selectionCopy } = await import(helper);\nconst AGDA = \"/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda\";\nconst DIR = `${here}/selmine`;\nwriteFileSync(`${DIR}/selmine.agda-lib`, \"name: selmine\\ndepend: standard-library-2.3 agda-algebras\\ninclude: .\\n\");\nconst jobs = JSON.parse(readFileSync(`${here}/sel-results-3.json`, \"utf8\")).map((entry, k) => {\n  const source = readFileSync(`${here}/src/agda-algebras/src/${entry.module.split(\".\").join(\"/\")}.lagda.md`, \"utf8\");\n  const lines = source.split(\"\\n\");\n  const [a, b] = entry.lines.split(\"-\").map(Number);\n  const from = lines.slice(0, a - 1).reduce((n, l) => n + l.length + 1, 0);\n  const to = lines.slice(0, b).reduce((n, l) => n + l.length + 1, 0) - 1;\n  const name = `M${k}`;\n  const copy = selectionCopy(source, entry.module, name, { from, to });\n  if (copy) writeFileSync(`${DIR}/${name}.agda`, copy.text);\n  return { module: entry.module, lines: entry.lines, indented: entry.indented, name, made: Boolean(copy), copyLines: copy?.text.split(\"\\n\").length, hidingRuleExit: entry.exit };\n});\nconst run = (job) => new Promise((done) => {\n  if (!job.made) return done({ ...job, exit: null });\n  let out = \"\";\n  const p = spawn(AGDA, [\"+RTS\", \"-M3G\", \"-RTS\", `${job.name}.agda`], { cwd: DIR, env: { ...process.env, AGDA_DIR: `${here}/agdadir-mine` } });\n  p.stdout.on(\"data\", (d) => (out += d));\n  p.stderr.on(\"data\", (d) => (out += d));\n  p.on(\"close\", (code) => {\n    const checking = [...out.matchAll(/Checking (\\S+) \\(/g)].map((m) => m[1]);\n    const error = /error: \\[(\\w+)\\]/.exec(out)?.[1] ?? null;\n    done({ ...job, exit: code, checked: checking.filter((n) => n !== job.name).length, error });\n  });\n});\nconst results = [];\nlet next = 0;\nawait Promise.all(Array.from({ length: 6 }, async () => {\n  while (next < jobs.length) results.push(await run(jobs[next++]));\n}));\nresults.sort((x, y) => Number(x.name.slice(1)) - Number(y.name.slice(1)));\nwriteFileSync(`${here}/sel-mine.json`, JSON.stringify(results, null, 1));\nconst ok = (r) => r.exit === 0;\nconst top = results.filter((r) => !r.indented), ind = results.filter((r) => r.indented);\nconsole.log(JSON.stringify({ all: `${results.filter(ok).length}/${results.length}`, topLevel: `${top.filter(ok).length}/${top.length}`, indented: `${ind.filter(ok).length}/${ind.length}`, libraryRechecked: results.reduce((n, r) => n + (r.checked ?? 0), 0), errors: Object.entries(results.filter((r) => !ok(r)).reduce((m, r) => ((m[r.error] = (m[r.error] ?? 0) + 1), m), {})) }));\n"
+ },
+ "revisions": "The code is the revision above (38351d6), the last of six commits on 987d97f; the record and the notes that cite it come in the commit after it."
+}

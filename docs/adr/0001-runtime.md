@@ -1227,7 +1227,9 @@ manifest, which generalizes the library's description.
 +  **Issues**: [#2] (the fork), [#3] (the Nix build), [#4] (the pins), [#5]
    (CI), [#6] (hosting), [#7] (this record), [#8] (the page's notices, once a
    page that could not isolate itself), [#9] (the Explorer, in
-   [`docs/notes/explorer.md`][explorer-note]), [#11] (the playground's project,
+   [`docs/notes/explorer.md`][explorer-note]), [#10] (the editor's states,
+   and agda-algebras' modules read-only, in the runtime note's "The
+   editor's states"), [#11] (the playground's project,
    § 11), [#12] (the library archives, § 10), [#13] (interface acceptance),
    [#14] (mounting the archives, § 12), [#16] (the exercises), [#18] (the
    benchmark), [#20] (PLFA's removal), [#30] (the second lane), [#48] (the
@@ -1244,8 +1246,10 @@ manifest, which generalizes the library's description.
    runs), `docs/measurements/library-archives-browser-2026-10-12.json`
    (the gate's), `docs/measurements/playground-2026-10-12.json` (the
    playground's), `docs/measurements/explorer-2026-10-13.json` (the
-   Explorer's) and `docs/measurements/library-mount-2026-10-13.json` (the
-   mount's), [`docs/notes/explorer.md`][explorer-note] (the Explorer),
+   Explorer's), `docs/measurements/library-mount-2026-10-13.json` (the
+   mount's) and `docs/measurements/library-tabs-2026-10-13.json` (the
+   library's modules opened read-only, and their copies),
+   [`docs/notes/explorer.md`][explorer-note] (the Explorer),
    [`docs/provenance.md`][provenance] (the record),
    [`NOTICE`][notice].
 +  **Code**: `flake.nix` (`packages.assets`, the pins; `packages.site`;
@@ -1285,7 +1289,20 @@ manifest, which generalizes the library's description.
    `packages/engine/src/browser/index.ts` (`mountArchives`),
    `archive-store.ts` and `drive-caches.ts`, `prepareImports` in
    `src/lib/controller.svelte.ts`, and the browser check's steps on the
-   mount and its notices.
+   mount and its notices; for the editor's states, `src/lib/documents.ts`
+   (a state per open file, the read-only document, the autosave per key),
+   `showDocument` and `closeDocument` in `src/lib/controller.svelte.ts`, and
+   `createEditorState` and the tabs in `src/routes/+page.svelte`, with the
+   color scheme's comparison in `src/lib/codemirror/theme.ts`; for
+   agda-algebras' modules, `openLibraryModule` and the library's line in
+   the page, `loadLibraryModule` and `readLibrarySource` in the controller
+   (the session's `load(path)`, which writes nothing), and the code points
+   of `src/lib/codemirror/lsp-hover.ts`; for the copies, `src/lib/playground.ts`
+   (the name, the module line, the selection, the import in Main),
+   `copyToPlayground` in the page, and `findModule`, `createPlaygroundFile`
+   and the startup's files in the controller, with `sourceSuffixes` in
+   `packages/manifest/src/library.ts`; and the browser check's library,
+   copy and import steps in `scripts/browser-check/run.mjs`.
 
 [#2]: https://github.com/formalverification/agda-native-ide/issues/2
 [#3]: https://github.com/formalverification/agda-native-ide/issues/3
@@ -1295,6 +1312,7 @@ manifest, which generalizes the library's description.
 [#7]: https://github.com/formalverification/agda-native-ide/issues/7
 [#8]: https://github.com/formalverification/agda-native-ide/issues/8
 [#9]: https://github.com/formalverification/agda-native-ide/issues/9
+[#10]: https://github.com/formalverification/agda-native-ide/issues/10
 [#11]: https://github.com/formalverification/agda-native-ide/issues/11
 [#12]: https://github.com/formalverification/agda-native-ide/issues/12
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13

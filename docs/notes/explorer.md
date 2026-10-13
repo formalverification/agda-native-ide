@@ -9,7 +9,8 @@ hard-coded levels, a PLAYGROUND row and PLFA's parts and chapters, every
 row disabled while Agda was busy, and hidden at 800 px; the site has
 mounted agda-algebras' sources since [#11], so every module is on the
 drive, and what was missing was a list of them and a tree to show it.
-Opening a library module is [#10]'s; this tree selects one.  Every figure
+Opening a library module came with [#10], which handles the tree's
+`onopen` (the runtime note's "The editor's states").  Every figure
 is from the runs of 2026-10-13 in
 [`docs/measurements/explorer-2026-10-13.json`][record], with the machine
 and its load.
@@ -84,10 +85,11 @@ drive.  So the build writes the list, as
 The Explorer is one tree, `ExplorerTree` from `@agda-native-ide/views`,
 with three sections: the playground (`Main.agda`), agda-algebras (every
 module of the list), and PLFA (its chapters by part, until [#20] retires
-them).  One tree rather than a library tree beside the old rows: until
-[#10] opens a library module, the open file is always the playground's or
-a chapter, so only a tree that holds them can reveal the open file and mark
-it current today, and the Explorer keeps one tab stop and one set of keys.
+them).  One tree rather than a library tree beside the old rows: the open
+file may be the playground's, a chapter, or, since [#10], a module of
+agda-algebras, so only a tree that holds them all can reveal the open file
+and mark it current, and the Explorer keeps one tab stop and one set of
+keys.
 The component takes its data and reports what the reader does; the page
 keeps which rows are expanded and decides what opening a row means.
 
@@ -147,8 +149,10 @@ keeps which rows are expanded and decides what opening a row means.
    the filter work.  The page opens the playground's file and PLFA's
    chapters only while Agda is idle, as it always has, so those rows are
    `aria-disabled` while it is busy: still focused and read, but neither
-   opened nor selected.  A module of agda-algebras never is.  The fork
-   disabled every row, so a row with focus lost it at each check.
+   opened nor selected.  Since [#10] a module of agda-algebras is too,
+   while Agda starts or is busy, since opening one loads it; a folder never
+   is.  The fork disabled every row, so a row with focus lost it at each
+   check.
 +  **Small screens**.  The Explorer still hides at 800 px and below, as
    the fork's did; [#22] makes it a drawer.  The tree's rows clip their
    labels rather than widen the Explorer, which scrolls up and down only,
@@ -158,11 +162,10 @@ keeps which rows are expanded and decides what opening a row means.
 
 +  **[#10]** (library modules opened read-only) handles `onopen`, which
    the tree calls with the row's item (`id`, `label`, `kind`, `path`,
-   `name`) on Enter or a click on a module, and `onselect`, which it calls
-   when the selection moves.  The page's `openFromExplorer` opens the
-   playground's file and the chapters, and nothing for a module of
-   agda-algebras; once it opens one, the tree reveals it and marks it
-   current with no change of its own.
+   `name`) on Enter or a click on a module's label: the page's
+   `openFromExplorer` opens the module read-only, and the tree reveals it
+   and marks it current with no change of its own.  The page does not use
+   `onselect`; Space selects a row without opening it.
 +  **[#22]** (the Explorer as a drawer on a phone) takes the component
    whole: it needs no width of its own, its rows are 26 px high, and its
    filter is an ordinary search field.
@@ -202,7 +205,8 @@ the times are indicative and the counts are the findings):
 +  **The browser check** (`scripts/browser-check/explorer.mjs`) uses the
    tree as a keyboard and screen-reader user would: its roles and their
    attributes; the arrow keys from the tab stop to `Overture.Signatures`,
-   Enter selecting it without opening it; every parent opened with Right,
+   Space selecting it without opening it (Enter opens it since [#10], which
+   the browser check's library step does); every parent opened with Right,
    after which the rows must be the list's modules in its order, each with
    its level, its place among its siblings and its label; a filter; a key
    and the filter while the library import's check runs, in one call
