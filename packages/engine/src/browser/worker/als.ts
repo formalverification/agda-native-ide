@@ -16,7 +16,9 @@
 // moved from the page with the drive: the transport (../index.ts) creates
 // it through the host, which bundles it, and it reads one more function,
 // a source's text as Agda would read it.  It writes the host's files over
-// what the cache restores (issue 11).
+// what the cache restores (issue 11), and says which paths the drive holds,
+// so that the host mounts no archive whose interfaces are there (issue
+// 14).
 
 import * as Comlink from "comlink";
 import * as Runno from "@runno/wasi";
@@ -168,6 +170,7 @@ async function init({
       drive!.writeFile(path, new TextEncoder().encode(content)),
     readFile: async (path: string) => drive!.readFile(path),
     mountArchive: (data: ArrayBuffer) => drive!.mountArchive(data),
+    present: async (paths: string[]) => drive!.present(paths),
     persist: () => drive!.persist(),
   });
 }

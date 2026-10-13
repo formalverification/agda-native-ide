@@ -30,13 +30,16 @@
 // It starts with the files the host names, a project's own `.agda-lib`,
 // where it held an empty /Main.agda for the page's buffer: the host writes
 // its sources where it keeps them.  They are written over what the cache
-// restores, so a host's file is always its current text (issue 11).
+// restores, so a host's file is always its current text (issue 11).  A
+// mounted archive's files leave the cache, and the drive says which paths
+// it holds; a newer deploy's page may delete its database, which an open
+// connection would block (issue 14).
 
 import * as Runno from "@runno/wasi";
 import JSZip from "jszip";
 
 import { indexDrive } from "./drive-index.js";
-import type { DriveArchives, DriveFile } from "./protocol.js";
+import { DRIVE_CACHE_PREFIX, type DriveArchives, type DriveFile } from "./protocol.js";
 
 let lastTimestamp = Date.now();
 
@@ -198,7 +201,7 @@ export function openCacheDatabase(namespace: string) {
     if (typeof indexedDB === "undefined") return resolve(null);
     let request: IDBOpenDBRequest;
     try {
-      request = indexedDB.open(`agda-playground-drive-${namespace}`, 1);
+      request = indexedDB.open(`${DRIVE_CACHE_PREFIX}${namespace}`, 1);
     } catch (error) {
       // A browser that does not allow storage may throw at once.
       console.warn("Persistent Agda cache is unavailable", error);
@@ -209,7 +212,12 @@ export function openCacheDatabase(namespace: string) {
         request.result.createObjectStore("files", { keyPath: "path" });
       }
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      // A newer deploy's page deletes this database when its namespace is
+      // stale (./drive-caches.ts); an open connection would block that.
+      request.result.onversionchange = () => request.result.close();
+      resolve(request.result);
+    };
     request.onerror = () => {
       console.warn("Persistent Agda cache is unavailable", request.error);
       resolve(null);
@@ -358,10 +366,25 @@ export function attachDrive(
         : new TextDecoder("utf-8", { ignoreBOM: true }).decode(file.content);
     },
 
-    /** Extract a zip at the root (interface archives, more libraries). */
+    /** Extract a zip at the root (interface archives, more libraries).
+     * Its files are the archive's, which the host keeps (issue 14): none
+     * is persisted in the drive's cache, and a copy the cache holds at one
+     * of their paths (an interface an earlier check wrote) is deleted, so
+     * that it is neither restored again nor stored twice. */
     async mountArchive(data: ArrayBuffer) {
       const paths = await extractZip(data, "/", drive.fs);
       paths.forEach(driveIndex.sync);
+      for (const path of paths) dirtyCachePaths.delete(path);
+      if (database)
+        await cacheTransaction<void>(database, "readwrite", (store, resolve) => {
+          for (const path of paths) store.delete(path);
+          store.transaction.oncomplete = () => resolve();
+        }).catch((error) => console.warn("Could not drop the cache's copies of an archive's files", error));
+    },
+
+    /** Which of these paths the drive holds. */
+    present(paths: string[]) {
+      return paths.filter((path) => Object.hasOwn(drive.fs, path));
     },
 
     /** Persist the sources written and the interfaces Agda wrote. */

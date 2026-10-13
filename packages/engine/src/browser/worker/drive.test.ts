@@ -155,3 +155,39 @@ describe("the drive's libraries", () => {
     expect(text(fs, "/home/root/.config/agda/defaults")).toBe("standard-library\nagda-algebras\n");
   });
 });
+
+/** A database the drive persists to and deletes from, in memory. */
+function writable() {
+  const records = new Map<string, unknown>();
+  const store = {
+    put: (record: { path: string }) => void records.set(record.path, record),
+    delete: (path: string) => void records.delete(path),
+    transaction: { oncomplete: null as (() => void) | null },
+  };
+  const database = {
+    transaction: () => {
+      queueMicrotask(() => queueMicrotask(() => store.transaction.oncomplete?.()));
+      return { onerror: null, objectStore: () => store };
+    },
+  } as unknown as IDBDatabase;
+  return { database, records };
+}
+
+describe("an archive mounted on the drive", () => {
+  it("leaves the drive's cache: a dirty copy is not persisted, and a cached one is deleted", async () => {
+    const wasi = new Runno.WASI({ args: ["agda"], env: {}, fs: {} });
+    const { database, records } = writable();
+    const drive = attachDrive(wasi.drive, database);
+    const path = "/lib/_build/2.9.0/agda/src/A.agdai";
+    // An interface an earlier check wrote, cached, and written again now.
+    records.set(path, { path });
+    drive.writeFile(path, new TextEncoder().encode("built in the browser"));
+    drive.writeFile("/play/Main.agda", new TextEncoder().encode("module Main where\n"));
+    await drive.mountArchive(await zip({ "lib/_build/2.9.0/agda/src/A.agdai": "from the archive" }));
+    expect(drive.readFile(path)).toBe("from the archive");
+    expect(records.has(path)).toBe(false);
+    await drive.persist();
+    expect([...records.keys()]).toEqual(["/play/Main.agda"]);
+    expect(drive.present([path, "/play/Main.agda", "/lib/Missing.agdai"])).toEqual([path, "/play/Main.agda"]);
+  });
+});
