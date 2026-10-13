@@ -114,6 +114,9 @@
     untrack(() => {
       const missing = found.ancestors.filter((id) => !open.has(id));
       if (missing.length) onexpandedchange([...expanded, ...missing]);
+      // Under a filter, a parent the reader closed there yields too.
+      if (found.ancestors.some((id) => closedWhileFiltering.has(id)))
+        closedWhileFiltering = new Set([...closedWhileFiltering].filter((id) => !found.ancestors.includes(id)));
       selected = found.item.id;
       if (!tree?.contains(document.activeElement)) active = found.item.id;
     });
@@ -165,8 +168,11 @@
   }
 
   function keepFound() {
-    const id = active ?? selected;
-    const found = id === undefined ? undefined : findItem(items, (item) => item.id === id);
+    // The focused row, or else the selected one: a focused row may have
+    // left the tree since.
+    const found = [active, selected]
+      .map((id) => (id === undefined ? undefined : findItem(items, (item) => item.id === id)))
+      .find((candidate) => candidate !== undefined);
     if (!found) return;
     const missing = found.ancestors.filter((ancestor) => !open.has(ancestor));
     if (missing.length) onexpandedchange([...expanded, ...missing]);

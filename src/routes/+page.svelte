@@ -23,10 +23,13 @@
   // tree (ExplorerTree, from the views package; issue 9) of three
   // sections: the playground, every module of agda-algebras, from the
   // list the build writes (agda-algebras-modules.json), and PLFA's
-  // chapters, by part.  Its rows stay enabled while Agda is busy, which
-  // rows are expanded is kept in localStorage, and the open file is
-  // revealed and marked current.  Until issue 10 opens a library module,
-  // activating one selects it.
+  // chapters, by part.  Its rows stay focusable while Agda is busy (the
+  // playground's file and the chapters, which open only while Agda is idle,
+  // are aria-disabled then; agda-algebras' modules never are), which rows
+  // are expanded is kept in localStorage, and the open file is revealed and
+  // marked current.  Activating the open file's row moves to it rather than
+  // loading it again.  Until issue 10 opens a library module, activating
+  // one selects it.
 
   import { onDestroy, onMount } from "svelte";
   import { setThemePreference, watchTheme, type ThemePreference } from "$lib/theme";
@@ -970,8 +973,13 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
 
   /** A file the Explorer opens: the playground's, or a PLFA chapter.  A
    * module of agda-algebras opens with issue 10; until then the tree
-   * selects it, and nothing more. */
+   * selects it, and nothing more.  The file already open is not loaded
+   * again, which would put its stored copy in place of the last quarter
+   * second's typing (saving waits 250 ms) and reset the cursor and the
+   * reader; the focus moves to it instead. */
   function openFromExplorer(item: TreeItem) {
+    if (item.path === controller.currentFilePath)
+      return focusResource(workspaceMode === "plfa" ? "markdown" : "agda");
     if (item.path === PLAYGROUND.file) return openPlayground();
     const chapter = plfaChapters.find((entry) => entry.modulePath === item.path);
     if (chapter) void openPlfaChapter(chapter);
