@@ -218,6 +218,9 @@ const SOURCE_SUFFIXES: readonly [string, SourceKind | undefined][] = [
   [".lagda.tree", undefined],
 ];
 
+/** The suffixes Agda 2.9.0 tries for a module's source, in its order. */
+export const sourceSuffixes: readonly string[] = SOURCE_SUFFIXES.map(([suffix]) => suffix);
+
 /** Whether a module is one of Agda's builtins, whose interfaces are on the
  * drive from the start (agda-data.zip), listed in the index or not. */
 export const isBuiltinModule = (name: string) => name === "Agda.Primitive" || name.startsWith("Agda.");

@@ -38,6 +38,7 @@ export {
   isBuiltinModule,
   planArchives,
   planImports,
+  sourceSuffixes,
   statedProgress,
   statedSize,
 } from "./library.js";

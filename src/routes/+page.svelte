@@ -24,7 +24,7 @@
   // sections: the playground, every module of agda-algebras, from the
   // list the build writes (agda-algebras-modules.json), and PLFA's
   // chapters, by part.  Its rows stay focusable while Agda is busy (the
-  // playground's file, the chapters and agda-algebras' modules, which open
+  // playground's files, the chapters and agda-algebras' modules, which open
   // only while Agda is idle, are aria-disabled then), which rows are
   // expanded is kept in localStorage, and the open file is revealed and
   // marked current.  Activating the open file's row moves to it rather
@@ -36,9 +36,11 @@
   // Explorer, while Agda is idle: its text is the drive's, which is never
   // written, loaded so that hover, Infer and Normalize answer in its
   // scope, after the archives of its own closure are mounted; a line
-  // above it says it is the checked library and links its page on
-  // agda-algebras' site.  Before a check of the playground's Main, or a
-  // load of a library's module, the page mounts the interface archives it
+  // above it says it is the checked library, links its page on
+  // agda-algebras' site, and copies it, or the selection, into a file of
+  // the playground's project, under /play/ ($lib/playground), or adds its
+  // `open import` to Main.  Before a check of a playground file, or a load
+  // of a library's module, the page mounts the interface archives it
   // needs, and before it fetches one it shows how many bytes and asks
   // (issue 14): the question sits at the foot of the code pane, as the
   // minibuffer does, with no spinner, since nothing is under way while it
@@ -59,9 +61,11 @@
     Braces,
     CircleAlert,
     CircleCheck,
+    Copy,
     Download,
     ExternalLink,
     FileCode,
+    FileInput,
     FolderOpen,
     Info,
     ListChecks,
@@ -92,6 +96,14 @@
     readOnlyDocument,
     type DocumentFile,
   } from "$lib/documents";
+  import {
+    PLAYGROUND_DIR,
+    moduleCopy,
+    openImportEdit,
+    playgroundModuleOf,
+    playgroundTarget,
+    selectionCopy,
+  } from "$lib/playground";
   import { missingFeatures, unsupportedBrowserNotice } from "$lib/support";
   import { cacheTokens } from "$lib/assets";
   import { asset } from "$app/paths";
@@ -174,7 +186,7 @@ length-hom []       ys = refl
 length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
 `;
 
-  type CommandKind = "give" | "refine" | "case" | "infer" | "normalize";
+  type CommandKind = "give" | "refine" | "case" | "infer" | "normalize" | "copy";
   type InspectorMode = "goals" | "result" | "problems";
   type WorkspaceMode = "playground" | "plfa";
   type ActiveResource = "markdown" | "agda";
@@ -251,6 +263,8 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   let scrollSyncOwner: "reader" | "editor" | null = null;
   let scrollSyncRelease: ReturnType<typeof setTimeout> | undefined;
   let chapterRequest = 0;
+  /** A copy's selection, taken when the copy's minibuffer opens. */
+  let copySelection = $state<{ from: number; to: number; lines: number } | null>(null);
 
   const plfaChapters = $derived(
     plfaManifest ? corpusChapters(plfaManifest) : [],
@@ -307,7 +321,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     label: error || loading,
     kind: error ? "error" : "message",
   });
-  // The Explorer's sections.  The playground's file and PLFA's chapters
+  // The Explorer's sections.  The playground's files and PLFA's chapters
   // open only while Agda is idle, as the page has always done, so they are
   // aria-disabled meanwhile; agda-algebras' modules, which Agda loads when
   // they open, also while it starts (issue 10).
@@ -316,18 +330,16 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       id: "section:play",
       label: "Playground",
       kind: "section",
-      children: [
-        {
-          id: "play:Main",
-          label: "Main.agda",
-          kind: "file",
-          path: PLAYGROUND.file,
-          name: "Main",
-          title: PLAYGROUND.file,
-          mark: "Saved locally",
-          disabled: isBusy,
-        },
-      ],
+      children: [PLAYGROUND.file, ...controller.playgroundFiles].map((path) => ({
+        id: path === PLAYGROUND.file ? "play:Main" : `play:${path}`,
+        label: path.slice(`${PLAYGROUND_DIR}/`.length),
+        kind: "file" as const,
+        path,
+        name: playgroundModuleOf(path),
+        title: path,
+        mark: "Saved locally",
+        disabled: isBusy,
+      })),
     },
     {
       id: "section:agda-algebras",
@@ -496,6 +508,13 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
         "Evaluate an expression to normal form in the current scope.",
       placeholder: "expression",
       action: "Normalize",
+    },
+    copy: {
+      title: "Copy to the playground",
+      description:
+        "The copy's module name: the file is that name's path under /play/, which the copy's module line names.",
+      placeholder: "module name, e.g. Signatures",
+      action: "Copy",
     },
   };
 
@@ -1015,7 +1034,32 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   function openCommand(kind: CommandKind) {
     actionError = "";
     commandKind = kind;
-    if (kind === "give" || kind === "refine") {
+    if (kind === "copy") {
+      // The selection, if any, is what is copied; the name offered is the
+      // module's last part.
+      const range = editor?.state.selection.main;
+      const doc = editor?.state.doc;
+      // A selection that ends at a line's start does not take that line.
+      copySelection =
+        range && doc && !range.empty
+          ? {
+              from: range.from,
+              to: range.to,
+              lines:
+                doc.lineAt(range.to).number -
+                doc.lineAt(range.from).number +
+                (range.to === doc.lineAt(range.to).from ? 0 : 1),
+            }
+          : null;
+      commandValue = currentLibrary?.module.split(".").pop() ?? "";
+      // Then the first such name Agda finds nowhere, unless the reader has
+      // typed meanwhile.
+      const offered = commandValue;
+      if (currentLibrary)
+        void freeCopyName(currentLibrary.module).then((name) => {
+          if (commandKind === "copy" && commandValue === offered) commandValue = name;
+        });
+    } else if (kind === "give" || kind === "refine") {
       const goal = controller.getActiveGoal();
       commandValue =
         goal && editor
@@ -1038,6 +1082,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       else if (kind === "refine") await controller.refine(value);
       else if (kind === "case") await controller.caseSplit(value);
       else if (kind === "infer") await controller.infer(value);
+      else if (kind === "copy") await copyToPlayground(value);
       else await controller.normalize(value);
       commandKind = null;
       setTimeout(() => editor?.focus());
@@ -1086,8 +1131,8 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     }
   }
 
-  /** Open the playground's Main, as it was left (issue 10), or from the
-   * text the browser keeps; then check it. */
+  /** Open a file of the playground's project: Main, or a copy (issue 10),
+   * as it was left, or from the text the browser keeps; then check it. */
   function openPlayground(file: DocumentFile = MAIN_FILE) {
     if (isBusy) return;
     chapterRequest++;
@@ -1129,6 +1174,67 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     }
   }
 
+  /** Copy the library's module on screen, or its selection, into a file of
+   * the playground's project, named `name` (issue 10); open it editable,
+   * and check it.  A name Agda finds already (in the playground, a library,
+   * or the builtins) is refused: the copy would not check, or would make an
+   * import of that name ambiguous. */
+  async function copyToPlayground(name: string) {
+    const library = controller.currentFile.library;
+    if (!library || !editor) throw new Error("Open a module of agda-algebras to copy it");
+    if (isBusy) throw new Error("Agda is busy; copy when it is done");
+    const selection = copySelection;
+    const target = playgroundTarget(name, selection ? ".agda" : ".lagda.md");
+    if ("error" in target) throw new Error(target.error);
+    const found = await controller.findModule(target.module);
+    if (found)
+      throw new Error(
+        `Agda finds ${target.module} at ${found} already, so a copy named so would not check; name it otherwise`,
+      );
+    const source = editor.state.doc.toString();
+    const copy = selection
+      ? selectionCopy(source, library.module, target.module, selection)
+      : { text: moduleCopy(source, library.module, target.module), at: 0 };
+    if (copy?.text === undefined) throw new Error(`${library.module} declares no module line to rename`);
+    const file = await controller.createPlaygroundFile(target.path, copy.text);
+    copySelection = null;
+    openPlayground(file);
+    // A selection's copy is shown at the selection.
+    if (selection && controller.currentFilePath === file.path)
+      editor.dispatch({ selection: { anchor: copy.at }, effects: EditorView.scrollIntoView(copy.at, { y: "center" }) });
+  }
+
+  /** A name for a copy of `module` that Agda finds nowhere yet: its last
+   * part, or that with a number after it (many modules share a last
+   * part, and some are a library's top-level module). */
+  async function freeCopyName(module: string) {
+    const base = module.split(".").pop() ?? module;
+    for (let n = 1; n < 100; n++) {
+      const name = n === 1 ? base : `${base}${n}`;
+      if (!(await controller.findModule(name))) return name;
+    }
+    return base;
+  }
+
+  /** Add `open import` of the library's module on screen to Main, and show
+   * Main, which is then checked (issue 10).  Main that opens it already is
+   * shown with its cursor on that line. */
+  function importIntoMain() {
+    const library = controller.currentFile.library;
+    if (!library || isBusy) return;
+    openPlayground(MAIN_FILE);
+    if (!editor || controller.currentFilePath !== PLAYGROUND.file) return;
+    const text = editor.state.doc.toString();
+    const edit = openImportEdit(text, library.module);
+    if (edit && "at" in edit) editor.dispatch({ selection: { anchor: edit.at }, scrollIntoView: true });
+    else if (edit)
+      editor.dispatch({
+        changes: { from: edit.from, insert: edit.insert },
+        selection: { anchor: edit.from + edit.insert.trimEnd().length },
+        scrollIntoView: true,
+      });
+  }
+
   /** Which Explorer rows are expanded, kept for the next visit. */
   function setExplorerExpanded(expanded: string[]) {
     explorerExpanded = expanded;
@@ -1139,7 +1245,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     }
   }
 
-  /** A file the Explorer or a tab opens: the playground's Main, a PLFA
+  /** A file the Explorer or a tab opens: a file of the playground, a PLFA
    * chapter, or a module of agda-algebras, read-only (issue 10).  The file
    * on screen is not opened again, which would reset the cursor and the
    * reader; the focus moves to it instead. */
@@ -1153,7 +1259,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
    * module. */
   function openPath(path: string, item?: TreeItem) {
     if (path === controller.currentFilePath) return focusResource(workspaceMode === "plfa" ? "markdown" : "agda");
-    if (path === PLAYGROUND.file) return openPlayground(MAIN_FILE);
+    if (playgroundModuleOf(path)) return openPlayground(path === PLAYGROUND.file ? MAIN_FILE : controller.playgroundFile(path));
     const chapter = plfaChapters.find((entry) => entry.modulePath === path);
     if (chapter) return void openPlfaChapter(chapter);
     const open = controller.openFiles.find((file) => file.path === path)?.library;
@@ -1379,9 +1485,22 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
             <p>
               <strong>Read-only</strong>: {currentLibrary.module} is agda-algebras{libraryModules?.commit
                 ? ` at ${libraryModules.commit.slice(0, 8)}`
-                : ""}, the checked library, as the playground imports it.
+                : ""}, the checked library, as the playground imports it. Copy it to the
+              playground to change it.
             </p>
             <div class="library-actions">
+              <button
+                class="library-copy"
+                title="Copy this module, or the selection, into a file of the playground"
+                onclick={() => openCommand("copy")}
+                disabled={!compilerReady || isBusy}><Copy size={13} />Copy to playground</button
+              >
+              <button
+                class="library-import"
+                title={`Add open import ${currentLibrary.module} to Main.agda`}
+                onclick={importIntoMain}
+                disabled={isBusy}><FileInput size={13} />Import in Main</button
+              >
               <a
                 class="library-page"
                 href={libraryPage(currentLibrary.module)}
@@ -1446,7 +1565,13 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
           >
             <label for="command-input">
               <span>AGDA</span>
-              <strong>{commandMeta[commandKind].title}</strong>
+              <strong
+                >{commandKind === "copy" && currentLibrary
+                  ? copySelection
+                    ? `Copy the selection (${copySelection.lines} ${copySelection.lines === 1 ? "line" : "lines"}), with the code above it, to /play/`
+                    : `Copy ${currentLibrary.module} to /play/`
+                  : commandMeta[commandKind].title}</strong
+              >
             </label>
             <input
               id="command-input"
@@ -2082,6 +2207,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     flex-wrap: wrap;
     gap: 6px;
   }
+  .library-actions button,
   .library-actions a {
     min-height: 24px;
     display: inline-flex;
@@ -2094,6 +2220,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     font-size: 11px;
     text-decoration: none;
   }
+  .library-actions button:not(:disabled):hover,
   .library-actions a:hover {
     background: var(--accent-soft);
   }
