@@ -11,9 +11,10 @@ reference is to this repository's copy of the fork: upstream's `ae0aa84c`,
 with the changes `docs/provenance.md` lists; of those, the derived
 `?cache=` tokens, the drive's cache namespace, the drive's index, the
 builtins' archive, the compiler and standard library of Agda 2.9.0 ([#58]),
-the server's reactor build with the drive in its worker ([#59]), and the
-playground's own project ([#11]) touch what this note describes, and each
-is explained where it arises.  The facts
+the server's reactor build with the drive in its worker ([#59]), the
+playground's own project ([#11]), and the editor's state per open file
+with agda-algebras' modules read-only ([#10]) touch what this note
+describes, and each is explained where it arises.  The facts
 come from reading that source, and the measurements from the issues that
 record them (their findings sections condense the 2026-10-04 investigation
 of the fork).
@@ -42,8 +43,10 @@ follows:
    speaks to the worker one JSON message at a time, with no framing,
    acknowledges each of the server's requests, and ends each command at
    `ResponseEnd`; the engine's core validates Agda's answers.  CodeMirror's
-   language-server client, for hover, shares the server's session through
-   the transport's editor channel.
+   language-server client, for hover, reaches the same server through the
+   transport's editor channel, but not the session's loaded file: the
+   server answers a hover with a load of its own ("The editor's states",
+   below).
 +  **The version query** is the engine's: a session asks Agda its version
    when it opens.
 +  **The give rule** is the engine's `planCheck`, which a session applies
@@ -372,7 +375,9 @@ runs of the browser check ([#59]).
    the server's thread, between its steps: extracting an archive delays the
    server's next step (not measured).
 +  **Persistence**: the drive keeps every source the page writes (the
-   playground's `/play/Main.agda`, a chapter's buffer), and every interface
+   playground's `/play/Main.agda` and its copies of agda-algebras' modules,
+   a chapter's buffer; never a module of agda-algebras, which the page
+   does not write, [#10]), and every interface
    Agda writes in an IndexedDB database named
    `agda-playground-drive-<namespace>` (`drive.ts:171-242`, `:332`), where
    the namespace is a digest of everything Agda reads (the compiler and its
@@ -462,7 +467,9 @@ refuses, `Main` refuses ([#11]).
    `/Main.agda` is not shown in its place.  Nothing is deployed, so only a
    developer's browser holds one, and it stays there, unread.  The drive's
    cache namespace now digests the sources archive too, so a drive
-   persisted under the old layout is not restored.
+   persisted under the old layout is not restored.  Each copy of a library's
+   module in the playground has a key of its own, named by its path
+   ([#10], "The editor's states").
 +  **What it costs** (2026-10-12, headless Chromium 149, this workstation
    with other sessions' builds beside it;
    [`docs/measurements/playground-2026-10-12.json`][playground-record]): a
@@ -484,6 +491,158 @@ refuses, `Main` refuses ([#11]).
    asking, and checks it in 3.2 s (`docs/notes/library-archives.md`, "The
    mount in the page").
 
+## The editor's states
+
+The page has one CodeMirror view and an editor state per open file
+([#10]), where the fork swapped one document through one state.
+
++  **Why**: the fork's `setDocument` replaced the whole text in one
+   transaction of the state on screen, which its history recorded, so undo
+   crossed files: on the live site on 2026-10-04, Ctrl-Z after opening a
+   chapter put `Main.agda`'s text into the chapter, and the autosave, whose
+   timer then wrote under the chapter's key, stored it there.
++  **A state per file**: each open file's `EditorState` holds its text,
+   selection, history, language (`agdaSourceLanguage` for an `.agda` file,
+   `literateAgdaLanguage` for a `.lagda.md` one), Agda's highlighting and
+   goals, and a facet naming its file (`src/lib/documents.ts`).  The
+   controller keeps the states not on screen and shows one with
+   `EditorView.setState`, which rebuilds the view's plugins from it; each
+   file's scroll position is kept beside its state, and a file opened for
+   the first time shows its top.  What every state shares (the page's keys,
+   its update listener, its theme) is made once, with the editor.  The
+   open files are tabs: Main's is fixed, and closing another forgets its
+   state and its history, not its text.
++  **The language server's client** follows the file on screen: the
+   plugin of `@codemirror/lsp-client` is only in that state, so a switch
+   closes one file on the server (`didClose`) and opens the next with its
+   text (`didOpen`).
++  **What Agda answered** is the file's it answered for.  A switch bumps
+   the controller's epoch and calls the session's `reloadNext`, so a check
+   still running is not applied, the inspector starts afresh, and the next
+   check of the file shown loads it, since the session holds one file.  A
+   file shown again that Agda does not hold shows no goals, and a goal
+   command there is refused until it is checked.  A playground file is
+   checked again when it is shown, as Main was; Infer
+   and Normalize check the file on screen first when Agda holds another
+   (`holdCurrentFile`).
++  **The autosave** follows the state: each file's edits are saved under
+   its own key 250 ms after its last edit, whichever file is on screen when
+   the save runs (`DocumentSaver`), and what waits is saved when the page
+   is left (`pagehide`), where the fork dropped it.  The keys are
+   `agda-web-ide-beta:doc:<path>` for the playground's files and
+   `agda-web-ide-beta:plfa-lagda:<id>` for a chapter.
++  **PLFA's chapters** are editable as before.  What the states change: a
+   chapter opened again in a visit shows its kept state, with its history,
+   rather than its stored text, and opening one no longer writes its text
+   to the browser until it is edited.
++  **The color scheme**: the editor's scheme follows the theme by
+   comparing it with the scheme the state on screen holds
+   (`src/lib/codemirror/theme.ts`), since a state kept off screen holds the
+   scheme of the theme in force when it was last shown.
+
+### A module of agda-algebras, read-only
+
++  **Opening one**: Enter on a module's row in the Explorer (or a click on
+   its label) opens it in a tab, while Agda is idle; its rows are
+   aria-disabled while Agda starts or is busy, since opening one loads it
+   (the playground's and the chapters' only while it is busy).  A module
+   open already is shown again whether or not Agda is up.  Its text is read
+   from the drive (`readSource`), which holds the sources archive the build
+   made from agda-algebras' pin, so the tab shows exactly the text Agda
+   reads.  The page never writes it, so the
+   drive's cache never holds it, and the next visit's drive is laid out
+   from the archive again.
++  **Read-only**: the state has `EditorState.readOnly`, `EditorView.editable`
+   false with a `tabindex` (so the arrows, selection, copying and the
+   page's keys still work), and a change filter that refuses every change,
+   so neither a keystroke, a paste, an undo, the input method's own edit
+   nor an edit of Agda's changes it.  A line above it says that it is the
+   checked library, at its pin, and links its page on agda-algebras' site,
+   which renders each module at its path
+   (`https://agda-algebras.universalalgebra.org/Overture/Signatures/`).  The
+   link says it opens the site's current version: the site follows the
+   library's master branch, not the pin, and 6 of the pin's 350 modules
+   have no page there (2026-10-13); a page at the pin is [#19]'s.
++  **The load**: the session's `load(path)` without text, which reads the
+   source and writes nothing.  Before it, the page mounts the archives of
+   the module's own closure: its name, not the imports of its text, so its
+   own archive is among them, after asking as for Main ([#14]).  The load's
+   `Checking` lines say whether Agda accepted the module's own interface
+   (none) or type-checked it again.  When the closure is checked from
+   source (the build has no archives, the reader declined the fetch, or the
+   index could not be read), the note says how long the last such load of
+   that module took in this browser, or that it can take minutes.  Agda
+   then answers Infer and Normalize in its scope.
++  **Hover** is the language server's own: it loads the hovered file from
+   the drive in a fresh Agda state, with the drive's interfaces, and infers
+   the token under the pointer in its scope, so its answer does not depend
+   on the session's load (the server's `onHover` handler, at the server's
+   pinned commit).  The server counts a position's character in code
+   points, where CodeMirror's client sends UTF-16 code units: on a line
+   with a character outside the Basic Multilingual Plane before the
+   pointer, the server read the token that many characters to the right,
+   and 258 of agda-algebras' 351 files have such lines.
+   `src/lib/codemirror/lsp-hover.ts` now sends, and reads back, code
+   points.  Since the server's hover is a load, it costs about the
+   module's load, and the server reads no other message meanwhile, so a
+   command the page sends waits for it.
++  **What it costs** (2026-10-13, headless Chromium 149, this workstation
+   at a load of 2 to 3, three rounds on fresh profiles;
+   [`docs/measurements/library-tabs-2026-10-13.json`][tabs-record]):
+   `Overture.Signatures`, `Setoid.Algebras.Basic` and
+   `Setoid.Varieties.HSP`, opened on a first visit, mounted their 3, 50 and
+   128 archives in 16 to 28, 171 to 186 and 388 to 417 ms after the reader
+   agreed, and loaded in 0.18 to 0.22, 2.9 to 3.9 and 6.1 to 6.8 s, every
+   load with no `Checking` line; on a second visit, from the browser's
+   store, the same.  A hover over a name took 0.5 to 0.7, 5.8 to 7.1 and
+   11.1 to 12.7 s.  From source (the reader's "Check from source"),
+   `Overture.Signatures` type-checked 11 modules in 2.1 s, and
+   `Setoid.Algebras.Basic` its 170 in 2 min 10 s at a load near 9; after a
+   reload each opened in 0.21 and 3.7 s, with nothing type-checked, from the
+   interfaces the drive kept.
+
+### A copy in the playground
+
++  **A module's copy**: the read-only tab's line copies the module to
+   `/play/<Name>.lagda.md`, its module line renamed to the name the reader
+   gives: `play.agda-lib` has `include: .`, so a path under `/play/` names
+   its module (`/play/X/Y.lagda.md` is `X.Y`).  The rename is the first
+   `module` line in the module's code, which keeps a parameterized module's
+   parameters.
++  **A selection's copy**: `/play/<Name>.agda`, the module's code from its
+   start through the selection's last line, with prose left out (Agda reads
+   prose as blank lines, so the code means what it meant), and the cursor
+   at the selection.  The selection alone, under the module's imports, does
+   not check when it uses a name defined above it in the module
+   (`NotInScope`); checked natively at the compiler's commit over 278
+   selections (the last defining code block of every module that has one),
+   this rule's copies all checked, with no module of the library checked
+   again.
++  **The name** offered is the module's last part, or that with a number
+   when Agda finds it already.  A name Agda finds anywhere on the
+   playground's include path (`/play`, agda-algebras' `src`, the standard
+   library's `src`, the builtins), with any suffix Agda tries, or a file of
+   the playground's own (Main among them, before its first check writes it
+   to the drive), is refused before anything is written, as are `λ`, `_`,
+   a part with `__`, and a name in Agda's namespace (`Agda.…`, which the
+   import planner takes for a builtin).  A copy that kept the library's
+   name fails with `LibTooFarDown` at `/play/Signatures.lagda.md` (its
+   library is too close to the file for a two-part name), and at
+   `/play/Overture/Signatures.lagda.md` with `AmbiguousTopLevelModuleName`,
+   which also breaks Main's import of the library's module in the next
+   session.
++  **Where it is kept**: the copy is written where Agda reads it
+   (`writeSource`), and its text kept in the browser under its own key,
+   `agda-web-ide-beta:doc:<path>`.  Those keys are the list of the
+   playground's files (so two tabs that each make a copy cannot drop each
+   other's), which the Explorer's playground section shows and the page
+   writes to the drive when Agda starts (`BrowserConfig.files`), so that
+   Main can import a copy whatever the drive's cache holds.  It opens
+   editable, in its own state, and is checked.
++  **An import in Main**: the line also adds `open import` of the module to
+   Main, after Main's last import, as an edit undo takes back, and Main is
+   checked.
+
 ## The checks
 
 The language server's only test is the page itself, since a reactor's
@@ -496,7 +655,11 @@ exports are called from JavaScript and no standalone runtime calls them.
    context, Infer, a give, a type error at its position, a postulate
    refused under `--safe`, and a module of agda-algebras imported and
    type-checked from source, with the version Agda reports in the status
-   bar.
+   bar; then the editor's states ([#10]): a module of agda-algebras opened
+   read-only and loaded with nothing type-checked or written, a keystroke
+   that changes nothing, hover and Infer in its scope, undo kept to its
+   file, a copy that checks and whose goal answers, and the control, the
+   library's name in the copy's module line, which Agda refuses.
    It serves the site without the isolation headers and asserts
    `crossOriginIsolated` false, or with them (`--isolated`, `make
    browser-check ISOLATED=1`) and asserts it true; it fails at once on an
@@ -567,9 +730,11 @@ acceptance is counted, never inferred: the running info prints one
 [#3]: https://github.com/formalverification/agda-native-ide/issues/3
 [#6]: https://github.com/formalverification/agda-native-ide/issues/6
 [#8]: https://github.com/formalverification/agda-native-ide/issues/8
+[#10]: https://github.com/formalverification/agda-native-ide/issues/10
 [#11]: https://github.com/formalverification/agda-native-ide/issues/11
 [#13]: https://github.com/formalverification/agda-native-ide/issues/13
 [#14]: https://github.com/formalverification/agda-native-ide/issues/14
+[#19]: https://github.com/formalverification/agda-native-ide/issues/19
 [#49]: https://github.com/formalverification/agda-native-ide/issues/49
 [#50]: https://github.com/formalverification/agda-native-ide/issues/50
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
@@ -579,3 +744,4 @@ acceptance is counted, never inferred: the running info prints one
 [adr-0003]: ../adr/0003-the-shared-core.md
 [engine]: ../engine/overview.md
 [playground-record]: ../measurements/playground-2026-10-12.json
+[tabs-record]: ../measurements/library-tabs-2026-10-13.json

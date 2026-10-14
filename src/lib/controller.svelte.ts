@@ -50,9 +50,20 @@
 // is shown as "Agda could not start: ...", and a server that fails or
 // exits on its own once started as "Agda stopped: ..." (issue 8).
 //
-// Before a check of the playground's Main, the controller mounts the
-// interfaces its imports need (issue 14): it reads the imports from the
-// buffer, plans their closure from agda-algebras' archive index (which it
+// Each open file has an editor state of its own (issue 10, ./documents):
+// the controller keeps those not on screen, and shows one with the
+// view's setState, so its history, its selection and its scroll are its
+// own; the language server's client follows the file on screen.  A module
+// of agda-algebras is shown read-only, as the drive holds it, and loaded
+// with the session's load of its path, which writes nothing; Agda then
+// answers Infer and Normalize in its scope.  Files of the playground
+// besides Main (copies of a library's modules) are the keys of their text
+// in localStorage, and are written to the drive when Agda starts.
+//
+// Before a check of a playground file, or a load of a library's module,
+// the controller mounts the interfaces its imports need (issue 14): it
+// reads the imports from the buffer (a library's module: its own name),
+// plans their closure from agda-algebras' archive index (which it
 // fetches when Agda starts, with the library's sources), and mounts the
 // archives this session has not, reading those the browser keeps from the
 // engine's archive store and fetching the rest, but only once the reader
@@ -62,8 +73,8 @@
 // not ask again for them.  At startup it also deletes the drive caches of
 // other namespaces, and the archives the index no longer names.
 
-import type { EditorView } from "@codemirror/view";
-import { Compartment } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { Compartment, Transaction, type EditorState, type StateEffect } from "@codemirror/state";
 import { LSPClient, languageServerExtensions } from "@codemirror/lsp-client";
 import { messagesOf, sourceKind } from "@agda-native-ide/engine";
 import type {
@@ -89,6 +100,7 @@ import {
   parseArchiveIndex,
   parseLibraryDescription,
   planImports,
+  sourceSuffixes,
   statedSize,
   type ArchiveIndex,
   type LibraryDescription,
@@ -100,6 +112,7 @@ import { asset } from "$app/paths";
 import { assetFiles, cacheTokens, compilerBytes, driveCacheNamespace } from "$lib/assets";
 import { applyAgdaResponse } from "./agda/handlers";
 import { commit } from "./codemirror/offsets";
+import { setGoals } from "./agda/effects";
 import {
   getActiveAgdaGoal,
   getAgdaGoalById,
@@ -107,6 +120,8 @@ import {
   getAgdaGoals,
 } from "./agda/goals";
 import { browserAgdaSource } from "./agda/browser-source";
+import { OpenDocuments, fileOf, type DocumentFile } from "./documents";
+import { PLAYGROUND_DIR } from "./playground";
 
 type ALSWorkerStatus =
   | "initial"
@@ -181,11 +196,35 @@ export const PLAYGROUND = {
   includes: ["/play", "/agda-algebras/src", "/stdlib/src"],
 } as const;
 
-/** Where the editor keeps the playground's buffer: a key named by its path
- * on the drive.  It was "agda-web-ide-beta:doc" while the buffer was
- * /Main.agda, a module of PLFA's library; nothing is deployed, so only a
- * developer's browser holds a document there, and it stays, unread. */
-export const LS_DOC_KEY = `agda-web-ide-beta:doc:${PLAYGROUND.file}`;
+/** Where the editor keeps a playground file's buffer: a key named by its
+ * path on the drive. */
+export const storageKeyOf = (path: string) => `agda-web-ide-beta:doc:${path}`;
+
+/** The key of the playground's Main.  It was "agda-web-ide-beta:doc" while
+ * the buffer was /Main.agda, a module of PLFA's library; nothing is
+ * deployed, so only a developer's browser holds a document there, and it
+ * stays, unread. */
+export const LS_DOC_KEY = storageKeyOf(PLAYGROUND.file);
+
+/** The playground's Main, as a document. */
+export const MAIN_FILE: DocumentFile = { path: PLAYGROUND.file, storageKey: LS_DOC_KEY };
+
+/** The playground's files besides Main that the browser keeps (copies of
+ * a library's modules, issue 10): every key named by a path under /play/,
+ * but Main's.  The keys are the list, so two tabs that each make a copy
+ * cannot drop each other's. */
+function storedPlaygroundFiles(): string[] {
+  const prefix = storageKeyOf(`${PLAYGROUND_DIR}/`);
+  try {
+    return Object.keys(localStorage)
+      .filter((key) => key.startsWith(prefix) && key !== LS_DOC_KEY)
+      .map((key) => key.slice(storageKeyOf("").length))
+      .sort();
+  } catch {
+    // Refused storage: no copies.
+    return [];
+  }
+}
 
 /** agda-algebras as the page describes it (issue 14): its sources, which
  * the drive mounts when it starts, its archive index, and where the index's
@@ -308,8 +347,13 @@ export class AgdaController {
   reportedAgdaVersion = $state<string | undefined>();
   driveIsCreated = $state(false);
   driveArchiveLoading = $state(false);
-  currentFilePath = $state<string>(PLAYGROUND.file);
-  currentStorageKey = LS_DOC_KEY;
+  /** The file on screen. */
+  currentFile = $state<DocumentFile>(MAIN_FILE);
+  /** The files open in the editor, in the order they were opened, as its
+   * tabs show them (issue 10). */
+  openFiles = $state<DocumentFile[]>([MAIN_FILE]);
+  /** The playground's files besides Main, by path (issue 10). */
+  playgroundFiles = $state<string[]>(typeof localStorage === "undefined" ? [] : storedPlaygroundFiles());
   iotcmStatus = $state<AgdaIOTCMStatus>("init");
   checked = $state(false);
   showImplicitArgs = $state(false);
@@ -330,6 +374,9 @@ export class AgdaController {
   /** What the last check's plan has to say: imports the index lacks, or an
    * index that could not be read. */
   planNote = $state("");
+  /** The last load of a library's module: the modules Agda type-checked
+   * (its `Checking` lines), and how long it took. */
+  lastLoad = $state<{ module: string; checking: string[]; ms: number } | null>(null);
 
   /** A plan under way, which the page counts as busy. */
   planning = $state(false);
@@ -340,6 +387,14 @@ export class AgdaController {
   private answerConsent?: (choice: ConsentChoice, remember: boolean) => void;
   /** Stops the mount under way. */
   private mountStopper?: AbortController;
+
+  /** Each open file's editor state, as it was when another was shown. */
+  private readonly documents = new OpenDocuments();
+  /** Where each file kept off screen was scrolled to. */
+  private readonly scrolled = new Map<string, StateEffect<unknown>>();
+  /** Makes a file's editor state, the first time it opens: the page's
+   * editor, for that file. */
+  private createState?: (file: DocumentFile, text: string) => EditorState;
 
   /** Set by terminateALSWASM, so the session's end is not reported. */
   private stopRequested = false;
@@ -364,8 +419,21 @@ export class AgdaController {
     this.lspClient = makeLspClient();
   }
 
-  connectEditorView(view: EditorView) {
+  /** The path of the file on screen. */
+  get currentFilePath() {
+    return this.currentFile.path;
+  }
+
+  /** The editor, and how to make a file's state in it.  The view's own
+   * state is the first file's. */
+  connectEditorView(view: EditorView, createState: (file: DocumentFile, text: string) => EditorState) {
     this.editorView = view;
+    this.createState = createState;
+    const file = fileOf(view.state);
+    if (file) {
+      this.currentFile = file;
+      this.openFiles = [file];
+    }
   }
 
   /** Start Agda.  The promise settles when the session ends: it rejects
@@ -409,7 +477,10 @@ export class AgdaController {
             },
           ],
         },
-        files: [PLAYGROUND.library],
+        // The playground's library, and the files copies made, from their
+        // text in the browser, so that Main can import them whatever the
+        // drive's cache holds (issue 10).
+        files: [PLAYGROUND.library, ...this.playgroundTexts()],
         cacheNamespace: driveCacheNamespace,
         // The interface archives the page mounts are kept by their digest
         // (issue 14).
@@ -549,8 +620,10 @@ export class AgdaController {
     const view = this.editorView;
     if (!view) throw new Error("The Agda editor is not ready");
     const session = this.session;
-    const path = this.currentFilePath;
+    const file = this.currentFile;
+    const path = file.path;
     const epoch = this.documentEpoch;
+    if (file.library) return this.loadLibraryModule(view, session, file, epoch);
     const source = view.state.doc.toString();
     let plan: CheckPlan | undefined;
     const started = performance.now();
@@ -560,7 +633,7 @@ export class AgdaController {
         if (planned.kind === "load") {
           // The text Agda will read is now the one its positions refer to.
           view.dispatch({ effects: commit.of() });
-          this.persistDocument(source);
+          this.persistDocument(source, file);
         }
       },
     });
@@ -608,6 +681,54 @@ export class AgdaController {
         );
         await this.readActiveContext(epoch);
       }
+    }
+    this.finishAction();
+  }
+
+  /** Load the library module on screen as it is on the drive (issue 10):
+   * the drive's copy is the checked library, so nothing is written, and
+   * the editor shows the text Agda reads.  Agda then answers hover, Infer
+   * and Normalize in its scope.  Its `Checking` lines say whether Agda
+   * type-checked the module again or accepted its interface. */
+  private async loadLibraryModule(view: EditorView, session: AgdaSession, file: DocumentFile, epoch: number) {
+    const module = file.library!.module;
+    if (session.plan(file.path, view.state.doc.toString()).kind === "unchanged") {
+      this.lastAction = "Already loaded";
+      return;
+    }
+    this.lastCheckDurationMs = undefined;
+    this.problems = [];
+    this.lastResult = null;
+    this.goalInfo = {};
+    this.interactionPoints = [];
+    this.activeGoalId = undefined;
+    this.lastAction = `Loading ${module}…`;
+    const started = performance.now();
+    // Agda's positions will refer to this text, which nothing changes.
+    view.dispatch({ effects: commit.of() });
+    const outcome = await session.load(file.path);
+    if (epoch !== this.documentEpoch) return;
+    const elapsed = performance.now() - started;
+    this.lastCheckDurationMs = elapsed;
+    if (outcome.kind !== "answer") return this.operationFailed(outcome);
+    const load = outcome.value;
+    this.lastLoad = { module, checking: load.checking, ms: elapsed };
+    this.problems = [
+      ...load.errors.map((message) => ({ severity: "error" as const, message })),
+      ...load.warnings.map((message) => ({ severity: "warning" as const, message })),
+    ];
+    if (load.errors.length)
+      this.lastResult = { kind: "Error", title: "Type checking failed", body: load.errors[0] };
+    this.setGoals(load.goals);
+    if (!load.errors.length) {
+      // A load that type-checked anything (an empty list: the module's own
+      // interface was accepted) is the one the next open from source cites.
+      if (load.checking.length) rememberLibraryLoad(module, { ms: Math.round(elapsed), modules: load.checking.length });
+      // What Agda wrote (the interfaces of the modules it checked) is kept
+      // for the next visit.
+      void this.transport?.persist().catch((error: unknown) =>
+        console.warn("Could not persist the Agda cache", error),
+      );
     }
     this.finishAction();
   }
@@ -695,17 +816,19 @@ export class AgdaController {
   private async saveToDrive() {
     const view = this.editorView;
     const transport = this.transport;
-    if (!view || !transport) return;
+    const file = this.currentFile;
+    // A library's module is the checked library: never written.
+    if (!view || !transport || file.library) return;
     const doc = view.state.doc.toString();
-    this.persistDocument(doc);
+    this.persistDocument(doc, file);
     try {
-      await transport.writeSource(this.currentFilePath, browserAgdaSource(this.currentFilePath, doc));
+      await transport.writeSource(file.path, browserAgdaSource(file.path, doc));
     } catch (error) {
       console.warn("Could not save the buffer where Agda reads it", error);
       return;
     }
     this.lspClient!.notification("textDocument/didSave", {
-      textDocument: { uri: "file://" + this.currentFilePath },
+      textDocument: { uri: "file://" + file.path },
     });
     try {
       await transport.persist();
@@ -826,8 +949,9 @@ export class AgdaController {
     if (evicted?.length) console.info(`Evicted ${evicted.length} archives that agda-algebras' index no longer names`);
   }
 
-  /** Before a check of the playground's Main: mount the archives its
-   * imports need, asking first when any is to be fetched (issue 14).
+  /** Before a check of a playground file, or a load of a library's module
+   * (issue 10): mount the archives its imports need (a module's, its own
+   * closure), asking first when any is to be fetched (issue 14).
    * `automatic` is a check the reader did not ask for (the first, when Agda
    * is ready), whose question does not take the keyboard's focus.  False
    * when the reader cancelled, or stopped the mount, and nothing is to be
@@ -854,6 +978,10 @@ export class AgdaController {
     const imports = () => {
       const view = this.editorView;
       if (!view) return [];
+      // A library's module needs its own closure: itself, and what it
+      // imports (issue 10).
+      const library = this.currentFile.library;
+      if (library) return [library.module];
       const kind = sourceKind(this.currentFilePath) ?? "agda";
       return (importedModules(view.state.doc.toString(), kind) ?? []).filter((name) => !isBuiltinModule(name));
     };
@@ -882,26 +1010,28 @@ export class AgdaController {
     // Builtins alone (the default Main) need no plan and no index.
     if (!transport || !imports.length) return "check";
     const library = AGDA_ALGEBRAS.description;
-    if (!library) {
-      this.planNote = `This build has no archives of agda-algebras' interfaces (${AGDA_ALGEBRAS.error}), so Agda checks its modules from source.`;
-      return "check";
-    }
-    if (!globalThis.crypto?.subtle) {
-      this.planNote =
-        "agda-algebras' interfaces cannot be checked against their digests here (the page is not served from a secure origin, https or localhost), so none is mounted, and Agda checks its modules from source.";
-      return "check";
-    }
+    // A plan that checks from source says so, and for a library's module,
+    // how long the last such load took here (issue 10).
+    const fromSource = (note: string) => {
+      this.planNote = [note, this.fromSourceNote()].filter(Boolean).join(" ");
+      return "check" as const;
+    };
+    if (!library)
+      return fromSource(`This build has no archives of agda-algebras' interfaces (${AGDA_ALGEBRAS.error}), so Agda checks its modules from source.`);
+    if (!globalThis.crypto?.subtle)
+      return fromSource(
+        "agda-algebras' interfaces cannot be checked against their digests here (the page is not served from a secure origin, https or localhost), so none is mounted, and Agda checks its modules from source.",
+      );
     let index: ArchiveIndex;
     try {
       index = await this.readLibraryIndex();
     } catch (error) {
-      this.planNote = `${describe(error)}, so Agda checks agda-algebras' modules from source; reload the page to try again.`;
-      return "check";
+      return fromSource(`${describe(error)}, so Agda checks agda-algebras' modules from source; reload the page to try again.`);
     }
-    if (this.reportedAgdaVersion && index.agda.version !== this.reportedAgdaVersion) {
-      this.planNote = `agda-algebras' interfaces are Agda ${index.agda.version}'s and this is Agda ${this.reportedAgdaVersion}, so Agda checks its modules from source.`;
-      return "check";
-    }
+    if (this.reportedAgdaVersion && index.agda.version !== this.reportedAgdaVersion)
+      return fromSource(
+        `agda-algebras' interfaces are Agda ${index.agda.version}'s and this is Agda ${this.reportedAgdaVersion}, so Agda checks its modules from source.`,
+      );
     const plan = await planImports(index, imports, {
       includes: PLAYGROUND.includes,
       read: (source) => transport.readSource(source).catch(() => undefined),
@@ -952,7 +1082,11 @@ export class AgdaController {
       }
       if (choice === "source") {
         // What the browser keeps costs nothing to mount, and is mounted.
-        note("agda-algebras' interfaces were not fetched, so Agda checks the modules they hold from source.");
+        note(
+          ["agda-algebras' interfaces were not fetched, so Agda checks the modules they hold from source.", this.fromSourceNote()]
+            .filter(Boolean)
+            .join(" "),
+        );
         fetchRefs = [];
       }
     }
@@ -977,6 +1111,17 @@ export class AgdaController {
       throw new Error(`${describe(error)}; nothing was checked.`, { cause: error });
     }
     return "check";
+  }
+
+  /** For a library's module whose closure Agda checks from source: how long
+   * its last such load took in this browser, or that it can take minutes. */
+  private fromSourceNote(): string {
+    const library = this.currentFile.library;
+    if (!library) return "";
+    const last = lastLibraryLoad(library.module);
+    return last
+      ? `The last load of ${library.module} here that checked from source took ${formatDuration(last.ms)} and type-checked ${last.modules} ${last.modules === 1 ? "module" : "modules"}.`
+      : `Loading ${library.module} from source can take minutes.`;
   }
 
   /** The reader's answer to fetching `archives`: the one remembered for
@@ -1047,7 +1192,15 @@ export class AgdaController {
     this.editorView.focus();
   }
 
+  /** Agda answers about a goal of the file it holds: refuse a goal command
+   * on another, whose goals are not Agda's (issue 10). */
+  private requireHeldFile() {
+    if (this.requireSession().basis?.path !== this.currentFilePath)
+      throw new Error(`Agda holds another file; check ${this.currentFilePath.split("/").pop()} first`);
+  }
+
   private requireGoal() {
+    this.requireHeldFile();
     const goal = this.getActiveGoal();
     if (!goal)
       throw new Error("Place the cursor in a goal and load the file first");
@@ -1061,6 +1214,7 @@ export class AgdaController {
    * goal named, even one that has no place in the editor (a refine's), or
    * else the goal at the cursor. */
   private async askGoal(id: number | undefined, show: "type" | "context") {
+    this.requireHeldFile();
     if (id != null) this.selectGoal(id);
     const goalId = id ?? this.requireGoal().goal.id;
     if (id != null) this.activeGoalId = id;
@@ -1176,22 +1330,52 @@ export class AgdaController {
     this.session?.abort();
   }
 
-  persistDocument(source: string) {
-    localStorage.setItem(this.currentStorageKey, source);
+  /** Keep `source` as `file`'s text in the browser, if the page saves it:
+   * a library's module it never does. */
+  persistDocument(source: string, file: DocumentFile = this.currentFile) {
+    if (file.storageKey) localStorage.setItem(file.storageKey, source);
   }
 
-  setDocument(
-    source: string,
-    filePath: string = PLAYGROUND.file,
-    storageKey = LS_DOC_KEY,
-  ) {
-    if (!this.editorView) return;
-    const pathChanged = filePath !== this.currentFilePath;
+  /** Whether `path` is open in the editor. */
+  isOpen(path: string) {
+    return this.openFiles.some((file) => file.path === path);
+  }
+
+  /** Show `file` in the editor: its state as it was last shown, or a new
+   * one with `text` the first time it opens.  Each file has a state of its
+   * own (issue 10), with its own history, so undo never crosses files, and
+   * the state left keeps its text, its selection and its history.  What
+   * Agda answered is the file's it answered for: the inspector starts
+   * afresh, a check still running is not applied, and the next check of a
+   * file loads it. */
+  showDocument(file: DocumentFile, text?: string) {
+    const view = this.editorView;
+    if (!view || file.path === this.currentFilePath) return;
+    let next = this.documents.get(file.path);
+    if (!next) {
+      if (text === undefined || !this.createState) throw new Error(`${file.path} is not open`);
+      next = this.createState(file, text);
+    }
+    // The state left is kept without the language server's plugin, which
+    // only the state on screen holds, and with where it was scrolled to.
+    this.scrolled.set(this.currentFilePath, view.scrollSnapshot());
+    this.documents.keep(view.state.update({ effects: this.lspClientCompartment.reconfigure([]) }).state);
+    this.documents.keep(next);
+    if (!this.isOpen(file.path)) this.openFiles = [...this.openFiles, fileOf(next) ?? file];
+    // A file Agda does not hold shows no goals: those it shows were a load
+    // the session no longer holds (the fork's switch wiped them too).
+    if (this.session?.basis?.path !== file.path)
+      next = next.update({ effects: setGoals.of([]), annotations: Transaction.addToHistory.of(false) }).state;
+    // The file shown gains it: the client opens the file on the server
+    // with the text shown (didOpen), as the left one's is closed.
+    if (this.alsWorkerStatus === "active")
+      next = next.update({
+        effects: this.lspClientCompartment.reconfigure(this.lspClient!.plugin(`file://${file.path}`)),
+      }).state;
     this.documentEpoch += 1;
-    // The editor no longer shows what Agda holds, nor its highlighting.
-    this.session?.reloadNext("the editor's text was replaced");
-    this.currentFilePath = filePath;
-    this.currentStorageKey = storageKey;
+    // The editor no longer shows what Agda holds.
+    this.session?.reloadNext("the editor shows another file");
+    this.currentFile = fileOf(next) ?? file;
     this.checked = false;
     this.problems = [];
     this.interactionPoints = [];
@@ -1200,19 +1384,82 @@ export class AgdaController {
     this.lastResult = null;
     this.lastCheckDurationMs = undefined;
     this.planNote = "";
-    const length = this.editorView.state.doc.length;
-    this.editorView.dispatch({
-      changes: { from: 0, to: length, insert: source },
-      selection: { anchor: 0 },
-      effects:
-        pathChanged && this.alsWorkerStatus === "active"
-          ? this.lspClientCompartment.reconfigure(
-              this.lspClient!.plugin(`file://${this.currentFilePath}`),
-            )
-          : undefined,
-    });
-    this.persistDocument(source);
+    view.setState(next);
+    // Where it was left, or a file opened for the first time at its top.
+    view.dispatch({ effects: this.scrolled.get(file.path) ?? EditorView.scrollIntoView(0, { y: "start" }) });
   }
+
+  /** Close a file that is not on screen: its state, and its history, are
+   * forgotten; its text stays where the page keeps it.  Main stays open. */
+  closeDocument(path: string) {
+    if (path === this.currentFilePath || path === PLAYGROUND.file) return;
+    this.documents.close(path);
+    this.scrolled.delete(path);
+    this.openFiles = this.openFiles.filter((file) => file.path !== path);
+  }
+
+  /** A playground file besides Main, as a document. */
+  playgroundFile(path: string): DocumentFile {
+    return { path, storageKey: storageKeyOf(path) };
+  }
+
+  /** The text of each playground file besides Main the browser keeps. */
+  private playgroundTexts() {
+    return this.playgroundFiles.flatMap((path) => {
+      const text = localStorage.getItem(storageKeyOf(path));
+      return text === null ? [] : [{ path, text }];
+    });
+  }
+
+  /** A library's module as the drive holds it: the text Agda reads. */
+  async readLibrarySource(path: string): Promise<string> {
+    const transport = this.transport;
+    if (!transport || !this.driveIsCreated) throw new Error("Agda is still starting");
+    const text = await transport.readSource(path);
+    if (text === undefined) throw new Error(`${path} is not on the drive`);
+    return text;
+  }
+
+  /** Where Agda would find a source for `module` from the playground: its
+   * include directories and the builtins', with each suffix Agda tries.  A
+   * copy named so would not check, or would make Main's import of that name
+   * ambiguous (issue 10). */
+  async findModule(module: string): Promise<string | undefined> {
+    const transport = this.transport;
+    if (!transport) throw new Error("Agda is still starting");
+    const relative = module.split(".").join("/");
+    const candidates = [...PLAYGROUND.includes, "/lib/prim"].flatMap((directory) =>
+      sourceSuffixes.map((suffix) => `${directory}/${relative}${suffix}`),
+    );
+    // The playground's own files count whether or not the drive holds them
+    // yet (Main is written there by its first check).
+    const known = new Set<string>([PLAYGROUND.file, ...this.playgroundFiles]);
+    const present = await transport.present(candidates);
+    return candidates.find((path) => present.has(path) || known.has(path));
+  }
+
+  /** Add a file to the playground's project (issue 10): written where Agda
+   * reads it, its text kept in the browser, and listed. */
+  async createPlaygroundFile(path: string, text: string): Promise<DocumentFile> {
+    const transport = this.transport;
+    if (!transport) throw new Error("Agda is still starting");
+    const file = this.playgroundFile(path);
+    await transport.writeSource(path, text);
+    // Its key is what lists it, on this visit and the next.
+    this.persistDocument(text, file);
+    if (!this.playgroundFiles.includes(path)) this.playgroundFiles = [...this.playgroundFiles, path].sort();
+    void transport.persist().catch((error: unknown) => console.warn("Could not persist the Agda cache", error));
+    return file;
+  }
+}
+
+/** A duration as the page states it: 989 ms, 1.58 s, 2m 34.8s. */
+export function formatDuration(milliseconds: number) {
+  if (milliseconds < 1000) return `${Math.round(milliseconds)} ms`;
+  if (milliseconds < 60_000) return `${(milliseconds / 1000).toFixed(2)} s`;
+  const minutes = Math.floor(milliseconds / 60_000);
+  const seconds = ((milliseconds % 60_000) / 1000).toFixed(1);
+  return `${minutes}m ${seconds}s`;
 }
 
 /** An error in its own words. */
@@ -1258,4 +1505,31 @@ function interfacesByArchive(index: ArchiveIndex): Map<string, string[]> {
     archiveInterfaces.set(index, map);
   }
   return map;
+}
+
+/** Where the browser keeps how long the last load of a library's module
+ * took that type-checked anything from source (issue 10). */
+const libraryLoadKey = (module: string) => `agda-native-ide:library-load:${module}`;
+
+/** The last load of `module` in this browser that type-checked anything:
+ * its time, and how many modules. */
+export function lastLibraryLoad(module: string): { ms: number; modules: number } | undefined {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(libraryLoadKey(module)) ?? "null");
+    if (value && typeof value === "object" && "ms" in value && "modules" in value) {
+      const { ms, modules } = value as { ms: unknown; modules: unknown };
+      if (typeof ms === "number" && typeof modules === "number") return { ms, modules };
+    }
+  } catch {
+    // Refused or unreadable storage: nothing is known.
+  }
+  return undefined;
+}
+
+function rememberLibraryLoad(module: string, load: { ms: number; modules: number }) {
+  try {
+    localStorage.setItem(libraryLoadKey(module), JSON.stringify(load));
+  } catch {
+    // Refused: the next open says less.
+  }
 }

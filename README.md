@@ -197,16 +197,22 @@ browser's store with no request; imports `Setoid.Varieties.HSP`, which
 must ask once; changes an archive in the store, which must be fetched
 again, once, and its old copy evicted; and declines a fetch, after which
 only the declined archive's modules may be checked from source ([#14]).
-It uses the Explorer's tree with the keyboard, as a screen reader's user
-would: its roles, the arrow keys to a module, every module listed in
-order, a filter, the keys and the filter while a check runs, and, after a
-reload, the rows still expanded, the open file revealed, and a PLFA
-chapter in a closed part opened and scrolled into view ([#9]).  It serves
-the site without the two isolation headers and asserts that the page is
-not cross-origin isolated; `make browser-check ISOLATED=1` (`--isolated`)
-sends them and asserts that it is.  It writes its timings, every request
-and a screenshot into `browser-check/` (`browser-check/isolated/`), and
-CI's [`site.yml`][site-ci] runs it both ways on every pull request.  It is
+It opens a module of agda-algebras read-only and asserts that a keystroke
+changes nothing, that nothing is type-checked or written, that hover and
+Infer answer in its scope, and that undo in `Main` takes back `Main`'s edit
+alone; then copies it to the playground, where it checks and its goal
+answers, and puts the library's name back in the copy's module line, which
+Agda refuses ([#10]).  It uses the Explorer's tree with the keyboard, as a
+screen reader's user would: its roles, the arrow keys to a module, every
+module listed in order, a filter, the keys and the filter while a check
+runs, and, after a reload, the rows still expanded, the open file revealed,
+and a PLFA chapter in a closed part opened and scrolled into view ([#9]).
+It serves the site without the two isolation headers and asserts that the
+page is not cross-origin isolated; `make browser-check ISOLATED=1`
+(`--isolated`) sends them and asserts that it is.  It writes its timings,
+every request and a screenshot into `browser-check/`
+(`browser-check/isolated/`), and CI's [`site.yml`][site-ci] runs it both
+ways on every pull request.  It is
 the language server's only test, since the server's reactor build cannot
 run under a standalone runtime such as wasmtime: its exports are called
 from JavaScript.  With `--browser firefox`, and `FIREFOX` naming a Firefox,
@@ -251,11 +257,27 @@ site."  With them, `Main` alone is type-checked (`Setoid.Varieties.HSP`,
 128 archives, 37.4 MiB, in 7 to 9 s here from a local server); without them, Agda checks
 those modules from source, which takes minutes.  The browser keeps the
 archives it fetched, so a second visit fetches none.  The page keeps the
-buffer in the
-browser's storage under `agda-web-ide-beta:doc:/play/Main.agda`, and PLFA's
-chapters keep their own library, at the drive's root.
-[`docs/notes/runtime.md`][runtime-note] explains the layout and which
-flags apply to `Main`.
+buffer in the browser's storage under
+`agda-web-ide-beta:doc:/play/Main.agda`, and PLFA's chapters keep their own
+library, at the drive's root.
+
+Each open file has an editor state of its own, with its own history, so
+undo never crosses files, and each file's edits are saved under its own
+key; the open files are tabs ([#10]).  A module of agda-algebras opens
+read-only from the Explorer: the tab shows the drive's copy, the checked
+library, which no keystroke changes and the page never writes, and a line
+above it says so and links the module's page on agda-algebras' site (the
+site's current version, which follows the library's master branch).  The
+page loads it as it is, after mounting the archives of its own closure
+(asking first, as for `Main`), so hover, Infer and Normalize answer in its
+scope.  From that line, "Copy to playground" copies the module, renamed,
+to `/play/<Name>.lagda.md`, or a selection, with the module's code above
+it, to `/play/<Name>.agda`: a file of the playground's project, listed in
+the Explorer, editable, and checked, whose goals answer like `Main`'s.  A
+name Agda finds already is refused, since a copy that kept the library's
+name would not check.  "Import in Main" adds `open import` of the module
+to `Main.agda`.  [`docs/notes/runtime.md`][runtime-note] explains the
+layout, which flags apply to `Main`, and the editor's states.
 
 The Explorer is one tree of three sections ([#9]): the playground's
 `Main.agda`; every module of agda-algebras, from
@@ -267,9 +289,9 @@ label is the module.  The tree is an ARIA tree, one tab stop, with the
 arrow keys, Home, End, Enter and type-ahead; a filter above it finds a
 module by any part of its dotted name; it keeps which rows are expanded in
 the browser's storage, and reveals the open file.  Its rows stay usable
-while Agda is busy.  Opening a module of agda-algebras is [#10]'s, so for
-now a module's row is selected and nothing opens; the Explorer still hides
-at 800 px and below ([#22]).
+while Agda is busy, though a file opens only when Agda is idle.  Enter
+opens a module of agda-algebras, read-only ([#10]), and Space selects it;
+the Explorer still hides at 800 px and below ([#22]).
 [`docs/notes/explorer.md`][explorer-note] explains the list and the tree.
 
 ## Theme

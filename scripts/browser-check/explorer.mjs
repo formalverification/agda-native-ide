@@ -7,17 +7,19 @@
 //      (a labelled `tree`; each row a `treeitem` with its level and its
 //      place among its siblings; one tab stop), the open file marked
 //      current, agda-algebras' first rows, the arrow keys from the tab
-//      stop to a module, Enter selecting it without opening it, Left,
+//      stop to a module, Space selecting it without opening it (Enter
+//      opens it, read-only, since issue 10: run.mjs's library step), Left,
 //      Home and End; then every parent of agda-algebras opened with the
 //      arrow keys, after which the rows must be the modules of the list
 //      the site ships, in its order, each with its level, its place among
 //      its siblings and its label; and the filter, whose rows must be the
 //      modules whose names hold its words, with their ancestors;
 //   +  the tree while a check runs: the rows aria-disabled are exactly
-//      those the page cannot open then (the playground's file and the
-//      chapters shown), agda-algebras' never are, and a key and the filter
-//      work, all in one call inside the page, so that it takes tens of
-//      milliseconds of the check it runs beside;
+//      those the page cannot open then (the playground's files, the
+//      chapters shown, and agda-algebras' modules, which open by a load
+//      since issue 10; never a folder), and a key and the filter work, all
+//      in one call inside the page, so that it takes tens of milliseconds
+//      of the check it runs beside;
 //   +  the tree after a reload: the rows expanded before it still are, and
 //      the open file, whose section was closed, is revealed; activating its
 //      row keeps what was typed a moment before; then a PLFA
@@ -99,9 +101,9 @@ async function until(page, predicate, what, timeoutMs = 30_000) {
   throw new Error(`Explorer: timed out waiting for ${what}; focused ${last?.focused}, ${last?.rows.length} rows`);
 }
 
-const KEY_CODES = { ArrowDown: 40, ArrowUp: 38, ArrowLeft: 37, ArrowRight: 39, Home: 36, End: 35, Enter: 13, Escape: 27 };
+const KEY_CODES = { ArrowDown: 40, ArrowUp: 38, ArrowLeft: 37, ArrowRight: 39, Home: 36, End: 35, Enter: 13, Escape: 27, " ": 32 };
 /** Press a key where the focus is. @param {any} page @param {keyof typeof KEY_CODES} key */
-const press = (page, key) => page.press(key, key, KEY_CODES[key]);
+const press = (page, key) => page.press(key, key === " " ? "Space" : key, KEY_CODES[key]);
 
 /** Focus a row, as Tab or assistive technology would. @param {any} page @param {string} id */
 const focusRow = (page, id) =>
@@ -199,7 +201,9 @@ export async function checkExplorer(page, site, record) {
   );
 
   // The arrow keys from the tab stop to Overture.Signatures, the module
-  // the import step checks, and Enter on it.
+  // the import step checks, and Space on it, which selects it; Enter would
+  // open it (issue 10), which the library step does once its archives are
+  // mounted.
   const target = "Overture.Signatures";
   const parent = "Overture";
   const editor = tree.editor;
@@ -218,12 +222,12 @@ export async function checkExplorer(page, site, record) {
   await step("ArrowRight", (s) => s.focused === `${PREFIX}${children[0]}`, `${children[0]} focused`);
   for (let i = 1; i <= children.indexOf(target); i++)
     await step("ArrowDown", (s) => s.focused === `${PREFIX}${children[i]}`, `${children[i]} focused`);
-  await step("Enter", (s) => row(s, `${PREFIX}${target}`)?.selected === "true", `${target} selected`);
+  await step(" ", (s) => row(s, `${PREFIX}${target}`)?.selected === "true", `${target} selected`);
   record.keysToModule = { module: target, presses: 5 + tops.indexOf(parent) + children.indexOf(target) };
   const reached = row(tree, `${PREFIX}${target}`);
   assert(reached?.level === 3 && reached.tabindex === "0", `${target}'s row is ${JSON.stringify(reached)}`);
-  assert(row(tree, MAIN)?.current === "true", "Enter on a library module moved the open file");
-  assert(tree.editor === editor, "Enter on a library module changed the editor's text");
+  assert(row(tree, MAIN)?.current === "true", "Space on a library module moved the open file");
+  assert(tree.editor === editor, "Space on a library module changed the editor's text");
   const described = row(tree, `${PREFIX}${parent}`)?.description;
   assert(described === "module and folder", `${parent}'s row is described as ${JSON.stringify(described)}`);
   await step("ArrowLeft", (s) => s.focused === `${PREFIX}${parent}`, "the parent focused");
@@ -309,13 +313,20 @@ export async function useExplorerWhileBusy(page, record) {
         .filter((row) => row.getAttribute("aria-disabled") === "true")
         .map((row) => row.getAttribute("data-id")),
       // The rows the page cannot open while Agda is busy: the playground's
-      // file and every chapter shown.
+      // files, every chapter shown, and every module of agda-algebras
+      // shown (issue 10), but not a folder.
       unopenable: rows()
-        .map((row) => row.getAttribute("data-id"))
-        .filter((id) => id === "play:Main" || /^plfa:[^/]+\//.test(id)),
+        .filter(
+          (row) =>
+            row.getAttribute("data-id").startsWith("play:") ||
+            /^plfa:[^/]+\//.test(row.getAttribute("data-id")) ||
+            (row.getAttribute("data-id").startsWith("agda-algebras:") && row.classList.contains("module")),
+        )
+        .map((row) => row.getAttribute("data-id")),
     };
     const library = rows().filter((row) => row.getAttribute("data-id").startsWith("agda-algebras:"));
-    out.libraryDisabled = library.filter((row) => row.hasAttribute("aria-disabled")).length;
+    out.libraryModules = library.filter((row) => row.classList.contains("module")).length;
+    out.libraryDisabled = library.filter((row) => row.getAttribute("aria-disabled") === "true").length;
     library[0].focus();
     library[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
     out.focusedAfterDown = document.activeElement?.getAttribute("data-id") ?? null;
@@ -339,9 +350,12 @@ export async function useExplorerWhileBusy(page, record) {
   );
   assert(
     JSON.stringify(found.disabled) === JSON.stringify(found.unopenable),
-    `while Agda is busy the rows aria-disabled are [${found.disabled}], not the playground's file and the chapters shown, [${found.unopenable}]`,
+    `while Agda is busy the rows aria-disabled are [${found.disabled}], not the playground's files, the chapters and the modules shown, [${found.unopenable}]`,
   );
-  assert(found.libraryDisabled === 0, `${found.libraryDisabled} rows of agda-algebras are disabled while Agda is busy`);
+  assert(
+    found.libraryModules > 0 && found.libraryDisabled === found.libraryModules,
+    `while Agda is busy ${found.libraryDisabled} of the ${found.libraryModules} modules of agda-algebras shown are aria-disabled, not all`,
+  );
   assert(
     found.focusedAfterDown === found.expectedAfterDown,
     `Down while Agda is busy focused ${found.focusedAfterDown}, not ${found.expectedAfterDown}`,

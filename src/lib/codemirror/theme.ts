@@ -3,7 +3,11 @@
 // Changed from SeungheonOh/plfa-playground's src/lib/codemirror/theme.ts at
 // ae0aa84c24363a8d6dadc292b6eb8f88f7f38705 (docs/provenance.md).
 // Colors use the shared tokens in static/theme.css.  The dark facet
-// follows the page's saved choice and system preference (issue 17).
+// follows the page's saved choice and system preference (issue 17), and
+// compares it with the scheme the state on screen holds, rather than with
+// the last one this plugin set: the editor keeps a state per open file
+// (issue 10), and a file shown again may hold the scheme of the theme
+// in force when it was last on screen.
 
 import { Compartment, type Extension } from '@codemirror/state'
 import { EditorView, ViewPlugin } from '@codemirror/view'
@@ -110,13 +114,11 @@ export function autoColorScheme(options: {
     const doc = view.dom.ownerDocument
     const win = doc.defaultView
     if (!win) return {}
-    let currentDark = defaultDark
     let alive = true
     function synchronize() {
       if (!alive) return
       const dark = prefersDarkTheme(doc.documentElement, win!)
-      if (dark === currentDark) return
-      currentDark = dark
+      if (darkThemeCompartment.get(view.state) === darkThemeExt(dark)) return
       view.dispatch({
         effects: darkThemeCompartment.reconfigure(darkThemeExt(dark)),
       })

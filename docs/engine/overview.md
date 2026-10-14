@@ -266,7 +266,10 @@ CodeMirror's language-server client, which the page keeps for hover, reaches
 the server through the transport's editor channel: the transport holds the
 server's one session, answers the editor's `initialize` with the server's own
 answer, and keeps the two clients' request numbers apart, a cancellation
-included.
+included.  The server answers a hover with a load of its own, of the
+hovered file as the drive holds it, in a fresh Agda state, so a hover does
+not depend on what the session holds, and the server reads no other message
+while it runs ([#10]; the [runtime note][runtime]'s "The editor's states").
 Infer and Normalize are answered in the scope of the file Agda holds, so when
 that is not the file on screen the page checks the file on screen first (a
 PLFA chapter with its interface archives mounted, as a check does); the fork
@@ -274,7 +277,10 @@ named the file in the command, and Agda loaded it.  When the page replaces
 the editor's text (another chapter, or the playground again), it calls
 `reloadNext`, since the editor no longer shows the highlighting or the goals
 of what Agda holds, and it applies no answer about another file than the one
-on screen.
+on screen.  Since [#10] each open file has an editor state of its own, and
+showing another file is the switch that calls it; a module of
+agda-algebras, read-only, is loaded with `load(path)`, which writes
+nothing.
 
 The companion keeps its delegated commands: it drives agda-mode-vscode's
 own commands and reads their effects.  It also hosts the native engine
@@ -535,3 +541,4 @@ native Agda, and the browser suite in the site's browser job.
 [adr-0002]: ../adr/0002-where-the-workbench-lives.md
 [runtime]: ../notes/runtime.md
 [explorer-note]: ../notes/explorer.md
+[#10]: https://github.com/formalverification/agda-native-ide/issues/10

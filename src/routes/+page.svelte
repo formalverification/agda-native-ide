@@ -24,23 +24,34 @@
   // sections: the playground, every module of agda-algebras, from the
   // list the build writes (agda-algebras-modules.json), and PLFA's
   // chapters, by part.  Its rows stay focusable while Agda is busy (the
-  // playground's file and the chapters, which open only while Agda is idle,
-  // are aria-disabled then; agda-algebras' modules never are), which rows
-  // are expanded is kept in localStorage, and the open file is revealed and
-  // marked current.  Activating the open file's row moves to it rather than
-  // loading it again.  Until issue 10 opens a library module, activating
-  // one selects it.  Before a check of the playground's Main, the page
-  // mounts the interface archives its imports need, and before it fetches
-  // one it shows how many bytes and asks (issue 14): the question sits at
-  // the foot of the code pane, as the minibuffer does, with no spinner,
-  // since nothing is under way while it waits; the fetch shows its progress
-  // in the inspector's heading, with a STOP.
+  // playground's files, the chapters and agda-algebras' modules, which open
+  // only while Agda is idle, are aria-disabled then), which rows are
+  // expanded is kept in localStorage, and the open file is revealed and
+  // marked current.  Activating the open file's row moves to it rather
+  // than loading it again.  The editor keeps a state of its own for each
+  // open file, with its own history, shown with setState (issue 10,
+  // $lib/documents), so undo never crosses files, and each file's edits
+  // are saved under its own key whichever file is on screen; the open
+  // files are tabs.  A module of agda-algebras opens read-only from the
+  // Explorer, while Agda is idle: its text is the drive's, which is never
+  // written, loaded so that hover, Infer and Normalize answer in its
+  // scope, after the archives of its own closure are mounted; a line
+  // above it says it is the checked library, links its page on
+  // agda-algebras' site, and copies it, or the selection, into a file of
+  // the playground's project, under /play/ ($lib/playground), or adds its
+  // `open import` to Main.  Before a check of a playground file, or a load
+  // of a library's module, the page mounts the interface archives it
+  // needs, and before it fetches one it shows how many bytes and asks
+  // (issue 14): the question sits at the foot of the code pane, as the
+  // minibuffer does, with no spinner, since nothing is under way while it
+  // waits; the fetch shows its progress in the inspector's heading, with a
+  // STOP.
 
   import { onDestroy, onMount } from "svelte";
   import { setThemePreference, watchTheme, type ThemePreference } from "$lib/theme";
   import { basicSetup } from "codemirror";
   import { startCompletion } from "@codemirror/autocomplete";
-  import { Compartment, Prec } from "@codemirror/state";
+  import { EditorState, Prec, type Extension } from "@codemirror/state";
   import { EditorView, keymap } from "@codemirror/view";
   import { marked } from "marked";
   import {
@@ -50,12 +61,16 @@
     Braces,
     CircleAlert,
     CircleCheck,
+    Copy,
     Download,
+    ExternalLink,
     FileCode,
+    FileInput,
     FolderOpen,
     Info,
     ListChecks,
     LoaderCircle,
+    Lock,
     RotateCcw,
     Sigma,
     Split,
@@ -69,10 +84,26 @@
   import {
     AgdaController,
     LS_DOC_KEY,
+    MAIN_FILE,
     MountStopped,
     PLAYGROUND,
+    formatDuration,
     sizeWithBytes,
   } from "$lib/controller.svelte";
+  import {
+    DocumentSaver,
+    documentFile,
+    readOnlyDocument,
+    type DocumentFile,
+  } from "$lib/documents";
+  import {
+    PLAYGROUND_DIR,
+    moduleCopy,
+    openImportEdit,
+    playgroundModuleOf,
+    playgroundTarget,
+    selectionCopy,
+  } from "$lib/playground";
   import { missingFeatures, unsupportedBrowserNotice } from "$lib/support";
   import { cacheTokens } from "$lib/assets";
   import { asset } from "$app/paths";
@@ -155,7 +186,7 @@ length-hom []       ys = refl
 length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
 `;
 
-  type CommandKind = "give" | "refine" | "case" | "infer" | "normalize";
+  type CommandKind = "give" | "refine" | "case" | "infer" | "normalize" | "copy";
   type InspectorMode = "goals" | "result" | "problems";
   type WorkspaceMode = "playground" | "plfa";
   type ActiveResource = "markdown" | "agda";
@@ -180,7 +211,23 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   const controller = new AgdaController({
     agdaVersion: "2.9.0",
   });
-  const sourceLanguageCompartment = new Compartment();
+  /** Each file's edits saved under its own key, 250 ms after the last
+   * (issue 10). */
+  const saver = new DocumentSaver((key, text) => {
+    try {
+      localStorage.setItem(key, text);
+    } catch (error) {
+      console.warn(`Could not keep ${key} in the browser`, error);
+    }
+  });
+  /** What every file's editor state has (the page's keys, its listener,
+   * its theme), made with the editor. */
+  let editorExtensions: Extension = [];
+  /** A module's page on agda-algebras' site, which renders each module at
+   * its path ([M1-11], issue 19): Overture.Signatures at
+   * /Overture/Signatures/. */
+  const libraryPage = (module: string) =>
+    `https://agda-algebras.universalalgebra.org/${module.split(".").join("/")}/`;
 
   let editorHost: HTMLDivElement;
   let editor: EditorView | undefined;
@@ -209,7 +256,6 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   let inspectorWidth = $state(390);
   let didAutoLoad = false;
   let stopWatchingThemeChanges: (() => void) | undefined;
-  let saveTimer: ReturnType<typeof setTimeout> | undefined;
   let globalKeydown: ((event: KeyboardEvent) => void) | undefined;
   let editorScrollHandler: (() => void) | undefined;
   let readerScrollFrame = 0;
@@ -217,6 +263,8 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   let scrollSyncOwner: "reader" | "editor" | null = null;
   let scrollSyncRelease: ReturnType<typeof setTimeout> | undefined;
   let chapterRequest = 0;
+  /** A copy's selection, taken when the copy's minibuffer opens. */
+  let copySelection = $state<{ from: number; to: number; lines: number } | null>(null);
 
   const plfaChapters = $derived(
     plfaManifest ? corpusChapters(plfaManifest) : [],
@@ -240,11 +288,9 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     }
     return ranges;
   });
-  const editorFileName = $derived(
-    workspaceMode === "plfa" && selectedChapter
-      ? `${selectedChapter.name}.lagda.md`
-      : "Main.agda",
-  );
+  const editorFileName = $derived(fileName(controller.currentFilePath));
+  /** The library's module on screen, read-only (issue 10). */
+  const currentLibrary = $derived(controller.currentFile.library);
 
   const isAgdaBusy = $derived(controller.iotcmStatus === "processing");
   // Work under way, which shows a spinner: Agda's, or a mount's.
@@ -252,41 +298,48 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   // Nothing else may start: work is under way, or the page waits for the
   // reader's answer to its question (issue 14), which shows no spinner.
   const isBusy = $derived(isWorking || controller.consent !== null || controller.planning);
+  const compilerReady = $derived(
+    controller.alsWorkerStatus === "active" &&
+      controller.iotcmStatus === "ready",
+  );
+  /** Whether a module of agda-algebras opens now: it is read from the
+   * drive and loaded, so Agda must be up and idle (issue 10). */
+  const libraryOpens = $derived(compilerReady && !isBusy);
   const consentRequest = $derived(controller.consent);
   let consentRemember = $state(false);
   let consentForm = $state<HTMLFormElement>();
 
-  // agda-algebras' rows, built once from its module list.
+  // agda-algebras' rows, built once from its module list, and again with
+  // each module aria-disabled, for while the page cannot open one.
   const libraryItems = $derived(
     libraryModules ? moduleTree(libraryModules.modules, "agda-algebras:") : null,
   );
+  const libraryItemsDisabled = $derived(libraryItems ? disabledModules(libraryItems) : null);
   // A section's rows while they load, or why they could not.
   const message = (id: string, error: string, loading: string): TreeItem => ({
     id,
     label: error || loading,
     kind: error ? "error" : "message",
   });
-  // The Explorer's sections.  The playground's file and PLFA's chapters
+  // The Explorer's sections.  The playground's files and PLFA's chapters
   // open only while Agda is idle, as the page has always done, so they are
-  // aria-disabled meanwhile; agda-algebras' modules, which do not open
-  // yet, never are.
+  // aria-disabled meanwhile; agda-algebras' modules, which Agda loads when
+  // they open, also while it starts (issue 10).
   const explorerItems = $derived.by((): TreeItem[] => [
     {
       id: "section:play",
       label: "Playground",
       kind: "section",
-      children: [
-        {
-          id: "play:Main",
-          label: "Main.agda",
-          kind: "file",
-          path: PLAYGROUND.file,
-          name: "Main",
-          title: PLAYGROUND.file,
-          mark: "Saved locally",
-          disabled: isBusy,
-        },
-      ],
+      children: [PLAYGROUND.file, ...controller.playgroundFiles].map((path) => ({
+        id: path === PLAYGROUND.file ? "play:Main" : `play:${path}`,
+        label: path.slice(`${PLAYGROUND_DIR}/`.length),
+        kind: "file" as const,
+        path,
+        name: playgroundModuleOf(path),
+        title: path,
+        mark: "Saved locally",
+        disabled: isBusy,
+      })),
     },
     {
       id: "section:agda-algebras",
@@ -295,7 +348,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       title: libraryModules
         ? `agda-algebras at ${libraryModules.commit?.slice(0, 8) ?? "its pin"}: ${libraryModules.modules.length} modules`
         : undefined,
-      children: libraryItems ?? [
+      children: (libraryOpens ? libraryItems : libraryItemsDisabled) ?? [
         message("agda-algebras:message", libraryError, "Loading the modules…"),
       ],
     },
@@ -326,10 +379,14 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
         : [message("plfa:message", plfaError, "Indexing")],
     },
   ]);
-  const compilerReady = $derived(
-    controller.alsWorkerStatus === "active" &&
-      controller.iotcmStatus === "ready",
-  );
+  /** The same tree, every module (and folder that is a module) aria-disabled. */
+  function disabledModules(items: TreeItem[]): TreeItem[] {
+    return items.map((item) => ({
+      ...item,
+      ...(item.path ? { disabled: true } : {}),
+      ...(item.children ? { children: disabledModules(item.children) } : {}),
+    }));
+  }
   // Agda did not start (this browser lacks what the page needs, or a step
   // of the startup failed), or its server stopped of its own accord.  The
   // banner says which.
@@ -409,12 +466,9 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   );
 
 
-  function formatDuration(milliseconds: number) {
-    if (milliseconds < 1000) return `${Math.round(milliseconds)} ms`;
-    if (milliseconds < 60_000) return `${(milliseconds / 1000).toFixed(2)} s`;
-    const minutes = Math.floor(milliseconds / 60_000);
-    const seconds = ((milliseconds % 60_000) / 1000).toFixed(1);
-    return `${minutes}m ${seconds}s`;
+  /** A path's last part: the name a tab shows. */
+  function fileName(path: string) {
+    return path.slice(path.lastIndexOf("/") + 1);
   }
 
   const commandMeta: Record<
@@ -455,6 +509,13 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       placeholder: "expression",
       action: "Normalize",
     },
+    copy: {
+      title: "Copy to the playground",
+      description:
+        "The copy's module name: the file is that name's path under /play/, which the copy's module line names.",
+      placeholder: "module name, e.g. Signatures",
+      action: "Copy",
+    },
   };
 
   onMount(() => {
@@ -462,151 +523,147 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       ? "dark" : document.documentElement.dataset.theme === "light" ? "light" : "system";
     const stopWatchingTheme = watchTheme();
     stopWatchingThemeChanges = stopWatchingTheme;
-    editor = new EditorView({
-      doc: localStorage.getItem(LS_DOC_KEY) ?? DEFAULT_SOURCE,
-      parent: editorHost,
-      extensions: [
-        basicSetup,
-        myCodeMirrorTheme(),
-        agdaSupport(),
-        sourceLanguageCompartment.of(agdaSourceLanguage()),
-        agdaCompletions(),
-        controller.lspClientCompartment.of([]),
-        symbolInput(),
-        Prec.highest(
-          keymap.of([
-            {
-              key: "Ctrl-c Ctrl-l",
-              run: () => runCheck(),
+    editorExtensions = [
+      basicSetup,
+      myCodeMirrorTheme(),
+      agdaSupport(),
+      agdaCompletions(),
+      symbolInput(),
+      Prec.highest(
+        keymap.of([
+          {
+            key: "Ctrl-c Ctrl-l",
+            run: () => runCheck(),
+          },
+          {
+            key: "Ctrl-c Ctrl-f",
+            run: () => moveGoal(1),
+          },
+          {
+            key: "Ctrl-c Ctrl-b",
+            run: () => moveGoal(-1),
+          },
+          {
+            key: "Ctrl-c Ctrl-Space",
+            run: () => runEditorAction(() => controller.give()),
+          },
+          {
+            key: "Ctrl-c Ctrl-r",
+            run: () => runEditorAction(() => controller.refine()),
+          },
+          {
+            key: "Ctrl-c Ctrl-c",
+            run: () => openEditorCommand("case"),
+          },
+          {
+            key: "Ctrl-c Ctrl-t",
+            run: () => runEditorAction(() => controller.queryGoalType()),
+          },
+          {
+            key: "Ctrl-c Ctrl-e",
+            run: () => runEditorAction(() => controller.queryContext()),
+          },
+          {
+            key: "Ctrl-c Ctrl-d",
+            run: () => openEditorCommand("infer"),
+          },
+          {
+            key: "Ctrl-c Ctrl-n",
+            run: () => openEditorCommand("normalize"),
+          },
+          {
+            key: "Ctrl-c Ctrl-?",
+            run: () => showGoals(),
+          },
+          {
+            // Stops a mount or Agda's command: both are under way when it
+            // is pressed, so it is not held back as other commands are.
+            key: "Ctrl-c Ctrl-x Ctrl-a",
+            run: () => {
+              stopWork();
+              return true;
             },
-            {
-              key: "Ctrl-c Ctrl-f",
-              run: () => moveGoal(1),
-            },
-            {
-              key: "Ctrl-c Ctrl-b",
-              run: () => moveGoal(-1),
-            },
-            {
-              key: "Ctrl-c Ctrl-Space",
-              run: () => runEditorAction(() => controller.give()),
-            },
-            {
-              key: "Ctrl-c Ctrl-r",
-              run: () => runEditorAction(() => controller.refine()),
-            },
-            {
-              key: "Ctrl-c Ctrl-c",
-              run: () => openEditorCommand("case"),
-            },
-            {
-              key: "Ctrl-c Ctrl-t",
-              run: () => runEditorAction(() => controller.queryGoalType()),
-            },
-            {
-              key: "Ctrl-c Ctrl-e",
-              run: () => runEditorAction(() => controller.queryContext()),
-            },
-            {
-              key: "Ctrl-c Ctrl-d",
-              run: () => openEditorCommand("infer"),
-            },
-            {
-              key: "Ctrl-c Ctrl-n",
-              run: () => openEditorCommand("normalize"),
-            },
-            {
-              key: "Ctrl-c Ctrl-?",
-              run: () => showGoals(),
-            },
-            {
-              // Stops a mount or Agda's command: both are under way when it
-              // is pressed, so it is not held back as other commands are.
-              key: "Ctrl-c Ctrl-x Ctrl-a",
-              run: () => {
-                stopWork();
-                return true;
-              },
-            },
-            {
-              key: "Ctrl-Space",
-              run: startCompletion,
-            },
-            {
-              key: "Mod-Enter",
-              run: () => runCheck(),
-            },
-          ]),
-        ),
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
-            // The question was about the text before this edit.
-            if (controller.consent) answerConsent("cancel");
+          },
+          {
+            key: "Ctrl-Space",
+            run: startCompletion,
+          },
+          {
+            key: "Mod-Enter",
+            run: () => runCheck(),
+          },
+        ]),
+      ),
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          // The question was about the text before this edit.
+          if (controller.consent) answerConsent("cancel");
+          inspectorPreference = "goals";
+          if (workspaceMode === "plfa")
+            plfaMarkdown = update.state.doc.toString();
+          // Saved under the key of the file edited, whichever is on
+          // screen when the save runs (issue 10).
+          saver.schedule(update.state);
+        }
+        if (update.selectionSet) {
+          const head = update.state.selection.main.head;
+          const selected = controller
+            .getGoals()
+            .find((goal) => goal.from <= head && head <= goal.to);
+          if (selected) {
+            controller.activeGoalId = selected.id;
             inspectorPreference = "goals";
-            if (workspaceMode === "plfa")
-              plfaMarkdown = update.state.doc.toString();
-            if (saveTimer) clearTimeout(saveTimer);
-            saveTimer = setTimeout(
-              () => controller.persistDocument(update.state.doc.toString()),
-              250,
-            );
           }
-          if (update.selectionSet) {
-            const head = update.state.selection.main.head;
-            const selected = controller
-              .getGoals()
-              .find((goal) => goal.from <= head && head <= goal.to);
-            if (selected) {
-              controller.activeGoalId = selected.id;
-              inspectorPreference = "goals";
-            }
-          }
-        }),
-        EditorView.theme({
-          "&": { background: "var(--editor-surface)", color: "var(--editor-text)", fontSize: "14px" },
-          ".cm-scroller": { overscrollBehavior: "contain", lineHeight: "1.72" },
-          ".cm-content": { padding: "18px 0 80px" },
-          ".cm-gutters": {
-            background: "var(--editor-gutter-surface)",
-            color: "var(--editor-gutter-text)",
-            borderRight: "1px solid var(--editor-line)",
-          },
-          ".cm-activeLine, .cm-activeLineGutter": { background: "var(--editor-active-line)" },
-          ".cm-cursor": { borderLeftColor: "var(--editor-cursor)", borderLeftWidth: "2px" },
-          ".agda-hole": {
-            background: "var(--goal-surface)",
-            outline: "1px solid var(--goal-line)",
-            borderRadius: "0",
-          },
-          ".agda-goal-marker": {
-            background: "var(--editor-cursor)",
-            color: "var(--goal-marker-text)",
-            borderRadius: "0",
-            padding: "0 5px",
-            marginRight: "3px",
-            fontSize: "10px",
-            fontFamily: "Inter, sans-serif",
-          },
-          ".cm-tooltip": {
-            border: "1px solid var(--tooltip-line)",
-            borderRadius: "0",
-            boxShadow: "none",
-            background: "var(--surface)",
-          },
-          ".cm-lsp-documentation": {
-            padding: "9px 11px",
-            fontFamily: "JuliaMono, monospace",
-            fontSize: "12px",
-          },
-          ".symbol-input-candidates": {
-            background: "var(--surface)",
-            border: "1px solid var(--tooltip-line)",
-            boxShadow: "none",
-          },
-        }),
-      ],
+        }
+      }),
+      EditorView.theme({
+        "&": { background: "var(--editor-surface)", color: "var(--editor-text)", fontSize: "14px" },
+        ".cm-scroller": { overscrollBehavior: "contain", lineHeight: "1.72" },
+        ".cm-content": { padding: "18px 0 80px" },
+        ".cm-gutters": {
+          background: "var(--editor-gutter-surface)",
+          color: "var(--editor-gutter-text)",
+          borderRight: "1px solid var(--editor-line)",
+        },
+        ".cm-activeLine, .cm-activeLineGutter": { background: "var(--editor-active-line)" },
+        ".cm-cursor": { borderLeftColor: "var(--editor-cursor)", borderLeftWidth: "2px" },
+        ".agda-hole": {
+          background: "var(--goal-surface)",
+          outline: "1px solid var(--goal-line)",
+          borderRadius: "0",
+        },
+        ".agda-goal-marker": {
+          background: "var(--editor-cursor)",
+          color: "var(--goal-marker-text)",
+          borderRadius: "0",
+          padding: "0 5px",
+          marginRight: "3px",
+          fontSize: "10px",
+          fontFamily: "Inter, sans-serif",
+        },
+        ".cm-tooltip": {
+          border: "1px solid var(--tooltip-line)",
+          borderRadius: "0",
+          boxShadow: "none",
+          background: "var(--surface)",
+        },
+        ".cm-lsp-documentation": {
+          padding: "9px 11px",
+          fontFamily: "JuliaMono, monospace",
+          fontSize: "12px",
+        },
+        ".symbol-input-candidates": {
+          background: "var(--surface)",
+          border: "1px solid var(--tooltip-line)",
+          boxShadow: "none",
+        },
+      }),
+    ];
+    editor = new EditorView({
+      state: createEditorState(MAIN_FILE, localStorage.getItem(LS_DOC_KEY) ?? DEFAULT_SOURCE),
+      parent: editorHost,
     });
-    controller.connectEditorView(editor);
+    controller.connectEditorView(editor, createEditorState);
     editorScrollHandler = () => scheduleScrollSync("editor");
     editor.scrollDOM.addEventListener("scroll", editorScrollHandler, {
       passive: true,
@@ -628,6 +685,8 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       }
     };
     window.addEventListener("keydown", globalKeydown, { capture: true });
+    // A reload or a navigation away saves what waits.
+    window.addEventListener("pagehide", flushSaves);
 
     plfaManifestPromise = fetch("/plfa/manifest.json")
       .then((response) => {
@@ -674,6 +733,24 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     });
   });
 
+  const flushSaves = () => saver.flush();
+
+  /** A file's editor state (issue 10): its own text, history and language,
+   * the language server's place (empty until the file is shown with Agda
+   * up), read-only for a library's module, and what every state has. */
+  function createEditorState(file: DocumentFile, text: string) {
+    return EditorState.create({
+      doc: text,
+      extensions: [
+        documentFile.of(file),
+        file.library ? readOnlyDocument() : [],
+        file.path.endsWith(".lagda.md") ? literateAgdaLanguage() : agdaSourceLanguage(),
+        controller.lspClientCompartment.of([]),
+        editorExtensions,
+      ],
+    });
+  }
+
   function loadPlfaInterfaceManifest() {
     if (plfaInterfaceManifestPromise) return plfaInterfaceManifestPromise;
     plfaInterfaceManifestPromise = fetch(
@@ -714,12 +791,15 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
 
   onDestroy(() => {
     stopWatchingThemeChanges?.();
-    if (saveTimer) clearTimeout(saveTimer);
+    // What waits to be saved is saved now, not dropped.
+    flushSaves();
     if (scrollSyncRelease) clearTimeout(scrollSyncRelease);
     if (readerScrollFrame) cancelAnimationFrame(readerScrollFrame);
     if (editorScrollFrame) cancelAnimationFrame(editorScrollFrame);
-    if (globalKeydown)
+    if (globalKeydown) {
       window.removeEventListener("keydown", globalKeydown, { capture: true });
+      window.removeEventListener("pagehide", flushSaves);
+    }
     if (editorScrollHandler && editor)
       editor.scrollDOM.removeEventListener("scroll", editorScrollHandler);
     controller.terminateALSWASM();
@@ -954,7 +1034,32 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   function openCommand(kind: CommandKind) {
     actionError = "";
     commandKind = kind;
-    if (kind === "give" || kind === "refine") {
+    if (kind === "copy") {
+      // The selection, if any, is what is copied; the name offered is the
+      // module's last part.
+      const range = editor?.state.selection.main;
+      const doc = editor?.state.doc;
+      // A selection that ends at a line's start does not take that line.
+      copySelection =
+        range && doc && !range.empty
+          ? {
+              from: range.from,
+              to: range.to,
+              lines:
+                doc.lineAt(range.to).number -
+                doc.lineAt(range.from).number +
+                (range.to === doc.lineAt(range.to).from ? 0 : 1),
+            }
+          : null;
+      commandValue = currentLibrary?.module.split(".").pop() ?? "";
+      // Then the first such name Agda finds nowhere, unless the reader has
+      // typed meanwhile.
+      const offered = commandValue;
+      if (currentLibrary)
+        void freeCopyName(currentLibrary.module).then((name) => {
+          if (commandKind === "copy" && commandValue === offered) commandValue = name;
+        });
+    } else if (kind === "give" || kind === "refine") {
       const goal = controller.getActiveGoal();
       commandValue =
         goal && editor
@@ -977,6 +1082,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       else if (kind === "refine") await controller.refine(value);
       else if (kind === "case") await controller.caseSplit(value);
       else if (kind === "infer") await controller.infer(value);
+      else if (kind === "copy") await copyToPlayground(value);
       else await controller.normalize(value);
       commandKind = null;
       setTimeout(() => editor?.focus());
@@ -1000,19 +1106,27 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     plfaError = "";
 
     try {
-      const sourceResponse = await fetch(chapter.sourcePath);
-      if (!sourceResponse.ok) throw new Error(`Could not open ${chapter.name}`);
-      const originalSource = await sourceResponse.text();
-      if (request !== chapterRequest) return;
-
-      const storageKey = `agda-web-ide-beta:plfa-lagda:${chapter.id}`;
-      const source = localStorage.getItem(storageKey) ?? originalSource;
-      plfaMarkdown = source;
-      editor?.dispatch({
-        effects: sourceLanguageCompartment.reconfigure(literateAgdaLanguage()),
-      });
-      controller.setDocument(source, chapter.modulePath, storageKey);
+      const file: DocumentFile = {
+        path: chapter.modulePath,
+        storageKey: `agda-web-ide-beta:plfa-lagda:${chapter.id}`,
+      };
+      // A chapter open already is shown as it was left (issue 10).
+      let source: string | undefined;
+      if (!controller.isOpen(file.path)) {
+        const sourceResponse = await fetch(chapter.sourcePath);
+        if (!sourceResponse.ok) throw new Error(`Could not open ${chapter.name}`);
+        const originalSource = await sourceResponse.text();
+        if (request !== chapterRequest) return;
+        source = localStorage.getItem(file.storageKey!) ?? originalSource;
+      }
+      controller.showDocument(file, source);
+      plfaMarkdown = editor?.state.doc.toString() ?? "";
+      // The editor's scroll (where the chapter was left, or its top) is
+      // applied in its next measure; the reader follows it, rather than
+      // its reset to the top dragging the editor back.
+      claimScrollSync("editor");
       readerContent?.scrollTo({ top: 0 });
+      requestAnimationFrame(() => scheduleScrollSync("editor"));
       if (controller.driveIsCreated)
         void runAction(() => ensurePlfaInterfaces(chapter));
     } catch (error) {
@@ -1022,21 +1136,114 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     }
   }
 
-  function openPlayground() {
+  /** Open a file of the playground's project: Main, or a copy (issue 10),
+   * as it was left, or from the text the browser keeps; then check it. */
+  function openPlayground(file: DocumentFile = MAIN_FILE) {
     if (isBusy) return;
     chapterRequest++;
     workspaceMode = "playground";
     activeResource = "agda";
-    const source = localStorage.getItem(LS_DOC_KEY) ?? DEFAULT_SOURCE;
-    editor?.dispatch({
-      effects: sourceLanguageCompartment.reconfigure(agdaSourceLanguage()),
-    });
-    controller.setDocument(source, PLAYGROUND.file, LS_DOC_KEY);
+    const source = controller.isOpen(file.path)
+      ? undefined
+      : (localStorage.getItem(file.storageKey!) ?? (file.path === PLAYGROUND.file ? DEFAULT_SOURCE : ""));
+    controller.showDocument(file, source);
     setTimeout(() => editor?.focus());
     if (compilerReady)
       setTimeout(() => {
         if (!isBusy) void runAction(() => checkCurrentFile({ automatic: true }));
       }, 50);
+  }
+
+  /** Open a module of agda-algebras read-only (issue 10): the drive's copy,
+   * which is the checked library, never written; loaded, after its
+   * closure's archives are mounted (asking first, issue 14), so that
+   * hover, Infer and Normalize answer in its scope. */
+  async function openLibraryModule(item: TreeItem) {
+    if (!item.path || !item.name || isBusy) return;
+    // A module open already is shown whether or not Agda is up; one opened
+    // anew is read from the drive, so it needs Agda.
+    const open = controller.isOpen(item.path);
+    if (!open && !libraryOpens) return;
+    const request = ++chapterRequest;
+    const file: DocumentFile = {
+      path: item.path,
+      library: { library: "agda-algebras", module: item.name },
+    };
+    try {
+      const text = open ? undefined : await controller.readLibrarySource(file.path);
+      if (request !== chapterRequest || isBusy) return;
+      workspaceMode = "playground";
+      activeResource = "agda";
+      controller.showDocument(file, text);
+      setTimeout(() => editor?.focus());
+      // The reader asked for it: a question before a fetch takes the focus.
+      if (compilerReady) void runAction(() => checkCurrentFile());
+    } catch (error) {
+      actionError = readableError(error);
+    }
+  }
+
+  /** Copy the library's module on screen, or its selection, into a file of
+   * the playground's project, named `name` (issue 10); open it editable,
+   * and check it.  A name Agda finds already (in the playground, a library,
+   * or the builtins) is refused: the copy would not check, or would make an
+   * import of that name ambiguous. */
+  async function copyToPlayground(name: string) {
+    const library = controller.currentFile.library;
+    if (!library || !editor) throw new Error("Open a module of agda-algebras to copy it");
+    if (isBusy) throw new Error("Agda is busy; copy when it is done");
+    const selection = copySelection;
+    const target = playgroundTarget(name, selection ? ".agda" : ".lagda.md");
+    if ("error" in target) throw new Error(target.error);
+    const found = await controller.findModule(target.module);
+    if (found)
+      throw new Error(
+        `Agda finds ${target.module} at ${found} already, so a copy named so would not check; name it otherwise`,
+      );
+    const source = editor.state.doc.toString();
+    const copy = selection
+      ? selectionCopy(source, library.module, target.module, selection)
+      : { text: moduleCopy(source, library.module, target.module), at: 0 };
+    if (copy?.text === undefined) throw new Error(`${library.module} declares no module line to rename`);
+    const file = await controller.createPlaygroundFile(target.path, copy.text);
+    copySelection = null;
+    openPlayground(file);
+    // A selection's copy is shown at the selection.
+    if (selection && controller.currentFilePath === file.path && copy.at <= editor.state.doc.length)
+      editor.dispatch({ selection: { anchor: copy.at }, effects: EditorView.scrollIntoView(copy.at, { y: "center" }) });
+  }
+
+  /** A name for a copy of `module` that Agda finds nowhere yet: its last
+   * part, or that with a number after it (many modules share a last
+   * part, and some are a library's top-level module); none, for the reader
+   * to give, when the first hundred are taken.  It only fills the field:
+   * `copyToPlayground` checks the name submitted. */
+  async function freeCopyName(module: string) {
+    const base = module.split(".").pop() ?? module;
+    for (let n = 1; n <= 100; n++) {
+      const name = n === 1 ? base : `${base}${n}`;
+      if (!(await controller.findModule(name))) return name;
+    }
+    return "";
+  }
+
+  /** Add `open import` of the library's module on screen to Main, and show
+   * Main, which is then checked (issue 10).  Main that opens it already is
+   * shown with its cursor on that line. */
+  function importIntoMain() {
+    const library = controller.currentFile.library;
+    if (!library || isBusy) return;
+    openPlayground(MAIN_FILE);
+    if (!editor || controller.currentFilePath !== PLAYGROUND.file) return;
+    const text = editor.state.doc.toString();
+    const edit = openImportEdit(text, library.module);
+    if (edit && "at" in edit) editor.dispatch({ selection: { anchor: edit.at }, scrollIntoView: true });
+    else if (edit)
+      editor.dispatch({
+        changes: { from: edit.from, insert: edit.insert },
+        selection: { anchor: edit.from + edit.insert.trimEnd().length },
+        scrollIntoView: true,
+      });
   }
 
   /** Which Explorer rows are expanded, kept for the next visit. */
@@ -1049,18 +1256,34 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     }
   }
 
-  /** A file the Explorer opens: the playground's, or a PLFA chapter.  A
-   * module of agda-algebras opens with issue 10; until then the tree
-   * selects it, and nothing more.  The file already open is not loaded
-   * again, which would put its stored copy in place of the last quarter
-   * second's typing (saving waits 250 ms) and reset the cursor and the
+  /** A file the Explorer or a tab opens: a file of the playground, a PLFA
+   * chapter, or a module of agda-algebras, read-only (issue 10).  The file
+   * on screen is not opened again, which would reset the cursor and the
    * reader; the focus moves to it instead. */
   function openFromExplorer(item: TreeItem) {
     if (item.path === controller.currentFilePath)
       return focusResource(workspaceMode === "plfa" ? "markdown" : "agda");
-    if (item.path === PLAYGROUND.file) return openPlayground();
-    const chapter = plfaChapters.find((entry) => entry.modulePath === item.path);
-    if (chapter) void openPlfaChapter(chapter);
+    if (item.path) openPath(item.path, item);
+  }
+
+  /** Open the file at `path`: `item`, the Explorer's row, names a library's
+   * module. */
+  function openPath(path: string, item?: TreeItem) {
+    if (path === controller.currentFilePath) return focusResource(workspaceMode === "plfa" ? "markdown" : "agda");
+    if (playgroundModuleOf(path)) return openPlayground(path === PLAYGROUND.file ? MAIN_FILE : controller.playgroundFile(path));
+    const chapter = plfaChapters.find((entry) => entry.modulePath === path);
+    if (chapter) return void openPlfaChapter(chapter);
+    const open = controller.openFiles.find((file) => file.path === path)?.library;
+    const module = item?.name ?? open?.module;
+    if (module) void openLibraryModule({ id: `agda-algebras:${module}`, label: module, kind: "module", path, name: module });
+  }
+
+  /** Close a tab: its file's state, and its history, are forgotten; the
+   * file on screen gives way to Main first. */
+  function closeTab(path: string) {
+    if (isBusy || path === PLAYGROUND.file) return;
+    if (path === controller.currentFilePath) openPlayground(MAIN_FILE);
+    if (path !== controller.currentFilePath) controller.closeDocument(path);
   }
 
   function focusResource(resource: ActiveResource) {
@@ -1229,12 +1452,30 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       {/if}
       <section class="code-pane">
         <div class="editor-tabs">
-          <button
-            class="editor-tab active"
-            onclick={() => focusResource("agda")}
-          >
-            <FileCode size={15} /><span>{editorFileName}</span>
-          </button>
+          <div class="editor-tab-list" role="toolbar" aria-label="Open files">
+            {#each controller.openFiles as file (file.path)}
+              {@const current = file.path === controller.currentFilePath}
+              <div class="editor-tab" class:active={current} title={file.path}>
+                <button
+                  class="editor-tab-open"
+                  aria-current={current ? "page" : undefined}
+                  aria-disabled={!current && isBusy ? "true" : undefined}
+                  onclick={() => (current ? focusResource("agda") : !isBusy && openPath(file.path))}
+                >
+                  {#if file.library}<Lock size={13} />{:else}<FileCode size={15} />{/if}<span
+                    >{fileName(file.path)}</span
+                  >
+                </button>
+                {#if file.path !== PLAYGROUND.file}<button
+                    class="tab-close"
+                    aria-label={`Close ${fileName(file.path)}`}
+                    title="Close"
+                    disabled={isBusy}
+                    onclick={() => closeTab(file.path)}><X size={12} /></button
+                  >{/if}
+              </div>
+            {/each}
+          </div>
           <label class="theme-control">
             <span>Theme</span>
             <select
@@ -1249,6 +1490,39 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
             </select>
           </label>
         </div>
+        {#if currentLibrary}
+          <div class="library-bar" role="note" aria-label="Read-only library module">
+            <Lock size={13} />
+            <p>
+              <strong>Read-only</strong>: {currentLibrary.module} is agda-algebras{libraryModules?.commit
+                ? ` at ${libraryModules.commit.slice(0, 8)}`
+                : ""}, the checked library, as the playground imports it. Copy it to the
+              playground to change it.
+            </p>
+            <div class="library-actions">
+              <button
+                class="library-copy"
+                title="Copy this module, or the selection, into a file of the playground"
+                onclick={() => openCommand("copy")}
+                disabled={!compilerReady || isBusy}><Copy size={13} />Copy to playground</button
+              >
+              <button
+                class="library-import"
+                title={`Add open import ${currentLibrary.module} to Main.agda`}
+                onclick={importIntoMain}
+                disabled={isBusy}><FileInput size={13} />Import in Main</button
+              >
+              <a
+                class="library-page"
+                href={libraryPage(currentLibrary.module)}
+                target="_blank"
+                rel="noreferrer"
+                title="Its page on agda-algebras' site, in a new tab, as the site has it now: the site follows the library's master branch, not this pin, so the page may differ or be missing"
+                ><ExternalLink size={13} />Its page (the site's current version)</a
+              >
+            </div>
+          </div>
+        {/if}
         <div class="command-strip">
           <button
             title="Goal type (C-c C-t)"
@@ -1303,7 +1577,13 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
           >
             <label for="command-input">
               <span>AGDA</span>
-              <strong>{commandMeta[commandKind].title}</strong>
+              <strong
+                >{commandKind === "copy" && currentLibrary
+                  ? copySelection
+                    ? `Copy the selection (${copySelection.lines} ${copySelection.lines === 1 ? "line" : "lines"}), with the code above it, to /play/`
+                    : `Copy ${currentLibrary.module} to /play/`
+                  : commandMeta[commandKind].title}</strong
+              >
             </label>
             <input
               id="command-input"
@@ -1338,7 +1618,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
             }}
           >
             <p class="consent-text">
-              Checking {editorFileName} needs
+              {currentLibrary ? `Loading ${currentLibrary.module}` : `Checking ${editorFileName}`} needs
               <strong class="consent-size" data-bytes={consentRequest.bytes}
                 >{sizeWithBytes(consentRequest.bytes)}</strong
               >
@@ -1852,15 +2132,48 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     border-radius: 0;
     cursor: pointer;
   }
+  /* The open files, one tab each (issue 10), scrolling sideways when
+     they do not fit. */
+  .editor-tab-list {
+    min-width: 0;
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
   .editor-tab {
     min-width: 140px;
+    flex: none;
     display: flex;
     align-items: center;
     gap: 7px;
-    padding: 0 12px;
+    padding: 0 8px 0 12px;
     color: var(--muted);
     border-right: 1px solid var(--line);
     font-size: 12px;
+  }
+  .editor-tab-open {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+  }
+  .editor-tab-open[aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+  .tab-close {
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    color: inherit;
+  }
+  .tab-close:not(:disabled):hover {
+    opacity: 1;
+    color: var(--accent-strong);
+    background: var(--accent-soft);
   }
   .editor-tab.active {
     position: relative;
@@ -1874,8 +2187,54 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     height: 2px;
     background: var(--accent);
   }
-  .editor-tab :global(svg:first-child) {
+  .editor-tab-open :global(svg:first-child) {
     color: var(--accent);
+  }
+  /* A library's module (issue 10): the line that says it is the checked
+     library, read-only, and its actions, wrapping at any width. */
+  .library-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--command-line);
+    background: var(--accent-soft);
+    color: var(--text);
+    font-size: 11px;
+    line-height: 1.45;
+  }
+  .library-bar > :global(svg) {
+    flex: none;
+    color: var(--accent-strong);
+  }
+  .library-bar p {
+    flex: 1 1 260px;
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .library-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .library-actions button,
+  .library-actions a {
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 8px;
+    border: 1px solid var(--command-hover-line);
+    color: var(--accent-strong);
+    background: var(--surface);
+    font-size: 11px;
+    text-decoration: none;
+  }
+  .library-actions button:not(:disabled):hover,
+  .library-actions a:hover {
+    background: var(--accent-soft);
   }
   :global(.tab-close) {
     margin-left: auto;
