@@ -228,7 +228,7 @@ from one commit, as follows:
    at `fb5d1840` (tag `v2.3-agda-2.9.0`), have identical `src/` and
    `standard-library.agda-lib`.
 +  agda-algebras does not: the launcher's shell registers agda-native-air's
-   pin, `4662373d` (2026-09-07), and the page pins `f067d57d`.
+   pin, `4662373d` (2026-09-07), and the page pins `d32f045f`.
 
 **Whether the native Agda must match the page's**.  For a verdict, it
 must.  A session's `check_file` is evidence about the page only when it ran

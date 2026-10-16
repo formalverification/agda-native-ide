@@ -41,7 +41,7 @@
   # compiled natively, and a copied public library module as their fixture.
   inputs.native-agda.url = "github:agda/agda/da66a8c75f11d10699a6b38b261efdf244b66f2a";
   inputs.companion-fixture = {
-    url = "github:ualib/agda-algebras/8736a0b49ed50d49eec2f6192813e049dc4fc60f";
+    url = "github:ualib/agda-algebras/d32f045fe2ef885a62c5546358ebe6de09ec1ba1";
     flake = false;
   };
   # The WebAssembly toolchain of the compiler (issue 58): GHC 9.10 for
@@ -208,8 +208,8 @@
       # move to another commit, change rev and hash together (with
       # lib.fakeHash, the build reports the hash).
       agdaAlgebras = {
-        rev = "f067d57d367a4830834ce1fd80937820754f9a28"; # master, 2026-10-10
-        hash = "sha256-5lLdkWSOttoSLr/Prxp+0XgCFYH0FIPzn4ckJfIzUOI=";
+        rev = "d32f045fe2ef885a62c5546358ebe6de09ec1ba1"; # master, 2026-10-15
+        hash = "sha256-nUsrkvfiGaIvAGk86b0Z2wVrai4oLuyQTSOMzpfc1YQ=";
       };
       agdaAlgebrasSource = pkgs: pkgs.fetchFromGitHub {
         owner = "ualib";

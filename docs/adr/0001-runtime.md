@@ -866,12 +866,14 @@ every module it imports, directly or not, itself included.
    .#agda-algebras-interfaces` builds them, `.#agda-algebras-archives`
    packs them, and `.#agda-algebras-check` checks them.
 +  **What is built**: every module of agda-algebras' include path,
-   `Legacy/` included (350 at `f067d57d`), with `agda --build-library`,
+   `Legacy/` included (351 at `d32f045f`), with `agda --build-library`,
    which finds them itself in a fixed order; and the standard-library
-   modules they import (251 of 1,154), not the whole library.
-+  **The pin**: agda-algebras at `f067d57d` (its master on 2026-10-10), a
+   modules they import (253 of 1,154), not the whole library.
++  **The pin**: agda-algebras at `d32f045f` (its master on 2026-10-15), a
    `fetchFromGitHub` with its hash beside the standard library's source in
-   `flake.nix`, so a move is one edit and leaves `flake.lock` alone.  Its
+   `flake.nix`, so a move is one edit and leaves `flake.lock` alone.  It was
+   `f067d57d` (its master on 2026-10-10) until agda-algebras' master history
+   was rewritten on 2026-10-14, and the evidence below was measured there.  Its
    sources ship as their own archive, `agda-algebras-sources.zip`, beside
    the standard library's, mounted at `/agda-algebras`.
 +  **The packing**: one archive per agda-algebras module; the
@@ -1199,7 +1201,7 @@ manifest, which generalizes the library's description.
 | 28 | The editor takes its text as the one Agda's positions refer to only when the page sends `Cmd_load` | Adopted ([#59]) | Agda keeps a goal's loaded range after a give; the old commit point hung 3 of 8 runs in Firefox, the new none of 18 (§ 8) |
 | 29 | agda-algebras' interfaces are built in the Nix sandbox by the compiler's `agda.wasm` under wasmtime, over a stage laid out as the page's drive from the archives it mounts, mounted as the guest's root | Adopted ([#12]) | 350 + 251 modules checked, no builtin; the interfaces land where the server looks; Agda 2.9.0 interfaces do not cross word sizes (row 20) (§ 10) |
 | 30 | Every module of agda-algebras' include path is built, with `agda --build-library`; the standard library only as far as it is imported | Adopted ([#12]) | `--build-library` sorts its paths, so its order is fixed; 995 MiB of a 4 GiB heap; the standard library's other 903 modules are not needed (§ 10) |
-| 31 | agda-algebras is pinned by `fetchFromGitHub` in `flake.nix`, at `f067d57d`; its sources ship as their own archive, beside the standard library's, at `/agda-algebras` | Adopted ([#12]) | Like the standard library's pin, one edit; `flake.lock` untouched; the sources archive is 985,864 bytes and changes only with agda-algebras (§ 10) |
+| 31 | agda-algebras is pinned by `fetchFromGitHub` in `flake.nix`, at `d32f045f`; its sources ship as their own archive, beside the standard library's, at `/agda-algebras` | Adopted ([#12]) | Like the standard library's pin, one edit; `flake.lock` untouched; the sources archive is 1,012,304 bytes and changes only with agda-algebras (§ 10) |
 | 32 | One archive per agda-algebras module; standard-library modules grouped by the agda-algebras modules that reach them; stored zips, each under 25 MiB | Adopted ([#12]); supersedes [#12]'s 2.8.0 tiers | Any set of agda-algebras imports fetches its closure and zip headers: the HSP root 39,251,541 bytes against 39,186,131; the 2.8.0 tiers fetch 15.9 MB for `Overture.Basic` against 4.3 MB (§ 10) |
 | 33 | The index is JSON beside the archives, schema 1, its closures from Agda's `--dependency-graph` | Adopted ([#12]) | Agda's graph is built from the interfaces' imports and reduced transitively, so reachability is exact; a regular expression misses nested imports ([#12], 2026-10-04) (§ 10) |
 | 34 | Every root is checked cold from the archives the index names, exactly one `Checking` line, with two controls that must fail | Adopted ([#12]) | 350 of 350, here and on GitHub's runner; the controls print 2 lines each (§ 10) |

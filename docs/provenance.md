@@ -208,10 +208,10 @@ under the same license).
 ## agda-algebras' sources, built here
 
 `static/agda-algebras-sources.zip` is agda-algebras at
-[ualib/agda-algebras] `f067d57d367a4830834ce1fd80937820754f9a28` (its
-`master` on 2026-10-10), unchanged: `agda-algebras.agda-lib`, `src/`, and
+[ualib/agda-algebras] `d32f045fe2ef885a62c5546358ebe6de09ec1ba1` (its
+`master` on 2026-10-15), unchanged: `agda-algebras.agda-lib`, `src/`, and
 the license texts its `NOTICE` names for them (`LICENSE`, `LICENSE-data`,
-`NOTICE`), under `agda-algebras/`, 355 files.  The flake builds it
+`NOTICE`), under `agda-algebras/`, 356 files.  The flake builds it
 (`mkAgdaAlgebrasSources` in `flake.nix`) from the commit `agdaAlgebras`
 pins, fetched by its NAR hash, deflated, with every entry dated 1980-01-01
 and in a fixed order, so that its bytes depend on the commit alone; the
@@ -223,7 +223,7 @@ License: Apache-2.0, the library's own for `src/` (`LICENSE`, with its
 
 | Path | Bytes | SHA-256 |
 |---|---:|---|
-| `static/agda-algebras-sources.zip` | 985,864 | `005b0f5576bf88d25d32b5b7af44bcc9ff47028faddc9a2c9eb38a18998ad961` |
+| `static/agda-algebras-sources.zip` | 1,012,304 | `5628fb359ab90c4184d6d85fc827c7afb8993e353925101097ffcb0ed1297664` |
 
 `static/agda-algebras-modules.json` is the list of the modules in that
 archive, which the Explorer shows ([#9]): each module's dotted name, its
@@ -236,12 +236,12 @@ derived from the sources the section above names, under their license.
 
 | Path | Bytes | SHA-256 |
 |---|---:|---|
-| `static/agda-algebras-modules.json` | 59,754 | `ed3923d0a5d776433aebef7ecff72713f5b1af83cb7d6dfec5885494a95af9e4` |
+| `static/agda-algebras-modules.json` | 60,086 | `6bb9db05e9bef9e86f362aafa7d977dbdb415ea76f1d850f7c9c32cf2b271337` |
 
 ## agda-algebras' interface archives, built here
 
 `static/agda-algebras/` holds agda-algebras' archive index, `index.json`,
-and its 395 interface archives, `interfaces/*.zip`, as `nix build
+and its 398 interface archives, `interfaces/*.zip`, as `nix build
 .#agda-algebras-archives` writes them ([#12]), copied by `make assets` and
 the site's derivation ([#14]).  The interfaces are built in the Nix sandbox
 by the compiler's own plain `agda.wasm` from the sources above and the
@@ -259,8 +259,8 @@ the sources archive.
 
 | Path | Bytes | SHA-256 |
 |---|---:|---|
-| `static/agda-algebras/index.json` | 285,618 | `7f94ac5807604672cc824bf9aea81d62471fe741726f221987d20f7b04a3d6a8` |
-| `static/agda-algebras/interfaces/` | 70,104,812 (395 files) | each the index's |
+| `static/agda-algebras/index.json` | 286,709 | `ff28598381cc65f396c11df4c8026fa1fbece63d2a3330687aa555f4ef42afb9` |
+| `static/agda-algebras/interfaces/` | 71,419,730 (398 files) | each the index's |
 
 ## Retired pins
 

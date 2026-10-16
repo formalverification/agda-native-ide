@@ -24,7 +24,7 @@ drive.  So the build writes the list, as
 
 ```json
 {"version":1,"library":"agda-algebras",
- "commit":"f067d57d367a4830834ce1fd80937820754f9a28",
+ "commit":"d32f045fe2ef885a62c5546358ebe6de09ec1ba1",
  "include":["/agda-algebras/src"],
  "modules":[
   {"name":"agda-algebras",
@@ -48,10 +48,11 @@ drive.  So the build writes the list, as
    and the interfaces and the gate built from it, unchanged.
 +  **The titles** are the `title` of each module's front matter, a YAML
    block opening its first line, which agda-algebras writes `title:` or
-   `title :`, in double quotes.  At the pin, 349 of the 350 modules have
-   one; `Setoid/Homomorphisms/HomomorphicImages.lagda.md` begins `n---`, a
-   stray letter before its front matter, so it has none, and the tree
-   shows its name alone.
+   `title :`, in double quotes.  At the pin, all 351 modules have one.  At
+   `f067d57d` (2026-10-10), 349 of the 350 did:
+   `Setoid/Homomorphisms/HomomorphicImages.lagda.md` began `n---`, a stray
+   letter before its front matter, so it had none, and the tree showed its
+   name alone.
 +  **The order** is the Explorer's: by name segment, case aside first and
    then by code point, a name before the names under it.  So a module comes
    before the modules in the folder of its name (`Setoid`, then
@@ -68,15 +69,15 @@ drive.  So the build writes the list, as
    differs, naming the first module where it does.  With `make assets`
    run, the unit tests compare the two as well, and check that the list's
    paths are exactly the archive's `.lagda.md` files.
-+  **What it costs**: one request on a first visit, 59,754 bytes (4,985
-   gzipped at level 9, 5,034 at level 6), with its cache token, like the
++  **What it costs**: one request on a first visit, 60,086 bytes (5,016
+   gzipped at level 9, 5,063 at level 6), with its cache token, like the
    other assets.  It is left out of the drive cache's namespace, which
    digests what Agda reads, so a new list does not drop a reader's drive.
 +  **Why not the archives' index**.  [#12]'s `index.json` also names every
    module with its path, and at the pin agrees with the list exactly: the
-   same 350 names, paths and commit (checked 2026-10-13).  But it is built
+   same 351 names, paths and commit (checked 2026-10-15).  But it is built
    from the interfaces, which take 6 to 13 minutes in the Nix sandbox, it
-   is 285,618 bytes, it has no titles, and the site does not ship it until
+   is 286,709 bytes, it has no titles, and the site does not ship it until
    [#14] mounts the archives.  The list takes seconds, from the sources
    archive alone.
 
@@ -100,7 +101,7 @@ keeps which rows are expanded and decides what opening a row means.
    and whose label opens the module: 64 of the 65 folders at the pin.
    `Legacy/` has no module of its name, and is a folder row.  A module's
    row shows the last part of its name, and hovering shows the whole name
-   and the title.  With every row open, agda-algebras has 351 rows (350
+   and the title.  With every row open, agda-algebras has 352 rows (351
    modules and `Legacy`), five levels deep under its section (the deepest
    module is at level 6).
 +  **The roles**, as the W3C's tree view pattern gives them, with a flat
@@ -200,7 +201,7 @@ the times are indicative and the counts are the findings):
    site's (`src/library-modules.test.js`), the list's schema
    (`packages/manifest/src/library.test.ts`), and the tree's logic, rows,
    filter and keys (`packages/views/src/tree.test.ts`), which checks
-   agda-algebras' shape on the shipped list: 351 rows, 350 modules, 64 of
+   agda-algebras' shape on the shipped list: 352 rows, 351 modules, 64 of
    them folders too, and `Legacy` the one folder alone.
 +  **The browser check** (`scripts/browser-check/explorer.mjs`) uses the
    tree as a keyboard and screen-reader user would: its roles and their
