@@ -470,7 +470,7 @@ Contents
     and agda-algebras/
 
     The sources of https://github.com/ualib/agda-algebras at
-    f067d57d367a4830834ce1fd80937820754f9a28 (2026-10-10), unchanged: its
+    d32f045fe2ef885a62c5546358ebe6de09ec1ba1 (2026-10-15), unchanged: its
     agda-algebras.agda-lib and src/, with its LICENSE, LICENSE-data and
     NOTICE, under agda-algebras/.  Made by this repository's flake
     (mkAgdaAlgebrasSources in flake.nix), which zips that commit.  The
@@ -483,8 +483,8 @@ Contents
     team: licenses/agda-algebras/LICENSE, with its NOTICE as
     licenses/agda-algebras/NOTICE, both the archive's files.
 
-    agda-algebras/interfaces/*.zip, 395 archives: the interfaces Agda 2.9.0
-    writes for agda-algebras' 350 modules and for the 251 modules of the
+    agda-algebras/interfaces/*.zip, 398 archives: the interfaces Agda 2.9.0
+    writes for agda-algebras' 351 modules and for the 253 modules of the
     standard library (section 5) they import, built by the compiler's own
     plain agda (section 3) from these sources, and packed so that an
     import fetches its closure's interfaces and nothing else.  Made by

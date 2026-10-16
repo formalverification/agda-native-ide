@@ -7,13 +7,13 @@
  "libraries": {
   "agda-algebras": {
    "name": "agda-algebras",
-   "commit": "f067d57d367a4830834ce1fd80937820754f9a28",
+   "commit": "d32f045fe2ef885a62c5546358ebe6de09ec1ba1",
    "root": "/agda-algebras",
    "agdaLib": "/agda-algebras/agda-algebras.agda-lib",
    "sources": {
     "path": "agda-algebras-sources.zip",
-    "bytes": 985864,
-    "sha256": "005b0f5576bf88d25d32b5b7af44bcc9ff47028faddc9a2c9eb38a18998ad961"
+    "bytes": 1012304,
+    "sha256": "5628fb359ab90c4184d6d85fc827c7afb8993e353925101097ffcb0ed1297664"
    }
   },
   "standard-library": {

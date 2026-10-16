@@ -154,8 +154,8 @@ describe.skipIf(!existsSync(shipped))("agda-algebras' tree (after make assets)",
     expect(folders).toEqual(["aa:Legacy"]);
     const paired = rows.filter((row) => row.item.kind === "module" && row.expanded !== undefined);
     expect({ rows: rows.length, modules: opened.length, paired: paired.length, deepest: Math.max(...rows.map((row) => row.level)) }).toEqual({
-      rows: 351,
-      modules: 350,
+      rows: 352,
+      modules: 351,
       paired: 64,
       deepest: 5,
     });
