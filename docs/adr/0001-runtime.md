@@ -988,10 +988,11 @@ drive's list of libraries 2026-10-12 in [#13]'s.  The site ships the
 sources archive since [#11]'s pull request, for the playground's project
 (§ 11), and the index and the interface archives, mounted as a check's
 imports need them, with their cache and their license notice, since
-[#14]'s (§ 12).  Open: the benchmark over these roots ([#18]); the cache's
-write token, without which `main` pushes nothing, so a change to the gate
-alone builds the interfaces again, and so does every build of the site
-(§ 12).
+[#14]'s (§ 12).  The cache's write token reached `main`'s archives job on
+2026-10-13 (run 38448805227, the first to push), so a change to the gate
+alone, or a build of the site, fetches the interfaces `main` built rather
+than building them again (§ 12).  Open: the benchmark over these roots
+([#18]).
 
 ---
 
@@ -1158,9 +1159,9 @@ assets (its *namespace*), in which the drive keeps what Agda wrote.
    176 and 599 ms, and 1.25, 3.73 and 8.56 s.  The gate passed both roots
    it was given with the transport changed.
 
-**Status**.  Adopted 2026-10-13 in [#14]'s pull request.  Open: the site's
-build reads the cache but builds the interfaces until `main` pushes them
-(the write token, § 10); what the page loads when Agda starts, and PLFA's
+**Status**.  Adopted 2026-10-13 in [#14]'s pull request.  The site's build
+reads the cache, which `main` fills since 2026-10-13 (the write token,
+§ 10).  Open: what the page loads when Agda starts, and PLFA's
 chapter archives, are not stated in bytes before they start, which
 Milestone 1's exit criterion asks of every download; [#24]'s plugin
 manifest, which generalizes the library's description.

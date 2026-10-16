@@ -52,10 +52,10 @@
 # page, the lockfile, which pins the drive's dependencies, and the
 # Makefile, whose library-gate target CI runs.  The site is
 # `nix build .#site`.  When only the gate changed, the archives come from
-# the cache once main's runs push them; until the write token reaches the
-# action, main pushes nothing, and they are built again, without the
-# --rebuild (the interfaces took 6.5 to 12.7 minutes in four runs on a
-# 4-core runner on 2026-10-12).
+# the cache, which main's runs fill since the write token reached the
+# action on 2026-10-13 (run 38448805227); before that they were built
+# again, without the --rebuild (the interfaces took 6.5 to 12.7 minutes in
+# four runs on a 4-core runner on 2026-10-12).
 #
 # What the gate costs, measured 2026-10-12
 # (docs/measurements/library-archives-browser-2026-10-12.json): on a
@@ -133,8 +133,7 @@ jobs:
           # compiler's files and the sources' tarballs.  Nor the site and
           # its npm dependencies, which the gate builds, and site.yml
           # builds again, reading this cache (for the interfaces its
-          # archives are packed from, issue 14) and writing nothing; until
-          # the write token reaches this action, it finds none there.
+          # archives are packed from, issue 14) and writing nothing.
           pushFilter: '(-source|-agda\.wasm|-als\.wasm|-als-reactor\.wasm|-als-reactor\.js|-agda-2\.9\.0-compiler|-agda-native-ide-site|-agda-native-ide-npm-deps)$'
       - name: Decide whether the archives' derivation changed, or the gate's code
         id: changed
