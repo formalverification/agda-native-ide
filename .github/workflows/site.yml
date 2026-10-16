@@ -10,9 +10,10 @@
 #            archives (issue 14), so its build depends on their
 #            interfaces' (10 to 14 minutes on a runner): it reads the
 #            formalverification Cachix cache and writes nothing to it.
-#            library-archives.yml is to fill that cache from main, but
-#            pushes nothing until CACHIX_AUTH_TOKEN reaches it, so until
-#            then every run builds the interfaces;
+#            library-archives.yml fills that cache from main (since
+#            2026-10-13, when CACHIX_AUTH_TOKEN reached it), so a run
+#            fetches the interfaces when main has built the same
+#            derivation, and builds them otherwise;
 #   test     the unit tests (vitest) and svelte-check, in the dev shell;
 #   browser  the built site checked in headless Chromium (`nix run
 #            .#browser-check`), served without the isolation headers, which
@@ -55,9 +56,8 @@ jobs:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v27
       # Read only: agda-algebras' interfaces, which the site's archives are
-      # packed from, are fetched once main's archives job pushes them, which
-      # it does not until CACHIX_AUTH_TOKEN reaches it; until then they are
-      # built here.
+      # packed from, are fetched when main's archives job has pushed them
+      # (it has since 2026-10-13), and built here otherwise.
       - uses: cachix/cachix-action@v17
         with:
           name: formalverification
