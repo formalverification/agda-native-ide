@@ -1104,7 +1104,7 @@ The shape, measured 2026-10-04: 344 modules in 64 folders, at most four folders 
 
 ---
 
-### Issue M1-2: Open library modules read-only, and copy one into the playground (#10)
+### Issue M1-2: Open library modules read-only, and copy one into the playground (#10, closed)
 
 **Labels:** `milestone-1-library-ide`, `ui`
 
