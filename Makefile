@@ -179,6 +179,14 @@ vscode-unit: vscode-build ## Check version policy and serialized state
 vscode-test: vscode-check vscode-unit ## Run the real companion and Agda mode under Xvfb (nix develop .#vscode)
 	timeout 300s npm --workspace vscode test
 
+# agda-for-project, the launcher every host names in place of agda (issue
+# 97): shellcheck, then its tests against a stub nix, which need git, jq
+# and flock.  AGDA_FOR_PROJECT=<path> runs the tests against another copy
+# (the flake's package, in CI).
+agda-for-project-test: ## Check the agda-for-project launcher and run its tests against a stub nix
+	shellcheck scripts/agda-for-project/*.sh
+	node --test scripts/agda-for-project/test.mjs
+
 # ---------------------------------------------------------------------
 # The engine's conformance suite (issue 62): one suite, two runners, each
 # against a real Agda.  conformance-native runs it under node against the

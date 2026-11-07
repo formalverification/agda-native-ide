@@ -11,7 +11,9 @@
 // the launcher's stdout alone which Agda ran and how, and from the stub's
 // log how many builds and dev-shell entries there were.
 //
-// Usage: node --test scripts/agda-for-project/test.mjs  (make agda-for-project-test)
+// Usage: node --test scripts/agda-for-project/test.mjs  (make agda-for-project-test);
+// with AGDA_FOR_PROJECT=<path>, against that copy of the launcher (CI runs the
+// flake's package this way).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -24,7 +26,7 @@ import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const LAUNCHER = join(here, "agda-for-project.sh");
+const LAUNCHER = process.env.AGDA_FOR_PROJECT || join(here, "agda-for-project.sh");
 const STUB_NIX = join(here, "stub-nix.sh");
 const UNAVAILABLE = 69;
 const USAGE = 64;
@@ -107,7 +109,7 @@ function control_(dir, control) {
 }
 
 function run(sb, args, { cwd, input = "", env = {} } = {}) {
-  const done = spawnSync("bash", [LAUNCHER, ...args], {
+  const done = spawnSync(LAUNCHER, args, {
     cwd: cwd ?? sb.root, input, encoding: "utf8", env: { ...sb.env, ...env },
   });
   return { status: done.status, stdout: done.stdout, stderr: done.stderr };
@@ -115,7 +117,7 @@ function run(sb, args, { cwd, input = "", env = {} } = {}) {
 
 function runAsync(sb, args, { cwd } = {}) {
   return new Promise(resolve => {
-    const child = spawn("bash", [LAUNCHER, ...args], { cwd, env: sb.env });
+    const child = spawn(LAUNCHER, args, { cwd, env: sb.env });
     let stdout = "", stderr = "";
     child.stdout.on("data", d => { stdout += d; });
     child.stderr.on("data", d => { stderr += d; });

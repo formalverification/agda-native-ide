@@ -1,0 +1,54 @@
+# File: .github/workflows/agda-for-project.yml
+#
+# agda-for-project, the launcher that runs a file's project's own Agda
+# (issue 97).  The first job shellchecks it and runs its tests against a
+# stub nix, with the runner's bash, git, jq and flock; the second builds the
+# flake's package (which shellchecks the script again) and runs the same
+# tests against the packaged program.
+name: agda-for-project
+
+on:
+  pull_request:
+    paths:
+      - scripts/agda-for-project/**
+      - .github/workflows/agda-for-project.yml
+      - Makefile
+      - flake.nix
+      - flake.lock
+  push:
+    branches: [main]
+    paths:
+      - scripts/agda-for-project/**
+      - .github/workflows/agda-for-project.yml
+      - Makefile
+      - flake.nix
+      - flake.lock
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Shellcheck, and the tests against a stub nix
+        run: make agda-for-project-test
+
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: cachix/install-nix-action@v27
+      - name: Build the flake's package
+        run: nix build .#agda-for-project --print-build-logs
+      - name: The tests, against the packaged program
+        run: AGDA_FOR_PROJECT="$PWD/result/bin/agda-for-project" node --test scripts/agda-for-project/test.mjs
