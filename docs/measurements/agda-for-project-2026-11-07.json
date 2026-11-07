@@ -1,10 +1,10 @@
 {
   "date": "2026-11-07",
-  "revision": "88bad33",
+  "revision": "b407e9b",
   "launcher": {
     "file": "scripts/agda-for-project/agda-for-project.sh",
-    "blob": "2d05c54564804f49cdf184feea33cd22373dd5d1",
-    "ranAs": "nix build .#agda-for-project at 88bad33's tree, result/bin/agda-for-project"
+    "blob": "see revision",
+    "ranAs": "nix build .#agda-for-project; the explain and checks runs at 88bad33's tree, before the trust gate; the trust runs at b407e9b's"
   },
   "machine": {
     "cpu": "12th Gen Intel Core i9-12900H, 20 threads",
@@ -374,9 +374,34 @@
   },
   "tests": {
     "command": "make agda-for-project-test, and AGDA_FOR_PROJECT=result/bin/agda-for-project node --test scripts/agda-for-project/test.mjs",
-    "cases": 17,
-    "passed": 17,
+    "cases": 18,
+    "passed": 18,
     "seconds": 6.4,
-    "mutationProbes": "seven deliberate breaks of the launcher, each caught by at least one case: nix build's stdout not sent to stderr; AGDA_DIR recorded when the shell left it alone; sibling libraries not followed transitively; the first environment preferred to default; any dev-shell agda accepted; the inherited agda not compared; choices keyed by worktree instead of repository"
+    "mutationProbes": "nine deliberate breaks of the launcher, each caught by at least one case: nix build's stdout not sent to stderr; AGDA_DIR recorded when the shell left it alone; sibling libraries not followed transitively; the first environment preferred to default; any dev-shell agda accepted; the inherited agda not compared; choices keyed by worktree instead of repository; the dev shell entered without trust; trust by string prefix"
+  },
+  "trust": {
+    "what": "agda-lattices after the dev-shell trust gate (b407e9b), with a fresh cache, state and configuration (nix's own configuration copied in)",
+    "untrusted": {
+      "exit": 69,
+      "decided": false,
+      "error": "~/git/ualib/agda-lattices/main exports no Agda environment; its dev shell may give one, but entering it runs the project's shell hook as you: allow it with --choose devshell:default, or list a directory at or above it in $XDG_CONFIG_HOME/agda-for-project/trusted"
+    },
+    "trusted": {
+      "trustFile": "# my own checkouts\n~/git/ualib\n",
+      "exit": 0,
+      "decidedBy": "discovered",
+      "method": "devshell",
+      "name": "default",
+      "version": "2.9.0",
+      "firstSeconds": 2.4,
+      "check": {
+        "cwd": "~/git/ualib/agda-lattices/main/src",
+        "file": "Lattices/Bounded/Covers.lagda.md",
+        "exit": 0,
+        "seconds": 5.82,
+        "checkingLines": 13
+      }
+    },
+    "note": "The explain runs above for agda-lattices predate the gate; with it, that project needs the trust line or a choice."
   }
 }

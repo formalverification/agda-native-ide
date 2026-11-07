@@ -55,7 +55,7 @@ flowchart TD
   attr{"an attribute named<br/>by the host?"}
   choice{"a choice remembered<br/>for this project?"}
   env{"one Agda environment<br/>among the flake's packages?"}
-  shell{"a dev shell that puts<br/>its own agda on PATH?"}
+  shell{"a trusted dev shell that<br/>puts its own agda on PATH?"}
   none["nothing decided: exit 69,<br/>and --candidates lists the options"]
   build["build it once per key<br/>(the tracked files Nix reads)"]
   libs["add the checkout's sibling<br/>libraries, if the project needs them"]
@@ -91,11 +91,12 @@ flowchart TD
    with `agda` in the name and one environment among them.  With several
    environments, `default` decides if it is one.
 +  **The flake's default dev shell**, when entering it puts an `agda` of its
-   own on PATH, in the Nix store or in the checkout.  agda-algebras'
-   downstream projects work this way: their shell writes
-   `.agda/bin/agda`, a wrapper with the project's libraries.  The program
-   enters the shell once, notes the `agda` and the `AGDA_DIR` it set, and
-   runs that `agda` directly afterward.
+   own on PATH, in the Nix store or in the checkout, and you trust the
+   flake (see "Trusting dev shells" below).  agda-algebras' downstream
+   projects work this way: their shell writes `.agda/bin/agda`, a wrapper
+   with the project's libraries.  The program enters the shell once, notes
+   the `agda` and the `AGDA_DIR` it set, and runs that `agda` directly
+   afterward.
 +  **Otherwise nothing is decided**, and the program says so and exits 69
    without running any Agda.  It never runs some other Agda instead.
 
@@ -105,6 +106,24 @@ shell runs the project's hook and builds every tool its developers use.
 For a project whose dev shell gives more (agda-algebras' wrapper makes the
 standard library and agda-algebras visible to a scratch file outside every
 library), choose the dev shell.
+
+## Trusting dev shells
+
+Entering a dev shell runs the project's shell hook as you, outside any
+sandbox.  If opening a file were enough to enter it, opening a file of a
+repository you have just cloned would run that repository's code, which is
+why direnv asks for `direnv allow`.  So the program enters a dev shell on
+its own only for a flake at or below a directory you list in
+`~/.config/agda-for-project/trusted`, one per line:
+
+    # my own checkouts
+    ~/git
+
+Otherwise it stops and says how to allow it, either by that file or by a
+choice for the one project (`--choose devshell:default`, below).  Building
+a project's Agda environment needs no such step: Nix evaluates the flake
+without running it, and builds as its own build users, in its sandbox, as
+a `nix build` by hand would.
 
 ## Building once, and only when it matters
 
@@ -195,7 +214,8 @@ following:
         packages.${system}.default = pkgs.agda.withPackages (p: [ p.standard-library ]);
 
 +  **A default dev shell** that puts its own `agda` on PATH, as a wrapper
-   in the checkout or as a store path.
+   in the checkout or as a store path; each user then trusts it once, by
+   the trust file or a choice.
 
 ## Limits
 
