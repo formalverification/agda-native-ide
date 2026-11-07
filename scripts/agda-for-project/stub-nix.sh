@@ -20,7 +20,8 @@
 #   the stub Agda answers to --numeric-version), build-sleep, build-fails,
 #   no-agda, eval-fails, develop-fails, devshell-agda (`checkout`, the
 #   default, writes FLAKE/.agda/bin/agda as agda-algebras' downstream shells
-#   do; `none` adds no agda), and keep-agda-dir (the shell leaves AGDA_DIR
+#   do; `none` adds no agda; `elsewhere` adds one outside both the store
+#   and the checkout), and keep-agda-dir (the shell leaves AGDA_DIR
 #   as it found it).
 #
 #   Every call is logged to STUB_NIX_LOG.  A build makes a directory in
@@ -94,12 +95,17 @@ case "$sub" in
     if [ -f "${ctl}/develop-fails" ]; then echo "error: stub nix cannot build the dev shell" >&2; exit 1; fi
     mkdir -p "${STUB_STORE}/dev-env"
     ln -sfn "${STUB_STORE}/dev-env" "$profile"
-    if [ "$(cat "${ctl}/devshell-agda" 2>/dev/null || echo checkout)" = checkout ]; then
-      mkdir -p "${flake}/.agda/bin"
-      make_agda "${flake}/.agda/bin/agda" "devshell of ${flake}"
-      export PATH="${flake}/.agda/bin:${PATH}"
-      [ -f "${ctl}/keep-agda-dir" ] || export AGDA_DIR="${flake}/.agda"
-    fi
+    case "$(cat "${ctl}/devshell-agda" 2>/dev/null || echo checkout)" in
+      checkout)
+        mkdir -p "${flake}/.agda/bin"
+        make_agda "${flake}/.agda/bin/agda" "devshell of ${flake}"
+        export PATH="${flake}/.agda/bin:${PATH}"
+        [ -f "${ctl}/keep-agda-dir" ] || export AGDA_DIR="${flake}/.agda" ;;
+      elsewhere)
+        mkdir -p "${STUB_STORE}/../elsewhere-bin"
+        make_agda "${STUB_STORE}/../elsewhere-bin/agda" "elsewhere"
+        export PATH="${STUB_STORE}/../elsewhere-bin:${PATH}" ;;
+    esac
     exec "$@" ;;
   *) echo "stub nix: unexpected ${sub} $*" >&2; exit 2 ;;
 esac

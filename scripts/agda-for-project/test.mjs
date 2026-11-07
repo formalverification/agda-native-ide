@@ -59,6 +59,7 @@ function sandbox(t) {
     AGDA_FOR_PROJECT_SYSTEM: "x86_64-linux",
     STUB_NIX_LOG: join(root, "nix.log"),
     STUB_STORE: join(root, "store"),
+    NIX_STORE_DIR: join(root, "store"),
     GIT_CONFIG_NOSYSTEM: "1",
     GIT_CONFIG_GLOBAL: "/dev/null",
     LANG: "C",
@@ -206,10 +207,10 @@ test("two first calls at once build once", async t => {
 
 test("several environments: default wins; without default nothing is decided", t => {
   const sb = sandbox(t);
-  const two = [{ name: "default", version: "2.9.0" }, { name: "other-agda", version: "2.8.0" }];
+  const two = [{ name: "other-agda", version: "2.8.0" }, { name: "default", version: "2.9.0" }];
   const dir = checkout(sb, "project", ENV_FILES, { "packages.json": two });
   assert.match(run(sb, ["x"], { cwd: dir }).stdout, /of default$/m);
-  const dir2 = checkout(sb, "project2", ENV_FILES, { "packages.json": [two[1], { name: "agda", version: "2.9.0" }] });
+  const dir2 = checkout(sb, "project2", ENV_FILES, { "packages.json": [two[0], { name: "agda", version: "2.9.0" }] });
   refused(run(sb, ["x"], { cwd: dir2 }), /exports 2 Agda environments \(other-agda, agda\) and no default/);
 });
 
@@ -241,12 +242,15 @@ test("a dev shell with no agda of its own is refused", t => {
   const sb = sandbox(t);
   const dir = checkout(sb, "project", ENV_FILES, { "devshells.json": ["default"], "devshell-agda": "none" });
   refused(run(sb, ["x"], { cwd: dir }), /puts no agda on PATH/);
-  const outer = join(sb.root, "outer-bin");
-  mkdirSync(outer);
+  // An agda in the store, on the caller's PATH: the shell only inherits it.
+  const outer = join(sb.root, "store", "outer", "bin");
+  mkdirSync(outer, { recursive: true });
   writeFileSync(join(outer, "agda"), "#!/bin/sh\necho outer agda\n");
   chmodSync(join(outer, "agda"), 0o755);
   refused(run(sb, ["x"], { cwd: dir, env: { PATH: `${outer}${delimiter}${sb.env.PATH}` } }),
-    /no agda of its own|neither in the store nor in the checkout/);
+    /adds no agda of its own \(it finds .*\/store\/outer\/bin\/agda, from the caller's PATH\)/);
+  const dir2 = checkout(sb, "project2", ENV_FILES, { "devshells.json": ["default"], "devshell-agda": "elsewhere" });
+  refused(run(sb, ["x"], { cwd: dir2 }), /elsewhere-bin\/agda, which is neither in the store nor in the checkout/);
 });
 
 test("a flake with neither an environment nor a dev shell decides nothing", t => {

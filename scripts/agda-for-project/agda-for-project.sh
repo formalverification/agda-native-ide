@@ -154,7 +154,8 @@
 # Environment:
 #   AGDA_FLAKE_ATTR, AGDA_FOR_PROJECT_DIR (above); XDG_CACHE_HOME and
 #   XDG_STATE_HOME; AGDA_FOR_PROJECT_SYSTEM, the Nix system to evaluate
-#   for, when `uname` would name the wrong one.
+#   for, when `uname` would name the wrong one; NIX_STORE_DIR, as Nix reads
+#   it (default /nix/store), for what counts as a dev shell's own agda.
 #
 # Usage:
 #   agda-for-project --version                      # build if needed, then Agda's
@@ -532,8 +533,11 @@ realize_devshell() {
         rm -rf "$tmp"
         fail "the dev shell ${flake_dir}#${name} puts no agda on PATH; see --candidates, then --choose"
       fi
+      # Its directory as it really is (no `..`, no symlinked directory), as
+      # top is, before asking where it lives.
+      captured="$(cd "$(dirname "$captured")" && pwd -P)/$(basename "$captured")"
       case "$captured" in
-        /nix/store/*|"${top:-$flake_dir}"/*) ;;
+        "${NIX_STORE_DIR:-/nix/store}"/*|"${top:-$flake_dir}"/*) ;;
         *) rm -rf "$tmp"
            fail "the dev shell ${flake_dir}#${name} gives ${captured}, which is neither in the store nor in the checkout; see --candidates, then --choose" ;;
       esac
