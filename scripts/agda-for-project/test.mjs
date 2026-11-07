@@ -57,6 +57,7 @@ function sandbox(t) {
     HOME: join(root, "home"),
     XDG_CACHE_HOME: join(root, "cache"),
     XDG_STATE_HOME: join(root, "state"),
+    XDG_CONFIG_HOME: join(root, "config"),
     AGDA_DIR: "/the/caller/agda-dir",
     AGDA_FOR_PROJECT_SYSTEM: "x86_64-linux",
     STUB_NIX_LOG: join(root, "nix.log"),
@@ -67,6 +68,12 @@ function sandbox(t) {
     LANG: "C",
   };
   return { root, bin, env, hostPath };
+}
+
+/** Trust every flake under the sandbox, as a user lists ~/git. */
+function trustAll(sb) {
+  mkdirSync(join(sb.env.XDG_CONFIG_HOME, "agda-for-project"), { recursive: true });
+  writeFileSync(join(sb.env.XDG_CONFIG_HOME, "agda-for-project", "trusted"), `# my checkouts\n  ${sb.root}  \n`);
 }
 
 function git(cwd, ...args) {
@@ -218,6 +225,7 @@ test("several environments: default wins; without default nothing is decided", t
 
 test("no environment: the dev shell's agda, with the AGDA_DIR it set, entered once per key", t => {
   const sb = sandbox(t);
+  trustAll(sb);
   const dir = checkout(sb, "project", ENV_FILES, { "devshells.json": ["default"] });
   const first = run(sb, ["--interaction-json"], { cwd: join(dir, "src") });
   assert.equal(first.status, 0, first.stderr);
@@ -233,6 +241,7 @@ test("no environment: the dev shell's agda, with the AGDA_DIR it set, entered on
 
 test("a dev shell that leaves AGDA_DIR alone passes none of its own", t => {
   const sb = sandbox(t);
+  trustAll(sb);
   const dir = checkout(sb, "project", ENV_FILES, { "devshells.json": ["default"], "keep-agda-dir": "" });
   const r = explain(sb, [], { cwd: dir });
   assert.equal(r.status, 0, r.stderr);
@@ -242,6 +251,7 @@ test("a dev shell that leaves AGDA_DIR alone passes none of its own", t => {
 
 test("a dev shell with no agda of its own is refused", t => {
   const sb = sandbox(t);
+  trustAll(sb);
   const dir = checkout(sb, "project", ENV_FILES, { "devshells.json": ["default"], "devshell-agda": "none" });
   refused(run(sb, ["x"], { cwd: dir }), /puts no agda on PATH/);
   // An agda in the store, on the caller's PATH: the shell only inherits it.
@@ -253,6 +263,25 @@ test("a dev shell with no agda of its own is refused", t => {
     /adds no agda of its own \(it finds .*\/store\/outer\/bin\/agda, from the caller's PATH\)/);
   const dir2 = checkout(sb, "project2", ENV_FILES, { "devshells.json": ["default"], "devshell-agda": "elsewhere" });
   refused(run(sb, ["x"], { cwd: dir2 }), /elsewhere-bin\/agda, which is neither in the store nor in the checkout/);
+});
+
+test("a dev shell is entered only by a choice, or under a trusted directory", t => {
+  const sb = sandbox(t);
+  const dir = checkout(sb, "project", ENV_FILES, { "devshells.json": ["default"] });
+  refused(run(sb, ["x"], { cwd: dir }), /entering it runs the project's shell hook as you: allow it with --choose devshell:default, or list a directory at or above it in .*\/config\/agda-for-project\/trusted$/);
+  assert.equal(count(sb, "develop"), 0);
+  mkdirSync(join(sb.env.XDG_CONFIG_HOME, "agda-for-project"), { recursive: true });
+  const trust = join(sb.env.XDG_CONFIG_HOME, "agda-for-project", "trusted");
+  mkdirSync(join(sb.root, "proj"));
+  writeFileSync(trust, `${join(sb.root, "proj")}\n${join(dir, "src")}\n`);
+  refused(run(sb, ["x"], { cwd: dir }), /shell hook as you/, "a sibling prefix and a subdirectory do not cover it");
+  assert.equal(run(sb, ["--choose", "devshell:default"], { cwd: dir }).status, 0);
+  assert.match(run(sb, ["x"], { cwd: dir }).stdout, /devshell of/, "a choice is consent");
+  assert.equal(run(sb, ["--forget"], { cwd: dir }).status, 0);
+  mkdirSync(sb.env.HOME, { recursive: true });
+  symlinkSync(sb.root, join(sb.env.HOME, "checkouts"));
+  writeFileSync(trust, "# a comment\n~/checkouts # and another\n");
+  assert.match(run(sb, ["x"], { cwd: dir }).stdout, /devshell of/, "~/ and a symlinked directory");
 });
 
 test("a flake with neither an environment nor a dev shell decides nothing", t => {
@@ -380,6 +409,7 @@ test("refusals: no lock, a failed build, an output without agda, an evaluation t
   refused(run(sb, ["x"], { cwd: checkout(sb, "noagda", ENV_FILES, { "packages.json": ONE_ENV, "no-agda": "" }) }),
     /which has no executable bin\/agda/);
   refused(run(sb, ["x"], { cwd: checkout(sb, "noeval", ENV_FILES, { "eval-fails": "" }) }), /Nix could not evaluate/);
+  trustAll(sb);
   refused(run(sb, ["x"], { cwd: checkout(sb, "nodev", ENV_FILES, { "devshells.json": ["default"], "develop-fails": "" }) }),
     /nix develop .* failed/);
   const dir = checkout(sb, "nonix", ENV_FILES, { "packages.json": ONE_ENV });

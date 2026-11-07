@@ -57,7 +57,8 @@
 #   4.  The flake's dev shell `default`, when it puts an `agda` on PATH
 #       that is its own (in the store, or in the checkout, as the shells of
 #       agda-algebras' downstream projects write `.agda/bin/agda`), and not
-#       one inherited from the caller's PATH.
+#       one inherited from the caller's PATH; and only when the flake is
+#       trusted (below).
 #   5.  Otherwise nothing is decided: exit 69 with one line saying so, and
 #       --candidates lists what a chooser can offer.
 #   Why the environment comes before the dev shell (measured 2026-11-07 on
@@ -69,6 +70,19 @@
 #   whose dev shell does more (agda-algebras' passes `--library` flags, so a
 #   scratch file outside every library still sees them) can be given its
 #   dev shell with `--choose devshell:default`.
+#
+# Trust:
+#   Entering a dev shell runs the project's shell hook as the user, outside
+#   any sandbox, so opening a file of a repository just cloned would run its
+#   code; direnv asks for `direnv allow` for the same reason.  Discovery
+#   therefore enters a dev shell only for a flake at or below a directory
+#   listed in ${XDG_CONFIG_HOME:-$HOME/.config}/agda-for-project/trusted
+#   (one directory per line, `~/` for the home directory, `#` for a
+#   comment), and otherwise stops and says how to allow it; a choice of
+#   `devshell:NAME` is consent for that project.  Evaluating and building a
+#   package needs no such consent: the evaluation is pure, and builds run as
+#   Nix's build users, in its sandbox where the platform has one, exactly as
+#   a `nix build` by hand would.
 #
 # The project's own libraries:
 #   An environment cannot hold the project's own library (Agda would then
@@ -152,8 +166,8 @@
 #   cleared for nix only; Agda gets the environment it was called with.
 #
 # Environment:
-#   AGDA_FLAKE_ATTR, AGDA_FOR_PROJECT_DIR (above); XDG_CACHE_HOME and
-#   XDG_STATE_HOME; AGDA_FOR_PROJECT_SYSTEM, the Nix system to evaluate
+#   AGDA_FLAKE_ATTR, AGDA_FOR_PROJECT_DIR (above); XDG_CACHE_HOME,
+#   XDG_STATE_HOME and XDG_CONFIG_HOME; AGDA_FOR_PROJECT_SYSTEM, the Nix system to evaluate
 #   for, when `uname` would name the wrong one; NIX_STORE_DIR, as Nix reads
 #   it (default /nix/store), for what counts as a dev shell's own agda.
 #
@@ -271,6 +285,23 @@ fi
 
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/agda-for-project"
 state="${XDG_STATE_HOME:-$HOME/.local/state}/agda-for-project"
+trust_file="${XDG_CONFIG_HOME:-$HOME/.config}/agda-for-project/trusted"
+
+# trusted DIR: whether DIR is at or below a directory the trust file lists.
+trusted() {
+  local line want
+  [ -f "$trust_file" ] || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
+    [ -n "$line" ] || continue
+    # shellcheck disable=SC2088  # a literal ~ in the file, expanded here
+    case "$line" in "~") line="$HOME" ;; "~/"*) line="${HOME}/${line#\~/}" ;; esac
+    want="$(cd "$line" 2>/dev/null && pwd -P)" || continue
+    case "$1/" in "${want%/}/"*) return 0 ;; esac
+  done < "$trust_file"
+  return 1
+}
 
 # ---- The key (agda-for-flake.sh's, unchanged) ------------------------------
 NOT_AGDA=(':(exclude)*.agda' ':(exclude)*.lagda' ':(exclude)*.lagda.*')
@@ -420,7 +451,8 @@ decide() {
     fail "${flake_dir} exports ${n} Agda environments ($(jq -r '[.envs[].name] | join(", ")' <<<"$discovered")) and no default among them; choose one with --choose package:NAME"
   fi
   if jq -e '.devshells | index("default")' <<<"$discovered" >/dev/null; then
-    method=devshell name=default; return 0
+    if trusted "$flake_dir"; then method=devshell name=default; return 0; fi
+    fail "${flake_dir} exports no Agda environment; its dev shell may give one, but entering it runs the project's shell hook as you: allow it with --choose devshell:default, or list a directory at or above it in ${trust_file}"
   fi
   fail "${flake_dir} exports no Agda environment and no default dev shell; see --candidates, then --choose"
 }
@@ -731,7 +763,7 @@ candidates() {
       jq -c --arg flake "$flake_dir" '.envs[] | {id: ("package:" + .name), kind: "package", version: .version,
         label: (.name + " (Agda " + (.version // "?") + "), an Agda environment of " + $flake)}' <<<"$discovered"
       jq -c --arg flake "$flake_dir" '.devshells[] | {id: ("devshell:" + .), kind: "devshell", version: null,
-        label: ("the agda of the dev shell " + . + " of " + $flake)}' <<<"$discovered"
+        label: ("the agda of the dev shell " + . + " of " + $flake + " (entering it runs the project'"'"'s shell hook)")}' <<<"$discovered"
     fi
     for d in "${cache}"/package/*/; do
       [ -d "$d" ] || continue
