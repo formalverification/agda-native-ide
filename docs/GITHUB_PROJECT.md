@@ -57,6 +57,12 @@ model's claims are never the verdict and Agda's are), the two views (a
 development as a graph of definitions, and a proof as a derivation,
 generated from the checked source), and the plugin manifest.
 
+Beside the core, one resolver that every native host calls decides which
+Agda, with which libraries, checks a given file: the one the file's
+project pins in its flake, built once per change of its lock (Milestone 9,
+added 2026-11-07).  So a window or a session that holds several projects
+on different Agdas checks a file of any of them with no setting touched.
+
 The plan follows the proposal carried from agda-native-air as
 [`docs/notes/browser-ide-proposal.md`][proposal], with two changes.  The
 first deliverable is the library IDE that the agda-algebras site needs (its
@@ -112,6 +118,7 @@ others are topic labels.
 - `milestone-6-proof-view` (bfd4f2): Milestone 6, the proof view.
 - `milestone-7-vscode` (1f5fb4): Milestone 7, the VS Code companion.
 - `milestone-8-emacs` (7a3da6): Milestone 8, Emacs.
+- `milestone-9-project-agda` (8a4baf): Milestone 9, each project's own Agda.
 - `runtime` (0052cc): The compiler, its workers, WASI, and the virtual filesystem.
 - `ui` (1d76db): The editor, the Explorer, the info pane, and the layout.
 - `libraries` (5319e7): Library archives, closure indices, and interfaces.
@@ -362,6 +369,37 @@ experiment's result is recorded, whichever way it comes out.
 
 ---
 
+### Milestone 9 — Each project's own Agda
+
+**Description**:
+
+Open any Agda project, in VS Code or in Emacs, and check any of its files
+without first making sure that the right Agda is the one that runs.  Every
+host starts one Agda for every file, so a file of a project pinned to
+another Agda, or to other libraries, fails with errors that read as broken
+code: a library not found, or a name not in scope inside a dependency when
+a hand-built pin lags the checkout's lock (both met on 2026-11-07).  A
+project worth checking usually pins its Agda and its libraries in a flake,
+so the answer is already written down.  One resolver, shared by every
+native host, finds a file's project and its flake, builds the Agda
+environment that flake names once per change of what decides it, and runs
+it; when nothing decides, both editors offer the candidates and remember
+the choice.  Added 2026-11-07, ahead of the views, because William checks
+projects on two Agdas every day, and because the same question decides
+which Agda `agda-mcp` runs for an agent.
+
+**Exit criterion**:
+
+In one VS Code window and in one Emacs session, each holding
+formal-ledger-specifications (Agda 2.8.0), agda-algebras (Agda 2.9.0) and a
+downstream project on its dev shell's wrapper (agda-lattices), loading any
+file of any of them checks it under that project's own Agda and libraries
+with no setting touched; a fresh worktree on a moved lock gets its own; a
+project the resolver cannot decide offers the candidates and remembers the
+choice; and the website's page shows it.
+
+---
+
 ### Milestone dependencies
 
 Hand-authored; `make update` never touches it.
@@ -375,6 +413,9 @@ graph TD
   M4["M4: Models in the loop"]
   M5["M5: The theory view"]
   M6["M6: The proof view"]
+  M7["M7: The VS Code companion"]
+  M8["M8: Emacs"]
+  M9["M9: Each project's own Agda"]
   M0 --> M1
   M1 --> M2
   M1 --> M3
@@ -387,6 +428,7 @@ graph TD
   M5 --> M7
   M6 --> M7
   M2 --> M8
+  M0 --> M9
 ```
 
 M5 needs only a corpus plugin from M2, and its drawing needs no Agda; it can
@@ -395,7 +437,10 @@ agda-native-air (its issue [M6-1] is cross-repo).  M7 needs M3's shared
 package and takes each view as it lands; its first issues (the companion's
 skeleton, the native engine, the agents' registrations) need neither view.
 M8 needs only the corpus plugin and `agda-mcp`, which exists, so it can
-start whenever someone is free.
+start whenever someone is free.  M9 needs only the companion's first two
+issues ([M7-1] and [M7-2], both closed) and agda2-mode, so it starts now:
+its resolver ([M9-1]) first, then the two editors ([M9-2], [M9-3]) on the
+resolver's interface, which [M9-1] states before it is built.
 
 ---
 
@@ -1080,6 +1125,31 @@ Work on this repository is no longer done by one harness.  Codex CLI with GPT-6.
 [#65]: https://github.com/formalverification/agda-native-ide/issues/65
 [agda-native-air#247]: https://github.com/formalverification/agda-native-air/issues/247
 [claude-tooling#27]: https://github.com/williamdemeo/claude-tooling/issues/27
+
+---
+
+### Issue M0-17: The project's website: mkdocs-material on GitHub Pages, with the playground at /play/ (#96)
+
+**Labels:** `documentation`, `milestone-0-foundations`, `hosting`, `build`
+
+A website for agda-native-ide at <https://formalverification.github.io/agda-native-ide/>, William's choice of 2026-11-07, which settles [M0-6]'s host: mkdocs-material, as agda-native-air's site is, built by the flake and deployed from `main` by a Pages workflow, with the playground built into `/play/` of the same deploy.
+
++  **The pages**.  A home page that says what the workbench is and shows it (the browser IDE, the VS Code companion, Emacs); a page per platform, with how to install it and what works today; a page on each project's own Agda ([M9-1], [M9-2], [M9-3]): the problem (several projects on different Agdas and libraries, and the errors one Agda for all of them gives), the resolver, and the demonstration in both editors, with its recordings; and the ADRs and notes as they are, under a Design section.
++  **The playground at `/play/`**: the build of `nix build .#site` under that path, meeting [M0-6]'s standing criteria (every fetch through the base path; the compiler and the archives versioned by content hash, so that GitHub Pages' fixed `max-age=600` costs a revalidation and never a stale file) with its notice ([M0-9]).
++  **The gates**.  The site builds in CI on every pull request, with strict link checking; it renders in headless Chromium, light and dark, at phone width with no sideways scroll; and every figure a page states cites an archived run.
+
+Enabling Pages on the repository (source: GitHub Actions) is William's action.
+
+#### Acceptance criteria
+
++  A commit on `main` deploys the site, and <https://formalverification.github.io/agda-native-ide/> serves it, with the playground checking `Main.agda` at `/play/`.
++  The page on each project's own Agda shows both editors checking files of projects on different Agdas, from the runs that [M9-2] and [M9-3] archive.
+
+[M0-6]: https://github.com/formalverification/agda-native-ide/issues/6
+[M0-9]: https://github.com/formalverification/agda-native-ide/issues/48
+[M9-1]: https://github.com/formalverification/agda-native-ide/issues/97
+[M9-2]: https://github.com/formalverification/agda-native-ide/issues/98
+[M9-3]: https://github.com/formalverification/agda-native-ide/issues/99
 
 <!-- END GENERATED: milestone-0 -->
 
@@ -2122,6 +2192,80 @@ Emacs displays an SVG as one image with clickable hot-spots (the image `:map` pr
 +  The experiment's result is recorded with its measurements, and the decision to keep or drop it is written down.
 
 <!-- END GENERATED: milestone-8 -->
+
+## Milestone 9 — Each project's own Agda
+
+<!-- BEGIN GENERATED: milestone-9 -->
+
+### Issue M9-1: The resolver: a file's project, its flake, and the Agda and libraries that flake names (#97)
+
+**Labels:** `runtime`, `build`, `adr`, `core`, `milestone-9-project-agda`
+
+Every host starts Agda its own way (agda2-mode runs `agda2-program-name`, agda-mode-vscode the last of `agdaMode.connection.paths`, the companion's lanes and `agda-mcp` what their settings name), and each runs one Agda for every file.  A file of a project pinned to another Agda, or to other libraries, then fails in ways that read as broken code: `Library 'standard-library-classes' not found` when a formal-ledger-specifications file meets agda-algebras' Agda 2.9.0, and `NotInScope` inside a dependency when a hand-built pin lags the checkout's lock (both met on 2026-11-07, in an Emacs configuration that picked its Agda from a hand-kept table).  Build one resolver that every host calls, so that "which Agda, with which libraries, for this file" is decided once, as follows:
+
++  **The launcher**, `agda-for-project`, a program a host names in place of `agda`.  It finds the project from its working directory (the nearest `.agda-lib` at or above it, then the nearest `flake.nix` at or above that, stopping at the repository's boundary), decides the project's Agda (below), builds it once per change of what decides it, and execs it with every argument unchanged.  It starts from agda-native-air's `scripts/agda-for-flake.sh` ([agda-native-air#344]), which already keys a build by the checkout's tracked files other than Agda sources, keeps a gc root per key, lets a second first call wait for the first, keeps Nix's output off Agda's standard output, and exits 69 rather than run another Agda; the copy names that file and its commit in its header.
++  **The discovery order**, first match wins: a choice remembered for this project (below); the flake's one Agda environment (an `agda.withPackages` output named `default`, `agda`, or with `agda` in its name, recognized by evaluation and not by its name alone, since formal-ledger-specifications' `packages` holds a whole package set beside `fls-agdaWithPackages`); the flake's dev shell, when it puts an `agda` on PATH (the convention of agda-algebras' downstream projects, whose shell writes `.agda/bin/agda` over `agda-algebras.packages.default`); and otherwise no answer, with the candidates.  Measure each step's first and warm cost on formal-ledger-specifications, agda-algebras and agda-lattices, and settle the order by the measurements, saying why.
++  **The project's own libraries**.  An environment cannot hold the project's own library, and a project may depend on a sibling library in the same checkout (formal-ledger-test on formal-ledger).  So when the project's `.agda-lib` depends on a library the environment does not register, the launcher writes a libraries file of the environment's entries and the checkout's `.agda-lib` files that provide the missing names, and passes it as a later `--library-file`, which overrides the wrapper's.
++  **Answers without running Agda**.  `agda-for-project --explain [--json] [FILE]` prints the project's root, its flake, how its Agda was decided, the program with its arguments and environment, its version, and the libraries it registers, building first if needed.  `--candidates --json [FILE]` lists what a chooser offers: each Agda environment of the flake, the dev shell, the Agdas already built on this machine, and `agda` on PATH, each with its version.  `--choose ID [FILE]` remembers a choice for the project, keyed by its repository and its directory within it, so that every worktree shares it, in the user's state directory and never in the checkout.  Both editors' choosers ([M9-2], [M9-3]) are drawn from these.
++  **Packaging**: a flake output, so that `nix run github:formalverification/agda-native-ide#agda-for-project` works, with its runtime dependencies (git, coreutils, flock, jq) declared, and a host needs nothing else but Nix.
++  **ADR 0004** records the decisions, with the measurements, and a companion note, `docs/notes/project-agda.md`, explains the resolver; the website's page ([M0-17]) is drawn from the note.
+
+The interface above (the launcher's name, its exit status 69, and the three options with their JSON) is what [M9-2] and [M9-3] build on while this issue is in progress; a change to it is announced on both.
+
+#### Acceptance criteria
+
++  Its tests run the real script against fixture checkouts with a stub `nix`, as agda-native-air's 23 tests of its launcher do, and cover each discovery step, the key, the libraries file, every refusal (one line on stderr, exit 69, no Agda run), and `--explain`, `--candidates` and `--choose`; they run in CI.
++  `agda-for-project --explain` answers for a file of formal-ledger-specifications (its Agda 2.8.0 and its five libraries), of agda-algebras (Agda 2.9.0), and of agda-lattices (its dev shell's wrapper), and a worktree on another lock gets its own build; the run is archived with its date and machine.
++  ADR 0004 and its note are written.
+
+[agda-native-air#344]: https://github.com/formalverification/agda-native-air/pull/344
+[M0-17]: https://github.com/formalverification/agda-native-ide/issues/96
+[M9-2]: https://github.com/formalverification/agda-native-ide/issues/98
+[M9-3]: https://github.com/formalverification/agda-native-ide/issues/99
+
+---
+
+### Issue M9-2: Emacs: each buffer's project's Agda, through the resolver (#98)
+
+**Labels:** `emacs`, `milestone-9-project-agda`
+
+agda2-mode runs one Agda for every buffer, the one `agda2-program-name` names, and checks its version against the mode's own.  A small package, `agda-for-project.el` in `emacs/`, makes it run each buffer's project's Agda.  Around `agda2-restart` it binds `agda2-program-name` to the resolver ([M9-1]), runs the start in the buffer's directory and environment, and tells agda-mode the version the resolved Agda reports, so that Agda 2.8.0 and 2.9.0 both start under one mode; around `agda2-load` it restarts Agda when the buffer's project differs from the running process's.  The design was tested on 2026-11-07 against William's Doom configuration (five loads in one session, across formal-ledger-specifications worktrees on two locks and agda-algebras, all `*All Done*`), with a hand-kept table of projects where the resolver will be; this issue puts the resolver in the table's place and makes the result a package anyone can install.
+
++  **When nothing decides**: on the resolver's exit 69 with no decision, offer its `--candidates` through `completing-read`, remember the pick with `--choose`, and start.  When a build is needed, say so in the echo area before agda-mode's start waits on it.
++  **Commands**: one shows the current buffer's resolution (`--explain`), and one forgets the project's choice.
++  **The mode's limits, stated**: agda-mode keeps one process, so a switch of project restarts it and the other buffer needs a load again; and the agda2-mode of Agda 2.9.0 sends `Cmd_constraints` with a normalization argument that Agda 2.8.0 rejects, so `C-c C-=` fails on a 2.8.0 project (checked 2026-11-07).
++  **Installation** for plain Emacs (`use-package` with `:load-path` or `:vc`) and for Doom (`package!`), in a section of `docs/notes/emacs.md`.
+
+#### Acceptance criteria
+
++  In `emacs --batch`, with the batch-Emacs harness and a control that reproduces the failure first, one session loads files of formal-ledger-specifications (Agda 2.8.0), agda-algebras (Agda 2.9.0) and agda-lattices in turn, and each ends `*All Done*` under its own Agda and libraries, read from the running process.
++  A project the resolver cannot decide offers the candidates and starts the one picked, and the pick is remembered.
+
+[M9-1]: https://github.com/formalverification/agda-native-ide/issues/97
+
+---
+
+### Issue M9-3: VS Code: each project's Agda, for agda-mode-vscode and the companion's lanes (#99)
+
+**Labels:** `vscode`, `milestone-9-project-agda`
+
+In VS Code two programs start Agda: agda-mode-vscode, which runs the last entry of `agdaMode.connection.paths` (or a server it downloads) for every file in the window, and the companion's native lanes ([M7-2]), which resolve an Agda from the settings and refuse any that does not answer `agdaWorkbench.agda.version` (2.9.0).  Make both run each project's own Agda through the resolver ([M9-1]), with no setting touched, as follows:
+
++  **The mode**.  First find out, and record, what decides the mode's Agda: the working directory and environment it spawns in, whether it reads `agdaMode.connection.paths` per workspace folder (the setting is `machine-overridable`), what its `--version` probe needs from a wrapper, how long it waits for a start (a first build may take minutes), and what `agda-mode.restart` and `agda-mode.switch-agda-version` do.  Then choose the least fragile way to point the mode at the resolver for the active file's project (a folder-level setting the companion writes, a restart when the active project changes, or the environment the mode's spawn inherits), build before the mode starts, with a progress notification, and restart the mode when the active editor moves to another project.
++  **The lanes** resolve through the resolver: the expected version comes from the project, and `agdaWorkbench.agda.path` and `agdaWorkbench.agda.version` become overrides.  The engine speaks Agda 2.9.0's protocol; a project on another version either works, tested, or is refused with the reason.
++  **When nothing decides**: a quick pick of the resolver's candidates, remembered with `--choose`; beside them, the mode's own `agda-mode.switch-agda-version`, which downloads language servers; and, for a project with no flake, a starter `flake.nix` that pins an Agda and the libraries its `.agda-lib` depends on, written only on consent.
++  **Status**: a status-bar item names the active project's Agda and how it was decided, and opens the resolution when clicked.
+
+#### Acceptance criteria
+
++  In the extension-host tests, a multi-root workspace of a fixture project on Agda 2.9.0 and a fixture on another Agda loads a file of each through the mode, in either order, each under its own Agda, and the companion's lanes answer on both or refuse with the reason.
++  On a desktop VS Code with agda-algebras and formal-ledger-specifications open in one window, `C-c C-l` checks a file of each with no setting changed, recorded for the website ([M0-17]).
+
+[M0-17]: https://github.com/formalverification/agda-native-ide/issues/96
+[M7-2]: https://github.com/formalverification/agda-native-ide/issues/64
+[M9-1]: https://github.com/formalverification/agda-native-ide/issues/97
+
+<!-- END GENERATED: milestone-9 -->
 
 ## Unplanned work
 
