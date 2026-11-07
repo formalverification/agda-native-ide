@@ -1,0 +1,382 @@
+{
+  "date": "2026-11-07",
+  "revision": "88bad33",
+  "launcher": {
+    "file": "scripts/agda-for-project/agda-for-project.sh",
+    "blob": "2d05c54564804f49cdf184feea33cd22373dd5d1",
+    "ranAs": "nix build .#agda-for-project at 88bad33's tree, result/bin/agda-for-project"
+  },
+  "machine": {
+    "cpu": "12th Gen Intel Core i9-12900H, 20 threads",
+    "memory": "62 GiB",
+    "os": "Linux 7.0.0-42-generic x86_64",
+    "nix": "2.34.8"
+  },
+  "scope": "Issue 97's acceptance runs on a developer machine: agda-for-project --explain --json on a file of each of formal-ledger-specifications (master, its formal-ledger-test library, and a worktree on an older lock), agda-algebras and agda-lattices, with a fresh cache (first) and again (warm); type-checks through the launcher against two controls that reproduce the errors Milestone 9 exists to end; the launcher's own cost per start; and the discovery probes of the same day the order of discovery rests on.  Every Nix store path the runs name was already in the store, so a first call links a root and evaluates, and builds nothing; a machine without them would add the builds.  Each timing is a single observation, not a benchmark.",
+  "projects": {
+    "formal-ledger-specifications": {
+      "checkout": "~/git/IO/fls/master",
+      "lock": "git hash-object flake.lock = 5adad49e38b7ced8f50bd0577a16bb1333945dd9",
+      "olderLockWorktree": "~/git/IO/fls/worktrees/1233-conway-votedelegs-range-is-contained-in-vdelegs (flake.lock a573067957add5eb615405cdfe3f83528560f001, shared by 31 worktrees)"
+    },
+    "agda-algebras": {
+      "checkout": "~/git/ualib/agda-algebras/master"
+    },
+    "agda-lattices": {
+      "checkout": "~/git/ualib/agda-lattices/main (ualib/agda-lattices)"
+    }
+  },
+  "explain": [
+    {
+      "label": "fls master",
+      "pass": "first",
+      "file": "~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda",
+      "exit": 0,
+      "seconds": 2.24,
+      "decidedBy": "discovered",
+      "method": "package",
+      "name": "fls-agdaWithPackages",
+      "version": "2.8.0",
+      "built": "yes",
+      "program": "$XDG_CACHE_HOME/agda-for-project/package/fls-agdaWithPackages/fd3559bd5396ead0b364387e32012ce6/bin/agda",
+      "args": [],
+      "env": {},
+      "libraries": {
+        "environment": "/nix/store/6qscaqmlqlfl6708bf2f34fdga9015kz-libraries",
+        "file": null,
+        "local": [],
+        "missing": []
+      }
+    },
+    {
+      "label": "fls master, formal-ledger-test",
+      "pass": "first",
+      "file": "~/git/IO/fls/master/formal-ledger-test/src/Test/Examples/MultiSig/Datum.lagda.md",
+      "exit": 0,
+      "seconds": 0.23,
+      "decidedBy": "discovered",
+      "method": "package",
+      "name": "fls-agdaWithPackages",
+      "version": "2.8.0",
+      "built": "no",
+      "program": "$XDG_CACHE_HOME/agda-for-project/package/fls-agdaWithPackages/fd3559bd5396ead0b364387e32012ce6/bin/agda",
+      "args": [
+        "--library-file=$XDG_CACHE_HOME/agda-for-project/registries/11c5b4813e488e5079e2e23b7e758c0f.libraries"
+      ],
+      "env": {},
+      "libraries": {
+        "environment": "/nix/store/6qscaqmlqlfl6708bf2f34fdga9015kz-libraries",
+        "file": "$XDG_CACHE_HOME/agda-for-project/registries/11c5b4813e488e5079e2e23b7e758c0f.libraries",
+        "local": [
+          "~/git/IO/fls/master/formal-ledger.agda-lib"
+        ],
+        "missing": []
+      }
+    },
+    {
+      "label": "fls worktree on the older lock",
+      "pass": "first",
+      "file": "~/git/IO/fls/worktrees/1233-conway-votedelegs-range-is-contained-in-vdelegs/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda",
+      "exit": 0,
+      "seconds": 2.22,
+      "decidedBy": "discovered",
+      "method": "package",
+      "name": "fls-agdaWithPackages",
+      "version": "2.8.0",
+      "built": "yes",
+      "program": "$XDG_CACHE_HOME/agda-for-project/package/fls-agdaWithPackages/254b6649cc8b543b67da58f388949e8c/bin/agda",
+      "args": [],
+      "env": {},
+      "libraries": {
+        "environment": "/nix/store/xza7nddh5281vmdwfqrq3k2hjhgj20fz-libraries",
+        "file": null,
+        "local": [],
+        "missing": []
+      }
+    },
+    {
+      "label": "agda-algebras master",
+      "pass": "first",
+      "file": "~/git/ualib/agda-algebras/master/src/Overture/Basic.lagda.md",
+      "exit": 0,
+      "seconds": 4.21,
+      "decidedBy": "discovered",
+      "method": "package",
+      "name": "default",
+      "version": "2.9.0",
+      "built": "yes",
+      "program": "$XDG_CACHE_HOME/agda-for-project/package/default/a55879da0ade3153e6b92f3a4ace7d34/bin/agda",
+      "args": [],
+      "env": {},
+      "libraries": {
+        "environment": "/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries",
+        "file": null,
+        "local": [],
+        "missing": []
+      }
+    },
+    {
+      "label": "agda-lattices main",
+      "pass": "first",
+      "file": "~/git/ualib/agda-lattices/main/src/Lattices/Bounded/Covers.lagda.md",
+      "exit": 0,
+      "seconds": 2.7,
+      "decidedBy": "discovered",
+      "method": "devshell",
+      "name": "default",
+      "version": "2.9.0",
+      "built": "yes",
+      "program": "~/git/ualib/agda-lattices/main/.agda/bin/agda",
+      "args": [],
+      "env": {
+        "AGDA_DIR": "~/git/ualib/agda-lattices/main/.agda"
+      },
+      "libraries": {
+        "environment": null,
+        "file": null,
+        "local": [],
+        "missing": []
+      }
+    },
+    {
+      "label": "fls master",
+      "pass": "warm",
+      "file": "~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda",
+      "exit": 0,
+      "seconds": 0.16,
+      "decidedBy": "discovered",
+      "method": "package",
+      "name": "fls-agdaWithPackages",
+      "version": "2.8.0",
+      "built": "no",
+      "program": "$XDG_CACHE_HOME/agda-for-project/package/fls-agdaWithPackages/fd3559bd5396ead0b364387e32012ce6/bin/agda",
+      "args": [],
+      "env": {},
+      "libraries": {
+        "environment": "/nix/store/6qscaqmlqlfl6708bf2f34fdga9015kz-libraries",
+        "file": null,
+        "local": [],
+        "missing": []
+      }
+    },
+    {
+      "label": "fls master, formal-ledger-test",
+      "pass": "warm",
+      "file": "~/git/IO/fls/master/formal-ledger-test/src/Test/Examples/MultiSig/Datum.lagda.md",
+      "exit": 0,
+      "seconds": 0.21,
+      "decidedBy": "discovered",
+      "method": "package",
+      "name": "fls-agdaWithPackages",
+      "version": "2.8.0",
+      "built": "no",
+      "program": "$XDG_CACHE_HOME/agda-for-project/package/fls-agdaWithPackages/fd3559bd5396ead0b364387e32012ce6/bin/agda",
+      "args": [
+        "--library-file=$XDG_CACHE_HOME/agda-for-project/registries/11c5b4813e488e5079e2e23b7e758c0f.libraries"
+      ],
+      "env": {},
+      "libraries": {
+        "environment": "/nix/store/6qscaqmlqlfl6708bf2f34fdga9015kz-libraries",
+        "file": "$XDG_CACHE_HOME/agda-for-project/registries/11c5b4813e488e5079e2e23b7e758c0f.libraries",
+        "local": [
+          "~/git/IO/fls/master/formal-ledger.agda-lib"
+        ],
+        "missing": []
+      }
+    },
+    {
+      "label": "fls worktree on the older lock",
+      "pass": "warm",
+      "file": "~/git/IO/fls/worktrees/1233-conway-votedelegs-range-is-contained-in-vdelegs/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda",
+      "exit": 0,
+      "seconds": 0.18,
+      "decidedBy": "discovered",
+      "method": "package",
+      "name": "fls-agdaWithPackages",
+      "version": "2.8.0",
+      "built": "no",
+      "program": "$XDG_CACHE_HOME/agda-for-project/package/fls-agdaWithPackages/254b6649cc8b543b67da58f388949e8c/bin/agda",
+      "args": [],
+      "env": {},
+      "libraries": {
+        "environment": "/nix/store/xza7nddh5281vmdwfqrq3k2hjhgj20fz-libraries",
+        "file": null,
+        "local": [],
+        "missing": []
+      }
+    },
+    {
+      "label": "agda-algebras master",
+      "pass": "warm",
+      "file": "~/git/ualib/agda-algebras/master/src/Overture/Basic.lagda.md",
+      "exit": 0,
+      "seconds": 0.11,
+      "decidedBy": "discovered",
+      "method": "package",
+      "name": "default",
+      "version": "2.9.0",
+      "built": "no",
+      "program": "$XDG_CACHE_HOME/agda-for-project/package/default/a55879da0ade3153e6b92f3a4ace7d34/bin/agda",
+      "args": [],
+      "env": {},
+      "libraries": {
+        "environment": "/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries",
+        "file": null,
+        "local": [],
+        "missing": []
+      }
+    },
+    {
+      "label": "agda-lattices main",
+      "pass": "warm",
+      "file": "~/git/ualib/agda-lattices/main/src/Lattices/Bounded/Covers.lagda.md",
+      "exit": 0,
+      "seconds": 0.1,
+      "decidedBy": "discovered",
+      "method": "devshell",
+      "name": "default",
+      "version": "2.9.0",
+      "built": "no",
+      "program": "~/git/ualib/agda-lattices/main/.agda/bin/agda",
+      "args": [],
+      "env": {
+        "AGDA_DIR": "~/git/ualib/agda-lattices/main/.agda"
+      },
+      "libraries": {
+        "environment": null,
+        "file": null,
+        "local": [],
+        "missing": []
+      }
+    }
+  ],
+  "environments": {
+    "fls master": {
+      "agda": "/nix/store/0vx59n9g1597p7gzmflmmya161hr695h-agdaWithPackages-2.8.0",
+      "libraries": "/nix/store/6qscaqmlqlfl6708bf2f34fdga9015kz-libraries"
+    },
+    "fls older-lock worktree": {
+      "agda": "/nix/store/ws6a1ika52v3b26mxqvlx43h2l08i8ah-agdaWithPackages-2.8.0",
+      "libraries": "/nix/store/xza7nddh5281vmdwfqrq3k2hjhgj20fz-libraries"
+    },
+    "formal-ledger-test's libraries file": "the environment's five entries, then ~/git/IO/fls/master/formal-ledger.agda-lib"
+  },
+  "checks": [
+    {
+      "label": "control A: agda-algebras' environment (Agda 2.9.0) on fls master",
+      "cwd": "~/git/IO/fls/master",
+      "file": "src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda",
+      "exit": 42,
+      "seconds": 0.01,
+      "checkingLines": 0,
+      "message": "[LibraryError] Library 'standard-library-classes' not found."
+    },
+    {
+      "label": "launcher, fls master",
+      "cwd": "~/git/IO/fls/master",
+      "file": "src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda",
+      "exit": 0,
+      "seconds": 8.18,
+      "checkingLines": 0
+    },
+    {
+      "label": "control B: fls master's environment on the older-lock worktree",
+      "cwd": "~/git/IO/fls/worktrees/1233-conway-votedelegs-range-is-contained-in-vdelegs",
+      "file": "src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda",
+      "exit": 42,
+      "seconds": 8.64,
+      "checkingLines": 1,
+      "message": "Multiple definitions of _≢ᵐ_."
+    },
+    {
+      "label": "launcher, the older-lock worktree",
+      "cwd": "~/git/IO/fls/worktrees/1233-conway-votedelegs-range-is-contained-in-vdelegs",
+      "file": "src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda",
+      "exit": 0,
+      "seconds": 8.81,
+      "checkingLines": 0
+    },
+    {
+      "label": "control C: fls master's environment alone, on a formal-ledger-test module",
+      "cwd": "~/git/IO/fls/master/formal-ledger-test",
+      "file": "src/Test/Examples/MultiSig/Datum.lagda.md",
+      "exit": 42,
+      "checkingLines": 0,
+      "message": "[LibraryError] Library 'formal-ledger' not found."
+    },
+    {
+      "label": "launcher, the same module (environment plus the sibling library)",
+      "cwd": "~/git/IO/fls/master/formal-ledger-test",
+      "file": "src/Test/Examples/MultiSig/Datum.lagda.md",
+      "exit": 0,
+      "seconds": 10.62,
+      "checkingLines": 0
+    },
+    {
+      "label": "launcher, agda-algebras",
+      "cwd": "~/git/ualib/agda-algebras/master/src",
+      "file": "Overture/Basic.lagda.md",
+      "exit": 0,
+      "seconds": 0.47
+    }
+  ],
+  "overhead": {
+    "what": "agda-for-project --numeric-version against the environment's agda --numeric-version, warm, in ~/git/IO/fls/master, median of five",
+    "launcherSeconds": 0.2,
+    "directSeconds": 0.0,
+    "note": "Paid once per Agda start (agda-mode starts one process per project switch); most of it is the key, git over the checkout's tracked files, and jq."
+  },
+  "discoveryProbes": {
+    "what": "The order of discovery: one nix eval of packages.x86_64-linux with the launcher's expression, and one nix develop that reports the shell's agda, per project, warm evaluation caches",
+    "packageEval": {
+      "formal-ledger-specifications": {
+        "seconds": 0.35,
+        "packages": 10,
+        "environments": [
+          "fls-agdaWithPackages (2.8.0)"
+        ],
+        "agdaNamed": [
+          "default",
+          "fls-agda",
+          "fls-agdaWithPackages",
+          "fls-shake-agdaWithPackages"
+        ]
+      },
+      "agda-algebras": {
+        "seconds": 1.04,
+        "environments": [
+          "default (2.9.0)"
+        ]
+      },
+      "agda-lattices": {
+        "seconds": 0.06,
+        "result": "no packages output"
+      }
+    },
+    "devShell": {
+      "formal-ledger-specifications": {
+        "seconds": 0.3,
+        "agda": "the environment's store path itself",
+        "stdoutBytes": 0,
+        "AGDA_DIR": "inherited from the caller, unchanged"
+      },
+      "agda-algebras": {
+        "seconds": 1.96,
+        "agda": ".agda/bin/agda in the checkout",
+        "stdoutBytes": 300
+      },
+      "agda-lattices": {
+        "seconds": 2.51,
+        "agda": ".agda/bin/agda in the checkout",
+        "stdoutBytes": 428
+      }
+    }
+  },
+  "tests": {
+    "command": "make agda-for-project-test, and AGDA_FOR_PROJECT=result/bin/agda-for-project node --test scripts/agda-for-project/test.mjs",
+    "cases": 17,
+    "passed": 17,
+    "seconds": 6.4,
+    "mutationProbes": "seven deliberate breaks of the launcher, each caught by at least one case: nix build's stdout not sent to stderr; AGDA_DIR recorded when the shell left it alone; sibling libraries not followed transitively; the first environment preferred to default; any dev-shell agda accepted; the inherited agda not compared; choices keyed by worktree instead of repository"
+  }
+}
