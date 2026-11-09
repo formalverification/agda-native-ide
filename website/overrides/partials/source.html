@@ -1,0 +1,21 @@
+{#-
+  File: website/overrides/partials/source.html
+
+  Material's header chip for the repository (its partials/source.html in
+  9.5.49), with one attribute removed: `data-md-component="source"`, which
+  makes Material's bundle fetch api.github.com/repos/<owner>/<repo> on every
+  page load, for a star and fork count.  A page of this site requests
+  nothing from another origin (the project's rule: nothing leaves the
+  reader's tab without consent), so the chip stays as a link and the count
+  goes.  agda-native-air's override at 8004dc73, with its paths.  Keep in
+  step with Material's partial on an upgrade: the classes are 9.5.49's.
+-#}
+<a href="{{ config.repo_url }}" title="{{ lang.t('source') }}" class="md-source">
+  <div class="md-source__icon md-icon">
+    {% set icon = config.theme.icon.repo or "fontawesome/brands/git-alt" %}
+    {% include ".icons/" ~ icon ~ ".svg" %}
+  </div>
+  <div class="md-source__repository">
+    {{ config.repo_name }}
+  </div>
+</a>

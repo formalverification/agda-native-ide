@@ -1,0 +1,203 @@
+# File: mkdocs.yml
+#
+# The agda-native-ide website (issue 96): MkDocs Material over a chosen
+# part of docs/, deployed to GitHub Pages with the playground under play/.
+# `nix build .#website` builds it (flake.nix pins mkdocs 1.6.1 and
+# mkdocs-material 9.5.49, as agda-native-air's site does), `nix build
+# .#pages` adds the playground, and .github/workflows/pages.yml checks
+# that tree and deploys it from main.  `make website-serve`, in `nix
+# develop .#website`, serves the pages alone while they are edited.
+#
+# The configuration follows agda-native-air's mkdocs.yml (at 8004dc73),
+# where each decision is written beside its key; where this one departs
+# from that one it says so.
+
+site_name: agda-native-ide
+site_description: >-
+  An Agda workbench for the browser, VS Code and Emacs, on Agda 2.9.0: the
+  type-checker in a browser tab with no server, a VS Code companion beside
+  agda-mode, and each project's own Agda in every editor.
+
+# The canonical address, read by the canonical <link>, the sitemap, and
+# Material's instant navigation, which intercepts only the links the
+# sitemap lists: the playground under play/ is not a MkDocs page, so a link
+# to it is a full page load, as a standalone app needs.  A custom domain
+# would change it here, with scripts/pages/check.mjs's --prefix and a
+# CNAME file in the tree; none is planned (issue 96).
+site_url: https://formalverification.github.io/agda-native-ide/
+
+# The repository chip stays, as a link; website/overrides/partials/source.html
+# drops the attribute that makes Material fetch api.github.com for a star
+# count on every page load, since a page of this site requests nothing
+# from another origin.  No edit buttons.
+repo_url: https://github.com/formalverification/agda-native-ide
+repo_name: formalverification/agda-native-ide
+edit_uri: ""
+
+# website/overrides/partials/copyright.html adds the link to the notice
+# after this line.
+copyright: >-
+  agda-native-ide, MIT License.
+
+# What is published.  docs/ is written for contributors as much as for
+# readers, so nothing in it is published unless it is named here: the first
+# pattern excludes everything, each `!` line re-includes one thing, and
+# `validation.omitted_files` makes a published page missing from the nav a
+# build failure.  Left out on purpose: the measurement records
+# (docs/measurements/*.json, linked on GitHub, not rendered), docs/agents.md
+# (for contributors' agents), anything git ignores (docs/kickoffs/), and the
+# plan, docs/GITHUB_PROJECT.md, which the nav links on GitHub: its issue
+# sections mirror the issues' bodies, which name a private repository, and
+# are rewritten by `make update`, so no edit here would hold; and its
+# grammar (the em-dash in its milestone headings, its `[M0-15]` labels) is
+# the plan engine's, written for GitHub's renderer.
+# A published page's links to what is left out are sent to GitHub by
+# scripts/python/site/links_hook.py.
+docs_dir: docs
+exclude_docs: |
+  *
+  !index.md
+  !browser.md
+  !vscode.md
+  !emacs.md
+  !each-projects-own-agda.md
+  !assets/
+  !assets/**
+  !adr/
+  !adr/0001-runtime.md
+  !adr/0002-where-the-workbench-lives.md
+  !adr/0003-the-shared-core.md
+  !notes/
+  !notes/runtime.md
+  !notes/library-archives.md
+  !notes/explorer.md
+  !notes/platform-brief-2026-10-05.md
+  !notes/browser-ide-proposal.md
+  !engine/
+  !engine/overview.md
+  !provenance.md
+
+# Not site/: that name is too near `nix build .#site`, the playground.
+site_dir: public
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+theme:
+  name: material
+  language: en
+  # partials/source.html, the repository chip without its API fetch, and
+  # partials/copyright.html, the footer with the notice's link.
+  custom_dir: website/overrides
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+    - toc.follow
+  # No Google Fonts: false removes Material's preconnect to
+  # fonts.gstatic.com and its stylesheet from fonts.googleapis.com.  Body
+  # text is the reader's system face; code is JuliaMono, the playground's
+  # own pinned font (docs/assets/site.css).
+  font: false
+  # The two schemes follow the reader's system preference until the toggle
+  # is used, which is remembered.  agda-native-air opens dark for everyone;
+  # this site follows the playground, whose Theme control defaults to
+  # System.  `custom` means the colors come from docs/assets/site.css, which
+  # takes them from the playground's static/theme.css.
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  favicon: assets/vendor/favicon.svg
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/code-braces
+
+extra_css:
+  - assets/site.css
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  # Anchors are Python-Markdown's: `## 10.  The library archives` is
+  # `#10-the-library-archives` here and `#10--the-library-archives` on
+  # GitHub.  The link hook moves a link into a published page to the
+  # site's form, and `validation.anchors` fails the build on one that still
+  # does not resolve.
+  - toc:
+      permalink: true
+      permalink_title: Link to this section
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  # The separator splits a dotted module name (`Setoid.Varieties.HSP`) into
+  # words, so that searching for `HSP` finds it; agda-native-air's.
+  - search:
+      separator: '[\s​\-_,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;'
+
+hooks:
+  # A published page's relative link to a file the site does not publish
+  # becomes a link to that file on GitHub; a link to a file git does not
+  # track fails the build.  See the module.
+  - scripts/python/site/links_hook.py
+  # A Mermaid diagram in a published page is shown as its source, with a
+  # link to the page on GitHub, which draws it; and the nav's link to the
+  # playground, relative to each page.  See the module.
+  - scripts/python/site/website_hook.py
+
+nav:
+  - Home: index.md
+  - The workbench:
+      - In the browser: browser.md
+      - In VS Code: vscode.md
+      - In Emacs: emacs.md
+      - Each project's own Agda: each-projects-own-agda.md
+      # "The playground" follows, appended by website_hook.py: a link
+      # written here to play/, which is no page of MkDocs', fails --strict,
+      # and an absolute one would name the host.
+  - Design:
+      - "ADR 0001: the runtime": adr/0001-runtime.md
+      - How the runtime works: notes/runtime.md
+      - agda-algebras' archives: notes/library-archives.md
+      - The Explorer: notes/explorer.md
+      - "ADR 0002: where the workbench lives": adr/0002-where-the-workbench-lives.md
+      - The platform brief: notes/platform-brief-2026-10-05.md
+      - "ADR 0003: the shared core": adr/0003-the-shared-core.md
+      - The shared core, explained: engine/overview.md
+      - The proposal: notes/browser-ide-proposal.md
+  - Project:
+      - The plan: https://github.com/formalverification/agda-native-ide/blob/main/docs/GITHUB_PROJECT.md
+      - Provenance: provenance.md
+      - The repository: https://github.com/formalverification/agda-native-ide
