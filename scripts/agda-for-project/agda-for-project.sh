@@ -484,7 +484,7 @@ key_for() {
     key="${key:0:32}"
     keyed_by="the tracked files of ${top} other than Agda sources"
   elif [ "$kind" = package ]; then
-    out="$(run_nix eval --raw --no-write-lock-file "${flake_dir}#${name}.outPath" </dev/null)" ||
+    out="$(run_nix eval --raw --no-update-lock-file "${flake_dir}#${name}.outPath" </dev/null)" ||
       fail "nix eval of ${flake_dir}#${name}.outPath failed; no Agda was run"
     key="out-$(basename "$out" | cut -c1-32)"
     keyed_by="the output path ${out} (${flake_dir} is not in a git checkout)"
@@ -562,10 +562,14 @@ in builtins.filter (x: x != null) (map probe names)'
 nix_eval_json() {
   local err out status=0
   err="$(mktemp)"
-  out="$(run_nix eval --json --no-write-lock-file "${flake_dir}#$1" --apply "$2" </dev/null 2>"$err")" || status=$?
+  out="$(run_nix eval --json --no-update-lock-file "${flake_dir}#$1" --apply "$2" </dev/null 2>"$err")" || status=$?
   if [ "$status" != 0 ]; then
     if grep -q 'does not provide attribute' "$err"; then rm -f "$err"; echo '[]'; return 0; fi
-    cat "$err" >&2; rm -f "$err"; return 1
+    cat "$err" >&2
+    if grep -q 'requires lock file changes' "$err"; then
+      say "the flake.lock in ${flake_dir} does not lock every input flake.nix names; run 'nix flake lock' there"
+    fi
+    rm -f "$err"; return 1
   fi
   rm -f "$err"; printf '%s\n' "$out"
 }
@@ -683,7 +687,7 @@ realize_package() {
     if [ ! -x "$program" ]; then
       say "building ${name} from ${flake_dir} (key ${key}, from ${keyed_by}); once per key"
       status=0
-      run_nix build --no-write-lock-file "${flake_dir}#${name}" -o "${root}.out" </dev/null >&2 || status=$?
+      run_nix build --no-update-lock-file "${flake_dir}#${name}" -o "${root}.out" </dev/null >&2 || status=$?
       [ "$status" = 0 ] ||
         fail "nix build ${flake_dir}#${name} failed (exit ${status}; offline, or a broken flake?); no Agda was run"
       [ -x "${root}.out/bin/agda" ] ||
@@ -701,7 +705,7 @@ realize_package() {
       fi
       # The environment's libraries file, for the sibling-library registry;
       # "" when the attribute has none (an older nixpkgs, or not an env).
-      run_nix eval --raw --no-write-lock-file "${flake_dir}#${name}.libraryFile" </dev/null \
+      run_nix eval --raw --no-update-lock-file "${flake_dir}#${name}.libraryFile" </dev/null \
         > "${root}.libraries.$$" 2>/dev/null || : > "${root}.libraries.$$"
       mv -f "${root}.libraries.$$" "${root}.libraries"
       ln -sfn "${key}.out" "$root" || fail "cannot publish the root ${root}"
@@ -722,17 +726,16 @@ realize_package() {
 # ---- Building: a dev shell -------------------------------------------------
 # realize_devshell: enter the dev shell once per key and checkout, keep its
 # environment as a gc root, and record the agda its hook left on PATH and
-# the AGDA_DIR it set (only when it changed the caller's), each as an
-# absolute path.  Set program and program_env.
+# the AGDA_DIR it set (if it set one), each as an absolute path.  Set
+# program and program_env.
 realize_devshell() {
   local root dir status outer captured raw shell_pwd agda_dir checkout_tag tmp
-  local profile entered want
+  local profile entered want inherits
   [ -n "$flake_dir" ] || undecided "devshell:${name} needs a flake.nix at or above ${project_root}"
   require_lock
-  # The caller's agda, resolved as the shell's is below, so that one
-  # reached through a profile's links (~/.nix-profile/bin, NixOS's
-  # /run/current-system/sw/bin), which resolves into the store, is still
-  # recognized as the caller's.
+  # The caller's agda, for the refusal's line only: the probe below does
+  # not see it, and resolved as the shell's is, so that one reached through
+  # a profile's links (~/.nix-profile/bin) names its place in the store.
   outer="$(command -v agda 2>/dev/null || true)"
   if [ -n "$outer" ]; then outer="$(physical "$outer" "$PWD")" || outer=""; fi
   key_for devshell "$name"
@@ -761,14 +764,24 @@ realize_devshell() {
     fi
     if ! devshell_current; then
       say "entering ${flake_dir}#devShells.${system}.${name} to find its agda (key ${key}); once per key"
+      # The hook is about to rewrite the checkout: no record is current
+      # until this entry succeeds, even if it fails halfway.
+      rm -f "$entered"
       tmp="${root}.tmp.$$"
-      rm -rf "$tmp" && mkdir -p "$tmp"
+      rm -rf "$tmp" && mkdir -p "${tmp}/sentinel"
+      printf '#!/bin/sh\nexit 127\n' > "${tmp}/sentinel/agda" && chmod +x "${tmp}/sentinel/agda"
       status=0
-      # The shell's sh also writes its working directory, against which a
+      # What the probe sees is the shell's own, whoever calls.  nix develop
+      # puts the shell's PATH before the caller's, so a sentinel agda first
+      # in the caller's part is found only when the shell adds none (and a
+      # caller inside the project's own shell, by direnv, already holding
+      # its agda, does not make that agda look inherited).  The caller's
+      # AGDA_DIR is left out, so the shell's is the one the hook set.  The
+      # shell's sh also writes its working directory, against which a
       # relative PATH entry or AGDA_DIR of the hook's is to be read.
       # shellcheck disable=SC2016  # expanded by the dev shell's sh
-      ( cd "$flake_dir" &&
-        run_nix develop --no-write-lock-file "${flake_dir}#${name}" --profile "$profile" \
+      ( cd "$flake_dir" && unset AGDA_DIR && PATH="${tmp}/sentinel:${PATH}" &&
+        run_nix develop --no-update-lock-file "${flake_dir}#${name}" --profile "$profile" \
           --command sh -c 'command -v agda > "$1" || : > "$1"; printf "%s" "${AGDA_DIR-}" > "$2"; printf "%s" "$PWD" > "$3"' \
           sh "${tmp}/agda" "${tmp}/agda-dir" "${tmp}/pwd" ) </dev/null >/dev/null 2>"${tmp}/stderr" || status=$?
       if [ "$status" != 0 ]; then
@@ -779,9 +792,11 @@ realize_devshell() {
       raw="$(cat "${tmp}/agda")"
       shell_pwd="$(cat "${tmp}/pwd" 2>/dev/null || true)"
       [ -n "$shell_pwd" ] || shell_pwd="$flake_dir"
-      if [ -z "$raw" ]; then
+      if [ -z "$raw" ] || [ "$raw" = "${tmp}/sentinel/agda" ]; then
         rm -rf "$tmp"
-        undecided "the dev shell ${flake_dir}#${name} puts no agda on PATH; see --candidates, then --choose"
+        inherits=""
+        [ -z "$outer" ] || inherits=" (it would only inherit ${outer}, from the caller's PATH)"
+        undecided "the dev shell ${flake_dir}#${name} puts no agda of its own on PATH${inherits}; see --candidates, then --choose"
       fi
       # Where it really is (absolute, its directory's links and `..`
       # resolved, as top is), before asking where it lives; this is the
@@ -795,21 +810,15 @@ realize_devshell() {
         *) rm -rf "$tmp"
            undecided "the dev shell ${flake_dir}#${name} gives ${captured}, which is neither in the store nor in the checkout; see --candidates, then --choose" ;;
       esac
-      if [ -n "$outer" ] && [ "$captured" = "$outer" ]; then
-        rm -rf "$tmp"
-        undecided "the dev shell ${flake_dir}#${name} adds no agda of its own (it finds ${outer}, from the caller's PATH); see --candidates, then --choose"
-      fi
       printf '%s' "$captured" > "${tmp}/agda"
-      # AGDA_DIR only if the hook changed it, and absolute.
+      # AGDA_DIR only if the shell sets one, and absolute.
       agda_dir="$(cat "${tmp}/agda-dir")"
-      if [ "$agda_dir" = "${AGDA_DIR-}" ]; then agda_dir=""
-      else case "$agda_dir" in ""|/*) ;; *) agda_dir="${shell_pwd}/${agda_dir}" ;; esac
-      fi
+      case "$agda_dir" in ""|/*) ;; *) agda_dir="${shell_pwd}/${agda_dir}" ;; esac
       printf '%s' "$agda_dir" > "${tmp}/agda-dir"
       printf 'checkout %s\ndev shell %s\nagda %s\nkeyed by %s\nbuilt %s\n' \
         "$flake_dir" "$name" "$captured" "$keyed_by" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "${tmp}/note.txt" || true
       rm -f "${tmp}/stderr" "${tmp}/pwd"
-      rm -rf "$root"
+      rm -rf "${tmp}/sentinel" "$root"
       mv "$tmp" "$root" || fail "cannot publish ${root}"
       { printf '%s\n' "$want" > "${entered}.$$" && mv -f "${entered}.$$" "$entered"; } ||
         fail "cannot write ${entered}"
@@ -850,7 +859,7 @@ registry() {
   local provided="" line name want todo found f text
   registry_file="" local_libs=() missing_libs=()
   [ -n "$agda_lib" ] && [ -n "$libraries_of_env" ] && [ -f "$libraries_of_env" ] || return 0
-  while IFS= read -r line; do
+  while IFS= read -r line || [ -n "$line" ]; do
     if [ -z "$line" ] || [ ! -f "$line" ]; then continue; fi
     for name in $(lib_field "$line" name); do provided+=" $(base "$name") "; done
   done < "$libraries_of_env"
@@ -878,7 +887,10 @@ registry() {
     todo="$(printf '%s\n%s' "$todo" "$(lib_field "$found" depend)" | sed '/^$/d')"
   done
   [ "${#local_libs[@]}" -gt 0 ] || return 0
-  text="$(cat "$libraries_of_env"; printf '%s\n' "${local_libs[@]}")"
+  # The environment's lines, each ended (its file's last may have no
+  # newline), then the checkout's.
+  text="$(while IFS= read -r line || [ -n "$line" ]; do printf '%s\n' "$line"; done < "$libraries_of_env"
+          printf '%s\n' "${local_libs[@]}")"
   registry_file="${cache}/registries/$(hash32 "$text").libraries"
   if [ ! -f "$registry_file" ]; then
     if ! { mkdir -p "${cache}/registries" && printf '%s\n' "$text" > "${registry_file}.$$" &&
