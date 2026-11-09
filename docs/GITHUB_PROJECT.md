@@ -61,7 +61,9 @@ Beside the core, one resolver that every native host calls decides which
 Agda, with which libraries, checks a given file: the one the file's
 project pins in its flake, built once per change of its lock (Milestone 9,
 added 2026-11-07).  So a window or a session that holds several projects
-on different Agdas checks a file of any of them with no setting touched.
+on different Agdas checks a file of any of them with no setting touched,
+once its user has trusted their own checkouts (running a flake's Agda runs
+the flake's code, so a repository just cloned is never run unasked).
 
 The plan follows the proposal carried from agda-native-air as
 [`docs/notes/browser-ide-proposal.md`][proposal], with two changes.  The
@@ -386,17 +388,21 @@ environment that flake names once per change of what decides it, and runs
 it; when nothing decides, both editors offer the candidates and remember
 the choice.  Added 2026-11-07, ahead of the views, because William checks
 projects on two Agdas every day, and because the same question decides
-which Agda `agda-mcp` runs for an agent.
+which Agda `agda-mcp` runs for an agent.  The exit criterion allows one
+step of trust since 2026-11-09, when the resolver came to run a discovered
+Agda only for a flake its user trusts (pull request 101).
 
 **Exit criterion**:
 
 In one VS Code window and in one Emacs session, each holding
 formal-ledger-specifications (Agda 2.8.0), agda-algebras (Agda 2.9.0) and a
 downstream project on its dev shell's wrapper (agda-lattices), loading any
-file of any of them checks it under that project's own Agda and libraries
-with no setting touched; a fresh worktree on a moved lock gets its own; a
-project the resolver cannot decide offers the candidates and remembers the
-choice; and the website's page shows it.
+file of any of them checks it under that project's own Agda and libraries,
+with no setting touched beyond trusting the user's own checkouts once (one
+line in the resolver's trust file, or one pick of the chooser's trust entry
+per repository); a fresh worktree on a moved lock gets its own, with no
+further question; a project the resolver cannot decide offers the
+candidates and remembers the choice; and the website's page shows it.
 
 ---
 
