@@ -214,6 +214,24 @@ test("two first calls at once build once", async t => {
 
 // ---- Discovery -------------------------------------------------------------
 
+test("the system is Nix's own unless AGDA_FOR_PROJECT_SYSTEM names one; the key and every nix call name it", t => {
+  const sb = sandbox(t);
+  const dir = checkout(sb, "project", ENV_FILES, { "packages.x86_64-linux.json": ONE_ENV, "packages.aarch64-linux.json": [] });
+  const own = { AGDA_FOR_PROJECT_SYSTEM: "", STUB_NIX_SYSTEM: "x86_64-linux" };
+  const r = explain(sb, [], { cwd: dir, env: own });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.json.system, "x86_64-linux");
+  assert.equal(r.json.name, "project-agdaWithPackages");
+  assert.match(log(sb), /^nix build --system x86_64-linux /m);
+  // Another system, by the variable or as Nix's own: a discovery of its own.
+  refused(run(sb, ["x"], { cwd: dir, env: { AGDA_FOR_PROJECT_SYSTEM: "aarch64-linux" } }),
+    /exports no Agda environment and no default dev shell/);
+  refused(run(sb, ["x"], { cwd: dir, env: { ...own, STUB_NIX_SYSTEM: "aarch64-linux" } }),
+    /exports no Agda environment and no default dev shell/);
+  assert.match(log(sb), /^nix eval --system aarch64-linux --json .*#packages\.aarch64-linux /m);
+  assert.match(run(sb, ["x"], { cwd: dir, env: own }).stdout, /^agda build-1 of/m, "back to the first system, back to its build");
+});
+
 test("several environments: default wins; without default nothing is decided", t => {
   const sb = sandbox(t);
   const two = [{ name: "other-agda", version: "2.8.0" }, { name: "default", version: "2.9.0" }];
@@ -261,8 +279,26 @@ test("a dev shell with no agda of its own is refused", t => {
   chmodSync(join(outer, "agda"), 0o755);
   refused(run(sb, ["x"], { cwd: dir, env: { PATH: `${outer}${delimiter}${sb.env.PATH}` } }),
     /adds no agda of its own \(it finds .*\/store\/outer\/bin\/agda, from the caller's PATH\)/);
+  // The same agda reached through a profile's link, as ~/.nix-profile/bin is.
+  symlinkSync(join(sb.root, "store", "outer"), join(sb.root, "profile"));
+  refused(run(sb, ["x"], { cwd: dir, env: { PATH: `${join(sb.root, "profile", "bin")}${delimiter}${sb.env.PATH}` } }),
+    /adds no agda of its own \(it finds .*\/store\/outer\/bin\/agda, from the caller's PATH\)/);
   const dir2 = checkout(sb, "project2", ENV_FILES, { "devshells.json": ["default"], "devshell-agda": "elsewhere" });
   refused(run(sb, ["x"], { cwd: dir2 }), /elsewhere-bin\/agda, which is neither in the store nor in the checkout/);
+});
+
+test("a dev shell's relative PATH entry and AGDA_DIR are read from its directory and recorded absolute", t => {
+  const sb = sandbox(t);
+  trustAll(sb);
+  const dir = checkout(sb, "project", ENV_FILES, { "devshells.json": ["default"], "devshell-agda": "relative" });
+  for (const cwd of [join(dir, "src"), join(dir, "src"), dir]) {
+    const r = run(sb, ["x"], { cwd });
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, new RegExp(`^agda devshell of ${dir}$`, "m"));
+    assert.match(r.stdout, new RegExp(`^AGDA_DIR=${dir}/\\.agda$`, "m"));
+  }
+  assert.equal(count(sb, "develop"), 1);
+  assert.equal(explain(sb, [], { cwd: dir }).json.program, join(dir, ".agda", "bin", "agda"));
 });
 
 test("a dev shell is entered only by a choice, or under a trusted directory", t => {
@@ -318,6 +354,27 @@ test("a chosen attribute overrides discovery, and AGDA_FLAKE_ATTR or --flake-att
   assert.match(run(sb, ["x"], { cwd: dir, env: { AGDA_FLAKE_ATTR: "named" } }).stdout, /of named$/m);
   assert.match(run(sb, ["--flake-attr", "flagged", "x"], { cwd: dir }).stdout, /of flagged$/m);
   assert.match(run(sb, ["--flake-attr=flagged", "y"], { cwd: dir }).stdout, /^arg y$/m);
+  const r = run(sb, ["--flake-attr", "flagged", "--explain", "--json", "--no-build"], { cwd: dir });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(JSON.parse(r.stdout).decidedBy, "attribute");
+  assert.equal(JSON.parse(r.stdout).name, "flagged");
+});
+
+test("a path chosen relative to the working directory is kept absolute", t => {
+  const sb = sandbox(t);
+  const dir = checkout(sb, "project", ENV_FILES, { "packages.json": ONE_ENV });
+  for (const [where, text] of [["tools", "the chosen agda"], ["src/tools", "another agda"]]) {
+    mkdirSync(join(dir, where), { recursive: true });
+    writeFileSync(join(dir, where, "agda"), `#!/bin/sh\necho ${text}\n`);
+    chmodSync(join(dir, where, "agda"), 0o755);
+  }
+  assert.equal(run(sb, ["--choose", "path:tools/agda"], { cwd: dir }).status, 0);
+  assert.equal(explain(sb, ["--no-build"], { cwd: dir }).json.choice, `path:${join(dir, "tools", "agda")}`);
+  assert.equal(run(sb, ["x"], { cwd: join(dir, "src") }).stdout, "the chosen agda\n");
+  mkdirSync(join(sb.env.XDG_STATE_HOME, "agda-for-project", "choices"), { recursive: true });
+  const file = explain(sb, ["--no-build"], { cwd: dir }).json.choiceFile;
+  writeFileSync(file, "path:tools/agda\n");
+  refused(run(sb, ["x"], { cwd: join(dir, "src") }), /tools\/agda, is not an absolute path; run --forget/);
 });
 
 // ---- The project's own libraries -------------------------------------------
@@ -404,6 +461,14 @@ test("refusals: no lock, a failed build, an output without agda, an evaluation t
   const sb = sandbox(t);
   const { "flake.lock": _, ...unlocked } = ENV_FILES;
   refused(run(sb, ["x"], { cwd: checkout(sb, "unlocked", unlocked, { "packages.json": ONE_ENV }) }), /no flake\.lock in /);
+  const untracked = checkout(sb, "untracked", unlocked, { "packages.json": ONE_ENV });
+  write(untracked, { "flake.lock": ENV_FILES["flake.lock"] });
+  refused(run(sb, ["x"], { cwd: untracked }), /flake\.lock in .* is not tracked by git, so Nix ignores it/);
+  const listed = run(sb, ["--candidates", "--json"], { cwd: untracked });
+  assert.equal(listed.status, 0, listed.stderr);
+  assert.match(listed.stderr, /Agdas are not listed: the flake\.lock in .* is not tracked by git/);
+  assert.deepEqual(JSON.parse(listed.stdout).filter(c => c.kind === "package"), []);
+  assert.equal(count(sb, "eval"), 0, "an unlocked flake is never evaluated");
   refused(run(sb, ["x"], { cwd: checkout(sb, "broken", ENV_FILES, { "packages.json": ONE_ENV, "build-fails": "" }) }),
     /nix build .*#project-agdaWithPackages failed/);
   refused(run(sb, ["x"], { cwd: checkout(sb, "noagda", ENV_FILES, { "packages.json": ONE_ENV, "no-agda": "" }) }),
@@ -437,7 +502,8 @@ test("a malformed command line exits 64", t => {
   const dir = checkout(sb, "project", ENV_FILES, { "packages.json": ONE_ENV });
   for (const args of [["--choose"], ["--choose", "nonsense"], ["--choose", "path:/no/such/agda"],
     ["--explain", "a", "b"], ["--choose", "package:x", "--json"], ["--forget", "--no-build"],
-    ["--explain", "/no/such/file"], ["--candidates", "--bogus"], ["--flake-attr"]]) {
+    ["--explain", "/no/such/file"], ["--candidates", "--bogus"], ["--flake-attr"], ["--flake-attr", ""],
+    ["--flake-attr="], ["--flake-attr", "x", "--choose", "package:y"], ["--flake-attr=x", "--candidates"]]) {
     const r = run(sb, args, { cwd: dir });
     assert.equal(r.status, USAGE, `${args.join(" ")}: ${r.stderr}`);
   }
