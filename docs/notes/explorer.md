@@ -105,7 +105,7 @@ keeps which rows are expanded and decides what opening a row means.
    modules and `Legacy`), five levels deep under its section (the deepest
    module is at level 6).
 +  **The roles**, as the W3C's tree view pattern gives them, with a flat
-   DOM: a `tree` labelled "Files"; each row a `treeitem` with
+   DOM: a `tree` labeled "Files"; each row a `treeitem` with
    `aria-level`, `aria-setsize` and `aria-posinset`; `aria-expanded` on a
    row with rows of its own and on no other; `aria-selected` on the
    selected row; `aria-current` on the open file's; and a description,

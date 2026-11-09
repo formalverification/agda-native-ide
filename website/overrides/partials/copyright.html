@@ -1,0 +1,23 @@
+{#-
+  File: website/overrides/partials/copyright.html
+
+  Material's footer line (its partials/copyright.html in 9.5.49) with a
+  link to the notice, which names everything this site and the playground
+  ship with its license (NOTICE, published as play/NOTICE.txt).  The link
+  goes through MkDocs' `url` filter, so it is relative to each page, where
+  a link written in `copyright:` would be one fixed string.
+-#}
+<div class="md-copyright">
+  {% if config.copyright %}
+    <div class="md-copyright__highlight">
+      {{ config.copyright }}
+      <a href="{{ 'play/NOTICE.txt' | url }}">Notice and licenses</a>.
+    </div>
+  {% endif %}
+  {% if not config.extra.generator == false %}
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  {% endif %}
+</div>
