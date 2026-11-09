@@ -80,16 +80,25 @@ together from one `package-lock.json`.
    which text an answer is about, what each host owns, and the conformance
    suite with its runs.  Its companion is
    [`docs/engine/overview.md`][engine-overview].
++  **Each project's own Agda**, in
+   [`scripts/agda-for-project/`][agda-for-project]: `agda-for-project`, the
+   program an editor or agda-mcp runs in place of `agda`, which finds a
+   file's project and its flake, builds the Agda and libraries that flake
+   names once per change of its lock, and runs it (`nix run
+   .#agda-for-project -- --explain FILE`; `make agda-for-project-test`).
+   [`docs/notes/project-agda.md`][project-agda] explains it, and
+   [`docs/adr/0004-each-projects-own-agda.md`][adr-0004] records the
+   decisions and the measurements.
 +  [`docs/provenance.md`][provenance]: where every imported file and every
    pinned binary comes from, with its SHA-256 and its license.  The machine
    records are in [`upstream/`][records].
 +  [`NOTICE`][notice]: every artifact the app ships, with its license; the
    build publishes it as `NOTICE.txt`, with the license texts in
    [`licenses/`][licenses].
-+  [`docs/GITHUB_PROJECT.md`][plan]: the plan, with nine milestones (the
++  [`docs/GITHUB_PROJECT.md`][plan]: the plan, with ten milestones (the
    foundations, the agda-algebras IDE, plugins, the tool surface, agents in
-   the browser, the theory view, the proof view, the VS Code companion, and
-   Emacs) and their issues.  The issues on GitHub own their bodies, and many carry the
+   the browser, the theory view, the proof view, the VS Code companion,
+   Emacs, and each project's own Agda) and their issues.  The issues on GitHub own their bodies, and many carry the
    measurements that shaped them.
 +  [`docs/notes/browser-ide-proposal.md`][proposal]: the proposal this project
    follows, carried from agda-native-air (its header names the source commit).
@@ -437,6 +446,9 @@ every artifact the app ships, with its license.
 [archives-ci]: .github/workflows/library-archives.yml
 [adr-0002]: docs/adr/0002-where-the-workbench-lives.md
 [adr-0003]: docs/adr/0003-the-shared-core.md
+[adr-0004]: docs/adr/0004-each-projects-own-agda.md
+[agda-for-project]: scripts/agda-for-project/
+[project-agda]: docs/notes/project-agda.md
 [engine-overview]: docs/engine/overview.md
 [vscode]: vscode/README.md
 [platform-note]: docs/notes/platform-brief-2026-10-05.md
