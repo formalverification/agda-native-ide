@@ -67,6 +67,7 @@
 (defvar agda2-in-progress)
 (declare-function agda2-restart "agda2-mode" ())
 (declare-function agda2-load "agda2-mode" ())
+(declare-function agda2-term "agda2-mode" (&optional nicely))
 
 ;;;; Options
 
@@ -97,7 +98,7 @@ library, as for a project whose flake decides nothing."
   "The project root the running Agda process was started for, or nil.")
 
 (defvar agda-for-project--process-inputs nil
-  "The flake the running Agda came from, or nil.
+  "The flake of the running Agda's project when it started, or nil.
 In the form `agda-for-project--inputs' gives.")
 
 (defvar agda-for-project--opening nil
@@ -314,18 +315,35 @@ Runs PROGRAM in the current `default-directory' and `process-environment'."
 
 ;;;; The flake's inputs
 
-(defun agda-for-project--inputs (flake)
-  "FLAKE's directory and the modification times of its flake.nix and lock.
-Nil when FLAKE is nil (a start that came from no flake).  A change to
-either file changes the resolver's key, and perhaps its Agda; comparing
-times costs two `file-attributes' calls, where asking the resolver would
-cost a resolution on every load."
-  (and flake
-       (cons flake
-             (mapcar (lambda (name)
-                       (file-attribute-modification-time
-                        (file-attributes (expand-file-name name flake))))
-                     '("flake.nix" "flake.lock")))))
+(defun agda-for-project--flake (root)
+  "The directory of the flake the resolver uses for ROOT, or nil.
+That is the nearest directory at or above ROOT holding a flake.nix,
+looking no higher than the top of ROOT's git checkout.  The rule is the
+resolver's (\"The nearest flake.nix at or above the project, within its
+repository\"); a change to it there must be made here too."
+  (let ((dir (directory-file-name root)) found)
+    (while dir
+      (cond ((file-regular-p (expand-file-name "flake.nix" dir))
+             (setq found dir dir nil))
+            ((or (file-exists-p (expand-file-name ".git" dir))
+                 (equal dir (directory-file-name (file-name-directory dir))))
+             (setq dir nil))
+            (t (setq dir (directory-file-name (file-name-directory dir))))))
+    found))
+
+(defun agda-for-project--inputs (root)
+  "ROOT's flake, as the directory and times of its flake.nix and flake.lock.
+Nil when ROOT has no flake.  A flake that appears, moves nearer or goes,
+or a change to either file, can change the resolver's answer; comparing
+this costs a few `file-attributes' calls, where asking the resolver would
+cost a resolution on every load.  A deleted file's time is nil."
+  (let ((flake (agda-for-project--flake root)))
+    (and flake
+         (cons flake
+               (mapcar (lambda (name)
+                         (file-attribute-modification-time
+                          (file-attributes (expand-file-name name flake))))
+                       '("flake.nix" "flake.lock"))))))
 
 ;;;; The advice
 
@@ -340,6 +358,10 @@ same way; agda2-mode is told the version that program reports."
         (apply restart args)
       (setq agda-for-project--process-root nil
             agda-for-project--process-inputs nil)
+      ;; agda2-restart's own first step, taken before the resolver runs:
+      ;; a start the resolver refuses then leaves no Agda of another
+      ;; project running, for this buffer's commands to reach.
+      (condition-case nil (agda2-term) (error nil))
       (let* ((t0 (float-time))
              (start (condition-case err (agda-for-project--resolve file)
                       (user-error
@@ -365,7 +387,7 @@ same way; agda2-mode is told the version that program reports."
             (prog1 (apply restart args)
               (setq agda-for-project--process-root (plist-get start :root)
                     agda-for-project--process-inputs
-                    (agda-for-project--inputs (plist-get start :flake))))))))))
+                    (agda-for-project--inputs (plist-get start :root))))))))))
 
 (defun agda-for-project--mode (mode &rest args)
   "Around `agda2-mode': note that a buffer is being set up.
@@ -379,14 +401,15 @@ interrupt the open itself (a quit aborts `find-file')."
   "Around `agda2-load': restart Agda first if the buffer has another root.
 LOAD is the original function and ARGS its arguments.  Agda restarts when
 the buffer's project root differs from the running process's, when the
-flake.nix or flake.lock of the flake it came from has changed since it
-started, or when no process runs.  Restarting here, before agda2-mode
-marks the load busy, means that a start that fails leaves no load stuck
-waiting on a process that never came."
+project's flake has changed since it started (one has appeared or gone,
+or its flake.nix or flake.lock has changed), or when no process runs.
+Restarting here, before agda2-mode marks the load busy, means that a
+start that fails leaves no load stuck waiting on a process that never
+came."
   (let ((file (buffer-file-name)))
     (when (and file
                (or (not (equal (agda-for-project-root file) agda-for-project--process-root))
-                   (not (equal (agda-for-project--inputs (car agda-for-project--process-inputs))
+                   (not (equal (agda-for-project--inputs agda-for-project--process-root)
                                agda-for-project--process-inputs))
                    (not (and (boundp 'agda2-process) (process-live-p agda2-process)))))
       (agda2-restart))
@@ -398,7 +421,7 @@ waiting on a process that never came."
 Adds advice around `agda2-mode', `agda2-restart' and `agda2-load' when
 enabled, and removes it when disabled.  A running Agda keeps the program
 it was started with; the next `agda2-load' from a buffer of another
-project, or after its flake.nix or flake.lock changes, restarts it."
+project, or after its project's flake changes, restarts it."
   :global t
   :group 'agda-for-project
   (if agda-for-project-mode

@@ -39,6 +39,10 @@
         aft/starts)
   (setq agda2-process (make-pipe-process :name "stub-agda" :noquery t)))
 
+(defun agda2-term (&optional _nicely)
+  "Stub: end the Agda process, as agda2-mode's does."
+  (when (process-live-p agda2-process) (delete-process agda2-process)))
+
 (defun agda2-load ()
   "Stub: count the load."
   (setq aft/loads (1+ aft/loads)))
@@ -358,7 +362,46 @@ The open says what is missing; the next load asks."
     (set-file-times (expand-file-name "flake.nix" root) '(26002 0))
     (agda2-load)
     (should (equal (length aft/starts) 3))      ; flake.nix changed: restarted
-    (should (equal aft/loads 5))))
+    (delete-file (expand-file-name "flake.lock" root))
+    (agda2-load)
+    (should (equal (length aft/starts) 4))      ; the lock went: restarted, no error
+    (should (equal aft/loads 6))))
+
+(ert-deftest aft/load-restarts-when-a-flake-appears ()
+  "A load restarts Agda when a flake appears for a project that had none."
+  (aft/with-project (file :lib t)
+    (aft/write "explain-nobuild.json"
+               (aft/undecided "no flake.nix at or above /tmp/x, and no Agda chosen for it; see --candidates, then --choose"
+                              :flake nil :decidedBy nil))
+    (aft/write "explain-nobuild.status" "69")
+    (agda2-load)                                ; no flake: the fallback
+    (should (equal (plist-get (car aft/starts) :program) "agda"))
+    (agda2-load)
+    (should (equal (length aft/starts) 1))
+    (let ((sub (expand-file-name "src/" root)))
+      ;; A flake below the root is not the project's: no restart.
+      (with-temp-file (expand-file-name "flake.nix" sub) (insert "{}\n"))
+      (agda2-load)
+      (should (equal (length aft/starts) 1))
+      (with-temp-file (expand-file-name "flake.nix" root) (insert "{}\n"))
+      (aft/write "explain-nobuild.json" (aft/decided :flake root))
+      (aft/write "explain-nobuild.status" "0")
+      (agda2-load)
+      (should (equal (length aft/starts) 2))    ; the root's flake appeared
+      (should (equal (plist-get (car aft/starts) :program) "/store/agda/bin/agda")))))
+
+(ert-deftest aft/refused-restart-retires-the-old-process ()
+  "A restart the resolver refuses leaves no earlier Agda running."
+  (aft/with-project (file)
+    (aft/write "explain-nobuild.json" (aft/decided))
+    (agda2-restart)
+    (should (process-live-p agda2-process))
+    (aft/write "explain-nobuild.json"
+               (aft/undecided "nix eval failed; no Agda was run: Nix could not evaluate /repo"))
+    (aft/write "explain-nobuild.status" "69")
+    (should-error (agda2-restart) :type 'user-error)
+    (should-not (process-live-p agda2-process))
+    (should (equal (length aft/starts) 1))))
 
 (ert-deftest aft/resolver-is-given-the-truename ()
   "A file reached through a symbolic link goes to the resolver by its truename.
@@ -412,6 +455,23 @@ The root is computed from the truename, so the resolver must start there too."
           (should (equal (agda-for-project-root deep) lib))
           (should (equal (agda-for-project-root loose) (file-name-directory loose)))
           (should (equal (agda-for-project-root (expand-file-name "src/A/B.agda" link)) lib)))
+      (delete-directory top t))))
+
+(ert-deftest aft/flake-is-the-nearest-within-the-checkout ()
+  "The project's flake is the nearest flake.nix, no higher than its checkout."
+  (let* ((top (file-name-as-directory (file-truename (make-temp-file "aft-flake-" t))))
+         (repo (expand-file-name "repo/" top))
+         (lib (expand-file-name "lib/" repo)))
+    (unwind-protect
+        (progn
+          (make-directory lib t)
+          (make-directory (expand-file-name ".git" repo))
+          (with-temp-file (expand-file-name "flake.nix" top) (insert "{}\n"))
+          (should (null (agda-for-project--flake lib)))   ; above the checkout
+          (with-temp-file (expand-file-name "flake.nix" repo) (insert "{}\n"))
+          (should (equal (agda-for-project--flake lib) (directory-file-name repo)))
+          (with-temp-file (expand-file-name "flake.nix" lib) (insert "{}\n"))
+          (should (equal (agda-for-project--flake lib) (directory-file-name lib))))
       (delete-directory top t))))
 
 (ert-deftest aft/version-forms ()
