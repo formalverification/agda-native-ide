@@ -708,6 +708,32 @@
       ],
       "restarts": 4,
       "modeBundleSha256": "22b4fbc5c8c7e537c2af4566c08e126b6fc5305c68aeedc9a0299995d9decef7"
+    },
+    "ownPick": {
+      "date": "2026-11-08",
+      "machine": "alonzo",
+      "why": "Copilot review of PR 102: the mode's own Switch Agda Version pick overrides its paths",
+      "driver": "COMPANION_TESTS=projects make vscode-test (the case at the end of vscode/src/test/projects.ts)",
+      "alpha-beta": {
+        "status": "$(warning) Agda 2.9.0",
+        "tooltip": [
+          "Agda mode runs Agda 2.8.0, /nix/store/3rlxq1awg6l02r7lsyfm5vz9gmyr6260-Agda-2.8.0-bin/bin/agda --with-compiler=/nix/store/p0rwqwcnqwq27xxmzgd07kczn1fzgaph-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/qb49d9siypnvys8s4v4qn4kzcwlsa91b-libraries --interaction (pid 3798704)",
+          "Agda mode runs an Agda of its own (a Switch Agda Version pick, which overrides agdaMode.connection.paths), so it is not steered; the native lanes run the project's.  Choose an Agda to steer it again."
+        ],
+        "steerAgainRestarts": 1
+      },
+      "beta-alpha": {
+        "status": "$(warning) Agda 2.9.0",
+        "tooltip": [
+          "Agda mode runs Agda 2.8.0, /nix/store/3rlxq1awg6l02r7lsyfm5vz9gmyr6260-Agda-2.8.0-bin/bin/agda --with-compiler=/nix/store/p0rwqwcnqwq27xxmzgd07kczn1fzgaph-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/qb49d9siypnvys8s4v4qn4kzcwlsa91b-libraries --interaction (pid 3803319)",
+          "Agda mode runs an Agda of its own (a Switch Agda Version pick, which overrides agdaMode.connection.paths), so it is not steered; the native lanes run the project's.  Choose an Agda to steer it again."
+        ],
+        "steerAgainRestarts": 1
+      },
+      "mutations": {
+        "no-flag-on-mode-pick": "fails: the mode's own pick stops the steering",
+        "no-check-after-restart": "fails: the pick still stands, so the steering stops again"
+      }
     }
   },
   "desktop": {

@@ -154,14 +154,25 @@ flake pinning nixpkgs' Agda 2.8.0 and the libraries its `.agda-lib` depends
 on, and writes it only when you confirm.  Choosing a dev shell is consent
 to run that project's shell hook as you.
 
+**The mode's own Switch Agda Version** keeps its pick in the mode's
+workspace state, where it overrides `agdaMode.connection.paths`, so the
+mode no longer runs the launcher.  Chosen from the chooser, it stops the
+companion steering the mode in that workspace; a pick made from the mode's
+own command is found at the next restart, when the mode runs another
+version than the launcher gave, and stops it too.  The status item then
+warns, and says what the mode runs, while the lanes keep the project's
+Agda.  To steer the mode again, pick agda-for-project in Switch Agda
+Version, then **Steer Agda mode again** in the chooser.
+
 **What was tested**.  The extension-host suite runs a workspace of three
 projects (the shell's Agda 2.9.0, nixpkgs' 2.8.0, and one the launcher
 decides nothing for) in both orders: the restarts, the Agda that checked
-each file, the lanes on both, the refusal, a choice and its removal, and an
-override of the version.  The chooser is driven there with an ID, as its
-quick pick passes one; the quick pick itself, the mode's Switch Agda
-Version entry, the offer to set the mode's paths, and writing the starter
-flake (whose text is unit-tested) were not driven in a test.
+each file, the lanes on both, the refusal, a choice and its removal, an
+override of the version, and the mode's own Switch Agda Version (its quick
+pick driven to the other Agda).  The chooser is driven there with an ID,
+as its quick pick passes one; the chooser's quick pick itself, the offer to
+set the mode's paths, and writing the starter flake (whose text is
+unit-tested) were not driven in a test.
 
 ## The native lanes
 

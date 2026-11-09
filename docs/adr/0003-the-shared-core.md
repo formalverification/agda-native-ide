@@ -1155,7 +1155,10 @@ agda-mode-vscode and to the native lanes, as follows:
    and writes only on consent); the companion sets `AGDA_FOR_PROJECT_DIR`
    in the extension host to the active file's project; and it restarts the
    mode (`agda-mode.restart`) only when that project needs another Agda
-   (another program, arguments or environment) while the mode runs one.
+   (another program, arguments, environment or version) while the mode
+   runs one.  The version is in the key because a dev shell's Agda may live
+   in the checkout, at one path a change of the flake rebuilds as another
+   Agda ([#102]'s review).
 +  **Build first**.  The companion runs `agda-for-project --explain --json
    FILE`, which builds the project's Agda, behind a progress notification
    when it outlasts a warm start (400 ms), and restarts the mode only after
@@ -1172,7 +1175,17 @@ agda-mode-vscode and to the native lanes, as follows:
 +  **Choosing**: a quick pick of the launcher's candidates, remembered with
    `--choose`; beside them, forgetting the choice, the mode's own Switch
    Agda Version, and for a project with no flake a starter `flake.nix`,
-   shown first and written only on consent.
+   shown first and written only on consent.  The directory's name enters
+   that flake as a Nix string literal, escaped, never as Nix.
++  **The mode's own pick stops the steering**.  Switch Agda Version keeps
+   its pick in the mode's workspace state, and the pick overrides the
+   paths, so the mode no longer runs the launcher.  Chosen from the
+   chooser, it stops the steering for the workspace; so does a restart
+   after which the mode runs another version than the launcher gave (the
+   pick made from the mode's own command, which the companion cannot see).
+   The status says the mode runs an Agda of its own, the lanes keep the
+   project's, and the chooser's "Steer Agda mode again" resumes it
+   ([#102]'s review).
 +  **Rejected**: a setting per folder (the mode ignores it); a setting
    written at each change of project (a write into the user's settings at
    every switch); `process.chdir` in the shared extension host (every
@@ -1221,9 +1234,16 @@ log each call ([the record][project-record], `modeFindings`):
    (`fls-agdaWithPackages`, explain 155 ms, restart and load 8.6 s with no
    module checked again, then a load 529 ms), and back (restart 543 ms,
    load 43 ms).
++  The mode's own pick, in the same suite: the chooser's Switch Agda
+   Version entry, driven through the mode's quick pick to nixpkgs' 2.8.0
+   while alpha's Agda is 2.9.0, left the mode on its pick with no restart
+   across projects and the status reading `$(warning) Agda 2.9.0` with the
+   mode's version; steering resumed while the pick stood restarted the
+   mode once, found it on 2.8.0, and stopped again.  Without either
+   mechanism (a mutation of each), the case fails.
 
 **Status**.  Adopted (2026-11-08, [#99]).  Untested: the quick pick
-itself, the mode's Switch Agda Version entry, the offer to set the mode's
+itself, the offer to set the mode's
 paths, writing the starter flake, macOS (the mode's Agda is found with
 `ps`), and Windows (§ 16).  The mode's own fallback, which runs its next
 path or its downloads when the launcher refuses, is the mode's; the
@@ -1263,11 +1283,12 @@ companion avoids it by offering the launcher as the only path.
 | 26 | The companion's manifest declares its dependencies, at the cost of the flake's `npmDepsHash` | Adopted ([#64]) | The Nix site failed until the hash changed, then built (§ 15) |
 | 27 | Windows is a stated gap | Adopted ([#64]) | Read from the code and node's documentation, not run (§ 16) |
 | 28 | The mode is steered through the extension host's environment: the launcher named once as its path, on consent, and `AGDA_FOR_PROJECT_DIR` set to the active file's project | Adopted ([#99], 2026-11-08) | The mode reads its paths for the window and spawns with the host's environment at the spawn, each confirmed in the host (§ 17) |
-| 29 | The mode is restarted only when the active project needs another program, arguments or environment while it runs an Agda, and after the build | Adopted ([#99]) | One restart per change of project, none within one, in both orders; the 3 s probe that a silent build outlasts (§ 17) |
+| 29 | The mode is restarted only when the active project needs another program, arguments, environment or version while it runs an Agda, and after the build | Adopted ([#99]; the version added after [#102]'s review) | One restart per change of project, none within one, in both orders; the 3 s probe that a silent build outlasts (§ 17) |
 | 30 | When the launcher decides nothing, its line is shown and nothing is restarted or run | Adopted ([#99]) | gamma in the projects suite (§ 17) |
 | 31 | The lanes run the launcher's answer directly, at its version, with the companion's settings as overrides | Adopted ([#99]) | The projects suite's lanes on both Agdas; the override refused (§ 17) |
 | 32 | The engine speaks Agda 2.8.0 too; another version is refused with the reason | Adopted ([#99]) | The conformance suite, 13 and 12 against 2.8.0 (§ 17) |
-| 33 | The chooser: the launcher's candidates, forgetting, the mode's Switch Agda Version, and a starter flake written only on consent | Adopted ([#99]); the quick pick and the write untested | The projects suite drives a choice and its removal by ID; unit tests of the flake's text (§ 17) |
+| 33 | The chooser: the launcher's candidates, forgetting, the mode's Switch Agda Version, and a starter flake written only on consent | Adopted ([#99]); the quick pick and the write untested | The projects suite drives a choice and its removal by ID; unit tests of the flake's text, a hostile directory name among them (§ 17) |
+| 34 | The mode's own Switch Agda Version pick stops the steering, chosen from the chooser or found after a restart, until "Steer Agda mode again" | Adopted ([#102]'s review, 2026-11-08) | The projects suite drives the mode's quick pick in both orders; a mutation of each mechanism fails it (§ 17) |
 
 ---
 
@@ -1323,6 +1344,7 @@ companion avoids it by offering the launcher as the only path.
 [#97]: https://github.com/formalverification/agda-native-ide/issues/97
 [#99]: https://github.com/formalverification/agda-native-ide/issues/99
 [#101]: https://github.com/formalverification/agda-native-ide/pull/101
+[#102]: https://github.com/formalverification/agda-native-ide/pull/102
 [#85]: https://github.com/formalverification/agda-native-ide/pull/85
 [overview]: ../engine/overview.md
 [adr-0001]: 0001-runtime.md
