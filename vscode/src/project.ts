@@ -105,9 +105,11 @@ export async function choose(launcher: string, file: string, id: string | null, 
 
 /** What a mode spawn of this resolution runs: two answers with one key
  * run the same Agda with the same libraries, so one process serves both
- * and the mode need not restart. */
+ * and the mode need not restart.  The version is part of it: a dev shell's
+ * Agda may live in the checkout, at one path that a change of the flake
+ * rebuilds as another Agda. */
 export function runKey(answer: Explained): string {
-  return JSON.stringify([answer.program, answer.args, Object.entries(answer.env).sort()]);
+  return JSON.stringify([answer.program, answer.args, Object.entries(answer.env).sort(), answer.version]);
 }
 
 /** Whether the native lanes speak this version's protocol, and if not,
@@ -210,6 +212,17 @@ const nixpkgsLibraries: Record<string, string> = {
  * standard library the one built for it. */
 export const starterNixpkgs = 'github:NixOS/nixpkgs/nixos-25.11';
 
+/** `text` as a Nix string literal: a backslash, a double quote, the `${`
+ * that would start an interpolation, and the control characters escaped,
+ * so that the literal reads back as `text` and evaluates nothing. */
+export function nixString(text: string): string {
+  const escaped = text
+    .replace(/[\\"]/g, character => `\\${character}`)
+    .replace(/\$\{/g, '\\${')
+    .replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+  return `"${escaped}"`;
+}
+
 /** A starter flake.nix for a project with none: one Agda environment, as
  * `packages.<system>.default`, which agda-for-project discovers, holding
  * the nixpkgs libraries its `.agda-lib` depends on.  Libraries nixpkgs
@@ -223,12 +236,15 @@ export function starterFlake(projectName: string, depends: readonly string[]): {
     else missing.push(name);
   }
   const libraries = included.map(attribute => `p.${attribute}`).join(' ');
+  // The name is a directory's, so it may hold anything: in the comment, no
+  // line break may end it; in the description, it is a string literal.
+  const commented = projectName.replace(/[\u0000-\u001f\u007f]/g, ' ');
   const text = `# flake.nix: a starter written by Agda Workbench (agda-native-ide) for
-# ${projectName}, so that agda-for-project finds its Agda: one Agda
+# ${commented}, so that agda-for-project finds its Agda: one Agda
 # environment, Agda 2.8.0 from ${starterNixpkgs} with the libraries
 # its .agda-lib depends on.  Change the input to pin another release.
 ${missing.length ? `#\n# Not in nixpkgs, so not included: ${missing.join(', ')}.\n` : ''}{
-  description = "The Agda environment of ${projectName.replace(/"/g, '\\"')}";
+  description = ${nixString(`The Agda environment of ${projectName}`)};
   inputs.nixpkgs.url = "${starterNixpkgs}";
   outputs = { self, nixpkgs }:
     let

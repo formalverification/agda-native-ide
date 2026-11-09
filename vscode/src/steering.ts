@@ -33,12 +33,21 @@
 //      with `--explain` behind a progress notification, and restarts the
 //      mode only after the build.  When the launcher decides nothing, the
 //      companion shows its one line and restarts nothing.
+//   +  The mode's own Switch Agda Version keeps its pick in the mode's
+//      workspace state, and that pick overrides agdaMode.connection.paths,
+//      so the mode no longer runs the launcher.  Choosing it from the
+//      companion's chooser stops the steering for the workspace, and so
+//      does a restart after which the mode runs another version than the
+//      launcher gave (the pick made from the mode's own command, which the
+//      companion cannot see); the status says so, and the chooser's "Steer
+//      Agda mode again" resumes it.
 //
 // Rejected: a setting written per folder (ignored by the mode) or per
 // change of project (a write into the user's settings at every switch);
 // and process.chdir in the shared extension host (every extension's
 // relative paths would move).
 
+import { execFile } from 'node:child_process';
 import { dirname, basename } from 'node:path';
 import { readFile, writeFile, stat } from 'node:fs/promises';
 import * as vscode from 'vscode';
@@ -50,6 +59,8 @@ import {
 
 const variable = 'AGDA_FOR_PROJECT_DIR';
 const offerKey = 'agdaWorkbench.steeringOffer';
+/** Set, in the workspace's state, while the mode runs an Agda of its own. */
+const ownPickKey = 'agdaWorkbench.modeOwnPick';
 const progressAfterMs = 400;
 
 function isAgdaFile(document: vscode.TextDocument): boolean {
@@ -83,6 +94,8 @@ export class Steering implements vscode.Disposable {
    * spawn runs. */
   private envKey: string | undefined;
   private offered = false;
+  /** The version each mode process answers, by pid. */
+  private readonly modeVersions = new Map<number, Promise<string | undefined>>();
   /** The mode's restarts: the project each was for, the process it
    * replaced, and how long the restart and its load took. */
   readonly restarts: Array<{ root: string; replaced: number; ms?: number }> = [];
@@ -116,10 +129,19 @@ export class Steering implements vscode.Disposable {
   }
 
   /** Whether the mode runs the launcher, so that the variable decides its
-   * Agda: the last of its paths names it, and steering is not turned off. */
+   * Agda: the last of its paths names it, steering is not turned off, and
+   * the mode runs no Agda of its own (a Switch Agda Version pick). */
   steersMode(): boolean {
+    return this.namesLauncher() && !this.ownPick();
+  }
+
+  private namesLauncher(): boolean {
     return vscode.workspace.getConfiguration('agdaWorkbench').get<boolean>('mode.steer') !== false &&
       modeLauncher(vscode.workspace.getConfiguration('agdaMode').get('connection.paths')) !== undefined;
+  }
+
+  private ownPick(): boolean {
+    return this.context.workspaceState.get<boolean>(ownPickKey) === true;
   }
 
   getFollowed(): Followed | undefined { return this.followed; }
@@ -180,6 +202,7 @@ export class Steering implements vscode.Disposable {
       return;
     }
     const steering = this.steersMode();
+    if (!steering) this.restoreVariable();
     // The next spawn of the mode is for this project, even before its
     // build ends: a load meanwhile runs the launcher, which waits for it.
     if (steering) process.env[variable] = root;
@@ -208,8 +231,8 @@ export class Steering implements vscode.Disposable {
       if (steering) this.envKey = `refused ${root}`;
       return;
     }
-    const mode = steering ? await this.modeProcess() : undefined;
-    this.showAnswer(answer, mode);
+    const mode = this.namesLauncher() ? await this.modeProcess() : undefined;
+    await this.showAnswer(answer, mode);
     if (!steering) return;
     process.env[variable] = answer.project.root;
     const key = runKey(answer);
@@ -235,7 +258,39 @@ export class Steering implements vscode.Disposable {
     const started = performance.now();
     await vscode.commands.executeCommand('agda-mode.restart');
     restart.ms = Math.round(performance.now() - started);
-    if (this.followed?.answer) this.showAnswer(this.followed.answer, await this.modeProcess());
+    const answer = this.followed?.answer;
+    if (!answer) return;
+    // Restarted with the variable on this project, the mode runs the
+    // launcher's Agda, unless a Switch Agda Version pick overrides its
+    // paths: then it runs another, and steering it only reloads that one.
+    const now = await this.modeProcess();
+    const version = now ? await this.modeVersion(now) : undefined;
+    if (version && answer.version && version !== answer.version) {
+      this.output.appendLine(`[steer] restarted for ${root}, Agda mode runs Agda ${version} (${now!.args}), not ${answer.version}: it runs an Agda of its own, and is not steered until "Steer Agda mode again"`);
+      await this.context.workspaceState.update(ownPickKey, true);
+      this.restoreVariable();
+    }
+    await this.showAnswer(answer, now);
+  }
+
+  /** The version a mode process answers, asked of its executable (a
+   * wrapper such as nixpkgs' execs the real one, whose path this is). */
+  private modeVersion(mode: Process): Promise<string | undefined> {
+    let version = this.modeVersions.get(mode.pid);
+    if (!version) {
+      version = new Promise(done => execFile(mode.args.split(' ')[0]!, ['--numeric-version'], { encoding: 'utf8', timeout: 10000 },
+        (error, stdout) => done(error ? undefined : stdout.trim() || undefined)));
+      this.modeVersions.set(mode.pid, version);
+    }
+    return version;
+  }
+
+  /** The variable as it was before the companion set it, and no key: the
+   * mode is not steered, and the next steered spawn starts afresh. */
+  private restoreVariable(): void {
+    if (this.original === undefined) delete process.env[variable];
+    else process.env[variable] = this.original;
+    this.envKey = undefined;
   }
 
   /** The build behind a progress notification, shown only if it takes
@@ -256,12 +311,15 @@ export class Steering implements vscode.Disposable {
     this.status.show();
   }
 
-  private showAnswer(answer: Explained, mode: Process | undefined): void {
-    this.status.text = `$(versions) Agda ${answer.version ?? '?'}`;
+  private async showAnswer(answer: Explained, mode: Process | undefined): Promise<void> {
+    const modeVersion = mode ? await this.modeVersion(mode) : undefined;
+    const differs = modeVersion !== undefined && answer.version !== null && modeVersion !== answer.version;
+    this.status.text = `${differs ? '$(warning)' : '$(versions)'} Agda ${answer.version ?? '?'}`;
     this.status.tooltip = [
       `${answer.project.root}: Agda ${answer.version ?? '?'}, decided by ${decidedHow(answer)} (agda-for-project)`,
       `${answer.program ?? '(not built)'}${answer.args.length ? ` ${answer.args.join(' ')}` : ''}`,
-      ...(mode ? [`Agda mode runs ${mode.args} (pid ${mode.pid})`] : []),
+      ...(mode ? [`Agda mode runs ${modeVersion ? `Agda ${modeVersion}, ` : ''}${mode.args} (pid ${mode.pid})`] : []),
+      ...(this.ownPick() ? ['Agda mode runs an Agda of its own (a Switch Agda Version pick, which overrides agdaMode.connection.paths), so it is not steered; the native lanes run the project\'s.  Choose an Agda to steer it again.'] : []),
       'Click for the resolution.',
     ].join('\n');
     this.status.command = 'agdaWorkbench.showResolution';
@@ -328,8 +386,11 @@ export class Steering implements vscode.Disposable {
     if (!file) throw new Error('Open an Agda module to choose its Agda.');
     const launcher = this.launcher(vscode.Uri.file(file));
     if (!launcher) throw new Error('No agda-for-project is configured: set agdaWorkbench.launcher.path, or name it in agdaMode.connection.paths.');
-    let chosen: string | null | undefined = typeof id === 'string' ? id : id === null ? null : undefined;
-    if (chosen === undefined) {
+    // An ID names a candidate (it has a colon) or one of the other entries,
+    // as a quick pick's choice would.
+    let action: string | undefined = id === 'mode' || id === 'flake' || id === 'steer' ? id : undefined;
+    let chosen: string | null | undefined = action ? undefined : typeof id === 'string' ? id : id === null ? null : undefined;
+    if (chosen === undefined && !action) {
       const offered = await candidates(launcher, file);
       const answer = this.followed?.answer;
       type Item = vscode.QuickPickItem & { action: string };
@@ -340,7 +401,8 @@ export class Steering implements vscode.Disposable {
         action: `choose ${candidate.id}`,
       }));
       if (answer?.choice) items.push({ label: '$(close) Forget the choice', description: answer.choice, action: 'forget' });
-      items.push({ label: '$(tools) Agda mode: Switch Agda Version…', detail: 'agda-mode-vscode\'s own list, which downloads language servers; it overrides agdaMode.connection.paths for this workspace.', action: 'mode' });
+      if (this.ownPick()) items.push({ label: '$(debug-restart) Steer Agda mode again', detail: 'Pick agda-for-project in Agda mode\'s Switch Agda Version first: its pick overrides agdaMode.connection.paths.', action: 'steer' });
+      items.push({ label: '$(tools) Agda mode: Switch Agda Version…', detail: 'agda-mode-vscode\'s own list, which downloads language servers; its pick overrides agdaMode.connection.paths for this workspace, and the companion stops steering the mode.', action: 'mode' });
       if (answer && !answer.flake) items.push({ label: '$(new-file) Write a starter flake.nix…', detail: 'Shown first; written into the project only if you confirm.', action: 'flake' });
       const pick = await vscode.window.showQuickPick(items, {
         title: `The Agda of ${answer?.project.root ?? dirname(file)}`,
@@ -348,10 +410,28 @@ export class Steering implements vscode.Disposable {
         matchOnDescription: true, matchOnDetail: true,
       });
       if (!pick) return undefined;
-      if (pick.action === 'mode') { await vscode.commands.executeCommand('agda-mode.switch-agda-version'); return 'mode'; }
-      if (pick.action === 'flake') { await this.starterFlake(); return 'flake'; }
-      chosen = pick.action === 'forget' ? null : pick.action.slice('choose '.length);
+      if (pick.action === 'forget') chosen = null;
+      else if (pick.action.startsWith('choose ')) chosen = pick.action.slice('choose '.length);
+      else action = pick.action;
     }
+    if (action === 'mode') {
+      // The mode's pick overrides its paths, so it no longer runs the
+      // launcher: stop steering it, for this workspace, as its pick is.
+      await this.context.workspaceState.update(ownPickKey, true);
+      this.restoreVariable();
+      await vscode.commands.executeCommand('agda-mode.switch-agda-version');
+      this.followFile(file, true);
+      await this.idle();
+      return 'mode';
+    }
+    if (action === 'steer') {
+      await this.context.workspaceState.update(ownPickKey, undefined);
+      this.followFile(file, true);
+      await this.idle();
+      return 'steer';
+    }
+    if (action === 'flake') { await this.starterFlake(); return 'flake'; }
+    if (chosen === undefined) return undefined;
     await choose(launcher, file, chosen);
     this.answers.clear();
     this.followFile(file, true);
@@ -387,8 +467,7 @@ export class Steering implements vscode.Disposable {
   }
 
   dispose(): void {
-    if (this.original === undefined) delete process.env[variable];
-    else process.env[variable] = this.original;
+    this.restoreVariable();
     for (const each of this.subscriptions.splice(0)) each.dispose();
   }
 }

@@ -8,7 +8,7 @@ import { tokenReader } from '../highlighting';
 import { agdaCandidates, isLanguageServer, splitOptions } from '../resolution';
 import {
   candidates, choose, explain, lastLine, laneVersionRefusal, libraryDepends, modeAgda, modeLauncher, parsePs,
-  runKey, starterFlake, type Explained, type Ran,
+  nixString, runKey, starterFlake, type Explained, type Ran,
 } from '../project';
 import { restoreState } from '../state';
 
@@ -168,11 +168,13 @@ test('the launcher is asked about the file, and its refusals and failures say wh
   await assert.rejects(choose('agda-for-project', '/p/M.agda', 'bad', run({ code: 64, stdout: '', stderr: 'agda-for-project: not an ID\n' })), /not an ID/);
 });
 
-test('one Agda serves two projects only when it runs the same program, arguments and environment', () => {
+test('one Agda serves two projects only when it runs the same program, arguments, environment and version', () => {
   assert.equal(runKey(answer({ project: { root: '/a', agdaLib: null } })), runKey(answer({ project: { root: '/b', agdaLib: null } })));
   assert.notEqual(runKey(answer({})), runKey(answer({ args: ['--library-file=/r.libraries'] })));
   assert.notEqual(runKey(answer({})), runKey(answer({ env: { AGDA_DIR: '/p/.agda' } })));
   assert.equal(runKey(answer({ env: { A: '1', B: '2' } })), runKey(answer({ env: { B: '2', A: '1' } })));
+  // A dev shell's Agda in the checkout: one path, rebuilt as another Agda.
+  assert.notEqual(runKey(answer({ program: '/p/.agda/bin/agda', version: '2.9.0' })), runKey(answer({ program: '/p/.agda/bin/agda', version: '2.8.0' })));
 });
 
 test('the lanes speak 2.9.0 and 2.8.0, and refuse another, saying where it came from', () => {
@@ -217,4 +219,16 @@ test('a starter flake holds the libraries nixpkgs has, and names the others', ()
   assert.match(starter.text, /inputs\.nixpkgs\.url = "github:NixOS\/nixpkgs\/nixos-25\.11";/);
   assert.match(starter.text, /Not in nixpkgs, so not included: my-lib\./);
   assert.match(starter.text, /legacyPackages\.\$\{system\}/);
+});
+
+test("a starter flake keeps its directory's name out of the Nix it evaluates", () => {
+  assert.equal(nixString('plain'), '"plain"');
+  assert.equal(nixString('x${builtins.currentSystem}'), '"x\\${builtins.currentSystem}"');
+  assert.equal(nixString('a\\"b'), '"a\\\\\\"b"');
+  assert.equal(nixString('l1\nl2\r\t'), '"l1\\nl2\\r\\t"');
+  const name = 'p${x}\n  description = "pwned";\n#';
+  const text = starterFlake(name, []).text;
+  assert.equal(text.split('\n').length, starterFlake('p', []).text.split('\n').length, 'the name breaks no line');
+  assert.ok(text.includes('  description = "The Agda environment of p\\${x}\\n  description = \\"pwned\\";\\n#";\n'));
+  assert.doesNotMatch(text, /^\s*description = "pwned"/m, 'no line of Nix but the comment holds it');
 });

@@ -161,6 +161,57 @@ export async function run(): Promise<void> {
   await assert.rejects(lane('checkFile'), new RegExp(`agdaWorkbench\\.agda\\.version is 2\\.9\\.0; the project's Agda \\(your choice, path:.*\\) is Agda ${agdas.beta!.version.replace(/\./g, '\\.')}`));
   await beta.update('agda.version', undefined, vscode.ConfigurationTarget.WorkspaceFolder);
   record.refusals = { gammaStatus: refused.text, gammaTooltip: refused.tooltip.split('\n')[0], versionOverride: 'refused' };
+
+  // The mode's own Switch Agda Version: its pick, kept in the mode's
+  // workspace state, overrides its paths, so the mode no longer runs the
+  // launcher.  Chosen from the chooser, it stops the steering: no restart
+  // across projects, and the status says the mode runs another Agda while
+  // the lanes keep the project's.  Resumed while the pick still stands (as
+  // after a pick made from the mode's own command), one restart shows the
+  // mode running another version, and the steering stops again.
+  const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  const modeSettings = vscode.workspace.getConfiguration('agdaMode');
+  const launcherPath = modeSettings.get<string[]>('connection.paths')!.at(-1)!;
+  const [steered, picked] = [agdas.alpha!, agdas.beta!];
+  await modeSettings.update('connection.paths', [picked.path, launcherPath], vscode.ConfigurationTarget.Global);
+  await show('alpha');
+  await settled('alpha');
+  await deadline(vscode.commands.executeCommand('agdaWorkbench.load'), 'load alpha');
+  assert.equal(versionOf((await running())!.args), steered.version, 'the mode runs alpha\'s Agda');
+  // The mode's list is its paths, last first: the launcher, then the pick.
+  const switching = vscode.commands.executeCommand('agdaWorkbench.chooseAgda', 'mode');
+  await pause(3000);
+  await vscode.commands.executeCommand('workbench.action.quickOpenSelectNext');
+  await pause(500);
+  await vscode.commands.executeCommand('workbench.action.acceptSelectedQuickOpenItem');
+  await deadline(switching, 'the mode\'s Switch Agda Version');
+  await pause(2000);
+  assert.equal(steering.steersMode(), false, 'the mode\'s own pick stops the steering');
+  await deadline(vscode.commands.executeCommand('agdaWorkbench.load'), 'load alpha on the pick');
+  assert.equal(versionOf((await running())!.args), picked.version, 'the mode runs its pick');
+  restartsBefore = steering.restarts.length;
+  await show('beta');
+  await settled('beta');
+  await show('alpha');
+  await settled('alpha');
+  assert.equal(steering.restarts.length, restartsBefore, 'no restart while the mode runs its own pick');
+  const ownStatus = steering.getStatus();
+  assert.equal(ownStatus.text, `$(warning) Agda ${steered.version}`);
+  assert.match(ownStatus.tooltip, new RegExp(`Agda mode runs Agda ${picked.version.replace(/\./g, '\\.')}, `));
+  assert.match(ownStatus.tooltip, /Agda mode runs an Agda of its own/);
+  const ownVerdict = await lane('checkFile');
+  assert.ok(ownVerdict.result.status === 'verdict' && ownVerdict.result.verdict.exitCode === 42, 'the lanes keep the project\'s Agda');
+  await deadline(vscode.commands.executeCommand('agdaWorkbench.chooseAgda', 'steer'), 'steer again');
+  assert.equal(steering.restarts.length - restartsBefore, 1, 'steering again restarts the mode once');
+  assert.equal(steering.steersMode(), false, 'the pick still stands, so the steering stops again');
+  assert.equal(steering.getStatus().text, `$(warning) Agda ${steered.version}`);
+  restartsBefore = steering.restarts.length;
+  await show('beta');
+  await settled('beta');
+  await show('alpha');
+  await settled('alpha');
+  assert.equal(steering.restarts.length, restartsBefore, 'and restarts nothing after');
+  record.ownPick = { status: ownStatus.text, tooltip: ownStatus.tooltip.split('\n').filter(line => line.startsWith('Agda mode')), steerAgainRestarts: 1 };
   record.steps = steps;
   record.restarts = steering.restarts.length;
   await writeFile(path.join(output, `projects-${order.join('-')}.json`), JSON.stringify(record, null, 2) + '\n');
