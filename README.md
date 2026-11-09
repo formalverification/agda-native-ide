@@ -29,7 +29,15 @@ Milestone 0, foundations.  The fork is imported: plfa-playground at
 the changes [`docs/provenance.md`][provenance] lists.  `nix build .#site`
 builds it reproducibly, and on every pull request CI builds it twice and
 compares, runs its unit tests and type checks, and checks `Main.agda` in
-headless Chromium.  Nothing is deployed.
+headless Chromium.
+
+The project's website is <https://formalverification.github.io/agda-native-ide/>,
+and the playground is at <https://formalverification.github.io/agda-native-ide/play/>,
+both deployed to GitHub Pages from `main` by [`pages.yml`][pages-ci] ([#96]),
+once Pages is enabled for the repository.  The website is MkDocs Material
+over the pages in `docs/` that `mkdocs.yml` names; `nix build .#pages`
+builds it with the playground under `play/`, and "The website" below says
+how to build and check it.
 
 ## Where things are
 
@@ -237,6 +245,38 @@ and commit (for JSON, which carries no comment, in `docs/provenance.md`
 alone), remove its line from `upstream/unchanged.sha256`, and add a row to
 the "Changes to upstream files" table in `docs/provenance.md`.
 
+## The website
+
+The website publishes the pages of `docs/` that `mkdocs.yml` names (the
+home page, a page per platform, the page on each project's own Agda, the
+ADRs with their notes, provenance and the plan) with MkDocs Material, which
+the flake pins (mkdocs 1.6.1, mkdocs-material 9.5.49), so that CI and a
+laptop build the same bytes.  A published page's links to files the site
+does not publish go to GitHub, and a link to a file git does not track
+fails the build (`scripts/python/site/links_hook.py`).  `make
+website-serve` serves the website alone at
+<http://127.0.0.1:8000/agda-native-ide/>, rebuilding on change.
+
+```sh
+nix build .#website                                  # the website alone
+nix develop .#website --command make website-serve   # serve it, to edit
+nix develop .#website --command make website-test    # the hook's tests
+nix develop --command make pages pages-browser pages-check pages-browser-check
+```
+
+The last line is CI's gate ([`pages.yml`][pages-ci]): it builds the Pages
+tree (`nix build .#pages`, the website with the playground under `play/`)
+into `public/`; opens the playground in headless Chromium and takes the
+home page's two pictures of it, then every page in both schemes at 1440
+and 390 pixels, asserting the scheme drawn, no sideways scroll, no error,
+WCAG AA contrast and no request off the origin, and searches
+(`scripts/pages/browser.mjs`); checks every link, anchor and fetch of the
+tree and lists the outbound links (`scripts/pages/check.mjs`); and runs
+the browser check on the playground at `/play/` (`--path /play/`), which
+fails if the page requests anything outside it.  The records go to
+`pages-check/`.  The screenshots are taken by each deploy, from the tree it
+deploys, and are not committed.
+
 ## The playground
 
 The page's `Main.agda` is a module of a project of its own ([#11]):
@@ -442,6 +482,7 @@ every artifact the app ships, with its license.
 [platform-note]: docs/notes/platform-brief-2026-10-05.md
 [provenance]: docs/provenance.md
 [site-ci]: .github/workflows/site.yml
+[pages-ci]: .github/workflows/pages.yml
 [records]: upstream/
 [notice]: NOTICE
 [licenses]: licenses/
@@ -461,3 +502,4 @@ every artifact the app ships, with its license.
 [#22]: https://github.com/formalverification/agda-native-ide/issues/22
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59
+[#96]: https://github.com/formalverification/agda-native-ide/issues/96
