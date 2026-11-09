@@ -64,7 +64,7 @@ endif
         library-gate
 # The companion's targets are separate from the browser app's gates.
 
-.PHONY: vscode-check vscode-build vscode-test vscode-unit
+.PHONY: vscode-check vscode-build vscode-test vscode-unit emacs-test
 .DEFAULT_GOAL := help
 
 # In `path` mode the resolved CLI is (typically) a Nix wrapper carrying
@@ -186,6 +186,16 @@ vscode-test: vscode-check vscode-unit ## Run the real companion and Agda mode un
 agda-for-project-test: ## Check the agda-for-project launcher and run its tests against a stub nix
 	shellcheck scripts/agda-for-project/*.sh
 	node --test scripts/agda-for-project/test.mjs
+
+# agda-for-project.el, the Emacs package that starts each buffer's
+# project's Agda through that launcher (issue 98): its unit tests against
+# a stub launcher and stub agda2-mode functions, which byte-compile the
+# package with warnings as errors first.  Needs Emacs 27.1 or later and
+# bash; the runs against real projects are docs/notes/emacs.md's.
+EMACS ?= emacs
+emacs-test: ## Byte-compile the Emacs package and run its unit tests
+	shellcheck emacs/test/*.sh
+	$(EMACS) --batch -Q -l emacs/test/agda-for-project-test.el -f ert-run-tests-batch-and-exit
 
 # ---------------------------------------------------------------------
 # The engine's conformance suite (issue 62): one suite, two runners, each

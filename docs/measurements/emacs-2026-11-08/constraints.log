@@ -1,0 +1,8 @@
+Loading quail/latin-ltx...
+
+load: verdict
+agda version reported: 2.8.0; agda2-mode’s own: 2.9.0 (straight build)
+sent: IOTCM "~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda" NonInteractive Indirect ( Cmd_constraints Simplified  )
+*agda2* after C-c C-=:
+IOTCM "~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda" NonInteractive Indirect ( Cmd_constraints Simplified  )
+Agda2> cannot read: IOTCM "~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda" NonInteractive Indirect ( Cmd_constraints Simplified  )

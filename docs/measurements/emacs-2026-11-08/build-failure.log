@@ -1,0 +1,11 @@
+Loading quail/latin-ltx...
+
+agda-for-project: building the Agda of ~/git/IO/fls/worktrees/claude/env-config-test-zheoxs/ (package fls-agdaWithPackages), once per change of the inputs of its flake; Emacs waits until it is built...
+File mode specification error: (user-error agda-for-project: nix build ~/git/IO/fls/worktrees/claude/env-config-test-zheoxs#fls-agdaWithPackages failed (exit 1; offline, or a broken flake?); no Agda was run; no Agda was started)
+agda-for-project: building the Agda of ~/git/IO/fls/worktrees/claude/env-config-test-zheoxs/ (package fls-agdaWithPackages), once per change of the inputs of its flake; Emacs waits until it is built...
+  agda2-load refused: (user-error "agda-for-project: nix build ~/git/IO/fls/worktrees/claude/env-config-test-zheoxs#fls-agdaWithPackages failed (exit 1; offline, or a broken flake?); no Agda was run; no Agda was started")
+  probe: no live Agda process (608.9 s)
+~/git/IO/fls/worktrees/claude/env-config-test-zheoxs/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda
+  agda: no Agda process
+  (no *agda2* buffer)
+XDG_CACHE_HOME=$S/xdg-build/cache XDG_STATE_HOME=$S/xdg-build/state = = CONFI  334.79s user 16.83s system 31% cpu 18:43.01 total

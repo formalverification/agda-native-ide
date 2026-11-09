@@ -1,0 +1,33 @@
+Loading quail/latin-ltx...
+
+  probe: real agda /nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda
+  probe: args --with-compiler=/nix/store/iyypanjqg8pwsyxjfylpd5sqjhbripk3-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries --interaction
+  probe: AGDA_DIR=~/.config/agda
+  probe: load 0.1 s
+  probe: resolved by choice, version 2.9.0, in 0.08 s
+$SCRATCH/scratch-project/Scratch.agda
+  agda: /nix/store/pl2l25q382nsgnxdbrqhifhriy05lf20-agdaWithPackages-2.9.0/bin/agda --interaction
+  *Type-checking* 
+  *All Done* 
+
+  probe: real agda /nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda
+  probe: args --with-compiler=/nix/store/npkfdjd7i3622gm0yq5fb39q5n7l6jz6-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/8hlc34i9vdh7x0smbfgfqp2m5zkjr17f-libraries --interaction
+  probe: AGDA_DIR=~/git/formalverification/agda-native-air/main/agda
+  probe: load 0.5 s
+  probe: resolved by choice, version 2.9.0, in 0.19 s
+~/git/formalverification/agda-native-air/main/agda-dojang/agda/AgdaDojang/Examples.agda
+  agda: /nix/store/farh1v7zh9niln08bs9q0h4v4m7bdd4c-agda-env-2.9.0/bin/agda --interaction
+  *Type-checking* 
+  *Type-checking* Checking AgdaDojang.Examples (~/git/formalverification/agda-native-air/main/agda-dojang/agda/AgdaDojang/Examples.agda).
+  *All Goals* ?0 : Nat → Nat → Nat
+
+  probe: real agda /nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda
+  probe: args --with-compiler=/nix/store/iyypanjqg8pwsyxjfylpd5sqjhbripk3-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries --no-default-libraries --library-file ~/git/ualib/agda-lattices/main/.agda/libraries --library standard-library --library agda-algebras --library agda-lattices --interaction
+  probe: AGDA_DIR=~/git/ualib/agda-lattices/main/.agda
+  probe: load 2.5 s
+  probe: resolved by choice, version 2.9.0, in 0.07 s
+~/git/ualib/agda-lattices/main/src/Lattices/Bounded/Covers.lagda.md
+  agda: ~/git/ualib/agda-lattices/main/.agda/bin/agda --interaction
+  *Type-checking* 
+  *All Done* 
+AGDA_FOR_PROJECT=$S/afp/bin/agda-for-project AFP_FALLBACK_ASK=1 = timeout 180  0.55s user 0.32s system 9% cpu 9.483 total

@@ -1,0 +1,63 @@
+Loading quail/latin-ltx...
+
+agda-for-project: building the Agda of ~/git/IO/fls/master/ (package fls-agdaWithPackages), once per change of the inputs of its flake; Emacs waits until it is built...
+
+  probe: real agda /nix/store/infalgzvfzl515yfbiaz998skj9lrwnn-fls-agda-2.8.0/bin/agda
+  probe: args --with-compiler=/nix/store/m70mqskiwdjvaph5qxn5cddy2nsqa5lx-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/6qscaqmlqlfl6708bf2f34fdga9015kz-libraries --interaction
+  probe: AGDA_DIR=~/.config/agda
+  probe: load 9.2 s
+  probe: resolved by discovered, version 2.8.0, in 2.52 s
+~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda
+  agda: $SCRATCH/xdg-final/cache/agda-for-project/package/fls-agdaWithPackages/fd3559bd5396ead0b364387e32012ce6/bin/agda --interaction
+  *Type-checking* 
+  *All Done* 
+
+agda-for-project: building the Agda of ~/git/IO/fls/worktrees/1352-dijkstra-chain-ticked-epoch-state/ (package fls-agdaWithPackages), once per change of the inputs of its flake; Emacs waits until it is built...
+  probe: real agda /nix/store/infalgzvfzl515yfbiaz998skj9lrwnn-fls-agda-2.8.0/bin/agda
+  probe: args --with-compiler=/nix/store/m70mqskiwdjvaph5qxn5cddy2nsqa5lx-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/xza7nddh5281vmdwfqrq3k2hjhgj20fz-libraries --interaction
+  probe: AGDA_DIR=~/.config/agda
+  probe: load 11.2 s
+  probe: resolved by discovered, version 2.8.0, in 2.41 s
+~/git/IO/fls/worktrees/1352-dijkstra-chain-ticked-epoch-state/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda
+  agda: $SCRATCH/xdg-final/cache/agda-for-project/package/fls-agdaWithPackages/0e17c287778df5b30c05ad85c136cba1/bin/agda --interaction
+  *Type-checking* 
+  *All Done* 
+
+agda-for-project: building the Agda of ~/git/ualib/agda-algebras/master/ (package default), once per change of the inputs of its flake; Emacs waits until it is built...
+  probe: real agda /nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda
+  probe: args --with-compiler=/nix/store/iyypanjqg8pwsyxjfylpd5sqjhbripk3-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries --interaction
+  probe: AGDA_DIR=~/.config/agda
+  probe: load 5.6 s
+  probe: resolved by discovered, version 2.9.0, in 4.70 s
+~/git/ualib/agda-algebras/master/src/Setoid/Operations.lagda.md
+  agda: $SCRATCH/xdg-final/cache/agda-for-project/package/default/a55879da0ade3153e6b92f3a4ace7d34/bin/agda --interaction
+  *Type-checking* 
+  *All Done* 
+
+agda-for-project: ~/git/ualib/agda-lattices/main exports no Agda environment; its dev shell may give one, but entering it runs the project's shell hook as you: allow it with --choose devshell:default, or list a directory at or above it in ~/.config/agda-for-project/trusted
+  chooser: Agda for ~/git/ualib/agda-lattices/main/: 
+  chooser:   the agda of the dev shell default of ~/git/ualib/agda-lattices/main (entering it runs the project's shell hook)  [devshell:default]
+  chooser:   Agda 2.9.0, built from default of ~/git/ualib/agda-algebras/master  [path:/nix/store/pl2l25q382nsgnxdbrqhifhriy05lf20-agdaWithPackages-2.9.0/bin/agda]
+  chooser:   Agda 2.8.0, built from fls-agdaWithPackages of ~/git/IO/fls/worktrees/1352-dijkstra-chain-ticked-epoch-state  [path:/nix/store/ws6a1ika52v3b26mxqvlx43h2l08i8ah-agdaWithPackages-2.8.0/bin/agda]
+  chooser:   Agda 2.8.0, built from fls-agdaWithPackages of ~/git/IO/fls/master  [path:/nix/store/0vx59n9g1597p7gzmflmmya161hr695h-agdaWithPackages-2.8.0/bin/agda]
+  chooser: picked devshell:default
+agda-for-project: building the Agda of ~/git/ualib/agda-lattices/main/ (devshell default), once per change of the inputs of its flake; Emacs waits until it is built...
+  probe: real agda /nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda
+  probe: args --with-compiler=/nix/store/iyypanjqg8pwsyxjfylpd5sqjhbripk3-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries --no-default-libraries --library-file ~/git/ualib/agda-lattices/main/.agda/libraries --library standard-library --library agda-algebras --library agda-lattices --interaction
+  probe: AGDA_DIR=~/git/ualib/agda-lattices/main/.agda
+  probe: load 5.4 s
+  probe: resolved by choice, version 2.9.0, in 3.27 s
+~/git/ualib/agda-lattices/main/src/Lattices/Bounded/Covers.lagda.md
+  agda: ~/git/ualib/agda-lattices/main/.agda/bin/agda --interaction
+  *Type-checking* 
+  *All Done* 
+  probe: real agda /nix/store/infalgzvfzl515yfbiaz998skj9lrwnn-fls-agda-2.8.0/bin/agda
+  probe: args --with-compiler=/nix/store/m70mqskiwdjvaph5qxn5cddy2nsqa5lx-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/6qscaqmlqlfl6708bf2f34fdga9015kz-libraries --interaction
+  probe: AGDA_DIR=~/.config/agda
+  probe: load 9.0 s
+  probe: resolved by discovered, version 2.8.0, in 0.20 s
+~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda
+  agda: $SCRATCH/xdg-final/cache/agda-for-project/package/fls-agdaWithPackages/fd3559bd5396ead0b364387e32012ce6/bin/agda --interaction
+  *Type-checking* 
+  *All Done* 
+AGDA_FOR_PROJECT=$S/afp/bin/agda-for-project AGDA_FALLBACK= AFP_PICK= =  1800  29.75s user 4.72s system 64% cpu 53.376 total

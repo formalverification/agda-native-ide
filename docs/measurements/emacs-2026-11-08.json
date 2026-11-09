@@ -1,0 +1,375 @@
+{
+  "date": "2026-11-08",
+  "issue": 98,
+  "machine": {
+    "cpu": "12th Gen Intel Core i9-12900H, 20 threads",
+    "memory": "62 GiB",
+    "os": "Linux 7.0.0-42-generic x86_64",
+    "nix": "2.34.8",
+    "emacs": "GNU Emacs 29.3",
+    "agda2Mode": "Doom's straight build of agda2-mode, agda commit 0d52fa22 (2025-12-07), reporting 2.9.0"
+  },
+  "package": "emacs/agda-for-project.el at this pull request's head; the five-load, chooser, remembered, deferred-open, constraints and build runs ran its final logic",
+  "resolver": "agda-for-project from PR 101 at 7efc018 (nix build .#agda-for-project)",
+  "harness": "the testing-agda-mode-in-batch-emacs skill's agda-mode-harness.el, CONFIG=emacs/test/batch-probe.el; AGDA_DIR=~/.config/agda as in the user's Emacs; XDG_CACHE_HOME and XDG_STATE_HOME in a scratch directory ($SCRATCH), so the resolver's cache and choices started empty and touched nothing of the user's",
+  "scope": "Issue 98's acceptance runs.  Every Nix store path the fls, agda-algebras, agda-lattices and agda-native-air runs name was already in the store, so a first resolution links a root and evaluates (2.4 to 4.7 s) and builds nothing; the build run is the one that fetched (363 MiB).  The probe reads the running Agda's binary, arguments and AGDA_DIR from /proc.  A load's seconds run from the call of agda2-load to the verdict and include any restart and resolution; the first file's start happens when the file opens, so its load excludes resolution.  Each timing is a single observation.",
+  "controls": {
+    "note": "CONFIG_UNDER_TEST was lines 137 to 251 of the user's Doom config.el as of 2026-11-08 (the 'Agda versions' and 'Agda per checkout' blocks), not committed here; the toggled control is the same after one C-c C-x C-t (my/switch-agda), which selects ~/ledger-agda.",
+    "default": {
+      "started": "2026-11-08T18:26:09-07:00",
+      "log": "emacs-2026-11-08/control.log",
+      "wall": "2.272",
+      "loads": [
+        {
+          "realAgda": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+          "AGDA_DIR": "~/.config/agda",
+          "loadSeconds": 0.1,
+          "file": "~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda",
+          "program": "~/.cache/agda-2.9.0/bin/agda --interaction",
+          "verdict": "*Error* error: [LibraryError] Library 'standard-library-classes' not found. Add the path to its .agda-lib file to   '~/.config/agda/libraries' to install. Installed libraries:   standar"
+        }
+      ]
+    },
+    "toggled": {
+      "started": null,
+      "log": "emacs-2026-11-08/control-toggled.log",
+      "wall": "11.940",
+      "loads": [
+        {
+          "realAgda": "/nix/store/w03s7aiar2xnqg20dgv4jknhhn46b2q9-fls-agda-2.8.0/bin/agda",
+          "AGDA_DIR": "~/.config/agda",
+          "loadSeconds": 9.5,
+          "file": "~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda",
+          "program": "~/ledger-agda/bin/agda --interaction",
+          "verdict": "*Error* ~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda:127.25-26: error: [NotInScope] Not in scope:   ∥   at ~/git/IO/fls/master/src-lib-ext"
+        }
+      ]
+    }
+  },
+  "fiveLoads": {
+    "first": {
+      "started": "2026-11-08T19:11:36-07:00",
+      "log": "emacs-2026-11-08/five-first.log",
+      "wall": "53.376",
+      "loads": [
+        {
+          "realAgda": "/nix/store/infalgzvfzl515yfbiaz998skj9lrwnn-fls-agda-2.8.0/bin/agda",
+          "libraryFiles": [
+            "/nix/store/6qscaqmlqlfl6708bf2f34fdga9015kz-libraries"
+          ],
+          "AGDA_DIR": "~/.config/agda",
+          "loadSeconds": 9.2,
+          "decidedBy": "discovered",
+          "version": "2.8.0",
+          "resolveSeconds": 2.52,
+          "file": "~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda",
+          "program": "$SCRATCH/xdg-final/cache/agda-for-project/package/fls-agdaWithPackages/fd3559bd5396ead0b364387e32012ce6/bin/agda --interaction",
+          "verdict": "*All Done*"
+        },
+        {
+          "realAgda": "/nix/store/infalgzvfzl515yfbiaz998skj9lrwnn-fls-agda-2.8.0/bin/agda",
+          "libraryFiles": [
+            "/nix/store/xza7nddh5281vmdwfqrq3k2hjhgj20fz-libraries"
+          ],
+          "AGDA_DIR": "~/.config/agda",
+          "loadSeconds": 11.2,
+          "decidedBy": "discovered",
+          "version": "2.8.0",
+          "resolveSeconds": 2.41,
+          "file": "~/git/IO/fls/worktrees/1352-dijkstra-chain-ticked-epoch-state/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda",
+          "program": "$SCRATCH/xdg-final/cache/agda-for-project/package/fls-agdaWithPackages/0e17c287778df5b30c05ad85c136cba1/bin/agda --interaction",
+          "verdict": "*All Done*"
+        },
+        {
+          "realAgda": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+          "libraryFiles": [
+            "/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries"
+          ],
+          "AGDA_DIR": "~/.config/agda",
+          "loadSeconds": 5.6,
+          "decidedBy": "discovered",
+          "version": "2.9.0",
+          "resolveSeconds": 4.7,
+          "file": "~/git/ualib/agda-algebras/master/src/Setoid/Operations.lagda.md",
+          "program": "$SCRATCH/xdg-final/cache/agda-for-project/package/default/a55879da0ade3153e6b92f3a4ace7d34/bin/agda --interaction",
+          "verdict": "*All Done*"
+        },
+        {
+          "realAgda": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+          "libraryFiles": [
+            "/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries",
+            "~/git/ualib/agda-lattices/main/.agda/libraries"
+          ],
+          "AGDA_DIR": "~/git/ualib/agda-lattices/main/.agda",
+          "loadSeconds": 5.4,
+          "decidedBy": "choice",
+          "version": "2.9.0",
+          "resolveSeconds": 3.27,
+          "file": "~/git/ualib/agda-lattices/main/src/Lattices/Bounded/Covers.lagda.md",
+          "program": "~/git/ualib/agda-lattices/main/.agda/bin/agda --interaction",
+          "verdict": "*All Done*",
+          "chose": "devshell:default"
+        },
+        {
+          "realAgda": "/nix/store/infalgzvfzl515yfbiaz998skj9lrwnn-fls-agda-2.8.0/bin/agda",
+          "libraryFiles": [
+            "/nix/store/6qscaqmlqlfl6708bf2f34fdga9015kz-libraries"
+          ],
+          "AGDA_DIR": "~/.config/agda",
+          "loadSeconds": 9.0,
+          "decidedBy": "discovered",
+          "version": "2.8.0",
+          "resolveSeconds": 0.2,
+          "file": "~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda",
+          "program": "$SCRATCH/xdg-final/cache/agda-for-project/package/fls-agdaWithPackages/fd3559bd5396ead0b364387e32012ce6/bin/agda --interaction",
+          "verdict": "*All Done*"
+        }
+      ]
+    },
+    "warm": {
+      "started": "2026-11-08T19:12:29-07:00",
+      "log": "emacs-2026-11-08/five-warm.log",
+      "wall": "42.078",
+      "loads": [
+        {
+          "realAgda": "/nix/store/infalgzvfzl515yfbiaz998skj9lrwnn-fls-agda-2.8.0/bin/agda",
+          "libraryFiles": [
+            "/nix/store/6qscaqmlqlfl6708bf2f34fdga9015kz-libraries"
+          ],
+          "AGDA_DIR": "~/.config/agda",
+          "loadSeconds": 9.0,
+          "decidedBy": "discovered",
+          "version": "2.8.0",
+          "resolveSeconds": 0.18,
+          "file": "~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda",
+          "program": "$SCRATCH/xdg-final/cache/agda-for-project/package/fls-agdaWithPackages/fd3559bd5396ead0b364387e32012ce6/bin/agda --interaction",
+          "verdict": "*All Done*"
+        },
+        {
+          "realAgda": "/nix/store/infalgzvfzl515yfbiaz998skj9lrwnn-fls-agda-2.8.0/bin/agda",
+          "libraryFiles": [
+            "/nix/store/xza7nddh5281vmdwfqrq3k2hjhgj20fz-libraries"
+          ],
+          "AGDA_DIR": "~/.config/agda",
+          "loadSeconds": 9.4,
+          "decidedBy": "discovered",
+          "version": "2.8.0",
+          "resolveSeconds": 0.22,
+          "file": "~/git/IO/fls/worktrees/1352-dijkstra-chain-ticked-epoch-state/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda",
+          "program": "$SCRATCH/xdg-final/cache/agda-for-project/package/fls-agdaWithPackages/0e17c287778df5b30c05ad85c136cba1/bin/agda --interaction",
+          "verdict": "*All Done*"
+        },
+        {
+          "realAgda": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+          "libraryFiles": [
+            "/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries"
+          ],
+          "AGDA_DIR": "~/.config/agda",
+          "loadSeconds": 1.0,
+          "decidedBy": "discovered",
+          "version": "2.9.0",
+          "resolveSeconds": 0.19,
+          "file": "~/git/ualib/agda-algebras/master/src/Setoid/Operations.lagda.md",
+          "program": "$SCRATCH/xdg-final/cache/agda-for-project/package/default/a55879da0ade3153e6b92f3a4ace7d34/bin/agda --interaction",
+          "verdict": "*All Done*"
+        },
+        {
+          "realAgda": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+          "libraryFiles": [
+            "/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries",
+            "~/git/ualib/agda-lattices/main/.agda/libraries"
+          ],
+          "AGDA_DIR": "~/git/ualib/agda-lattices/main/.agda",
+          "loadSeconds": 2.3,
+          "decidedBy": "choice",
+          "version": "2.9.0",
+          "resolveSeconds": 0.07,
+          "file": "~/git/ualib/agda-lattices/main/src/Lattices/Bounded/Covers.lagda.md",
+          "program": "~/git/ualib/agda-lattices/main/.agda/bin/agda --interaction",
+          "verdict": "*All Done*"
+        },
+        {
+          "realAgda": "/nix/store/infalgzvfzl515yfbiaz998skj9lrwnn-fls-agda-2.8.0/bin/agda",
+          "libraryFiles": [
+            "/nix/store/6qscaqmlqlfl6708bf2f34fdga9015kz-libraries"
+          ],
+          "AGDA_DIR": "~/.config/agda",
+          "loadSeconds": 9.8,
+          "decidedBy": "discovered",
+          "version": "2.8.0",
+          "resolveSeconds": 0.18,
+          "file": "~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda",
+          "program": "$SCRATCH/xdg-final/cache/agda-for-project/package/fls-agdaWithPackages/fd3559bd5396ead0b364387e32012ce6/bin/agda --interaction",
+          "verdict": "*All Done*"
+        }
+      ],
+      "configuration": "the replacement block of the pull request's description, extracted from it (replacement-block.el), loaded by replacement-shim.el as Doom's package! would load the package"
+    }
+  },
+  "chooser": {
+    "started": "2026-11-08T19:13:12-07:00",
+    "log": "emacs-2026-11-08/chooser.log",
+    "wall": "25.010",
+    "loads": [
+      {
+        "realAgda": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+        "libraryFiles": [
+          "/nix/store/8hlc34i9vdh7x0smbfgfqp2m5zkjr17f-libraries"
+        ],
+        "AGDA_DIR": "~/git/formalverification/agda-native-air/main/agda",
+        "loadSeconds": 6.2,
+        "decidedBy": "choice",
+        "version": "2.9.0",
+        "resolveSeconds": 5.96,
+        "file": "~/git/formalverification/agda-native-air/main/agda-dojang/agda/AgdaDojang/Examples.agda",
+        "program": "/nix/store/farh1v7zh9niln08bs9q0h4v4m7bdd4c-agda-env-2.9.0/bin/agda --interaction",
+        "verdict": "*All Goals* ?0 : Nat → Nat → Nat",
+        "chose": "devshell:default"
+      },
+      {
+        "realAgda": "/nix/store/infalgzvfzl515yfbiaz998skj9lrwnn-fls-agda-2.8.0/bin/agda",
+        "libraryFiles": [
+          "/nix/store/6qscaqmlqlfl6708bf2f34fdga9015kz-libraries",
+          "$SCRATCH/xdg-final/cache/agda-for-project/registries/11c5b4813e488e5079e2e23b7e758c0f.libraries"
+        ],
+        "AGDA_DIR": "~/.config/agda",
+        "loadSeconds": 9.6,
+        "decidedBy": "discovered",
+        "version": "2.8.0",
+        "resolveSeconds": 0.31,
+        "file": "~/git/IO/fls/master/formal-ledger-test/src/Test/Examples/MultiSig/Datum.lagda.md",
+        "program": "$SCRATCH/xdg-final/cache/agda-for-project/package/fls-agdaWithPackages/fd3559bd5396ead0b364387e32012ce6/bin/agda --interaction --library-file=$SCRATCH/xdg-final/cache/agda-for-project/registries/11c5b4813e488e5079e2e23b7e758c0f.libraries",
+        "verdict": "*All Done*"
+      },
+      {
+        "realAgda": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+        "libraryFiles": [
+          "/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries"
+        ],
+        "AGDA_DIR": "~/.config/agda",
+        "loadSeconds": 1.5,
+        "decidedBy": "choice",
+        "version": "2.9.0",
+        "resolveSeconds": 0.42,
+        "file": "$SCRATCH/scratch-project/Scratch.agda",
+        "program": "/nix/store/pl2l25q382nsgnxdbrqhifhriy05lf20-agdaWithPackages-2.9.0/bin/agda --interaction",
+        "verdict": "*All Done*",
+        "chose": "path:/nix/store/pl2l25q382nsgnxdbrqhifhriy05lf20-agdaWithPackages-2.9.0/bin/agda"
+      }
+    ],
+    "note": "agda-native-air's dev shell is untrusted (no ~/.config/agda-for-project/trusted), so its file was deferred at open and the chooser offered on C-c C-l; the scratch directory has no flake, with agda-for-project-fallback set to ask; the batch stub of completing-read prints the offer and picks by AFP_PICK"
+  },
+  "remembered": {
+    "started": "2026-11-08T19:13:37-07:00",
+    "log": "emacs-2026-11-08/remembered.log",
+    "wall": "9.483",
+    "loads": [
+      {
+        "realAgda": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+        "libraryFiles": [
+          "/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries"
+        ],
+        "AGDA_DIR": "~/.config/agda",
+        "loadSeconds": 0.1,
+        "decidedBy": "choice",
+        "version": "2.9.0",
+        "resolveSeconds": 0.08,
+        "file": "$SCRATCH/scratch-project/Scratch.agda",
+        "program": "/nix/store/pl2l25q382nsgnxdbrqhifhriy05lf20-agdaWithPackages-2.9.0/bin/agda --interaction",
+        "verdict": "*All Done*"
+      },
+      {
+        "realAgda": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+        "libraryFiles": [
+          "/nix/store/8hlc34i9vdh7x0smbfgfqp2m5zkjr17f-libraries"
+        ],
+        "AGDA_DIR": "~/git/formalverification/agda-native-air/main/agda",
+        "loadSeconds": 0.5,
+        "decidedBy": "choice",
+        "version": "2.9.0",
+        "resolveSeconds": 0.19,
+        "file": "~/git/formalverification/agda-native-air/main/agda-dojang/agda/AgdaDojang/Examples.agda",
+        "program": "/nix/store/farh1v7zh9niln08bs9q0h4v4m7bdd4c-agda-env-2.9.0/bin/agda --interaction",
+        "verdict": "*All Goals* ?0 : Nat → Nat → Nat"
+      },
+      {
+        "realAgda": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+        "libraryFiles": [
+          "/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries",
+          "~/git/ualib/agda-lattices/main/.agda/libraries"
+        ],
+        "AGDA_DIR": "~/git/ualib/agda-lattices/main/.agda",
+        "loadSeconds": 2.5,
+        "decidedBy": "choice",
+        "version": "2.9.0",
+        "resolveSeconds": 0.07,
+        "file": "~/git/ualib/agda-lattices/main/src/Lattices/Bounded/Covers.lagda.md",
+        "program": "~/git/ualib/agda-lattices/main/.agda/bin/agda --interaction",
+        "verdict": "*All Done*"
+      }
+    ],
+    "note": "the same state directory, AFP_PICK unset: an offer would have been an error"
+  },
+  "deferredOpen": {
+    "started": "2026-11-08T19:10:47-07:00",
+    "log": "emacs-2026-11-08/deferred-open.log",
+    "wall": "4.982",
+    "loads": [
+      {
+        "realAgda": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+        "libraryFiles": [
+          "/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries",
+          "~/git/ualib/agda-lattices/main/.agda/libraries"
+        ],
+        "AGDA_DIR": "~/git/ualib/agda-lattices/main/.agda",
+        "loadSeconds": 2.7,
+        "decidedBy": "choice",
+        "version": "2.9.0",
+        "resolveSeconds": 0.44,
+        "file": "~/git/ualib/agda-lattices/main/src/Lattices/Bounded/Covers.lagda.md",
+        "program": "~/git/ualib/agda-lattices/main/.agda/bin/agda --interaction",
+        "verdict": "*All Done*",
+        "chose": "devshell:default"
+      }
+    ],
+    "note": "agda-lattices opened first with fresh state: the start at open said what was missing and started nothing, leaving nothing marked busy; C-c C-l offered the chooser"
+  },
+  "build": {
+    "started": "2026-11-08T18:47:58-07:00",
+    "log": "emacs-2026-11-08/build.log",
+    "wall": "5:31.82",
+    "loads": [
+      {
+        "realAgda": "/nix/store/6vrn9b06pa1yl6cis4v4npdypgv38hck-Agda-2.7.0.1-bin/bin/agda",
+        "libraryFiles": [
+          "/nix/store/j9hymqf0n1y4j00n5hcawfdigivalfps-libraries"
+        ],
+        "AGDA_DIR": "~/.config/agda",
+        "loadSeconds": 2.4,
+        "decidedBy": "discovered",
+        "version": "2.7.0.1",
+        "resolveSeconds": 327.21,
+        "file": "$SCRATCH/fresh-flake/Fresh.agda",
+        "program": "$SCRATCH/xdg-build/cache/agda-for-project/package/default/edcaa7168c465aea7a9b8fbda52be8be/bin/agda --interaction",
+        "verdict": "*All Done*"
+      }
+    ],
+    "note": "a scratch flake on nixos-25.05 (nixpkgs ac62194c, Agda 2.7.0.1 with its standard library), whose environment was not in the store: 26 paths, 362.6 MiB to fetch; Emacs waited for the resolver's build, then Agda 2.7.0.1 started under the 2.9.0 agda2-mode"
+  },
+  "buildFailure": {
+    "started": "2026-11-08T18:28:43-07:00",
+    "log": "emacs-2026-11-08/build-failure.log",
+    "wall": "18:43.01",
+    "loads": [],
+    "note": "fls worktree claude/env-config-test-zheoxs, whose locally modified flake.lock does not build (standard-library-meta 2.3: UnequalTerms in Class/Convertible/Core.agda); each attempt ran about 9 minutes before failing.  The start at open and the load both refused with the resolver's line and no Agda ran.  This run predates the open-time deferral, so the open shows Emacs's 'File mode specification error'; the load-time refusal is the package's final behavior"
+  },
+  "constraints": {
+    "log": "emacs-2026-11-08/constraints.log",
+    "driver": "emacs-2026-11-08/constraints.el",
+    "finding": "C-c C-= (agda2-show-constraints) on an fls buffer, Agda 2.8.0 under the 2.9.0 agda2-mode: the mode sends Cmd_constraints Simplified and Agda answers 'cannot read: IOTCM ... ( Cmd_constraints Simplified )'"
+  },
+  "explainCommand": {
+    "log": "emacs-2026-11-08/explain-command.log"
+  },
+  "unitTests": "make emacs-test: 17 ERT tests against a stub resolver, the package byte-compiled with warnings as errors in a fresh Emacs; seven mutations of the package each fail at least one test"
+}
