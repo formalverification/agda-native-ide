@@ -21,7 +21,11 @@
 #   attribute"; packages.SYSTEM.json, when present, answers for SYSTEM
 #   alone), libraries (the environment's libraries file), version (what
 #   the stub Agda answers to --numeric-version), build-sleep, build-fails,
-#   no-agda, eval-fails, develop-fails, devshell-agda (`checkout`, the
+#   no-agda, eval-fails, develop-fails, develop-fails-late (the shell's
+#   hook writes its wrapper, then the entry fails), lock-outgrown (flake.nix
+#   names an input the lock lacks: refused under --no-update-lock-file, as
+#   Nix refuses it, and resolved in memory otherwise, as Nix resolves it
+#   under --no-write-lock-file), devshell-agda (`checkout`, the
 #   default, writes FLAKE/.agda/bin/agda as agda-algebras' downstream shells
 #   do; `relative` writes the same agda but puts `.agda/bin` on PATH and
 #   sets AGDA_DIR to `.agda`, both relative; `none` adds no agda;
@@ -42,6 +46,12 @@ for a in "$@"; do case "$a" in *'#'*) ref="$a"; break ;; esac; done
 flake="${ref%%#*}" attrpath="${ref#*#}"
 ctl="${flake}/.stub"
 version="$(cat "${ctl}/version" 2>/dev/null || echo 2.9.0)"
+if [ -f "${ctl}/lock-outgrown" ] && [ -n "$ref" ]; then
+  case " $* " in *" --no-update-lock-file "*)
+    echo "error: flake 'git+file://${flake}' requires lock file changes but they're not allowed due to '--no-update-lock-file'" >&2
+    exit 1 ;;
+  esac
+fi
 
 # make_agda FILE TAG: a stub Agda.
 make_agda() {
@@ -105,6 +115,7 @@ case "$sub" in
       checkout)
         mkdir -p "${flake}/.agda/bin"
         make_agda "${flake}/.agda/bin/agda" "devshell of ${flake}"
+        if [ -f "${ctl}/develop-fails-late" ]; then echo "error: stub hook failed after writing its wrapper" >&2; exit 1; fi
         export PATH="${flake}/.agda/bin:${PATH}"
         [ -f "${ctl}/keep-agda-dir" ] || export AGDA_DIR="${flake}/.agda" ;;
       relative)

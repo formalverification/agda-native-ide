@@ -269,14 +269,21 @@ entry for its repository, or a choice for the project.
    store paths, and nothing is shown in the editor until it ends; build it
    first from a shell with `agda-for-project --explain FILE`.
 +  **A locked flake only**: the flake needs a `flake.lock` that git
-   tracks.  Nix ignores an untracked one and would resolve every input
-   afresh, so the program refuses such a flake before evaluating it.
+   tracks, and that locks every input `flake.nix` names.  Nix ignores an
+   untracked one and would resolve every input afresh, so the program
+   refuses such a flake before evaluating it; and after an edit that adds
+   an input, it refuses the flake until you run `nix flake lock`, rather
+   than build from whatever revision the input has today.
 +  **`legacyPackages` is not searched**, and a flake outside git is
    evaluated on every start.
 +  **A checkout nested in another library's directory**, with no
    `.agda-lib` of its own at or above the file, belongs to the outer
    library, as Agda itself takes it, and gets the outer project's Agda;
    give it an `.agda-lib` to make it a project of its own.
++  **A dev shell is captured once per key**, from its own PATH and
+   `AGDA_DIR` whoever calls; but a hook that reads other variables of the
+   caller's environment (agda-lattices' reads `AGDA_ALGEBRAS_DIR`) is
+   captured as the first caller had them.
 +  **A dev shell entered by hand** (`nix develop`, direnv) at another
    state of the checkout rewrites what its hook writes there, and the
    program sees that only when it next enters the shell itself; enter the

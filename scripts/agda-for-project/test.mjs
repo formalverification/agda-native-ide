@@ -120,9 +120,9 @@ function control_(dir, control) {
 }
 
 function run(sb, args, { cwd, input = "", env = {} } = {}) {
-  const done = spawnSync(LAUNCHER, args, {
-    cwd: cwd ?? sb.root, input, encoding: "utf8", env: { ...sb.env, ...env },
-  });
+  // A variable given as null is left out of the environment.
+  const merged = Object.fromEntries(Object.entries({ ...sb.env, ...env }).filter(([, v]) => v !== null));
+  const done = spawnSync(LAUNCHER, args, { cwd: cwd ?? sb.root, input, encoding: "utf8", env: merged });
   return { status: done.status, stdout: done.stdout, stderr: done.stderr };
 }
 
@@ -292,18 +292,18 @@ test("a dev shell that leaves AGDA_DIR alone passes none of its own", t => {
 test("a dev shell with no agda of its own is refused", t => {
   const sb = sandbox(t);
   const dir = checkout(sb, "project", ENV_FILES, { "devshells.json": ["default"], "devshell-agda": "none" });
-  refused(run(sb, ["x"], { cwd: dir }), /puts no agda on PATH/);
+  refused(run(sb, ["x"], { cwd: dir }), /puts no agda of its own on PATH; see --candidates/);
   // An agda in the store, on the caller's PATH: the shell only inherits it.
   const outer = join(sb.root, "store", "outer", "bin");
   mkdirSync(outer, { recursive: true });
   writeFileSync(join(outer, "agda"), "#!/bin/sh\necho outer agda\n");
   chmodSync(join(outer, "agda"), 0o755);
   refused(run(sb, ["x"], { cwd: dir, env: { PATH: `${outer}${delimiter}${sb.env.PATH}` } }),
-    /adds no agda of its own \(it finds .*\/store\/outer\/bin\/agda, from the caller's PATH\)/);
+    /puts no agda of its own on PATH \(it would only inherit .*\/store\/outer\/bin\/agda, from the caller's PATH\)/);
   // The same agda reached through a profile's link, as ~/.nix-profile/bin is.
   symlinkSync(join(sb.root, "store", "outer"), join(sb.root, "profile"));
   refused(run(sb, ["x"], { cwd: dir, env: { PATH: `${join(sb.root, "profile", "bin")}${delimiter}${sb.env.PATH}` } }),
-    /adds no agda of its own \(it finds .*\/store\/outer\/bin\/agda, from the caller's PATH\)/);
+    /puts no agda of its own on PATH \(it would only inherit .*\/store\/outer\/bin\/agda, from the caller's PATH\)/);
   const dir2 = checkout(sb, "project2", ENV_FILES, { "devshells.json": ["default"], "devshell-agda": "elsewhere" });
   refused(run(sb, ["x"], { cwd: dir2 }), /elsewhere-bin\/agda, which is neither in the store nor in the checkout/);
 });
@@ -319,6 +319,39 @@ test("a dev shell's relative PATH entry and AGDA_DIR are read from its directory
   }
   assert.equal(count(sb, "develop"), 1);
   assert.equal(explain(sb, [], { cwd: dir }).json.program, join(dir, ".agda", "bin", "agda"));
+});
+
+test("what a dev shell gives is its own whoever calls: from inside the project's shell, and with the caller's AGDA_DIR", t => {
+  const sb = sandbox(t);
+  const dir = checkout(sb, "project", ENV_FILES, { "devshells.json": ["default"] });
+  const own = join(dir, ".agda", "bin");
+  // A caller inside the project's own shell (direnv) holds its agda on PATH
+  // and its AGDA_DIR already: the first entry must still see the shell's own.
+  write(dir, { ".agda/bin/agda": "#!/bin/sh\necho stale wrapper\n" });
+  chmodSync(join(own, "agda"), 0o755);
+  const inside = { PATH: `${own}${delimiter}${sb.env.PATH}`, AGDA_DIR: join(dir, ".agda") };
+  const first = explain(sb, [], { cwd: dir, env: inside });
+  assert.equal(first.status, 0, first.stderr);
+  assert.equal(first.json.program, join(own, "agda"));
+  assert.deepEqual(first.json.env, { AGDA_DIR: join(dir, ".agda") }, "the hook's AGDA_DIR, though the caller's was the same");
+  // A later caller with no AGDA_DIR gets the hook's from the record.
+  const later = run(sb, ["x"], { cwd: dir, env: { AGDA_DIR: null } });
+  assert.match(later.stdout, new RegExp(`^AGDA_DIR=${dir}/\\.agda$`, "m"));
+  assert.equal(count(sb, "develop"), 1);
+});
+
+test("a dev shell whose entry fails after its hook wrote the checkout leaves no record current", t => {
+  const sb = sandbox(t);
+  const dir = checkout(sb, "project", ENV_FILES, { "devshells.json": ["default"], version: "2.8.0" });
+  const version = () => explain(sb, [], { cwd: dir }).json.version;
+  assert.equal(version(), "2.8.0");
+  write(dir, { "README.md": "another state\n" });
+  control_(dir, { version: "2.9.0", "develop-fails-late": "" });
+  refused(run(sb, ["x"], { cwd: dir }), /nix develop .* failed/);
+  git(dir, "checkout", "--", "README.md");
+  control_(dir, { version: "2.8.0", "develop-fails-late": null });
+  assert.equal(version(), "2.8.0", "the first key's shell entered again, over the failed entry's wrapper");
+  assert.equal(count(sb, "develop"), 3);
 });
 
 test("a dev shell entered for another key since is entered again, since its hook rewrote the checkout", t => {
@@ -539,6 +572,14 @@ test("sibling libraries join the environment's in a libraries file, transitively
   const top = explain(sb, [], { cwd: dir });
   assert.deepEqual(top.json.args, [], "the environment provides every dependency of the root project");
   assert.match(run(sb, ["x"], { cwd: dir }).stdout, /^arg x$/m);
+  // An environment's libraries file whose last line has no newline.
+  const other = join(sb.root, "store", "other-lib", "other.agda-lib");
+  write(dirname(other), { "other.agda-lib": "name: other\ninclude: src\n" });
+  control_(dir, { libraries: `${other}\n${stdlib}` });
+  const tail = explain(sb, [join(dir, "tests/src/T.agda")]);
+  assert.deepEqual(tail.json.libraries.missing, ["nowhere"], "its last entry, standard-library, is read");
+  assert.deepEqual(readFileSync(tail.json.libraries.file, "utf8").trim().split("\n"),
+    [other, stdlib, join(dir, "sibling-a/sibling-a.agda-lib"), join(dir, "sibling-b/sibling-b.agda-lib")]);
 });
 
 // ---- Answers ---------------------------------------------------------------
@@ -618,6 +659,14 @@ test("refusals: no lock, a failed build, an output without agda, an evaluation t
   refused(run(sb, ["x"], { cwd: checkout(sb, "noagda", ENV_FILES, { "packages.json": ONE_ENV, "no-agda": "" }) }),
     /which has no executable bin\/agda/);
   refused(run(sb, ["x"], { cwd: checkout(sb, "noeval", ENV_FILES, { "eval-fails": "" }) }), /Nix could not evaluate/);
+  // A flake.nix that names an input its tracked lock lacks: refused, not
+  // resolved in memory and built from an unpinned revision.
+  const outgrown = run(sb, ["x"], { cwd: checkout(sb, "outgrown", ENV_FILES, { "packages.json": ONE_ENV, "lock-outgrown": "" }) });
+  refused(outgrown, /Nix could not evaluate/);
+  assert.match(outgrown.stderr, /does not lock every input flake\.nix names; run 'nix flake lock' there/);
+  assert.doesNotMatch(log(sb), /--no-write-lock-file/);
+  for (const line of log(sb).split("\n").filter(l => l.includes("#")))
+    assert.match(line, /--no-update-lock-file/, line);
   refused(run(sb, ["x"], { cwd: checkout(sb, "nodev", ENV_FILES, { "devshells.json": ["default"], "develop-fails": "" }) }),
     /nix develop .* failed/);
   const dir = checkout(sb, "nonix", ENV_FILES, { "packages.json": ONE_ENV });
