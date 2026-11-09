@@ -23,7 +23,10 @@
       { "command": "agdaWorkbench.laneInfer", "title": "Infer Type (Native Lane)", "category": "Agda Workbench" },
       { "command": "agdaWorkbench.laneNormalize", "title": "Normalize (Native Lane)", "category": "Agda Workbench" },
       { "command": "agdaWorkbench.laneGive", "title": "Give at Cursor (Native Lane)", "category": "Agda Workbench" },
-      { "command": "agdaWorkbench.checkFile", "title": "Check File (Batch Verdict)", "category": "Agda Workbench" }
+      { "command": "agdaWorkbench.checkFile", "title": "Check File (Batch Verdict)", "category": "Agda Workbench" },
+      { "command": "agdaWorkbench.chooseAgda", "title": "Choose the Project's Agda", "category": "Agda Workbench" },
+      { "command": "agdaWorkbench.showResolution", "title": "Show the Project's Agda (agda-for-project --explain)", "category": "Agda Workbench" },
+      { "command": "agdaWorkbench.starterFlake", "title": "Write a Starter flake.nix for the Project", "category": "Agda Workbench" }
     ],
     "configuration": {
       "title": "Agda Workbench",
@@ -32,7 +35,7 @@
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "description": "The agda the native lanes run, by a path or a name on PATH.  Empty: the last of agda-mode-vscode's agdaMode.connection.paths that names an agda (not a language server), else agda on PATH."
+          "description": "The agda the native lanes run, by a path or a name on PATH; when set, it wins over agda-for-project.  Empty: the project's own Agda, through agda-for-project when it is configured (agdaWorkbench.launcher.path, or the last of agdaMode.connection.paths), else the last of agda-mode-vscode's agdaMode.connection.paths that names an agda (not a language server), else agda on PATH."
         },
         "agdaWorkbench.agda.commandLineOptions": {
           "type": "string",
@@ -42,9 +45,20 @@
         },
         "agdaWorkbench.agda.version": {
           "type": "string",
-          "default": "2.9.0",
+          "default": "",
           "scope": "machine-overridable",
-          "description": "The Agda version the project expects.  The native lanes refuse an agda that answers --numeric-version with another."
+          "description": "The Agda version the native lanes must run, when set; they refuse an agda that answers --numeric-version with another.  Empty: the version of the project's own Agda (through agda-for-project), or 2.9.0 without it.  The lanes speak Agda 2.9.0 and 2.8.0."
+        },
+        "agdaWorkbench.launcher.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "agda-for-project, by a path or a name on PATH, for the native lanes and the status item.  Empty: the last of agdaMode.connection.paths, when it names agda-for-project."
+        },
+        "agdaWorkbench.mode.steer": {
+          "type": "boolean",
+          "default": true,
+          "description": "When agda-mode-vscode runs agda-for-project (the last of agdaMode.connection.paths), point it at the active file's project (AGDA_FOR_PROJECT_DIR in the extension host) and restart it when that project needs another Agda."
         },
         "agdaWorkbench.lanes.idleMinutes": {
           "type": "number",
