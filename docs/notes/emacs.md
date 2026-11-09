@@ -46,9 +46,11 @@ agda2-mode functions, as follows:
    arguments and the process all run the same program the same way.
 +  **Around `agda2-load`** (`C-c C-l`), it restarts Agda first when the
    buffer's project differs from the one the running process was started
-   for, when the `flake.nix` or `flake.lock` of the flake its Agda came
-   from has changed since it started (after `nix flake update`, say), or
-   when no process runs.
+   for, when the project's flake has changed since it started (one has
+   appeared or gone, or its `flake.nix` or `flake.lock` has changed, after
+   `nix flake update`, say), or when no process runs.  The project's
+   flake is found by the resolver's rule: the nearest `flake.nix` at or
+   above the root, no higher than its git checkout.
 
 The buffer's project is its **root**: the directory of the nearest
 `.agda-lib` at or above the file, or the file's own directory when there
@@ -78,7 +80,8 @@ answers in one of four ways, as follows:
    project's code as you.
 +  **A failure** (an evaluation or a build that failed, a flake with no
    lock): the package shows the resolver's one line and starts no Agda.
-   It never runs some other Agda instead.
+   It never runs some other Agda instead: an Agda still running for
+   another project is stopped first, as agda2-mode's own restart does.
 
 A file in no project with a flake, and with no choice remembered, gets
 `agda-for-project-fallback`: by default `agda2-program-name` as you set
