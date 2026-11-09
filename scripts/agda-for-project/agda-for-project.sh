@@ -47,7 +47,12 @@
 #       in the user's state directory, keyed by the repository (its common
 #       git directory, which every worktree shares) and the project's
 #       directory within it, so one choice serves every worktree; never in
-#       the checkout.
+#       the checkout.  Only a working tree git lists for that repository
+#       (`git worktree list`) shares them: a `.git` file can name any git
+#       directory, so a directory unpacked with one naming a repository of
+#       the user's would otherwise inherit that repository's choices, and a
+#       choice is consent to run code.  Any other checkout (a submodule's
+#       too) is keyed by its own path.
 #   3.  The flake's one Agda environment: a package of the system (see
 #       Environment) named `default` or with `agda` in its name, that
 #       evaluates to a derivation whose pname is `agdaWithPackages` (what
@@ -433,9 +438,24 @@ key_for() {
 }
 
 # ---- Choices ---------------------------------------------------------------
-# The project's identity: its repository (shared by every worktree) and its
-# directory within it; outside a repository, its path.
-if [ -n "$common" ]; then
+# listed TOP: whether TOP is a working tree its repository lists (the main
+# one or a linked one).  A `.git` file can name any git directory, so a
+# directory unpacked with `gitdir: <a repository of the user's>/.git`
+# reports that repository as its own; git lists only the trees it made.
+listed() {
+  local line w
+  while IFS= read -r line; do
+    case "$line" in "worktree "*) w="${line#worktree }" ;; *) continue ;; esac
+    [ "$w" != "$1" ] || return 0
+    w="$(cd "$w" 2>/dev/null && pwd -P)" && [ "$w" = "$1" ] && return 0
+  done < <(git -C "$1" worktree list --porcelain 2>/dev/null)
+  return 1
+}
+
+# The project's identity: its repository (shared by every worktree git
+# lists) and its directory within it; outside a repository, or in a
+# checkout its repository does not list, its path.
+if [ -n "$common" ] && listed "$top"; then
   rel="${project_root#"$top"}"
   choice_identity="repository ${common} project ${rel:-/}"
 else

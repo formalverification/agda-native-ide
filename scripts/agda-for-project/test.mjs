@@ -422,6 +422,28 @@ test("no flake: nothing is decided until a choice, which every worktree shares, 
   refused(run(sb, ["x"], { cwd: dir }), /no flake\.nix/);
 });
 
+test("a directory whose .git file names a repository's git directory does not share its choices", t => {
+  const sb = sandbox(t, { trusted: false });
+  const mine = checkout(sb, "mine", ENV_FILES, { "devshells.json": ["default"] });
+  assert.equal(run(sb, ["--choose", "devshell:default"], { cwd: mine }).status, 0);
+  const wt = join(sb.root, "worktree");
+  git(mine, "worktree", "add", "-q", wt);
+  control_(wt, { "devshells.json": ["default"] });
+  assert.equal(explain(sb, ["--no-build"], { cwd: wt }).json.choice, "devshell:default", "a worktree git lists shares it");
+  // Unpacked archives with their own flake, and a .git file naming my
+  // repository's git directory, or my worktree's.
+  for (const [name, gitdir] of [["archive", join(mine, ".git")], ["archive2", join(mine, ".git", "worktrees", "worktree")]]) {
+    const planted = join(sb.root, "Downloads", name);
+    write(planted, { ...ENV_FILES, "checkout.txt": "mine\n", ".git": `gitdir: ${gitdir}\n` });
+    control_(planted, { "devshells.json": ["default"] });
+    assert.equal(git(planted, "rev-parse", "--show-toplevel").trim(), planted, "git takes it for a checkout of mine");
+    const r = explain(sb, ["--no-build"], { cwd: planted });
+    assert.deepEqual([r.json.decided, r.json.reason, r.json.choice], [false, "untrusted", null]);
+    refused(run(sb, ["x"], { cwd: planted }), /is not trusted, and entering its dev shell default/);
+  }
+  assert.equal(count(sb, "develop"), 0, "no shell entered on my choice's authority");
+});
+
 test("a chosen attribute overrides discovery, and AGDA_FLAKE_ATTR or --flake-attr overrides the choice", t => {
   const sb = sandbox(t);
   const dir = checkout(sb, "project", ENV_FILES, { "packages.json": ONE_ENV });
