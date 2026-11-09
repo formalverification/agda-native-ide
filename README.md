@@ -89,6 +89,11 @@ together from one `package-lock.json`.
    [`docs/notes/project-agda.md`][project-agda] explains it, and
    [`docs/adr/0004-each-projects-own-agda.md`][adr-0004] records the
    decisions and the measurements.
++  **Emacs**, in [`emacs/`][emacs]: `agda-for-project.el`, whose global
+   minor mode makes agda2-mode run each buffer's own project's Agda
+   through `agda-for-project`, restarting Agda when `C-c C-l` comes from
+   a buffer of another project (`make emacs-test`).
+   [`docs/notes/emacs.md`][emacs-note] explains it and how to install it.
 +  [`docs/provenance.md`][provenance]: where every imported file and every
    pinned binary comes from, with its SHA-256 and its license.  The machine
    records are in [`upstream/`][records].
@@ -449,6 +454,8 @@ every artifact the app ships, with its license.
 [adr-0004]: docs/adr/0004-each-projects-own-agda.md
 [agda-for-project]: scripts/agda-for-project/
 [project-agda]: docs/notes/project-agda.md
+[emacs]: emacs/agda-for-project.el
+[emacs-note]: docs/notes/emacs.md
 [engine-overview]: docs/engine/overview.md
 [vscode]: vscode/README.md
 [platform-note]: docs/notes/platform-brief-2026-10-05.md
