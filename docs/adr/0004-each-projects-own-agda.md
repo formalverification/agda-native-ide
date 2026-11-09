@@ -35,19 +35,21 @@ decides how every host gets each project's own Agda instead: one program,
    flake names, builds it once per change of the files that decide it, and
    execs it with every argument unchanged.
 +  **How it decides**: an attribute the host names; else a choice the user
-   made for the project; else the flake's one Agda environment; else its
-   dev shell's own `agda`, if the user trusts the flake, since entering a
-   dev shell runs the project's code; else nothing, and it says so, exit
-   69, and lists the candidates a chooser can offer.
+   made for the project; else the flake's one Agda environment, or else its
+   dev shell's own `agda`, either only if the user trusts the flake, since
+   running either runs the flake's code; else nothing, and it says so, exit
+   69, and lists the candidates a chooser can offer, trusting the flake
+   among them.
 +  **Why it is shaped so**: most projects worth checking already pin their
    Agda and libraries in a flake, so the answer is written down; and a
    program, not a library, is the one thing every host can run.
-+  **Where it stands**: built, packaged in the flake, tested (18 cases
-   against a stub `nix`, nine checks each made to fail by a mutation), and
-   measured on formal-ledger-specifications (Agda 2.8.0, two locks),
-   agda-algebras (Agda 2.9.0) and agda-lattices (a dev shell's wrapper):
-   each file checks through it, where one Agda for all of them fails two
-   ways.
++  **Where it stands**: built, packaged in the flake, tested (24 cases
+   against a stub `nix`; 19 checks each made to fail by a mutation, and
+   each case added after a review failing against the launcher before it
+   or under a mutation), and measured on formal-ledger-specifications
+   (Agda 2.8.0, two locks), agda-algebras (Agda 2.9.0) and agda-lattices
+   (a dev shell's wrapper): each file checks through it, where one Agda for
+   all of them fails two ways.
 +  **Where it goes**: Emacs ([#98]) and VS Code ([#99]) name it and build
    their choosers on its answers; agda-native-air's registrations can name
    it in place of `agda-for-flake.sh`, whose interface it keeps.
@@ -97,6 +99,13 @@ rule of its own.
 +  Every argument goes to Agda unchanged, and nothing but Agda writes to
    standard output, so a host that speaks Agda's interaction protocol over
    the program's streams cannot tell it from `agda`.
++  **One line on stderr before a first evaluation or a build**, once per
+   key, so that a host which passes over a silent program waits for this
+   one: agda-mode-vscode probes each candidate with `--version` and moves
+   on after 3 s without output ([#97]'s report of 2026-11-09).  A warm
+   start writes nothing, nor does any call outside git, where every call
+   evaluates: a host may read stderr during a session as an error of
+   Agda's.
 
 **Evidence**.
 
@@ -113,8 +122,15 @@ rule of its own.
    an older one; no single pin can serve both.
 +  Costs: a warm start costs 0.20 s more than starting the environment's
    `agda` directly (median of five), paid once per Agda process.
++  The second review of [#101] (2026-11-09) found discovery silent: with
+   two evaluations of 2 s each under the stub `nix`, the first byte on
+   stderr came at 4.2 s; with the line, at 0.0 s ([the record of
+   2026-11-09][record-11-09], `silence`).  Tests: the line opens
+   a first call; a warm start, and a second call outside git, write
+   nothing; a mutation that speaks outside git is caught.
 
-**Status**.  Adopted (2026-11-07, [#97]).  [#98] and [#99] name it.
+**Status**.  Adopted (2026-11-07, [#97]); the line before a first
+evaluation added on 2026-11-09.  [#98] and [#99] name it.
 
 ---
 
@@ -131,6 +147,10 @@ project, within its repository.
    that cannot choose where it starts Agda; or, for the answers of § 10, a
    `FILE` argument.
 +  **No `.agda-lib`**: the starting directory is the project.
++  **The search for the `.agda-lib` does not stop at a repository's
+   boundary**, since Agda's does not: a file of a checkout nested in
+   another library's directory, with no `.agda-lib` of its own above it, is
+   that library's to Agda, and only that library's Agda can check it.
 +  **The search for the flake stops at a repository's boundary** (a
    directory holding `.git`), as agda-for-flake.sh's does, so a checkout
    nested in another never borrows the outer flake.
@@ -139,10 +159,17 @@ project, within its repository.
 `FILE`, and the exec path with `AGDA_FOR_PROJECT_DIR`; the
 formal-ledger-test library, a subdirectory of formal-ledger-specifications
 with its own `.agda-lib`, resolves to the checkout's flake ([the
-record][record], `explain`).
+record][record], `explain`).  The second review of [#101] (2026-11-09)
+asked that the `.agda-lib` search stop at a nested repository's `.git`.
+Agda 2.8.0, checking `outer/nested/X.agda` with `outer/nested/.git` and
+`outer/outer.agda-lib` (which depends on `no-such-library`), fails with
+`Library 'no-such-library' not found`; with the outer file removed, `X`
+checks ([the record of 2026-11-09][record-11-09], `nestedLibrary`).  So
+the nested flake's Agda would read the outer `.agda-lib` too.
 
-**Status**.  Adopted (2026-11-07, [#97]).  [#99] decides whether the
-VS Code mode needs `AGDA_FOR_PROJECT_DIR`.
+**Status**.  Adopted (2026-11-07, [#97]); the stop at `.git` for the
+library search declined on 2026-11-09.  [#99] decides whether the VS Code
+mode needs `AGDA_FOR_PROJECT_DIR`.
 
 ---
 
@@ -153,7 +180,8 @@ VS Code mode needs `AGDA_FOR_PROJECT_DIR`.
 **Decision**.  The first of the following that applies decides the Agda:
 an attribute the host names, a remembered choice, the flake's one Agda
 environment, its default dev shell's own `agda`; otherwise nothing is
-decided.
+decided.  What discovery finds (3 and 4) is run only for a trusted flake
+(§ 7).
 
 1.  **An attribute named by the host**: `AGDA_FLAKE_ATTR`, or a leading
     `--flake-attr NAME`, agda-for-flake.sh's interface, so an agda-mcp
@@ -161,18 +189,18 @@ decided.
     `NAME` is refused as a usage error (exit 64; agda-for-flake.sh refuses
     it too), and `--explain` may follow the flag.
 2.  **A remembered choice** (§ 9).
-3.  **The flake's one Agda environment** (§ 4).
+3.  **The flake's one Agda environment** (§ 4), when the flake is trusted.
 4.  **The flake's default dev shell**, when it puts an `agda` of its own on
-    PATH (§ 6) and the flake is trusted (§ 7).
+    PATH (§ 6) and the flake is trusted.
 5.  **Nothing**: exit 69, with one line saying what is missing, and
     `--candidates` lists what a chooser can offer (§ 10).
 
 The environment comes before the dev shell: both are cheap once built,
-but evaluating a package runs nothing and builds only Agda and its
-libraries, while entering a dev shell runs the project's hook, which may
-write into the checkout, and builds every tool the project's developers
-use.  A project whose dev shell does more than its environment (below) is
-given its dev shell by a choice.
+but a package runs none of the project's code before its Agda starts, and
+builds only Agda and its libraries, while entering a dev shell runs the
+project's hook, which may write into the checkout, and builds every tool
+the project's developers use.  A project whose dev shell does more than
+its environment (below) is given its dev shell by a choice.
 
 **Evidence**.  Probes of 2026-11-07, warm evaluation caches ([the
 record][record], `discoveryProbes`):
@@ -258,7 +286,8 @@ tracked file of the checkout except Agda sources, and kept as a root under
 +  **Shared where Nix would build the same thing**: a package's root and
    the discovery are keyed by content alone, so sibling worktrees on one
    lock share them; a dev shell's record is kept per checkout, since its
-   `agda` may live in the checkout (§ 6).
+   `agda` may live in the checkout, and is used only while its key is the
+   one last entered there (§ 6).
 +  **Outside git**: a package is keyed by its output path, from `nix eval`
    on every call; discovery and dev shells are found afresh.
 +  **Nothing is removed**: the roots accumulate until the user deletes them
@@ -295,8 +324,10 @@ added on 2026-11-08, after the review of [#101].
 
 +  **Entered with its profile kept**: `nix develop --profile` keeps the dev
    environment, and so the store paths the shell's `agda` names, as a
-   root.  Its banner goes to `/dev/null`; its errors are shown only when it
-   fails.
+   root.  The profile is made where it stays, beside the record
+   (`<key>-<checkout>.profile`), since Nix registers a profile's root by
+   the path it was made at.  Its banner goes to `/dev/null`; its errors are
+   shown only when it fails.
 +  **Its own, not inherited**: the `agda` must be in the store or in the
    checkout (agda-algebras' downstream shells write `.agda/bin/agda`), and
    not the one the caller's PATH already gives; otherwise the shell is
@@ -311,8 +342,13 @@ added on 2026-11-08, after the review of [#101].
 +  **`AGDA_DIR` only when the hook changed it**: the caller's own
    (`~/.config/agda` on the machine measured) passes through the shell
    unchanged, and recording it would pin it.
-+  **Entered again** when the key changes or the recorded `agda` is gone
-   (a `git clean` of `.agda/`).
++  **Entered again** when the key changes, when the recorded `agda` is gone
+   (a `git clean` of `.agda/`), or when another key's shell has been
+   entered in the checkout since: a hook writes into the checkout what its
+   own key asks (agda-lattices' writes `.agda/bin/agda`, `.agda/libraries`
+   and a copy of agda-algebras), so each checkout records the shell and key
+   last entered, under one lock per checkout.  A shell entered by hand
+   (`nix develop`, direnv) is not seen until the next entry.
 
 **Evidence**.  The probes of § 3 (formal-ledger-specifications' shell left
 `AGDA_DIR` as the caller had it); tests for each clause, three of them
@@ -323,9 +359,26 @@ the shell's own (the shell's path was resolved and the caller's was not;
 `~/.nix-profile/bin` resolves into `/nix/store` on the machine measured),
 and a relative PATH entry recorded as given, so that a call from a
 subdirectory entered the shell again and was refused.  A test covers each.
+The second review (2026-11-09) found two more, as follows:
+
++  **A wrapper shared by two keys**: under the stub `nix`, a shell whose
+   hook writes an Agda 2.8.0 wrapper at one key and a 2.9.0 wrapper at
+   another gave 2.9.0 on returning to the first key, with no entry; now it
+   enters again (three entries, 2.8.0), and a mutation that skips the
+   comparison is caught.
++  **A root at a path that no longer exists**: with Nix 2.34.8, a profile
+   made in the temporary directory was registered under
+   `/nix/var/nix/gcroots/auto` by that directory's path, and after the
+   directory was moved into place `nix-store -q --roots` listed no root of
+   the dev environment.  Made at its final path, the root is the record's
+   own `.profile-1-link`, for a real dev shell entered through the
+   launcher; three entries at one path make one generation.  A test checks
+   that the profile named to `nix develop` is still there afterward
+   ([the record of 2026-11-09][record-11-09], `devShellRoot`).
 
 **Status**.  Adopted (2026-11-07, [#97]); the comparison through links and
-the absolute record added on 2026-11-08, after the review of [#101].
+the absolute record added on 2026-11-08, the last entered key and the
+profile's place on 2026-11-09, after the reviews of [#101].
 
 ---
 
@@ -333,39 +386,71 @@ the absolute record added on 2026-11-08, after the review of [#101].
 
 (See also [#97], [#98], [#99].)
 
-**Decision**.  Discovery enters a dev shell only for a flake at or below a
-directory the user lists as trusted; a choice of `devshell:NAME` is
-consent for its project; evaluating and building a package needs neither.
+**Decision**.  What discovery finds, a package's `agda` or a dev shell, is
+run only for a flake at or below a directory the user lists as trusted;
+`--choose trust:DIR` lists one, a choice or the host's attribute is
+consent for its project, and evaluating or building a flake needs none.
 
-+  **Why**: a dev shell's hook runs as the user, outside any sandbox, so
-   discovery that entered it would run a just-cloned repository's code when
-   an editor merely opened one of its files.  direnv asks for `direnv
-   allow` before it loads a directory's environment, for the same reason.
++  **Why**: both run the flake's code as the user, outside any sandbox: a
+   package's `bin/agda` can be any program the flake builds, and a dev
+   shell's hook runs on entry.  Discovery that ran either would run a
+   just-cloned repository's code when an editor merely opened one of its
+   files.  direnv asks for `direnv allow` before it loads a directory's
+   environment, for the same reason.
 +  **The trust file**: `${XDG_CONFIG_HOME:-~/.config}/agda-for-project/trusted`,
    one directory per line, `~/` for the home directory, `#` for a comment;
    a flake is trusted when its directory, with symlinks resolved, is at or
    below one of them.  A user who keeps their own checkouts under `~/git`
    lists that line once.
-+  **Untrusted**: the launcher stops, exit 69, with a line naming both ways
-   to allow the shell, and `--candidates` lists the dev shell with a note
-   that entering it runs the project's hook.
-+  **A package needs no consent**: its evaluation is pure, and its build runs
-   as Nix's build users, in Nix's sandbox where the platform has one (Linux
-   by default), exactly as a `nix build` by hand would.
++  **Granting it**: `--choose trust:DIR` appends `DIR` to the trust file
+   (after a dated comment) and forgets the project's choice, so that
+   discovery decides.  `--candidates` offers `trust:<the flake's
+   directory>` first, of kind `trust`, whenever trusting the flake would
+   decide something, so a chooser that lists the candidates and passes the
+   picked ID to `--choose` (both [#98]'s and [#99]'s do) offers trust with
+   no change of its own.
++  **Untrusted**: the launcher evaluates the flake (to say what trusting it
+   would run) and stops, exit 69, with a line naming the three ways to
+   allow it: `--choose trust:DIR`, `--choose package:NAME` or
+   `devshell:NAME` for the project alone, or a line in the trust file.
+   `--explain --json` says `"reason": "untrusted"`, with `method` and
+   `name` naming what would run.
++  **Evaluating and building need no consent**: the evaluation is pure,
+   and the build runs as Nix's build users, in Nix's sandbox where the
+   platform has one (Linux by default), exactly as a `nix build` by hand
+   would.
 
 **Evidence**.  On 2026-11-07 agda-lattices, untrusted, stops with that
 line; with `~/git/ualib` in the trust file it resolves to its dev shell's
-Agda 2.9.0 (2.4 s on the first call) and a module checks, exit 0.  Tests:
-untrusted, no shell is entered; a sibling directory whose name is a prefix
-(`proj` beside `project`) and a subdirectory do not cover a flake; a
-choice does; `~/` and a symlinked directory resolve.  Two mutations (the
-shell entered without trust, trust by string prefix) are caught.
+Agda 2.9.0 (2.4 s on the first call) and a module checks, exit 0.  The
+second review of [#101] (2026-11-09) found a package's `agda` run with no
+consent: under the stub `nix`, with no trust file, a flake's one
+environment was built and run, on a plain start and by `--explain`'s
+version probe, while the same flake's dev shell was refused.  On
+formal-ledger-specifications master the same day, untrusted, the launcher
+refused in 0.77 s (evaluated, nothing built) with `reason`
+`untrusted` and `trust:<checkout>` as the first candidate; after `--choose
+trust:$HOME/git`, it built (3.3 s, every store path present) and ran Agda
+2.8.0, and five warm starts took 0.18 s to 0.23 s ([the record of
+2026-11-09][record-11-09], `trust`).  Tests: untrusted, no
+shell is entered and no package built or run; a sibling directory whose
+name is a prefix (`proj` beside `project`) and a subdirectory do not cover
+a flake; a choice covers its project alone; `--choose trust:` covers every
+flake below its directory, keeps a last line with no newline intact, and
+forgets the project's choice; trust is offered only where it decides
+something and not once given; `~/` and a symlinked directory resolve.
+Seven mutations are caught: the shell entered without trust, trust by
+string prefix, discovery run without trust, trust offered to a trusted
+flake, trust offered where it decides nothing, `--choose trust:` keeping
+the choice, and the missing newline.
 
-**Status**.  Adopted (2026-11-07, [#97]).  It changes Milestone 9's exit
-criterion for agda-lattices: "no setting touched" becomes one line in the
-trust file, for every such project at once, or one choice per project;
-William decides which the criterion should say.  The choosers of [#98] and
-[#99] offer the choice.
+**Status**.  Adopted for dev shells (2026-11-07, [#97]), and for every
+answer of discovery on 2026-11-09, after the second review of [#101].  It
+changes Milestone 9's exit criterion: "no setting touched" becomes one
+line in the trust file (or one `--choose trust:`), for every project under
+it at once, or one choice per project; William decides which the
+criterion should say.  The choosers of [#98] and [#99] offer the choice,
+and now trust; each may give the `trust` kind a label of its own.
 
 ---
 
@@ -441,22 +526,37 @@ run no Agda, in JSON a host can read; these are the interface [#98] and
    `missing` under `--no-build`), the `libraries` (`environment`, `file`,
    `local`, `missing`), and the `choice`.  It builds first unless
    `--no-build`.  With `--json` it prints one object also when nothing is
-   decided (`"decided": false`, with the reason in `error`), and exits 69.
+   decided (`"decided": false`, with the line in `error`), and exits 69.
++  **`reason`**, in that object: `untrusted` (trusting the flake would let
+   discovery's answer, in `method` and `name`, run), `undecided` (a choice
+   would settle it: several environments and no `default`, no Agda found,
+   no flake, a chosen Agda that is gone), or `failed` (an evaluation or a
+   build, no lock, no `nix`); `null` when an Agda is decided.  A host then
+   offers the chooser for the first two and starts nothing for the third,
+   without reading the line.
 +  `--candidates [--json] [FILE]`: an array of `{id, kind, version, label,
-   chosen}`, where `kind` is `package`, `devshell`, `built` (an Agda this
-   program built for any project) or `PATH`; versions are given where they
-   are known without building.
-+  `--choose ID [FILE]` and `--forget [FILE]`.
+   chosen}`, where `kind` is `trust` (§ 7), `package`, `devshell`, `built`
+   (an Agda this program built for any project) or `PATH`; versions are
+   given where they are known without building.
++  `--choose ID [FILE]`, where `ID` is `package:NAME`, `devshell:NAME`,
+   `path:FILE` or `trust:DIR`, and `--forget [FILE]`.
 +  **Exit status**: 0, or Agda's own in the exec path; 69 when no Agda can
-   be run (nothing decided, a failed evaluation or build, no lock, no
-   `bin/agda`, no `nix`), after one line on stderr; 64 for a malformed
+   be run (nothing decided, an untrusted flake, a failed evaluation or
+   build, no lock, no `bin/agda`, no `nix`, or an attribute named with no
+   `nix` to build it), after one line on stderr; 64 for a malformed
    command line.
 
 **Evidence**.  Tests of each field and each refusal; the acceptance run
 used `--explain --json` throughout ([the record][record], `explain`).
+`reason` answers [#97]'s report of 2026-11-09 from the Emacs package,
+which had matched `--choose` in the line.  The second review of [#101]
+found an attribute named by the host passed over when `nix` was missing,
+and a remembered `path:` choice run in its place (exit 0); now it is
+refused, and a test and a mutation cover it.
 
-**Status**.  Adopted (2026-11-07, [#97]).  A change to these fields is
-announced on [#98] and [#99].
+**Status**.  Adopted (2026-11-07, [#97]); `reason`, the `trust` kind and
+`trust:DIR` added on 2026-11-09.  A change to these fields is announced on
+[#98] and [#99].
 
 ---
 
@@ -464,23 +564,23 @@ announced on [#98] and [#99].
 
 | # | Decision | Status | Evidence |
 |---|---|---|---|
-| 1 | One program, `agda-for-project`, named by every host in place of `agda`; bash, packaged by the flake; nothing but Agda on stdout | Adopted ([#97], 2026-11-07) | Two controls fail, the launcher passes; 0.20 s per warm start (§ 1) |
-| 2 | The project is the nearest `.agda-lib`; the flake the nearest `flake.nix` within the repository; the start is the working directory, `AGDA_FOR_PROJECT_DIR`, or a `FILE` | Adopted ([#97]) | Tests; formal-ledger-test resolves to its checkout's flake (§ 2) |
-| 3 | Order: the host's attribute, a choice, the one environment, the default dev shell's own `agda`, else nothing (exit 69) | Adopted ([#97]) | Probes on three projects (§ 3) |
+| 1 | One program, `agda-for-project`, named by every host in place of `agda`; bash, packaged by the flake; nothing but Agda on stdout; one line on stderr before a first evaluation or build | Adopted ([#97], 2026-11-07; the line 2026-11-09, [#101]) | Two controls fail, the launcher passes; 0.20 s per warm start; first byte at 0.0 s, not 4.2 s (§ 1) |
+| 2 | The project is the nearest `.agda-lib`, past a nested repository's `.git` as Agda's search goes; the flake the nearest `flake.nix` within the repository; the start is the working directory, `AGDA_FOR_PROJECT_DIR`, or a `FILE` | Adopted ([#97]) | Tests; formal-ledger-test resolves to its checkout's flake; Agda 2.8.0 reads the outer `.agda-lib` (§ 2) |
+| 3 | Order: the host's attribute, a choice, the one environment, the default dev shell's own `agda` (these two for a trusted flake), else nothing (exit 69) | Adopted ([#97]) | Probes on three projects (§ 3) |
 | 4 | An environment is a `default` or `agda`-named package whose `pname` is `agdaWithPackages`; several decide only by `default` | Adopted ([#97]) | formal-ledger-specifications' four `agda` names; a mutation caught (§ 4) |
 | 5 | agda-for-flake.sh's key with the system added, one system for every `nix` call, and the build under a lock; only a tracked `flake.lock`, checked before any evaluation; discovery cached under the key; dev shells per checkout | Adopted ([#97]; system and lock 2026-11-08, [#101]) | Two locks, two environments; tests (§ 5) |
-| 6 | A dev shell entered once per key and checkout; its own `agda`, in the store or the checkout, not the caller's even through links; recorded absolute; `AGDA_DIR` only if changed | Adopted ([#97]; links and absolute paths 2026-11-08, [#101]) | Probes; three mutations caught; tests (§ 6) |
+| 6 | A dev shell entered once per key and checkout, and again when another key's was entered there since; its profile made where it stays; its own `agda`, in the store or the checkout, not the caller's even through links; recorded absolute; `AGDA_DIR` only if changed | Adopted ([#97]; links and absolute paths 2026-11-08, the last key and the profile 2026-11-09, [#101]) | Probes; four mutations caught; the root listed by `nix-store -q --roots`; tests (§ 6) |
 | 7 | A second libraries file for sibling libraries, transitively, names without versions | Adopted ([#97]) | formal-ledger-test: 42 under the environment, 0 through the launcher (§ 8) |
 | 8 | Choices per repository and project, in the state directory; a `path:` choice absolute | Adopted ([#97]) | Worktrees share; a mutation caught (§ 9) |
-| 9 | `--explain`, `--candidates`, `--choose`, `--forget`; exit 69 and 64 | Adopted ([#97]) | Tests; the acceptance run (§ 10) |
-| 10 | A dev shell is entered by discovery only under a trusted directory, or by a choice; a package needs no consent | Adopted ([#97]) | agda-lattices refused, then trusted and checked; two mutations caught (§ 7) |
+| 9 | `--explain` (with `reason` when nothing is decided), `--candidates`, `--choose` (with `trust:DIR`), `--forget`; exit 69 and 64 | Adopted ([#97]; `reason` and `trust:` 2026-11-09, [#101]) | Tests; the acceptance run (§ 10) |
+| 10 | What discovery finds, a package's `agda` or a dev shell, runs only under a trusted directory, or by a choice; `--choose trust:DIR` grants trust, and `--candidates` offers it; evaluating and building need no consent | Adopted ([#97]; packages 2026-11-09, [#101]) | agda-lattices refused, then trusted and checked; formal-ledger-specifications refused, then trusted and run; seven mutations caught (§ 7) |
 
 ## References
 
 +  Issues: [#96], [#97], [#98], [#99]; pull request [#101]; agda-native-air
    [#344][agda-native-air#344].
 +  Documents: [the companion note][note]; [ADR 0003][adr-0003] § 13; [the
-   record][record] of 2026-11-07.
+   record][record] of 2026-11-07 and [that of 2026-11-09][record-11-09].
 +  Code: [`scripts/agda-for-project/agda-for-project.sh`][launcher], its
    [tests][tests] and their [stub `nix`][stub]; `packages.agda-for-project`
    in [`flake.nix`][flake]; `make agda-for-project-test`; the
@@ -495,6 +595,7 @@ announced on [#98] and [#99].
 [note]: ../notes/project-agda.md
 [adr-0003]: 0003-the-shared-core.md
 [record]: ../measurements/agda-for-project-2026-11-07.json
+[record-11-09]: ../measurements/agda-for-project-2026-11-09.json
 [launcher]: ../../scripts/agda-for-project/agda-for-project.sh
 [tests]: ../../scripts/agda-for-project/test.mjs
 [stub]: ../../scripts/agda-for-project/stub-nix.sh

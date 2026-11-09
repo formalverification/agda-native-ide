@@ -55,7 +55,9 @@ flowchart TD
   attr{"an attribute named<br/>by the host?"}
   choice{"a choice remembered<br/>for this project?"}
   env{"one Agda environment<br/>among the flake's packages?"}
-  shell{"a trusted dev shell that<br/>puts its own agda on PATH?"}
+  shell{"a dev shell that puts<br/>its own agda on PATH?"}
+  trust{"is the flake trusted?"}
+  untrusted["not run: exit 69; trust the flake,<br/>or choose for the project"]
   none["nothing decided: exit 69,<br/>and --candidates lists the options"]
   build["build it once per key<br/>(the tracked files Nix reads)"]
   libs["add the checkout's sibling<br/>libraries, if the project needs them"]
@@ -65,10 +67,12 @@ flowchart TD
   attr -- no --> choice
   choice -- yes --> build
   choice -- no --> env
-  env -- yes --> build
+  env -- yes --> trust
   env -- no --> shell
-  shell -- yes --> build
+  shell -- yes --> trust
   shell -- no --> none
+  trust -- yes --> build
+  trust -- no --> untrusted
   build --> libs --> run
 ```
 
@@ -86,13 +90,14 @@ flowchart TD
 +  **A choice you made** for the project comes next (see "Choosing" below).
 +  **The flake's one Agda environment**: a package named `default`, or with
    `agda` in its name, that is an `agda.withPackages` (its `pname` is
-   `agdaWithPackages`).  The program evaluates the candidates rather than
-   trusting their names: formal-ledger-specifications has four packages
-   with `agda` in the name and one environment among them.  With several
-   environments, `default` decides if it is one.
+   `agdaWithPackages`), when you trust the flake (see "Trusting a flake"
+   below).  The program evaluates the candidates rather than trusting
+   their names: formal-ledger-specifications has four packages with `agda`
+   in the name and one environment among them.  With several environments,
+   `default` decides if it is one.
 +  **The flake's default dev shell**, when entering it puts an `agda` of its
    own on PATH, in the Nix store or in the checkout, and you trust the
-   flake (see "Trusting dev shells" below).  agda-algebras' downstream
+   flake.  agda-algebras' downstream
    projects work this way: their shell writes `.agda/bin/agda`, a wrapper
    with the project's libraries.  The program enters the shell once, notes
    the `agda` and the `AGDA_DIR` it set, and runs that `agda` directly
@@ -107,23 +112,35 @@ For a project whose dev shell gives more (agda-algebras' wrapper makes the
 standard library and agda-algebras visible to a scratch file outside every
 library), choose the dev shell.
 
-## Trusting dev shells
+## Trusting a flake
 
-Entering a dev shell runs the project's shell hook as you, outside any
-sandbox.  If opening a file were enough to enter it, opening a file of a
-repository you have just cloned would run that repository's code, which is
-why direnv asks for `direnv allow`.  So the program enters a dev shell on
-its own only for a flake at or below a directory you list in
-`~/.config/agda-for-project/trusted`, one per line:
+Running a flake's Agda runs the flake's code as you, outside any sandbox:
+an environment's `bin/agda` is whatever program the flake builds, and
+entering a dev shell runs the project's shell hook.  If opening a file
+were enough to run it, opening a file of a repository you have just cloned
+would run that repository's code, which is why direnv asks for `direnv
+allow`.  So the program runs what it finds on its own only for a flake at
+or below a directory you list in `~/.config/agda-for-project/trusted`, one
+per line:
 
     # my own checkouts
     ~/git
 
-Otherwise it stops and says how to allow it, either by that file or by a
-choice for the one project (`--choose devshell:default`, below).  Building
-a project's Agda environment needs no such step: Nix evaluates the flake
-without running it, and builds as its own build users, in its sandbox, as
-a `nix build` by hand would.
+Otherwise it stops, exit 69, and says the three ways to allow it: trust a
+directory, which covers every flake below it; choose an Agda for this
+project alone; or add the line to the trust file by hand.
+
+    agda-for-project --choose trust:$HOME/git path/to/File.agda
+    agda-for-project --choose package:fls-agdaWithPackages path/to/File.agda
+
+`--choose trust:DIR` adds the line for you (with a dated comment above
+it), and forgets any choice made for the project, so that the program's
+own discovery decides.  An editor's chooser offers the same thing as its
+first entry, `trust:` and the flake's directory; pick it, or trust a
+parent directory from a shell to cover every checkout and worktree below
+it.  Finding what the flake offers needs no trust: Nix evaluates the
+flake without running it, and would build as its own build users, in its
+sandbox, as a `nix build` by hand would.
 
 ## Building once, and only when it matters
 
@@ -172,7 +189,9 @@ to only look).  For a module of formal-ledger-test, on 2026-11-07:
     libraries  ~/.cache/agda-for-project/registries/11c5b481….libraries (with ~/git/IO/fls/master/formal-ledger.agda-lib)
 
 With `--json` the same answer is one JSON object, which is what the editor
-integrations read.
+integrations read.  When nothing is decided, its `reason` says why:
+`untrusted` (trust the flake, or choose), `undecided` (choose), or
+`failed` (an evaluation or a build failed, or the flake is not locked).
 
 +  **Emacs**: an agda2-mode package that starts each buffer's project's
    Agda through this program, restarting Agda when you switch projects, is
@@ -188,20 +207,22 @@ integrations read.
 ## Choosing
 
 When nothing decides (a project without a flake, a flake with several
-environments and no `default`, or a dev shell with no Agda), or when you
-want another answer than discovery gives:
+environments and no `default`, a dev shell with no Agda, or a flake you
+have not trusted), or when you want another answer than discovery gives:
 
     agda-for-project --candidates path/to/File.agda
+    agda-for-project --choose trust:$HOME/git path/to/File.agda
     agda-for-project --choose package:fls-agdaWithPackages path/to/File.agda
     agda-for-project --choose devshell:default path/to/File.agda
     agda-for-project --choose path:/some/agda path/to/File.agda
     agda-for-project --forget path/to/File.agda
 
-`--candidates` lists the flake's environments and dev shells, the Agdas
-the program has already built for any project, and `agda` on PATH, each
-with an ID for `--choose`.  A choice is kept in
-`~/.local/state/agda-for-project/`, never in the checkout, and applies to
-every worktree of the project's repository.
+`--candidates` lists trusting the flake (when that would decide), the
+flake's environments and dev shells, the Agdas the program has already
+built for any project, and `agda` on PATH, each with an ID for
+`--choose`.  A choice is kept in `~/.local/state/agda-for-project/`, never
+in the checkout, and applies to every worktree of the project's
+repository.
 
 ## Making a project easy to find
 
@@ -214,8 +235,10 @@ following:
         packages.${system}.default = pkgs.agda.withPackages (p: [ p.standard-library ]);
 
 +  **A default dev shell** that puts its own `agda` on PATH, as a wrapper
-   in the checkout or as a store path; each user then trusts it once, by
-   the trust file or a choice.
+   in the checkout or as a store path.
+
+Either way, each user trusts it once: a line in the trust file (one for
+`~/git` covers every checkout there), or a choice for the project.
 
 ## Limits
 
@@ -230,6 +253,15 @@ following:
    afresh, so the program refuses such a flake before evaluating it.
 +  **`legacyPackages` is not searched**, and a flake outside git is
    evaluated on every start.
++  **A checkout nested in another library's directory**, with no
+   `.agda-lib` of its own at or above the file, belongs to the outer
+   library, as Agda itself takes it, and gets the outer project's Agda;
+   give it an `.agda-lib` to make it a project of its own.
++  **A dev shell entered by hand** (`nix develop`, direnv) at another
+   state of the checkout rewrites what its hook writes there, and the
+   program sees that only when it next enters the shell itself; enter the
+   shell again by hand at the current state, or delete
+   `~/.cache/agda-for-project/devshell/`.
 +  **Linux and macOS** with bash and Nix; Windows is untested.
 +  **The cache is never cleaned**: delete old roots in
    `~/.cache/agda-for-project/` (`ls -lt` shows the newest first), then run
