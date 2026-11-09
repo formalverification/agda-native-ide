@@ -30,6 +30,10 @@ export { FIXTURES, SLOW_TERM } from "./fixtures.js";
 /** One engine under test. */
 export interface ConformanceTarget {
   engine: "browser" | "native";
+  /** The Agda version the sessions must name (default 2.9.0, the version
+   * the engine was built against); another is run to find out whether the
+   * engine supports it (issue 99). */
+  agdaVersion?: string;
   /** Open a fresh session, with the fixtures written. */
   open(): Promise<OpenedTarget | Failure>;
 }
@@ -82,7 +86,12 @@ function judged(outcome: VerdictOutcome, what: string): Verdict {
   return outcome;
 }
 
-type Context = OpenedTarget & { normalize: (value: unknown) => unknown };
+type Context = OpenedTarget & { normalize: (value: unknown) => unknown; agdaVersion: string };
+
+/** The name Agda gives a give of `zero` where `suc n` is wanted, which is
+ * Agda's and not the engine's: 2.8.0 calls it `UnequalTerms`, 2.9.0
+ * `UnequalTypes` (the native runs of 2026-11-08, issue 99). */
+const unequal = (agdaVersion: string) => (agdaVersion === "2.8.0" ? "UnequalTerms" : "UnequalTypes");
 
 interface Scenario {
   name: string;
@@ -95,8 +104,8 @@ interface Scenario {
 const scenarios: Scenario[] = [
   {
     name: "a session names its engine, its Agda and its lanes",
-    async run({ session }) {
-      equal(session.agdaVersion, "2.9.0", "Agda's version");
+    async run({ session, agdaVersion }) {
+      equal(session.agdaVersion, agdaVersion, "Agda's version");
       check(session.capabilities.interaction.supported, "the interaction lane is supported");
       const batch = session.capabilities.batch;
       check(typeof batch.supported === "boolean", "the batch lane is declared");
@@ -171,11 +180,11 @@ const scenarios: Scenario[] = [
   },
   {
     name: "a rejected term is Agda's answer, and leaves the goal open",
-    async run({ session, path, normalize }) {
+    async run({ session, path, normalize, agdaVersion }) {
       answered(await session.load(path("Goals.agda"), GOALS), "load");
       const give = answered(await session.give(session.goalRef(0)!, "zero"), "give");
       equal(give.value.accepted, false, "Agda refused the term");
-      check(/error: \[UnequalTypes\]/.test(give.value.error ?? ""), `with its error: ${give.value.error}`);
+      check(give.value.error?.includes(`error: [${unequal(agdaVersion)}]`), `with its error: ${give.value.error}`);
       check(session.goalRef(0) !== undefined, "goal 0 is still open");
       equal(session.snapshot, GOALS.replace("= ?", "= {!  !}"), "the snapshot is unchanged");
       return normalize({ accepted: give.value.accepted, error: give.value.error });
@@ -306,7 +315,7 @@ const scenarios: Scenario[] = [
   {
     name: "a verdict is a fresh Agda's exit code where the engine has a batch lane, and is refused where it has none",
     requires: "batch",
-    async run({ session, path, normalize }) {
+    async run({ session, path, normalize, agdaVersion }) {
       const file = path("Goals.agda");
       if (!session.capabilities.batch.supported) {
         const refused = await session.checkFile(file);
@@ -334,7 +343,7 @@ const scenarios: Scenario[] = [
       const wrong = judged(await session.checkFile(file, { text: GOALS_WRONG }), "the verdict on a type error");
       equal([wrong.exitCode, wrong.success], [42, false], "a type error exits 42");
       const [error] = wrong.diagnostics;
-      equal([error?.code, error?.range?.startLine, error?.range?.startCol], ["UnequalTypes", 7, 14], "the error and where");
+      equal([error?.code, error?.range?.startLine, error?.range?.startCol], [unequal(agdaVersion), 7, 14], "the error and where");
       // The file holds its own text again, and the lane loads it.
       const again = answered(await session.load(file), "load the file as it is");
       equal(again.basis?.digest, sourceDigest(GOALS), "the file was put back");
@@ -351,10 +360,10 @@ const scenarios: Scenario[] = [
   },
   {
     name: "an abort with nothing running is nothing",
-    async run({ session }) {
+    async run({ session, agdaVersion }) {
       equal(session.abort(), { aborting: undefined }, "nothing to abort");
       const version = answered(await session.version(), "version");
-      equal(version.value.version, "2.9.0", "the session answers");
+      equal(version.value.version, agdaVersion, "the session answers");
       return { aborting: null };
     },
   },
@@ -365,6 +374,7 @@ export async function runConformance(
   target: ConformanceTarget,
   log: (line: string) => void = () => {},
 ): Promise<ConformanceReport> {
+  const expectedVersion = target.agdaVersion ?? "2.9.0";
   const report: ConformanceReport = {
     engine: target.engine,
     agdaVersion: "",
@@ -392,7 +402,7 @@ export async function runConformance(
             .join("<session>"),
         );
       try {
-        result.transcript = await scenario.run({ ...target, normalize });
+        result.transcript = await scenario.run({ ...target, normalize, agdaVersion: expectedVersion });
         result.ok = true;
       } catch (error) {
         result.error = error instanceof Error ? error.message : String(error);

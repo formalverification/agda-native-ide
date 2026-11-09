@@ -15,7 +15,7 @@
 //      root).  A candidate that names nothing is passed over; the first
 //      that names something decides, and is refused, naming where it came
 //      from, when it does not answer `--numeric-version` with the version
-//      the project expects.  A different version is never used: the
+//      the project expects (or one of the versions the host accepts).  A different version is never used: the
 //      engine's answers are validated against Agda's encoding at one commit,
 //      and interfaces written by another Agda are not accepted.
 //
@@ -57,8 +57,9 @@ export interface ResolvedAgda {
 }
 
 export interface ResolveOptions {
-  /** The version the project expects (`2.9.0`). */
-  expectedVersion: string;
+  /** The version the project expects (`2.9.0`), or the versions a host
+   * accepts when the project names none (issue 99: `["2.9.0", "2.8.0"]`). */
+  expectedVersion: string | readonly string[];
   /** Where the expected version comes from, for the refusal's message. */
   versionSource?: string;
   /** The environment the probe and the lanes run in (default: this
@@ -142,6 +143,8 @@ export async function resolveAgda(
 ): Promise<ResolvedAgda | Refusal> {
   const env = options.env ?? process.env;
   const cwd = options.cwd ?? process.cwd();
+  const accepted: readonly string[] = typeof options.expectedVersion === "string" ? [options.expectedVersion] : options.expectedVersion;
+  const expected = accepted.join(" or ");
   const passed: string[] = [];
   for (const candidate of candidates) {
     const executable = await locateExecutable(candidate.executable, env, cwd);
@@ -162,15 +165,15 @@ export async function resolveAgda(
       if (!answered.ok)
         return refusal(
           "configuration",
-          `${candidate.source} names ${executable}, which did not answer \`${[executable, ...args, "--numeric-version"].join(" ")}\` (${answered.why}); set ${candidate.source} to an Agda ${options.expectedVersion}, or fix ${candidate.argsSource ?? "its options"}`,
+          `${candidate.source} names ${executable}, which did not answer \`${[executable, ...args, "--numeric-version"].join(" ")}\` (${answered.why}); set ${candidate.source} to an Agda ${expected}, or fix ${candidate.argsSource ?? "its options"}`,
         );
       version = answered.version;
       if (key !== undefined) options.cache?.set(key, version);
     }
-    if (version !== options.expectedVersion)
+    if (!accepted.includes(version))
       return refusal(
         "configuration",
-        `${candidate.source} names ${executable}, which is Agda ${version}; the project expects Agda ${options.expectedVersion}${options.versionSource ? ` (${options.versionSource})` : ""}.  Set ${candidate.source} to an Agda ${options.expectedVersion}`,
+        `${candidate.source} names ${executable}, which is Agda ${version}; the project expects Agda ${expected}${options.versionSource ? ` (${options.versionSource})` : ""}.  Set ${candidate.source} to an Agda ${expected}`,
       );
     return { executable, args, source: candidate.source, version };
   }

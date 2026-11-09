@@ -98,6 +98,19 @@ describe("which Agda a project uses", () => {
     expect(message).toMatch(/expects Agda 2\.9\.0 \(agdaWorkbench\.agda\.version\)/);
   });
 
+  it("accepts any of a host's versions, and names them all when it refuses", async () => {
+    const accepted = await resolveAgda([{ source: "agdaWorkbench.agda.path", executable: join(bin, "agda-2.8") }], {
+      expectedVersion: ["2.9.0", "2.8.0"],
+      env: env(),
+    });
+    expect(accepted).toMatchObject({ version: "2.8.0", source: "agdaWorkbench.agda.path" });
+    const refused = await resolveAgda([{ source: "agdaWorkbench.agda.path", executable: join(bin, "agda-2.8") }], {
+      expectedVersion: ["2.9.0", "2.7.0"],
+      env: env(),
+    });
+    expect((refused as { message: string }).message).toMatch(/which is Agda 2\.8\.0; the project expects Agda 2\.9\.0 or 2\.7\.0/);
+  });
+
   it("refuses options the Agda found refuses, with its words", async () => {
     const refused = await resolveAgda([{ source: "agdaMode.connection.commandLineOptions", executable: "agda", args: ["--bad"] }], {
       expectedVersion: "2.9.0",

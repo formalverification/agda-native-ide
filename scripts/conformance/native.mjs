@@ -14,7 +14,7 @@
 // Agda and the sources it checked, every scenario's transcript) into
 // --out, and exits 1 if anything failed.
 //
-//   AGDA=<agda> node scripts/conformance/native.mjs [--out DIR]
+//   AGDA=<agda> [AGDA_VERSION=2.8.0] node scripts/conformance/native.mjs [--out DIR]
 //   nix develop .#vscode --command make conformance-native
 
 import { execFileSync } from "node:child_process";
@@ -34,6 +34,9 @@ if (!agda) {
   console.error("Set AGDA to the native agda (nix develop .#vscode sets it).");
   process.exit(2);
 }
+// The version the sessions must name: 2.9.0, the engine's, unless
+// AGDA_VERSION names another to try (issue 99 ran 2.8.0).
+const expectedVersion = process.env.AGDA_VERSION || "2.9.0";
 const out = resolve(options.out);
 mkdirSync(out, { recursive: true });
 // A run that does not finish leaves no record for the comparison to read.
@@ -67,7 +70,7 @@ function registryFor(env, { sessionOptions = {}, args = [], ...options } = {}) {
     resolve: async (path) => {
       const project = await findProjectRoot(path);
       const resolved = await resolveAgda([{ source: "AGDA", executable: agda, args }], {
-        expectedVersion: "2.9.0",
+        expectedVersion,
         env,
         cwd: project.root,
         cache: probes,
@@ -149,7 +152,7 @@ function assert(condition, message) {
 const version = execFileSync(agda, ["--version"], { encoding: "utf8" }).trim();
 console.log(`native conformance: ${agda}\n${version}`);
 
-const report = await runConformance({ engine: "native", open: () => open() }, (line) => console.log(line));
+const report = await runConformance({ engine: "native", agdaVersion: expectedVersion, open: () => open() }, (line) => console.log(line));
 
 await check("a start that cannot find its executable fails, and says so", async () => {
   const failed = await openDirect({ executable: "/nonexistent/agda" });
