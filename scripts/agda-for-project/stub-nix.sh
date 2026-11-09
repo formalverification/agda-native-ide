@@ -6,7 +6,9 @@
 # Description:
 #   A stand-in for nix in the launcher's tests (test.mjs), linked into a
 #   test's PATH as `nix`, so the tests need no network and no Nix store.
-#   It answers the calls the launcher makes, in their exact shapes:
+#   It answers the calls the launcher makes, in their exact shapes (each
+#   but the first with --system SYSTEM after the subcommand):
+#     eval --impure --raw --expr builtins.currentSystem   (STUB_NIX_SYSTEM)
 #     eval --json ... FLAKE#packages.SYSTEM --apply EXPR
 #     eval --json ... FLAKE#devShells.SYSTEM --apply builtins.attrNames
 #     eval --raw  ... FLAKE#ATTR.libraryFile
@@ -16,13 +18,15 @@
 #   Each test steers it with control files in FLAKE/.stub/, which git does
 #   not track, so they never change the launcher's key: packages.json and
 #   devshells.json (what the flake provides; absent means "does not provide
-#   attribute"), libraries (the environment's libraries file), version (what
+#   attribute"; packages.SYSTEM.json, when present, answers for SYSTEM
+#   alone), libraries (the environment's libraries file), version (what
 #   the stub Agda answers to --numeric-version), build-sleep, build-fails,
 #   no-agda, eval-fails, develop-fails, devshell-agda (`checkout`, the
 #   default, writes FLAKE/.agda/bin/agda as agda-algebras' downstream shells
-#   do; `none` adds no agda; `elsewhere` adds one outside both the store
-#   and the checkout), and keep-agda-dir (the shell leaves AGDA_DIR
-#   as it found it).
+#   do; `relative` writes the same agda but puts `.agda/bin` on PATH and
+#   sets AGDA_DIR to `.agda`, both relative; `none` adds no agda;
+#   `elsewhere` adds one outside both the store and the checkout), and
+#   keep-agda-dir (the shell leaves AGDA_DIR as it found it).
 #
 #   Every call is logged to STUB_NIX_LOG.  A build makes a directory in
 #   STUB_STORE whose bin/agda prints which build it came from, its
@@ -55,6 +59,7 @@ EOF
 
 case "$sub" in
   eval)
+    case " $* " in *" builtins.currentSystem "*) printf '%s' "${STUB_NIX_SYSTEM:-x86_64-linux}"; exit 0 ;; esac
     if [ -f "${ctl}/eval-fails" ]; then echo "error: stub nix cannot evaluate ${ref}" >&2; exit 1; fi
     case "$attrpath" in
       *.libraryFile)
@@ -66,7 +71,8 @@ case "$sub" in
           "$(cat "${flake}/flake.nix" "${flake}/flake.lock" 2>/dev/null | sha256sum | cut -c1-32)" \
           "${attrpath%.outPath}" ;;
       packages.*)
-        if [ -f "${ctl}/packages.json" ]; then cat "${ctl}/packages.json"
+        if [ -f "${ctl}/${attrpath}.json" ]; then cat "${ctl}/${attrpath}.json"
+        elif [ -f "${ctl}/packages.json" ]; then cat "${ctl}/packages.json"
         else echo "error: flake 'path:${flake}' does not provide attribute '${attrpath}'" >&2; exit 1
         fi ;;
       devShells.*)
@@ -101,6 +107,10 @@ case "$sub" in
         make_agda "${flake}/.agda/bin/agda" "devshell of ${flake}"
         export PATH="${flake}/.agda/bin:${PATH}"
         [ -f "${ctl}/keep-agda-dir" ] || export AGDA_DIR="${flake}/.agda" ;;
+      relative)
+        mkdir -p "${flake}/.agda/bin"
+        make_agda "${flake}/.agda/bin/agda" "devshell of ${flake}"
+        export PATH=".agda/bin:${PATH}" AGDA_DIR=".agda" ;;
       elsewhere)
         mkdir -p "${STUB_STORE}/../elsewhere-bin"
         make_agda "${STUB_STORE}/../elsewhere-bin/agda" "elsewhere"
