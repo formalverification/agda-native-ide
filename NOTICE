@@ -568,11 +568,22 @@ Contents
     +  Bundled into the search worker: lunr 2.3.9 (MIT, Copyright (C) 2013
        by Oliver Nightingale; licenses/website/lunr.txt).  Material's
        lunr/ directory, its search's other languages, is not shipped.
-    +  Icons Material inlines into each page: from Material Design Icons
-       (Pictogrammers, Apache-2.0, whose text is licenses/website/rxjs.txt),
-       and the GitHub mark from Font Awesome Free 6.7.1 (Copyright 2024
-       Fonticons, Inc.; icons CC BY 4.0,
-       https://creativecommons.org/licenses/by/4.0/).
+    +  Icons Material inlines into each page and into its stylesheet, from
+       the three icon sets it carries in templates/.icons/, each with the
+       set's own license file as Material 9.5.49 ships it:
+       +  Material Design Icons, by the Pictogrammers icon group (the
+          header's, the search's and the palette toggle's icons, and the
+          stylesheet's admonition, copy and navigation icons): icons under
+          the Apache License 2.0, as the Pictogrammers Free License says;
+          licenses/website/material-design-icons.txt, with the Apache
+          License's text in licenses/website/rxjs.txt.
+       +  Octicons (the stylesheet's icons for the repository chip's facts
+          and a task list's check), Copyright (c) 2024 GitHub Inc.  MIT
+          License: licenses/website/octicons.txt.
+       +  The GitHub mark from Font Awesome Free 6.7.1, Copyright (c) 2024
+          Fonticons, Inc.  Icons CC BY 4.0,
+          https://creativecommons.org/licenses/by/4.0/:
+          licenses/website/font-awesome.txt.
     +  JuliaMono's regular, italic and bold faces (section 8) and the Agda
        mark (section 9), as in the app.
     +  Two pictures of the app, taken when the site is deployed (assets/
