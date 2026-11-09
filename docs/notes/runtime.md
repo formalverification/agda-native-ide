@@ -283,7 +283,7 @@ each answer back (`als.ts:149-170`).
    `NormalForm`, `InferredType` and `Mimer` answers carry more (Agda's
    changelog for 2.9.0).
 +  **Goal commands** (`controller.svelte.ts:855-928`): `Cmd_goal_type` and
-   `Cmd_context` (normalised), `Cmd_give WithoutForce`,
+   `Cmd_context` (normalized), `Cmd_give WithoutForce`,
    `Cmd_refine_or_intro False`, `Cmd_make_case`, `Cmd_infer_toplevel`,
    `Cmd_compute DefaultCompute` (or `Cmd_compute_toplevel` with no goal
    selected), and `Cmd_abort`.  A give or a case split comes back as an edit

@@ -186,7 +186,7 @@ snapshot, with its attribution".
    at `ae0aa84c`, `static/` holds 60,183,062 bytes, 59,422,474 of them in 37
    binary files (`git diff --numstat` against the empty tree marks them
    binary).  Across upstream's four commits there are 67 distinct binary
-   blobs totalling 171,397,049 bytes (172,157,637 with the text under
+   blobs totaling 171,397,049 bytes (172,157,637 with the text under
    `static/`), three compiler builds among them (28,841,108, 28,921,665 and
    32,996,332 bytes), and a fresh clone's pack is 94.25 MiB.  A history
    merge would add them all to every clone of this repository, against
@@ -1136,7 +1136,7 @@ assets (its *namespace*), in which the drive keeps what Agda wrote.
 +  **The browser check** (its steps on the mount, with and without the
    isolation headers): `import Overture.Signatures` asks for 202.1 KB (206,933
    bytes), 3 archives holding 11 modules, with no request before the answer,
-   Esc cancelling and a second check asking again, then fetches exactly those
+   Esc canceling and a second check asking again, then fetches exactly those
    3 and type-checks `Main` alone; a second visit asks nothing, requests no
    archive and type-checks nothing, and a drive database of another namespace
    is gone; `Setoid.Varieties.HSP` asks once, for 37.2 MiB (39,044,608 bytes),

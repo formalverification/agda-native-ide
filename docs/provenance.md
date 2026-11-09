@@ -387,7 +387,7 @@ These came in with the import; they are text, so they are in git, unchanged.
 | `static/plfa/content/**/*.lagda.md` | PLFA's chapters at `870f9bb1` (`scripts/sync-plfa.mjs`) | CC BY 4.0 |
 | `static/plfa/LICENSE` | Byte-identical to plfa/plfa.github.io's `LICENSE` at `870f9bb1` | The CC BY 4.0 text |
 | `static/favicon.svg` | Upstream's adaptation of agda/agda's `doc/user-manual/agda.svg` (its own comment says so) | MIT |
-| `src/`, `scripts/`, `packages/engine/src/browser/worker/`; in part `packages/engine/src/browser/index.ts` (the startup and the acknowledgement of the server's requests), `packages/engine/src/core/give-rule.ts` (the give rule) and `packages/views/src/*.svelte` (the inspector's components); the rest | Upstream's own code; its `NOTICE.md` says the WASI worker, the virtual filesystem, the highlighting, the input method and the transport began from [agda-web/als-demo], whose `LICENSE` is byte-identical to upstream's | MIT |
+| `src/`, `scripts/`, `packages/engine/src/browser/worker/`; in part `packages/engine/src/browser/index.ts` (the startup and the acknowledgment of the server's requests), `packages/engine/src/core/give-rule.ts` (the give rule) and `packages/views/src/*.svelte` (the inspector's components); the rest | Upstream's own code; its `NOTICE.md` says the WASI worker, the virtual filesystem, the highlighting, the input method and the transport began from [agda-web/als-demo], whose `LICENSE` is byte-identical to upstream's | MIT |
 
 ## Changes to upstream files
 
