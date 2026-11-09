@@ -43,8 +43,8 @@ decides how every host gets each project's own Agda instead: one program,
 +  **Why it is shaped so**: most projects worth checking already pin their
    Agda and libraries in a flake, so the answer is written down; and a
    program, not a library, is the one thing every host can run.
-+  **Where it stands**: built, packaged in the flake, tested (24 cases
-   against a stub `nix`; 19 checks each made to fail by a mutation, and
++  **Where it stands**: built, packaged in the flake, tested (25 cases
+   against a stub `nix`; 20 checks each made to fail by a mutation, and
    each case added after a review failing against the launcher before it
    or under a mutation), and measured on formal-ledger-specifications
    (Agda 2.8.0, two locks), agda-algebras (Agda 2.9.0) and agda-lattices
@@ -494,6 +494,14 @@ checkout.
 +  **The repository** is its common git directory, which every worktree
    shares, so one choice serves every worktree of a project; outside git,
    the project's path.
++  **Only for a working tree git lists** (`git worktree list`, the main
+   one and the linked ones): a `.git` file can name any git directory, so
+   a directory unpacked with one naming a repository of the user's would
+   report that repository as its own and inherit its choices, which are
+   consent to run code (§ 7).  Any other checkout is keyed by its own
+   path; a submodule's is among them, since git lists its git directory,
+   not its checkout, and loses nothing, its git directory being its
+   superproject checkout's alone.
 +  **The IDs**: `package:NAME` (a flake attribute, built from each
    checkout's own lock), `devshell:NAME`, and `path:FILE` (an executable,
    for a project with no flake, kept as an absolute path, since a host may
@@ -504,10 +512,19 @@ checkout.
 **Evidence**.  Tests: a choice made in one worktree is seen from another,
 and forgotten from either; the mutation that keys choices by worktree is
 caught.  On agda-algebras, a choice of `devshell:default` made in master
-was seen from a sibling worktree.
+was seen from a sibling worktree.  On 2026-11-09, while answering the
+second review of [#101], a directory with its own flake and a `.git` file
+of `gitdir: <my checkout>/.git` (under the stub `nix`, no trust file)
+inherited my checkout's `devshell:default` and had its own dev shell
+entered.  Now it is refused as untrusted, with no choice; a test covers
+that file and one naming a worktree's git directory, and fails against
+the launcher before and under the mutation that drops the check.  The
+check costs about 0.01 s a start on formal-ledger-specifications master,
+whose repository lists 46 working trees ([the record of
+2026-11-09][record-11-09], `choicesListed`).
 
-**Status**.  Adopted (2026-11-07, [#97]).  The choosers are [#98]'s and
-[#99]'s.
+**Status**.  Adopted (2026-11-07, [#97]); shared only among the trees git
+lists since 2026-11-09.  The choosers are [#98]'s and [#99]'s.
 
 ---
 
@@ -571,7 +588,7 @@ refused, and a test and a mutation cover it.
 | 5 | agda-for-flake.sh's key with the system added, one system for every `nix` call, and the build under a lock; only a tracked `flake.lock`, checked before any evaluation; discovery cached under the key; dev shells per checkout | Adopted ([#97]; system and lock 2026-11-08, [#101]) | Two locks, two environments; tests (§ 5) |
 | 6 | A dev shell entered once per key and checkout, and again when another key's was entered there since; its profile made where it stays; its own `agda`, in the store or the checkout, not the caller's even through links; recorded absolute; `AGDA_DIR` only if changed | Adopted ([#97]; links and absolute paths 2026-11-08, the last key and the profile 2026-11-09, [#101]) | Probes; four mutations caught; the root listed by `nix-store -q --roots`; tests (§ 6) |
 | 7 | A second libraries file for sibling libraries, transitively, names without versions | Adopted ([#97]) | formal-ledger-test: 42 under the environment, 0 through the launcher (§ 8) |
-| 8 | Choices per repository and project, in the state directory; a `path:` choice absolute | Adopted ([#97]) | Worktrees share; a mutation caught (§ 9) |
+| 8 | Choices per repository and project, in the state directory, shared only among the working trees git lists; a `path:` choice absolute | Adopted ([#97]; the listed trees 2026-11-09, [#101]) | Worktrees share; a planted `.git` file does not; two mutations caught (§ 9) |
 | 9 | `--explain` (with `reason` when nothing is decided), `--candidates`, `--choose` (with `trust:DIR`), `--forget`; exit 69 and 64 | Adopted ([#97]; `reason` and `trust:` 2026-11-09, [#101]) | Tests; the acceptance run (§ 10) |
 | 10 | What discovery finds, a package's `agda` or a dev shell, runs only under a trusted directory, or by a choice; `--choose trust:DIR` grants trust, and `--candidates` offers it; evaluating and building need no consent | Adopted ([#97]; packages 2026-11-09, [#101]) | agda-lattices refused, then trusted and checked; formal-ledger-specifications refused, then trusted and run; seven mutations caught (§ 7) |
 

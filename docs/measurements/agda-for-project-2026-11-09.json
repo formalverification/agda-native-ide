@@ -74,5 +74,14 @@
     "withTheOuterLibrary": "error: [LibraryError] Library 'no-such-library' not found.",
     "withoutIt": "Checking X (.../outer/nested/X.agda).",
     "conclusion": "Agda's search for a file's library does not stop at a nested repository's .git, so neither does the launcher's."
+  },
+  "choicesListed": {
+    "what": "the cost of sharing choices only among the working trees `git worktree list` gives, on ~/git/IO/fls/master (46 listed), warm --version, alternating the launcher before (8334b9e) and after (d86ef94), seven runs each",
+    "revision": "d86ef94",
+    "beforeSeconds": [0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.13],
+    "afterSeconds": [0.15, 0.15, 0.15, 0.14, 0.15, 0.16, 0.14],
+    "checkAloneSeconds": 0.003,
+    "plantedGitFile": "under the stub nix, with no trust file: a directory with its own flake and a `.git` file reading `gitdir: <my checkout>/.git` took my checkout's devshell:default choice and entered its own dev shell (8334b9e); with d86ef94 it has no choice and is refused as untrusted",
+    "tests": "d86ef94 adds a 25th case (two planted .git files), which fails against 8334b9e and under the mutation that drops the check"
   }
 }

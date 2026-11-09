@@ -222,7 +222,8 @@ flake's environments and dev shells, the Agdas the program has already
 built for any project, and `agda` on PATH, each with an ID for
 `--choose`.  A choice is kept in `~/.local/state/agda-for-project/`, never
 in the checkout, and applies to every worktree of the project's
-repository.
+repository that git lists (`git worktree list`); a directory whose `.git`
+file merely names the repository's git directory gets choices of its own.
 
 ## Making a project easy to find
 
