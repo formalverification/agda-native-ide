@@ -109,7 +109,14 @@
 // Chromium, served with the headers and without; --browser firefox drives
 // a Firefox through WebDriver BiDi (./bidi.mjs) instead.
 //
-//   CHROME=<chromium> node scripts/browser-check/run.mjs <site> [--out DIR] [--isolated]
+// With --path /play/, it serves the directory it is given and opens the
+// site under that path, as GitHub Pages serves it at play/ of the
+// project's website (issue 96): the directory is then the whole Pages
+// tree, the site is its play/, and the check fails if the page requested
+// anything outside the path, which a root-absolute URL would.  The log's
+// URLs are recorded from the path, so every other assertion reads alike.
+//
+//   CHROME=<chromium> node scripts/browser-check/run.mjs <site> [--out DIR] [--isolated] [--path /play/]
 //   FIREFOX=<firefox> node scripts/browser-check/run.mjs <site> --browser firefox [...]
 //   nix run .#browser-check -- <site> [--out DIR] [--isolated]
 
@@ -311,6 +318,8 @@ const { values: options, positionals } = parseArgs({
     // isolated, and assert that it is.
     isolated: { type: "boolean", default: false },
     browser: { type: "string", default: "chromium" },
+    // Serve the directory given and open the site under this path.
+    path: { type: "string", default: "/" },
   },
 });
 const driver = { chromium: { launch: cdp.launch, executable: process.env.CHROME },
@@ -319,12 +328,16 @@ const driver = { chromium: { launch: cdp.launch, executable: process.env.CHROME 
 ];
 if (positionals.length !== 1 || !driver?.executable) {
   console.error(
-    "usage: CHROME=<chromium> node run.mjs <site> [--out DIR] [--isolated]\n" +
+    "usage: CHROME=<chromium> node run.mjs <site> [--out DIR] [--isolated] [--path /play/]\n" +
       "       FIREFOX=<firefox> node run.mjs <site> --browser firefox [--out DIR] [--isolated]",
   );
   process.exit(2);
 }
-const site = resolve(positionals[0]);
+/** What the server serves, the path the site lies under in it (with a
+ * slash at each end), and the site's directory. */
+const root = resolve(positionals[0]);
+const PATH = `/${options.path.replace(/^\/+|\/+$/g, "")}/`.replace(/^\/\/$/, "/");
+const site = join(root, PATH);
 if (!existsSync(join(site, "index.html"))) {
   console.error(
     `${site}/index.html does not exist: build the site first (make build, or nix build .#site)`,
@@ -455,6 +468,7 @@ function milliseconds(text) {
 
 const results = {
   site,
+  path: PATH,
   date: new Date().toISOString(),
   browser: "",
   served: options.isolated
@@ -470,6 +484,8 @@ let failure = /** @type {string | null} */ (null);
 const consoleLog = /** @type {object[]} */ ([]);
 /** @type {Awaited<ReturnType<typeof serve>> | undefined} */
 let server;
+/** The site's address: the server's origin and PATH. */
+let app = "";
 /** @type {{ product: string, page: any, close: () => Promise<void> } | undefined} */
 let chrome;
 /** @type {any} */
@@ -644,7 +660,7 @@ async function waitForStore(digests, what, also = () => true) {
  * document. */
 async function reload() {
   const before = await page.eval(() => performance.timeOrigin);
-  await page.navigate(`${server.origin}/`);
+  await page.navigate(app);
   const start = performance.now();
   while (performance.now() - start < STEP_TIMEOUT_MS) {
     try {
@@ -828,14 +844,15 @@ async function step(name, body) {
 try {
   // agda-algebras' index and archives are never answered from the HTTP
   // cache, so the log sees every request for them (issue 14).
-  server = await serve({ root: site, isolated: options.isolated, noStore: ["/agda-algebras/"] });
+  server = await serve({ root, prefix: PATH, isolated: options.isolated, noStore: ["/agda-algebras/"] });
+  app = `${server.origin}${PATH}`;
   chrome = await driver.launch(driver.executable);
   page = chrome.page;
   results.browser = chrome.product;
   await page.onConsole((/** @type {object} */ entry) => consoleLog.push(entry));
   await page.setViewport(1440, 900);
   await page.addInitScript(RECORDER);
-  await page.navigate(`${server.origin}/`);
+  await page.navigate(app);
 
   let first = /** @type {ReturnType<typeof state>} */ ({});
   await step("first check", async () => {
@@ -1310,7 +1327,7 @@ try {
     try {
       await checkExplorerAfterReload(
         page,
-        server.origin,
+        app,
         site,
         () => waitFor((s) => finished(s.status) && !s.busy, "the check after the reload"),
         (results.explorer.afterReload = {}),
@@ -1522,7 +1539,15 @@ try {
 
   if (options.browser === "chromium") {
     await step("themes", async () => {
-      results.themes = await checkThemes(page, server.origin, site, join(out, "themes"));
+      results.themes = await checkThemes(page, app, site, join(out, "themes"));
+    });
+  }
+
+  if (PATH !== "/") {
+    await step(`every request under ${PATH}`, async () => {
+      const outside = server.log.filter((request) => request.outside).map((request) => request.url);
+      results.outside = outside;
+      assert(outside.length === 0, `the page requested outside ${PATH}: ${[...new Set(outside)].join(", ")}`);
     });
   }
 } catch (error) {
