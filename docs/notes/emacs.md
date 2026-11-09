@@ -131,7 +131,15 @@ and in `config.el`,
 ```
 
 then `doom sync` and restart Emacs.  The mode command is autoloaded, so
-the call loads the package.  Enable the mode before the first Agda file is
+the call loads the package.
+
+Until [#98]'s pull request is merged, add `:branch "98-m9-2-emacs"` to the
+recipe (or `:branch "98-m9-2-emacs"` to the `:vc` specification).  Both
+installs were tested on 2026-11-08 from that branch, in scratch Emacs
+directories under Emacs 29.3: the `:vc` specification through
+`package-vc-install` (which Emacs 30's `use-package :vc` calls), and the
+Doom recipe through Doom's own copy of straight.el, which `package!`
+hands it to.  Enable the mode before the first Agda file is
 opened, since agda2-mode starts Agda when it opens one.
 
 A running Agda keeps the program it was started with; after installing,
