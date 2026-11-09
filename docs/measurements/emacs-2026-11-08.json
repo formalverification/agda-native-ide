@@ -204,6 +204,13 @@
         }
       ],
       "configuration": "the replacement block of the pull request's description, extracted from it (replacement-block.el), loaded by replacement-shim.el as Doom's package! would load the package"
+    },
+    "warmAfterReview": {
+      "date": "2026-11-08",
+      "commit": "6bec01f",
+      "log": "emacs-2026-11-08/five-warm-after-review.log",
+      "wall": "40.3",
+      "note": "The warm session again, on the code after Copilot review round 1 (truename to the resolver, restart on a changed flake.nix or flake.lock): the same five files, the same real Agda, libraries file and AGDA_DIR for each as in five-warm.log, every load *All Done*; loads 8.5, 9.0, 1.1, 2.3 and 8.6 s, resolutions 0.07 to 0.27 s."
     }
   },
   "chooser": {
@@ -371,5 +378,5 @@
   "explainCommand": {
     "log": "emacs-2026-11-08/explain-command.log"
   },
-  "unitTests": "make emacs-test: 17 ERT tests against a stub resolver, the package byte-compiled with warnings as errors in a fresh Emacs; seven mutations of the package each fail at least one test"
+  "unitTests": "make emacs-test: 19 ERT tests against a stub resolver, the package byte-compiled with warnings as errors in a fresh Emacs; seven mutations of the package each fail at least one test, and three more (no truename, no flake check, flake.lock unwatched) each fail the test added for it after Copilot's review"
 }
