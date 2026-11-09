@@ -22,7 +22,8 @@
 #   finds the project from its working directory, decides which Agda the
 #   project's flake names, builds it once per change of what decides it,
 #   and execs it.  So two projects on two Agdas, or two worktrees of one
-#   project on two locks, each get their own, with nothing to set by hand.
+#   project on two locks, each get their own, with nothing to set by hand
+#   but one line of trust for the user's own checkouts (see Trust).
 #
 # The project and its flake:
 #   The project is the directory of the nearest `.agda-lib` at or above the

@@ -508,12 +508,13 @@ a `GITDIR` not taken to its common directory.
 
 **Status**.  Adopted for dev shells (2026-11-07, [#97]), and for every
 answer of discovery on 2026-11-09, after the second review of [#101]; the
-repository's line the same day.  It changes Milestone 9's exit criterion:
-"no setting touched" becomes one line in the trust file (`--choose
-trust:$HOME/git`, for every project under it at once), or one pick of the
-chooser's first entry per repository; William decides which the criterion
-should say.  The choosers of [#98] and [#99] offer the choice,
-and now trust; each may give the `trust` kind a label of its own.
+repository's line the same day.  It changes Milestone 9's exit criterion,
+and William relaxed it the same day ([#105]): "no setting touched" became
+"no setting touched beyond trusting the user's own checkouts once", by one
+line in the trust file (`--choose trust:$HOME/git`, for every project under
+it at once) or one pick of the chooser's first entry per repository.  The
+choosers of [#98] and [#99] offer the choice, and now trust; each may give
+the `trust` kind a label of its own.
 
 ---
 
@@ -665,8 +666,8 @@ to these fields is announced on [#98] and [#99].
 
 ## References
 
-+  Issues: [#96], [#97], [#98], [#99]; pull request [#101]; agda-native-air
-   [#344][agda-native-air#344].
++  Issues: [#96], [#97], [#98], [#99]; pull requests [#101] and [#105];
+   agda-native-air [#344][agda-native-air#344].
 +  Documents: [the companion note][note]; [ADR 0003][adr-0003] § 13; [the
    record][record] of 2026-11-07 and [that of 2026-11-09][record-11-09].
 +  Code: [`scripts/agda-for-project/agda-for-project.sh`][launcher], its
@@ -679,6 +680,7 @@ to these fields is announced on [#98] and [#99].
 [#98]: https://github.com/formalverification/agda-native-ide/issues/98
 [#99]: https://github.com/formalverification/agda-native-ide/issues/99
 [#101]: https://github.com/formalverification/agda-native-ide/pull/101
+[#105]: https://github.com/formalverification/agda-native-ide/pull/105
 [agda-native-air#344]: https://github.com/formalverification/agda-native-air/pull/344
 [note]: ../notes/project-agda.md
 [adr-0003]: 0003-the-shared-core.md
