@@ -64,7 +64,7 @@ endif
         library-gate
 # The companion's targets are separate from the browser app's gates.
 
-.PHONY: vscode-check vscode-build vscode-test vscode-unit emacs-test
+.PHONY: vscode-check vscode-build vscode-test vscode-unit agda-for-project-test emacs-test
 .DEFAULT_GOAL := help
 
 # In `path` mode the resolved CLI is (typically) a Nix wrapper carrying

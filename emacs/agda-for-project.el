@@ -96,6 +96,10 @@ library, as for a project whose flake decides nothing."
 (defvar agda-for-project--process-root nil
   "The project root the running Agda process was started for, or nil.")
 
+(defvar agda-for-project--process-inputs nil
+  "The flake the running Agda came from, or nil.
+In the form `agda-for-project--inputs' gives.")
+
 (defvar agda-for-project--opening nil
   "Non-nil while `agda2-mode' sets up a buffer, which starts Agda.
 A start then never asks for a choice and never fails the open: it says
@@ -103,7 +107,8 @@ what is missing, and the next `agda2-load' asks or fails in its place.")
 
 (defvar agda-for-project--last nil
   "A plist describing the last start.
-Its keys are :file :root :program :args :env :version :how, and :seconds,
+Its keys are :file :root :flake :program :args :env :version :how, and
+:seconds,
 how long the resolution took.")
 
 ;;;; The project root
@@ -128,6 +133,14 @@ with symbolic links resolved."
          dir))))
 
 ;;;; Calling the resolver
+
+(defun agda-for-project--file (file)
+  "FILE as the resolver is given it: absolute, with symbolic links resolved.
+So the resolver starts from the directory `agda-for-project-root' starts
+from, and a choice it remembers is for the root a restart is keyed by.
+The resolver resolves the links of the file's directory (`pwd -P') but
+not of the file itself."
+  (file-truename (expand-file-name file)))
 
 (defun agda-for-project--call (&rest args)
   "Run the resolver with ARGS; return (STATUS STDOUT STDERR).
@@ -170,7 +183,7 @@ Without BUILD it passes --no-build, which only looks."
                (apply #'agda-for-project--call
                       (append '("--explain" "--json")
                               (unless build '("--no-build"))
-                              (list (expand-file-name file))))))
+                              (list (agda-for-project--file file))))))
     (if (and (memq status '(0 69)) (string-prefix-p "{" (string-trim-left out)))
         (agda-for-project--json out)
       (user-error "agda-for-project: %s (exit %s); no Agda was started"
@@ -179,7 +192,7 @@ Without BUILD it passes --no-build, which only looks."
 (defun agda-for-project--candidates (file)
   "The resolver's candidates for FILE, as a list of alists."
   (pcase-let ((`(,status ,out ,err)
-               (agda-for-project--call "--candidates" "--json" (expand-file-name file))))
+               (agda-for-project--call "--candidates" "--json" (agda-for-project--file file))))
     (unless (eql status 0)
       (user-error "agda-for-project: %s (exit %s)" (agda-for-project--last-line err) status))
     (agda-for-project--json out)))
@@ -215,7 +228,7 @@ REASON, the resolver's own line, heads the prompt.  Returns the ID."
            (id (cdr (assoc pick table))))
       (unless id (user-error "agda-for-project: no Agda chosen; none was started"))
       (pcase-let ((`(,status ,_out ,err)
-                   (agda-for-project--call "--choose" id (expand-file-name file))))
+                   (agda-for-project--call "--choose" id (agda-for-project--file file))))
         (unless (eql status 0)
           (user-error "agda-for-project: %s" (agda-for-project--last-line err))))
       id)))
@@ -236,7 +249,7 @@ a failed evaluation or build says \"no Agda was run\" instead."
 
 (defun agda-for-project--fallback (file root)
   "The start for FILE, in ROOT, that `agda-for-project-fallback' names."
-  (list :file file :root root :how 'fallback
+  (list :file file :root root :flake nil :how 'fallback
         :program (if (stringp agda-for-project-fallback)
                      agda-for-project-fallback
                    agda2-program-name)
@@ -259,7 +272,7 @@ name an Agda.  CHOSEN is non-nil on the second pass, after a choice."
         (setq answer (agda-for-project--explain file 'build))
         (unless (alist-get 'decided answer)
           (agda-for-project--refuse (alist-get 'error answer))))
-      (list :file file :root root
+      (list :file file :root root :flake (alist-get 'flake answer)
             :how (intern (or (alist-get 'decidedBy answer) "discovered"))
             :program (alist-get 'program answer)
             :args (alist-get 'args answer)
@@ -299,6 +312,21 @@ Runs PROGRAM in the current `default-directory' and `process-environment'."
       (and (re-search-forward "^Agda version \\([0-9.]+\\)" nil t)
            (match-string 1)))))
 
+;;;; The flake's inputs
+
+(defun agda-for-project--inputs (flake)
+  "FLAKE's directory and the modification times of its flake.nix and lock.
+Nil when FLAKE is nil (a start that came from no flake).  A change to
+either file changes the resolver's key, and perhaps its Agda; comparing
+times costs two `file-attributes' calls, where asking the resolver would
+cost a resolution on every load."
+  (and flake
+       (cons flake
+             (mapcar (lambda (name)
+                       (file-attribute-modification-time
+                        (file-attributes (expand-file-name name flake))))
+                     '("flake.nix" "flake.lock")))))
+
 ;;;; The advice
 
 (defun agda-for-project--restart (restart &rest args)
@@ -310,7 +338,8 @@ same way; agda2-mode is told the version that program reports."
   (let ((file (buffer-file-name)))
     (if (not file)
         (apply restart args)
-      (setq agda-for-project--process-root nil)
+      (setq agda-for-project--process-root nil
+            agda-for-project--process-inputs nil)
       (let* ((t0 (float-time))
              (start (condition-case err (agda-for-project--resolve file)
                       (user-error
@@ -334,7 +363,9 @@ same way; agda2-mode is told the version that program reports."
                                     agda2-version)))
             (setq agda-for-project--last (append start (list :seconds seconds)))
             (prog1 (apply restart args)
-              (setq agda-for-project--process-root (plist-get start :root)))))))))
+              (setq agda-for-project--process-root (plist-get start :root)
+                    agda-for-project--process-inputs
+                    (agda-for-project--inputs (plist-get start :flake))))))))))
 
 (defun agda-for-project--mode (mode &rest args)
   "Around `agda2-mode': note that a buffer is being set up.
@@ -347,13 +378,16 @@ interrupt the open itself (a quit aborts `find-file')."
 (defun agda-for-project--load (load &rest args)
   "Around `agda2-load': restart Agda first if the buffer has another root.
 LOAD is the original function and ARGS its arguments.  Agda restarts when
-the buffer's project root differs from the running process's, or when no
-process runs.  Restarting here, before agda2-mode marks the load busy,
-means that a start that fails leaves no load stuck waiting on a process
-that never came."
+the buffer's project root differs from the running process's, when the
+flake.nix or flake.lock of the flake it came from has changed since it
+started, or when no process runs.  Restarting here, before agda2-mode
+marks the load busy, means that a start that fails leaves no load stuck
+waiting on a process that never came."
   (let ((file (buffer-file-name)))
     (when (and file
                (or (not (equal (agda-for-project-root file) agda-for-project--process-root))
+                   (not (equal (agda-for-project--inputs (car agda-for-project--process-inputs))
+                               agda-for-project--process-inputs))
                    (not (and (boundp 'agda2-process) (process-live-p agda2-process)))))
       (agda2-restart))
     (apply load args)))
@@ -364,7 +398,7 @@ that never came."
 Adds advice around `agda2-mode', `agda2-restart' and `agda2-load' when
 enabled, and removes it when disabled.  A running Agda keeps the program
 it was started with; the next `agda2-load' from a buffer of another
-project restarts it."
+project, or after its flake.nix or flake.lock changes, restarts it."
   :global t
   :group 'agda-for-project
   (if agda-for-project-mode
@@ -375,7 +409,8 @@ project restarts it."
     (advice-remove 'agda2-mode #'agda-for-project--mode)
     (advice-remove 'agda2-restart #'agda-for-project--restart)
     (advice-remove 'agda2-load #'agda-for-project--load)
-    (setq agda-for-project--process-root nil)))
+    (setq agda-for-project--process-root nil
+          agda-for-project--process-inputs nil)))
 
 ;;;; Commands
 
@@ -392,7 +427,7 @@ Only looks, unless BUILD (a prefix argument) asks to build first."
          (root (agda-for-project-root file))
          (result (apply #'agda-for-project--call
                         (append '("--explain") (unless build '("--no-build"))
-                                (list (expand-file-name file))))))
+                                (list (agda-for-project--file file))))))
     (with-help-window "*agda-for-project*"
       (princ (format "agda-for-project for %s\n\n" (abbreviate-file-name file)))
       (pcase-let ((`(,status ,out ,err) result))
@@ -434,7 +469,7 @@ The next load from a buffer of the project asks the resolver again."
   (interactive)
   (let ((file (agda-for-project--buffer-file)))
     (pcase-let ((`(,status ,_out ,err)
-                 (agda-for-project--call "--forget" (expand-file-name file))))
+                 (agda-for-project--call "--forget" (agda-for-project--file file))))
       (message "%s" (if (string-empty-p err) (format "agda-for-project: exit %s" status) err)))
     (when (equal (agda-for-project-root file) agda-for-project--process-root)
       (setq agda-for-project--process-root nil))))

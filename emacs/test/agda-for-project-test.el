@@ -118,6 +118,7 @@ project's root and the file in its src/ directory."
             (agda-for-project-program aft/stub)
             (agda-for-project-fallback nil)
             (agda-for-project--process-root nil)
+            (agda-for-project--process-inputs nil)
             (agda-for-project--last nil)
             (agda2-program-name "agda")
             (agda2-program-args nil)
@@ -291,7 +292,7 @@ project's root and the file in its src/ directory."
       (cl-letf (((symbol-function 'completing-read)
                  (lambda (_prompt collection &rest _) (car (nth 1 collection)))))
         (agda2-restart)))
-    (should (member (format "--choose path:/store/a/bin/agda %s" file) (aft/calls)))
+    (should (member (format "--choose path:/store/a/bin/agda %s" (file-truename file)) (aft/calls)))
     (should (equal (plist-get (car aft/starts) :program) "/store/a/bin/agda"))))
 
 (ert-deftest aft/opening-a-file-never-asks-nor-fails ()
@@ -337,6 +338,48 @@ The open says what is missing; the next load asks."
     (agda2-load)
     (should (equal (length aft/starts) 3))      ; the process died: restarted
     (should (equal aft/loads 4))))
+
+(ert-deftest aft/load-restarts-when-the-flake-changes ()
+  "A load restarts Agda when its flake's flake.nix or flake.lock changes."
+  (aft/with-project (file :lib t)
+    (dolist (name '("flake.nix" "flake.lock"))
+      (with-temp-file (expand-file-name name root) (insert "{}\n"))
+      (set-file-times (expand-file-name name root) '(26000 0)))
+    (aft/write "explain-nobuild.json" (aft/decided :flake root))
+    (agda2-load)
+    (should (equal (length aft/starts) 1))
+    (agda2-load)
+    (should (equal (length aft/starts) 1))      ; inputs unchanged: no restart
+    (set-file-times (expand-file-name "flake.lock" root) '(26001 0))
+    (agda2-load)
+    (should (equal (length aft/starts) 2))      ; the lock changed: restarted
+    (agda2-load)
+    (should (equal (length aft/starts) 2))
+    (set-file-times (expand-file-name "flake.nix" root) '(26002 0))
+    (agda2-load)
+    (should (equal (length aft/starts) 3))      ; flake.nix changed: restarted
+    (should (equal aft/loads 5))))
+
+(ert-deftest aft/resolver-is-given-the-truename ()
+  "A file reached through a symbolic link goes to the resolver by its truename.
+The root is computed from the truename, so the resolver must start there too."
+  (aft/with-project (file :lib t)
+    (let* ((elsewhere (make-temp-file "aft-link-" t))
+           (link (expand-file-name "M.agda" elsewhere)))
+      (unwind-protect
+          (progn
+            (make-symbolic-link file link)
+            (aft/write "explain-nobuild.json" (aft/decided))
+            (with-temp-buffer
+              (setq buffer-file-name link)
+              (agda2-restart)
+              (agda-for-project-forget))
+            (should (equal (agda-for-project-root link) (agda-for-project-root file)))
+            (should (member (format "--explain --json --no-build %s" (file-truename file))
+                            (aft/calls)))
+            (should (member (format "--forget %s" (file-truename file)) (aft/calls)))
+            (should-not (cl-some (lambda (c) (string-match-p (regexp-quote link) c)) (aft/calls))))
+        (delete-directory elsewhere t)))))
 
 (ert-deftest aft/failed-restart-skips-the-load ()
   "When the restart a load needs fails, the load is not sent at all."
@@ -397,13 +440,13 @@ The open says what is missing; the next load asks."
     (aft/write "candidates.json" aft/candidates)
     (agda2-restart)
     (agda-for-project-forget)
-    (should (member (format "--forget %s" file) (aft/calls)))
+    (should (member (format "--forget %s" (file-truename file)) (aft/calls)))
     (should (null agda-for-project--process-root))
     (agda2-restart)
     (cl-letf (((symbol-function 'completing-read)
                (lambda (_prompt collection &rest _) (car (nth 1 collection)))))
       (agda-for-project-choose))
-    (should (member (format "--choose path:/store/a/bin/agda %s" file) (aft/calls)))
+    (should (member (format "--choose path:/store/a/bin/agda %s" (file-truename file)) (aft/calls)))
     (should (equal (length aft/starts) 3))))
 
 ;;; agda-for-project-test.el ends here
