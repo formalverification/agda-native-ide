@@ -87,16 +87,20 @@
 #   shell's hook runs on entry.  So opening a file of a repository just
 #   cloned must not be enough to run its Agda; direnv asks for `direnv
 #   allow` for the same reason.  What discovery finds is therefore run (or
-#   entered) only for a flake at or below a directory listed in
-#   ${XDG_CONFIG_HOME:-$HOME/.config}/agda-for-project/trusted (one
-#   directory per line, `~/` for the home directory, `#` for a comment);
-#   otherwise the program stops and says how to allow it.  `--choose
-#   trust:DIR` adds DIR to that file; an attribute named by the host and a
-#   choice are consent for their project.  Evaluating a flake needs no
-#   consent (the evaluation is pure), nor does building (builds run as
-#   Nix's build users, in its sandbox where the platform has one), so
-#   discovery evaluates an untrusted flake to say what trusting it would
-#   run.
+#   entered) only for a trusted flake, by a line of
+#   ${XDG_CONFIG_HOME:-$HOME/.config}/agda-for-project/trusted (`~/` for
+#   the home directory, `#` for a comment) of one of two kinds: a
+#   directory, which trusts every flake at or below it; or `repository
+#   GITDIR`, which trusts every working tree git lists for the repository
+#   whose common git directory is GITDIR (never a directory whose `.git`
+#   file merely names it).  Otherwise the program stops and says how to
+#   allow it.  `--choose trust:DIR` and `--choose trust-repository:[GITDIR]`
+#   (with none, the project's own) write those lines; an attribute named
+#   by the host and a choice are consent for their project.  Evaluating a
+#   flake needs no consent (the evaluation is pure), nor does building
+#   (builds run as Nix's build users, in its sandbox where the platform has
+#   one), so discovery evaluates an untrusted flake to say what trusting it
+#   would run.
 #
 # The project's own libraries:
 #   An environment cannot hold the project's own library (Agda would then
@@ -122,15 +126,17 @@
 #       `undecided`, when a choice would settle it; `failed` otherwise),
 #       and the exit status says which.
 #   --candidates [--json] [FILE]
-#       What a chooser can offer: trusting the flake (`trust:DIR`, when
-#       that would decide), each Agda environment of the flake, each dev
+#       What a chooser can offer: trusting the flake, when that would decide
+#       (`trust-repository:GITDIR` in a checkout git lists, else
+#       `trust:DIR`), each Agda environment of the flake, each dev
 #       shell, the Agdas this program has built, and `agda` on PATH, each
 #       with an `id` that --choose takes and its version where it is known
 #       without building.
 #   --choose ID [FILE]
 #       Remember ID for the project (see "Which Agda", step 2); or, for
-#       `trust:DIR`, add DIR to the trust file and forget the project's
-#       choice, so that discovery decides.
+#       `trust:DIR` or `trust-repository:[GITDIR]`, add its line to the
+#       trust file and forget the project's choice, so that discovery
+#       decides.
 #   --forget [FILE]
 #       Forget the project's choice.
 #

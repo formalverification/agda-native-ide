@@ -119,26 +119,36 @@ an environment's `bin/agda` is whatever program the flake builds, and
 entering a dev shell runs the project's shell hook.  If opening a file
 were enough to run it, opening a file of a repository you have just cloned
 would run that repository's code, which is why direnv asks for `direnv
-allow`.  So the program runs what it finds on its own only for a flake at
-or below a directory you list in `~/.config/agda-for-project/trusted`, one
-per line:
+allow`.  So the program runs what it finds on its own only for a flake you
+trust, by a line in `~/.config/agda-for-project/trusted` of either kind:
 
-    # my own checkouts
+    # every checkout under ~/git
     ~/git
+    # every worktree of one repository, now and later
+    repository ~/git/IO/fls/master/.git
 
-Otherwise it stops, exit 69, and says the three ways to allow it: trust a
-directory, which covers every flake below it; choose an Agda for this
-project alone; or add the line to the trust file by hand.
+Otherwise it stops, exit 69, and says the three ways to allow it: trust the
+project's repository, which covers every worktree git lists for it; trust a
+directory, which covers every flake below it; or choose an Agda for this
+project alone.
 
+    agda-for-project --choose trust-repository: path/to/File.agda
     agda-for-project --choose trust:$HOME/git path/to/File.agda
     agda-for-project --choose package:fls-agdaWithPackages path/to/File.agda
 
-`--choose trust:DIR` adds the line for you (with a dated comment above
-it), and forgets any choice made for the project, so that the program's
-own discovery decides.  An editor's chooser offers the same thing as its
-first entry, `trust:` and the flake's directory; pick it, or trust a
-parent directory from a shell to cover every checkout and worktree below
-it.  Finding what the flake offers needs no trust: Nix evaluates the
+Each `trust` form writes its line for you (with a dated comment above it),
+and forgets any choice made for the project, so that the program's own
+discovery decides.  An editor's chooser offers trust of the repository as
+its first entry (or, for a flake outside git, of its directory), so one
+pick covers every worktree.  The easiest setup is one line for the
+directory you keep your own checkouts in, written once from a shell:
+after it, nothing you clone or create there asks again, and a question
+comes only for code from elsewhere.
+
+A repository is trusted only in the working trees git itself lists for
+it (`git worktree list`): a directory whose `.git` file names the
+repository's git directory, as an unpacked archive's could, is not
+covered.  Finding what a flake offers needs no trust: Nix evaluates the
 flake without running it, and would build as its own build users, in its
 sandbox, as a `nix build` by hand would.
 
@@ -197,10 +207,16 @@ integrations read.  When nothing is decided, its `reason` says why:
    Agda through this program, restarting Agda when you switch projects, is
    [#98].
 +  **VS Code**: agda-mode-vscode and this repository's companion running
-   each project's Agda through it are [#99].
+   each project's Agda through it are [#99].  The companion offers the
+   chooser, trust among its entries; agda-mode-vscode alone does not, and
+   when the program refuses (an untrusted flake, say), it quietly tries the
+   next Agda it knows.  Without the companion, trust your checkouts once
+   from a shell (`agda-for-project --choose trust:$HOME/git`).
 +  **agda-mcp** (agda-native-air's tool server for agents): name the
    program as `--agda-bin`; set `AGDA_FLAKE_ATTR` in the registration's
-   environment only if discovery would not find the right output.
+   environment only if discovery would not find the right output.  An
+   agent cannot answer a question, so trust the checkouts it works in (or
+   name the attribute, which is consent) before its session starts.
 +  **Any other tool** that runs `agda` can run `agda-for-project` instead,
    from the file's directory or with `AGDA_FOR_PROJECT_DIR` set to it.
 
@@ -211,19 +227,21 @@ environments and no `default`, a dev shell with no Agda, or a flake you
 have not trusted), or when you want another answer than discovery gives:
 
     agda-for-project --candidates path/to/File.agda
+    agda-for-project --choose trust-repository: path/to/File.agda
     agda-for-project --choose trust:$HOME/git path/to/File.agda
     agda-for-project --choose package:fls-agdaWithPackages path/to/File.agda
     agda-for-project --choose devshell:default path/to/File.agda
     agda-for-project --choose path:/some/agda path/to/File.agda
     agda-for-project --forget path/to/File.agda
 
-`--candidates` lists trusting the flake (when that would decide), the
-flake's environments and dev shells, the Agdas the program has already
-built for any project, and `agda` on PATH, each with an ID for
-`--choose`.  A choice is kept in `~/.local/state/agda-for-project/`, never
-in the checkout, and applies to every worktree of the project's
-repository that git lists (`git worktree list`); a directory whose `.git`
-file merely names the repository's git directory gets choices of its own.
+`--candidates` lists trusting the flake's repository or directory (when
+that would decide), the flake's environments and dev shells, the Agdas the
+program has already built for any project, and `agda` on PATH, each with
+an ID for `--choose`.  A choice is kept in
+`~/.local/state/agda-for-project/`, never in the checkout, and applies to
+every worktree of the project's repository that git lists (`git worktree
+list`); a directory whose `.git` file merely names the repository's git
+directory gets choices of its own.
 
 ## Making a project easy to find
 
@@ -239,7 +257,8 @@ following:
    in the checkout or as a store path.
 
 Either way, each user trusts it once: a line in the trust file (one for
-`~/git` covers every checkout there), or a choice for the project.
+`~/git` covers every checkout there), one pick of the chooser's trust
+entry for its repository, or a choice for the project.
 
 ## Limits
 

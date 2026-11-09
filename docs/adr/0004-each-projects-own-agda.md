@@ -43,8 +43,8 @@ decides how every host gets each project's own Agda instead: one program,
 +  **Why it is shaped so**: most projects worth checking already pin their
    Agda and libraries in a flake, so the answer is written down; and a
    program, not a library, is the one thing every host can run.
-+  **Where it stands**: built, packaged in the flake, tested (25 cases
-   against a stub `nix`; 20 checks each made to fail by a mutation, and
++  **Where it stands**: built, packaged in the flake, tested (26 cases
+   against a stub `nix`; 25 checks each made to fail by a mutation, and
    each case added after a review failing against the launcher before it
    or under a mutation), and measured on formal-ledger-specifications
    (Agda 2.8.0, two locks), agda-algebras (Agda 2.9.0) and agda-lattices
@@ -387,9 +387,11 @@ profile's place on 2026-11-09, after the reviews of [#101].
 (See also [#97], [#98], [#99].)
 
 **Decision**.  What discovery finds, a package's `agda` or a dev shell, is
-run only for a flake at or below a directory the user lists as trusted;
-`--choose trust:DIR` lists one, a choice or the host's attribute is
-consent for its project, and evaluating or building a flake needs none.
+run only for a trusted flake: one at or below a directory the user lists,
+or a working tree git lists for a repository the user lists.  `--choose
+trust:DIR` and `--choose trust-repository:[GITDIR]` list one, a choice or
+the host's attribute is consent for its project, and evaluating or
+building a flake needs none.
 
 +  **Why**: both run the flake's code as the user, outside any sandbox: a
    package's `bin/agda` can be any program the flake builds, and a dev
@@ -398,21 +400,28 @@ consent for its project, and evaluating or building a flake needs none.
    files.  direnv asks for `direnv allow` before it loads a directory's
    environment, for the same reason.
 +  **The trust file**: `${XDG_CONFIG_HOME:-~/.config}/agda-for-project/trusted`,
-   one directory per line, `~/` for the home directory, `#` for a comment;
-   a flake is trusted when its directory, with symlinks resolved, is at or
-   below one of them.  A user who keeps their own checkouts under `~/git`
-   lists that line once.
-+  **Granting it**: `--choose trust:DIR` appends `DIR` to the trust file
-   (after a dated comment) and forgets the project's choice, so that
-   discovery decides.  `--candidates` offers `trust:<the flake's
-   directory>` first, of kind `trust`, whenever trusting the flake would
-   decide something, so a chooser that lists the candidates and passes the
-   picked ID to `--choose` (both [#98]'s and [#99]'s do) offers trust with
-   no change of its own.
+   `~/` for the home directory, `#` for a comment, with two kinds of line.
+   A directory trusts every flake whose directory, with symlinks resolved,
+   is at or below it; a user who keeps their own checkouts under `~/git`
+   lists that line once.  `repository GITDIR` trusts every working tree
+   that `git worktree list` gives for the repository whose common git
+   directory is `GITDIR` (§ 9), now and later, and never a directory whose
+   `.git` file merely names that git directory, nor one inside it.
++  **Granting it**: `--choose trust:DIR`, or `--choose
+   trust-repository:GITDIR` (with no `GITDIR`, the project's own
+   repository; a worktree's git directory names its repository too),
+   appends the line to the trust file after a dated comment and forgets
+   the project's choice, so that discovery decides.  `--candidates` offers
+   one of them first, of kind `trust`, whenever trusting the flake would
+   decide something: in a checkout git lists, its repository, so that one
+   pick covers every worktree; elsewhere, the flake's directory.  A chooser
+   that lists the candidates and passes the picked ID to `--choose` (both
+   [#98]'s and [#99]'s do) offers it with no change of its own.
 +  **Untrusted**: the launcher evaluates the flake (to say what trusting it
    would run) and stops, exit 69, with a line naming the three ways to
-   allow it: `--choose trust:DIR`, `--choose package:NAME` or
-   `devshell:NAME` for the project alone, or a line in the trust file.
+   allow it: the trust the chooser offers first, `--choose trust:DIR` for
+   a whole directory, or `--choose package:NAME` (or `devshell:NAME`) for
+   the project alone.
    `--explain --json` says `"reason": "untrusted"`, with `method` and
    `name` naming what would run.
 +  **Evaluating and building need no consent**: the evaluation is pure,
@@ -444,12 +453,28 @@ string prefix, discovery run without trust, trust offered to a trusted
 flake, trust offered where it decides nothing, `--choose trust:` keeping
 the choice, and the missing newline.
 
+Trust of a directory was the only kind at first, and the chooser offered
+the flake's own, so a user of worktrees would have been asked once per
+worktree (formal-ledger-specifications' repository lists 46).  On
+2026-11-09, on its master checkout, `--candidates` offered
+`trust-repository:<master>/.git` first; after `--choose trust-repository:`
+there, a worktree never opened before was decided by discovery with no
+question ([the record of 2026-11-09][record-11-09], `repositoryTrust`).
+Tests: a repository trusted from a subdirectory covers a worktree made
+afterward, and not another repository, a planted `.git` file naming it, or
+a flake inside its git directory; named by a worktree's git directory, it
+is already trusted.  Five more mutations are caught: repository trust
+without git's list, repository lines ignored, repository lines read as
+directories, the chooser offering the directory in a listed checkout, and
+a `GITDIR` not taken to its common directory.
+
 **Status**.  Adopted for dev shells (2026-11-07, [#97]), and for every
-answer of discovery on 2026-11-09, after the second review of [#101].  It
-changes Milestone 9's exit criterion: "no setting touched" becomes one
-line in the trust file (or one `--choose trust:`), for every project under
-it at once, or one choice per project; William decides which the
-criterion should say.  The choosers of [#98] and [#99] offer the choice,
+answer of discovery on 2026-11-09, after the second review of [#101]; the
+repository's line the same day.  It changes Milestone 9's exit criterion:
+"no setting touched" becomes one line in the trust file (`--choose
+trust:$HOME/git`, for every project under it at once), or one pick of the
+chooser's first entry per repository; William decides which the criterion
+should say.  The choosers of [#98] and [#99] offer the choice,
 and now trust; each may give the `trust` kind a label of its own.
 
 ---
@@ -556,7 +581,8 @@ run no Agda, in JSON a host can read; these are the interface [#98] and
    (an Agda this program built for any project) or `PATH`; versions are
    given where they are known without building.
 +  `--choose ID [FILE]`, where `ID` is `package:NAME`, `devshell:NAME`,
-   `path:FILE` or `trust:DIR`, and `--forget [FILE]`.
+   `path:FILE`, `trust:DIR` or `trust-repository:[GITDIR]`, and `--forget
+   [FILE]`.
 +  **Exit status**: 0, or Agda's own in the exec path; 69 when no Agda can
    be run (nothing decided, an untrusted flake, a failed evaluation or
    build, no lock, no `bin/agda`, no `nix`, or an attribute named with no
@@ -571,9 +597,9 @@ found an attribute named by the host passed over when `nix` was missing,
 and a remembered `path:` choice run in its place (exit 0); now it is
 refused, and a test and a mutation cover it.
 
-**Status**.  Adopted (2026-11-07, [#97]); `reason`, the `trust` kind and
-`trust:DIR` added on 2026-11-09.  A change to these fields is announced on
-[#98] and [#99].
+**Status**.  Adopted (2026-11-07, [#97]); `reason`, the `trust` kind,
+`trust:DIR` and `trust-repository:[GITDIR]` added on 2026-11-09.  A change
+to these fields is announced on [#98] and [#99].
 
 ---
 
@@ -590,7 +616,7 @@ refused, and a test and a mutation cover it.
 | 7 | A second libraries file for sibling libraries, transitively, names without versions | Adopted ([#97]) | formal-ledger-test: 42 under the environment, 0 through the launcher (§ 8) |
 | 8 | Choices per repository and project, in the state directory, shared only among the working trees git lists; a `path:` choice absolute | Adopted ([#97]; the listed trees 2026-11-09, [#101]) | Worktrees share; a planted `.git` file does not; two mutations caught (§ 9) |
 | 9 | `--explain` (with `reason` when nothing is decided), `--candidates`, `--choose` (with `trust:DIR`), `--forget`; exit 69 and 64 | Adopted ([#97]; `reason` and `trust:` 2026-11-09, [#101]) | Tests; the acceptance run (§ 10) |
-| 10 | What discovery finds, a package's `agda` or a dev shell, runs only under a trusted directory, or by a choice; `--choose trust:DIR` grants trust, and `--candidates` offers it; evaluating and building need no consent | Adopted ([#97]; packages 2026-11-09, [#101]) | agda-lattices refused, then trusted and checked; formal-ledger-specifications refused, then trusted and run; seven mutations caught (§ 7) |
+| 10 | What discovery finds, a package's `agda` or a dev shell, runs only under a trusted directory, in a listed worktree of a trusted repository, or by a choice; `--choose trust:DIR` and `trust-repository:[GITDIR]` grant trust, and `--candidates` offers it, the repository first | Adopted ([#97]; packages and repositories 2026-11-09, [#101]) | agda-lattices refused, then trusted and checked; formal-ledger-specifications refused, then trusted and run, a worktree with it; twelve mutations caught (§ 7) |
 
 ## References
 

@@ -83,5 +83,20 @@
     "checkAloneSeconds": 0.003,
     "plantedGitFile": "under the stub nix, with no trust file: a directory with its own flake and a `.git` file reading `gitdir: <my checkout>/.git` took my checkout's devshell:default choice and entered its own dev shell (8334b9e); with d86ef94 it has no choice and is refused as untrusted",
     "tests": "d86ef94 adds a 25th case (two planted .git files), which fails against 8334b9e and under the mutation that drops the check"
+  },
+  "repositoryTrust": {
+    "what": "trust of a repository (c3c36e0), on ~/git/IO/fls/master with a fresh configuration and state (nix's own configuration copied in), and on one of its 46 worktrees, ~/git/IO/fls/worktrees/1276-dijkstra-gov-pov, never opened through the launcher before",
+    "revision": "c3c36e0",
+    "firstCandidate": {"id": "trust-repository:~/git/IO/fls/master/.git", "kind": "trust", "version": "2.8.0", "label": "trust the repository of ~/git/IO/fls/master and every worktree git lists for it, now and later, so that discovery runs what it finds there as you (package:fls-agdaWithPackages here)"},
+    "granted": {
+      "command": "agda-for-project --choose trust-repository: src/Ledger.lagda.md",
+      "stderr": "agda-for-project: trusted the repository ~/git/IO/fls/master/.git and every worktree git lists for it ($XDG_CONFIG_HOME/agda-for-project/trusted)",
+      "trustFile": "# --choose, 2026-11-09\nrepository ~/git/IO/fls/master/.git\n"
+    },
+    "afterward": [
+      {"cwd": "~/git/IO/fls/master", "command": "agda-for-project --explain --json --no-build", "answer": {"decided": true, "reason": null, "decidedBy": "discovered", "name": "fls-agdaWithPackages", "built": "no"}, "seconds": 0.26},
+      {"cwd": "~/git/IO/fls/worktrees/1276-dijkstra-gov-pov", "command": "agda-for-project --explain --json --no-build", "answer": {"decided": true, "reason": null, "decidedBy": "discovered", "name": "fls-agdaWithPackages", "built": "missing"}, "seconds": 0.83}
+    ],
+    "tests": "c3c36e0 adds a 26th case; it and the two cases whose refusal line and first candidate changed fail against d86ef94, and five mutations of repository trust are caught"
   }
 }
