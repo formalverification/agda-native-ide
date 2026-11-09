@@ -1,0 +1,118 @@
+{
+ "run": "website-2026-11-08",
+ "issue": 96,
+ "date": "2026-11-08",
+ "clock": "Times are UTC; the workstation's clock read MST (UTC-7), 2026-11-08 evening.",
+ "revision": "9d7c04d88bbc3e8bb2d55959a6daff73cead5643",
+ "machine": {
+  "cpu": "12th Gen Intel(R) Core(TM) i9-12900H",
+  "logicalCpus": 20,
+  "kernel": "7.0.0-42-generic",
+  "note": "A laptop CPU shared with other sessions; times are indicative.  The counts (pages, views, URLs, requests, problems) and the verdicts are the findings."
+ },
+ "inputs": {
+  "browser": "Chrome/149.0.7827.200 (the flake's chromium, headless)",
+  "mkdocs": "1.6.1",
+  "mkdocsMaterial": "9.5.49",
+  "tree": "nix build .#pages, copied to public/ by make pages: 737 files, 109,278,563 bytes, of which play/ (nix build .#site) is 102,314,131"
+ },
+ "reproducible": "nix build .#website --rebuild and nix build .#pages --rebuild both passed at this revision: two builds byte-identical.",
+ "pagesBrowser": {
+  "what": "make pages-browser: the playground's first check at /agda-native-ide/play/ and its two pictures, then every page of the website in both schemes at 1440x900 and 390x844 (mobile), then a search",
+  "playground": {
+   "status": "1 open goal · 370 ms"
+  },
+  "screenshots": [
+   "assets/screenshots/playground-light.png",
+   "assets/screenshots/playground-dark.png"
+  ],
+  "pages": 16,
+  "views": 64,
+  "schemesDrawnAsAsked": true,
+  "sidewaysScroll": [],
+  "contrastFailures": 0,
+  "errors": 0,
+  "offOrigin": 0,
+  "search": {
+   "query": "reactor",
+   "results": 8,
+   "meta": "8 matching documents"
+  },
+  "failure": null,
+  "widestScroll": {
+   "desktop": 0,
+   "phone": 0
+  },
+  "note": "widestScroll is the largest scrollWidth less innerWidth over the views at that width: 0 or less means no view scrolls sideways."
+ },
+ "pagesCheck": {
+  "pages": 17,
+  "stylesheets": 7,
+  "urls": 2348,
+  "outbound": 159,
+  "problems": []
+ },
+ "browserCheckAtPlay": {
+  "what": "make pages-browser-check: nix run .#browser-check -- public --path /play/, served without the isolation headers",
+  "failure": null,
+  "outside": [],
+  "requests": 182,
+  "bytes": 67877890,
+  "checking": [
+   "Main"
+  ],
+  "timingsMs": {
+   "Agda ready, since navigation": 862,
+   "first check done, since navigation": 1342,
+   "first check, as the page reports it": 405,
+   "first check": 1350,
+   "the Explorer": 1187,
+   "infer, and the first check's Checking lines": 143,
+   "give at goal 0": 424,
+   "check a type error": 284,
+   "refuse a postulate": 175,
+   "library import, as the page reports it": 129,
+   "import a module of agda-algebras, asked first": 2063,
+   "library module's load, as the page reports it": 140,
+   "hover in the library module": 665,
+   "a library module, read-only, and undo in its own file": 3310,
+   "a copy into the playground, checked, with a goal answered": 1800,
+   "a selection's copy, and an import in Main": 2298,
+   "the Explorer after a reload": 1911,
+   "second visit's check, as the page reports it": 267,
+   "a second visit, from the browser's store": 1185,
+   "HSP: from the answer to the check's end": 7124,
+   "HSP import, as the page reports it": 6610,
+   "import Setoid.Varieties.HSP, asked once": 8159,
+   "a changed archive, fetched again": 7168,
+   "a remembered answer: the bytes stated, then fetched": 6940,
+   "a declined fetch: what the browser keeps still mounts": 8419,
+   "themes": 8359,
+   "every request under /play/": 0
+  }
+ },
+ "control": {
+  "what": "The same check on a tree built with src/routes/+page.svelte as it was at 474359f (the root-absolute PLFA fetches), the rest of the branch unchanged",
+  "failure": "Explorer: timed out waiting for plfa:part1/Lists's row; focused null, 359 rows",
+  "outside": [
+   "404 /plfa/interfaces/manifest.json?cache=db45304f08a2fed8",
+   "404 /plfa/manifest.json"
+  ],
+  "when": "2026-11-09T01:5xZ, at the branch's first form (its third commit, 9d53822, since rebased); the page file was put back from 474359f, the tree rebuilt and checked, and the file restored from that commit"
+ },
+ "outboundSweep": {
+  "what": "Every outbound link of the built tree (pages-check/outbound.json), fetched once with GET, one thread per host, cookies per request, three tries for an unsettled answer; ok is 2xx at the end of the redirects",
+  "date": "2026-11-09T02:10:35Z",
+  "links": 159,
+  "urls": 159,
+  "hosts": 8,
+  "summary": {
+   "ok": 159,
+   "blocked": 0,
+   "broken": 0
+  },
+  "notOk": {},
+  "earlier": "A first sweep the same evening, with the plan rendered, found 2 of 170 broken: the site's own address, not yet deployed, and an issue of a private repository named in the plan's mirror of issue 82's body.  The plan is linked on GitHub since, not rendered."
+ },
+ "revisionNote": "The gates ran on this commit's tree; the record is committed on top of it."
+}
