@@ -46,14 +46,17 @@ agda2-mode functions, as follows:
    arguments and the process all run the same program the same way.
 +  **Around `agda2-load`** (`C-c C-l`), it restarts Agda first when the
    buffer's project differs from the one the running process was started
-   for, or when no process runs.
+   for, when the `flake.nix` or `flake.lock` of the flake its Agda came
+   from has changed since it started (after `nix flake update`, say), or
+   when no process runs.
 
 The buffer's project is its **root**: the directory of the nearest
 `.agda-lib` at or above the file, or the file's own directory when there
 is none.  That is the resolver's rule, and the rule Agda uses to find a
-file's library; the package computes it itself, so that a load never
-waits on Nix to learn whether to restart.  A file with no `.agda-lib` gets
-a root of its own directory because Agda reads such a file in the project
+file's library; the package computes it itself, from the file's
+truename (which it also gives the resolver), so that a load never waits
+on Nix to learn whether to restart.  A file with no `.agda-lib` gets a
+root of its own directory because Agda reads such a file in the project
 of its working directory: a restart keyed only by repository would check
 it in whatever project came before.
 
@@ -251,6 +254,11 @@ record of every run are in
    quit aborts `find-file`).  So a start made while a file opens only says
    what is missing, in the echo area, and starts nothing; the next
    `C-c C-l` asks, or fails with the resolver's line.
++  **A change to the flake beyond `flake.nix` and `flake.lock`** (a file
+   the flake imports, an overlay) can change the project's Agda without a
+   load noticing, since the package compares only those two files'
+   times rather than ask the resolver on every load.  Restart Agda
+   (`C-c C-x C-r`) after such a change.
 +  **`C-c C-x C-s`** (agda2-mode's "switch to another version of Agda")
    sets `agda2-program-name`, which the mode now uses only for files in no
    project with a flake.
