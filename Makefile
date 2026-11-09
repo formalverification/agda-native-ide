@@ -194,6 +194,7 @@ vscode-desktop-run: vscode-build ## Load a file of agda-algebras and of formal-l
 # 97): shellcheck, then its tests against a stub nix, which need git, jq
 # and flock.  AGDA_FOR_PROJECT=<path> runs the tests against another copy
 # (the flake's package, in CI).
+.PHONY: agda-for-project-test
 agda-for-project-test: ## Check the agda-for-project launcher and run its tests against a stub nix
 	shellcheck scripts/agda-for-project/*.sh
 	node --test scripts/agda-for-project/test.mjs

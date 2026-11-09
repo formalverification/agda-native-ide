@@ -1,0 +1,102 @@
+{
+  "date": "2026-11-09",
+  "scope": "The runs behind the fixes for the second Copilot review of pull request 101 (issue 97): the trust gate extended to every answer of discovery, on formal-ledger-specifications master with a fresh cache, state and configuration (nix's own configuration copied in, so nothing of the user's was read or written); the gc root a dev shell's profile gets, with Nix itself; the silence before a first evaluation, under the stub nix; and Agda's own search for a library across a nested repository.  Every store path the formal-ledger-specifications runs name was already in the store, so a first call links a root and evaluates, and builds nothing.  Each timing is a single observation, not a benchmark.",
+  "machine": {
+    "cpu": "12th Gen Intel Core i9-12900H, 20 threads",
+    "memory": "62 GiB",
+    "os": "Linux 7.0.0-42-generic x86_64",
+    "nix": "2.34.8"
+  },
+  "revision": "8334b9e",
+  "tests": {
+    "command": "node --test scripts/agda-for-project/test.mjs, and with AGDA_FOR_PROJECT=<nix build .#agda-for-project>/bin/agda-for-project",
+    "cases": 24,
+    "passed": 24,
+    "againstTheLauncherBefore": "61fcc2b's launcher under the same suite: 17 pass, 7 fail (the line before a first evaluation; the profile's place; a dev shell entered for another key since; the dev shell's refusal line; an untrusted flake's environment; reason; an attribute without nix)",
+    "mutationProbes": "ten breaks of 8334b9e's launcher, each caught by at least one case: the line spoken outside git; trust offered to a trusted flake; trust offered where it decides nothing; trust:DIR not checked; discovery run without trust; the last entered key not compared; --choose trust: keeping the project's choice; no newline before the appended line; reason not reported; an attribute passed over without nix"
+  },
+  "trust": {
+    "what": "~/git/IO/fls/master, src/Ledger.lagda.md, with the launcher at 8334b9e and no trust file",
+    "untrusted": {
+      "command": "agda-for-project --explain --json --no-build src/Ledger.lagda.md",
+      "exit": 69,
+      "seconds": 0.77,
+      "answer": {"decided": false, "reason": "untrusted", "decidedBy": "discovered", "method": "package", "name": "fls-agdaWithPackages"},
+      "stderr": [
+        "agda-for-project: evaluating ~/git/IO/fls/master to find its Agda (key ba8a8dc4ab8e20702a7c9dae24c28b6e); once per key",
+        "agda-for-project: ~/git/IO/fls/master is not trusted, and running its Agda environment fls-agdaWithPackages runs the flake's code as you: allow it with --choose trust:~/git/IO/fls/master (every flake at or below it) or --choose package:fls-agdaWithPackages (this project), or list a directory at or above it in $XDG_CONFIG_HOME/agda-for-project/trusted"
+      ],
+      "firstCandidates": [
+        {"id": "trust:~/git/IO/fls/master", "kind": "trust", "version": "2.8.0"},
+        {"id": "package:fls-agdaWithPackages", "kind": "package", "version": "2.8.0"}
+      ]
+    },
+    "granted": {
+      "command": "agda-for-project --choose trust:$HOME/git src/Ledger.lagda.md",
+      "stderr": "agda-for-project: trusted ~/git and every flake below it ($XDG_CONFIG_HOME/agda-for-project/trusted)",
+      "trustFile": "# --choose trust:, 2026-11-09\n~/git\n"
+    },
+    "trusted": {
+      "command": "agda-for-project --explain --json src/Ledger.lagda.md",
+      "exit": 0,
+      "seconds": 3.31,
+      "answer": {"decided": true, "reason": null, "decidedBy": "discovered", "name": "fls-agdaWithPackages", "version": "2.8.0", "built": "yes"},
+      "warmVersionSeconds": [0.23, 0.2, 0.21, 0.2, 0.18],
+      "warmStderr": "Agda's own --version text only, the same as the environment's agda run directly; nothing of the launcher's"
+    }
+  },
+  "devShellRoot": {
+    "what": "where Nix registers the root of nix develop --profile P, for this repository's own dev shell (/nix/store/x5gs3hm8ayhick1y39rpf3n720drghn4-nix-shell-env)",
+    "madeInATemporaryDirectory": {
+      "profile": "$S/gc/tmp.1/profile -> profile-1-link -> the env",
+      "autoRoot": "/nix/var/nix/gcroots/auto/a56s321fpcadkhppw7mn55jklsskzhlq -> $S/gc/tmp.1/profile-1-link",
+      "rootsBeforeTheMove": ["$S/gc/tmp.1/profile-1-link"],
+      "rootsAfterMovingTheDirectory": [],
+      "note": "The launcher at 61fcc2b made the profile so and moved the directory into place; the next nix store gc could then collect the env.  No gc was run."
+    },
+    "threeEntriesAtOnePath": "one generation, k.profile -> k.profile-1-link, and that link listed as the env's root",
+    "throughTheLauncher": {
+      "what": "a scratch flake whose default dev shell's hook writes .agda/bin/agda (a wrapper of the Agda 2.8.0 above), trusted with --choose trust:, then agda-for-project --explain --json",
+      "seconds": 2.35,
+      "answer": {"decided": true, "method": "devshell", "name": "default", "version": "2.8.0"},
+      "cache": ["devshell/default/<key>-<checkout>/", "devshell/default/<key>-<checkout>.profile", "devshell/default/<key>-<checkout>.profile-1-link", "devshell/entered-<checkout>", "devshell/entered-<checkout>.lock"],
+      "rootsOfTheEnv": ["$XDG_CACHE_HOME/agda-for-project/devshell/default/<key>-<checkout>.profile-1-link"]
+    }
+  },
+  "silence": {
+    "what": "agda-for-project --version on a trusted checkout with one environment, a cold cache, and a stub nix whose two flake evaluations take 2 s each; seconds from the start to each stderr line",
+    "before": {"launcher": "61fcc2b", "lines": [[4.2, "building p-agdaWithPackages ..."]]},
+    "after": {"launcher": "8334b9e", "lines": [[0.0, "evaluating ... to find its Agda (key ...); once per key"], [4.1, "building p-agdaWithPackages ..."]]},
+    "warmStderrLines": 0
+  },
+  "nestedLibrary": {
+    "what": "Agda 2.8.0 (/nix/store/0vx59n9g1597p7gzmflmmya161hr695h-agdaWithPackages-2.8.0/bin/agda) checking X.agda in outer/nested/, where outer/nested/.git is a repository and outer/outer.agda-lib says depend: no-such-library",
+    "withTheOuterLibrary": "error: [LibraryError] Library 'no-such-library' not found.",
+    "withoutIt": "Checking X (.../outer/nested/X.agda).",
+    "conclusion": "Agda's search for a file's library does not stop at a nested repository's .git, so neither does the launcher's."
+  },
+  "choicesListed": {
+    "what": "the cost of sharing choices only among the working trees `git worktree list` gives, on ~/git/IO/fls/master (46 listed), warm --version, alternating the launcher before (8334b9e) and after (d86ef94), seven runs each",
+    "revision": "d86ef94",
+    "beforeSeconds": [0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.13],
+    "afterSeconds": [0.15, 0.15, 0.15, 0.14, 0.15, 0.16, 0.14],
+    "checkAloneSeconds": 0.003,
+    "plantedGitFile": "under the stub nix, with no trust file: a directory with its own flake and a `.git` file reading `gitdir: <my checkout>/.git` took my checkout's devshell:default choice and entered its own dev shell (8334b9e); with d86ef94 it has no choice and is refused as untrusted",
+    "tests": "d86ef94 adds a 25th case (two planted .git files), which fails against 8334b9e and under the mutation that drops the check"
+  },
+  "repositoryTrust": {
+    "what": "trust of a repository (c3c36e0), on ~/git/IO/fls/master with a fresh configuration and state (nix's own configuration copied in), and on one of its 46 worktrees, ~/git/IO/fls/worktrees/1276-dijkstra-gov-pov, never opened through the launcher before",
+    "revision": "c3c36e0",
+    "firstCandidate": {"id": "trust-repository:~/git/IO/fls/master/.git", "kind": "trust", "version": "2.8.0", "label": "trust the repository of ~/git/IO/fls/master and every worktree git lists for it, now and later, so that discovery runs what it finds there as you (package:fls-agdaWithPackages here)"},
+    "granted": {
+      "command": "agda-for-project --choose trust-repository: src/Ledger.lagda.md",
+      "stderr": "agda-for-project: trusted the repository ~/git/IO/fls/master/.git and every worktree git lists for it ($XDG_CONFIG_HOME/agda-for-project/trusted)",
+      "trustFile": "# --choose, 2026-11-09\nrepository ~/git/IO/fls/master/.git\n"
+    },
+    "afterward": [
+      {"cwd": "~/git/IO/fls/master", "command": "agda-for-project --explain --json --no-build", "answer": {"decided": true, "reason": null, "decidedBy": "discovered", "name": "fls-agdaWithPackages", "built": "no"}, "seconds": 0.26},
+      {"cwd": "~/git/IO/fls/worktrees/1276-dijkstra-gov-pov", "command": "agda-for-project --explain --json --no-build", "answer": {"decided": true, "reason": null, "decidedBy": "discovered", "name": "fls-agdaWithPackages", "built": "missing"}, "seconds": 0.83}
+    ],
+    "tests": "c3c36e0 adds a 26th case; it and the two cases whose refusal line and first candidate changed fail against d86ef94, and five mutations of repository trust are caught"
+  }
+}
