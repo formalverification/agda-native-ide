@@ -19,7 +19,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import {
-  existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync, chmodSync,
+  existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync, chmodSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
@@ -340,7 +340,7 @@ test("a dev shell entered for another key since is entered again, since its hook
 test("a dev shell is entered only by a choice, or under a trusted directory", t => {
   const sb = sandbox(t, { trusted: false });
   const dir = checkout(sb, "project", ENV_FILES, { "devshells.json": ["default"] });
-  refused(run(sb, ["x"], { cwd: dir }), new RegExp(`is not trusted, and entering its dev shell default runs the project's shell hook as you: allow it with --choose trust:${dir} \\(every flake at or below it\\) or --choose devshell:default \\(this project\\), or list a directory at or above it in .*/config/agda-for-project/trusted$`));
+  refused(run(sb, ["x"], { cwd: dir }), new RegExp(`is not trusted, and entering its dev shell default runs the project's shell hook as you: allow it with --choose trust-repository:${realpathSync(join(dir, ".git"))} \\(every worktree of its repository, now and later\\), --choose trust:DIR \\(every flake at or below DIR\\), or --choose devshell:default \\(this project\\); trust is kept in .*/config/agda-for-project/trusted$`));
   assert.equal(count(sb, "develop"), 0);
   mkdirSync(join(sb.env.XDG_CONFIG_HOME, "agda-for-project"), { recursive: true });
   const trust = join(sb.env.XDG_CONFIG_HOME, "agda-for-project", "trusted");
@@ -360,7 +360,8 @@ test("an untrusted flake's environment is not run; trust, or a choice for the pr
   const sb = sandbox(t, { trusted: false });
   const dir = checkout(sb, "project", ENV_FILES, { "packages.json": ONE_ENV });
   const other = checkout(sb, "other", ENV_FILES, { "packages.json": ONE_ENV });
-  refused(run(sb, ["x"], { cwd: dir }), new RegExp(`^agda-for-project: ${dir} is not trusted, and running its Agda environment project-agdaWithPackages runs the flake's code as you: allow it with --choose trust:${dir} \\(every flake at or below it\\) or --choose package:project-agdaWithPackages \\(this project\\), or list`));
+  const gitdir = realpathSync(join(dir, ".git"));
+  refused(run(sb, ["x"], { cwd: dir }), new RegExp(`^agda-for-project: ${dir} is not trusted, and running its Agda environment project-agdaWithPackages runs the flake's code as you: allow it with --choose trust-repository:${gitdir} \\(every worktree of its repository, now and later\\), --choose trust:DIR \\(every flake at or below DIR\\), or --choose package:project-agdaWithPackages \\(this project\\); trust is kept in `));
   const r = explain(sb, [], { cwd: dir });
   assert.equal(r.status, UNAVAILABLE);
   assert.deepEqual([r.json.decided, r.json.reason, r.json.decidedBy, r.json.method, r.json.name, r.json.program, r.json.version],
@@ -369,8 +370,8 @@ test("an untrusted flake's environment is not run; trust, or a choice for the pr
   // What a chooser offers: trusting the flake first, then the environment.
   const offered = JSON.parse(run(sb, ["--candidates", "--json"], { cwd: dir }).stdout);
   assert.deepEqual(offered.slice(0, 2).map(c => [c.id, c.kind, c.version]),
-    [[`trust:${dir}`, "trust", "2.8.0"], ["package:project-agdaWithPackages", "package", "2.8.0"]]);
-  assert.match(offered[0].label, /runs what it finds there as you \(package:project-agdaWithPackages here\)/);
+    [[`trust-repository:${gitdir}`, "trust", "2.8.0"], ["package:project-agdaWithPackages", "package", "2.8.0"]]);
+  assert.match(offered[0].label, new RegExp(`^trust the repository of ${dir} and every worktree git lists for it, now and later, so that discovery runs what it finds there as you \\(package:project-agdaWithPackages here\\)$`));
   // A choice is consent for its project alone.
   assert.equal(run(sb, ["--choose", "package:project-agdaWithPackages"], { cwd: dir }).status, 0);
   assert.match(run(sb, ["x"], { cwd: dir }).stdout, /^agda build-1 of project-agdaWithPackages$/m);
@@ -394,6 +395,44 @@ test("an untrusted flake's environment is not run; trust, or a choice for the pr
   rmSync(trustFile(sb));
   const empty = checkout(sb, "empty", ENV_FILES);
   assert.ok(!JSON.parse(run(sb, ["--candidates", "--json"], { cwd: empty }).stdout).some(c => c.kind === "trust"));
+});
+
+test("trusting a repository covers every worktree git lists for it, and nothing a .git file merely names", t => {
+  const sb = sandbox(t, { trusted: false });
+  const dir = checkout(sb, "project", ENV_FILES, { "packages.json": ONE_ENV });
+  const other = checkout(sb, "other", ENV_FILES, { "packages.json": ONE_ENV });
+  const gitdir = realpathSync(join(dir, ".git"));
+  // With no GITDIR, the project's own repository.
+  const granted = run(sb, ["--choose", "trust-repository:"], { cwd: join(dir, "src") });
+  assert.equal(granted.status, 0, granted.stderr);
+  assert.match(granted.stderr, new RegExp(`trusted the repository ${gitdir} and every worktree git lists for it`));
+  assert.ok(readFileSync(trustFile(sb), "utf8").split("\n").includes(`repository ${gitdir}`));
+  assert.match(run(sb, ["x"], { cwd: dir }).stdout, /^agda build-1 of/m);
+  // A worktree made afterward is covered; another repository is not.
+  const wt = join(sb.root, "worktree");
+  git(dir, "worktree", "add", "-q", wt);
+  control_(wt, { "packages.json": ONE_ENV });
+  assert.equal(explain(sb, [], { cwd: wt }).json.decided, true);
+  refused(run(sb, ["x"], { cwd: other }), /is not trusted/);
+  // A repository's line is not a directory's: a flake inside its git
+  // directory is not a worktree of it.
+  const inside = join(gitdir, "inside");
+  write(inside, ENV_FILES);
+  control_(inside, { "packages.json": ONE_ENV });
+  refused(run(sb, ["x"], { cwd: inside }), /is not trusted/);
+  // The same repository, named by a worktree's git directory.
+  assert.match(run(sb, ["--choose", `trust-repository:${join(gitdir, "worktrees", "worktree")}`], { cwd: other }).stderr,
+    new RegExp(`the repository ${gitdir} is already trusted`));
+  // A directory whose .git file names the trusted repository is offered
+  // its own directory, never the repository it names.
+  const planted = join(sb.root, "Downloads", "archive");
+  write(planted, { ...ENV_FILES, "checkout.txt": "project\n", ".git": `gitdir: ${gitdir}\n` });
+  control_(planted, { "packages.json": ONE_ENV });
+  const r = explain(sb, ["--no-build"], { cwd: planted });
+  assert.deepEqual([r.json.decided, r.json.reason], [false, "untrusted"]);
+  assert.match(r.json.error, new RegExp(`allow it with --choose trust:${planted} \\(every flake at or below it\\)`));
+  assert.equal(run(sb, ["--choose", "trust-repository:"], { cwd: planted }).status, USAGE, "no repository of its own to trust");
+  assert.equal(run(sb, ["--choose", "trust-repository:"], { cwd: join(sb.root, "elsewhere") }).status, USAGE);
 });
 
 test("a flake with neither an environment nor a dev shell decides nothing", t => {
@@ -611,7 +650,7 @@ test("a malformed command line exits 64", t => {
     ["--explain", "a", "b"], ["--choose", "package:x", "--json"], ["--forget", "--no-build"],
     ["--explain", "/no/such/file"], ["--candidates", "--bogus"], ["--flake-attr"], ["--flake-attr", ""],
     ["--flake-attr="], ["--flake-attr", "x", "--choose", "package:y"], ["--flake-attr=x", "--candidates"],
-    ["--choose", "trust:/no/such/dir"], ["--choose", "trust:"]]) {
+    ["--choose", "trust:/no/such/dir"], ["--choose", "trust:"], ["--choose", "trust-repository:/no/such/dir"]]) {
     const r = run(sb, args, { cwd: dir });
     assert.equal(r.status, USAGE, `${args.join(" ")}: ${r.stderr}`);
   }

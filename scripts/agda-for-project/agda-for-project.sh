@@ -217,7 +217,7 @@
 set -euo pipefail
 
 say() { echo "agda-for-project: $*" >&2; }
-usage_error() { say "$*"; say "usage: agda-for-project [AGDA-ARGS...] | --explain [--json] [--no-build] [FILE] | --candidates [--json] [FILE] | --choose ID [FILE] | --forget [FILE]; an ID is package:NAME, devshell:NAME, path:FILE or trust:DIR"; exit 64; }
+usage_error() { say "$*"; say "usage: agda-for-project [AGDA-ARGS...] | --explain [--json] [--no-build] [FILE] | --candidates [--json] [FILE] | --choose ID [FILE] | --forget [FILE]; an ID is package:NAME, devshell:NAME, path:FILE, trust:DIR or trust-repository:[GITDIR]"; exit 64; }
 
 # ---- The command line ------------------------------------------------------
 mode=exec json=false build=true choose_id="" target="" attr="${AGDA_FLAKE_ATTR:-}" attr_flag=""
@@ -358,20 +358,70 @@ cache="${XDG_CACHE_HOME:-$HOME/.cache}/agda-for-project"
 state="${XDG_STATE_HOME:-$HOME/.local/state}/agda-for-project"
 trust_file="${XDG_CONFIG_HOME:-$HOME/.config}/agda-for-project/trusted"
 
-# trusted DIR: whether DIR is at or below a directory the trust file lists.
-trusted() {
-  local line want
-  [ -f "$trust_file" ] || return 1
+# The trust file holds two kinds of line: a directory (every flake at or
+# below it is trusted), and `repository GITDIR` (every working tree git
+# lists for the repository whose common git directory is GITDIR).
+# trust_lines: its lines, comments and blanks dropped, `~` expanded.
+trust_lines() {
+  local line
+  [ -f "$trust_file" ] || return 0
   while IFS= read -r line || [ -n "$line" ]; do
     line="${line%%#*}"
     line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
     [ -n "$line" ] || continue
-    # shellcheck disable=SC2088  # a literal ~ in the file, expanded here
-    case "$line" in "~") line="$HOME" ;; "~/"*) line="${HOME}/${line#\~/}" ;; esac
+    case "$line" in "repository "*) line="repository $(expand_home "${line#repository }")" ;;
+                    *) line="$(expand_home "$line")" ;; esac
+    printf '%s\n' "$line"
+  done < "$trust_file"
+}
+expand_home() {
+  local d="${1#"${1%%[![:space:]]*}"}"
+  # shellcheck disable=SC2088  # a literal ~ in the file, expanded here
+  case "$d" in "~") d="$HOME" ;; "~/"*) d="${HOME}/${d#\~/}" ;; esac
+  printf '%s' "$d"
+}
+
+# trusted DIR: whether DIR is at or below a directory the trust file lists.
+trusted() {
+  local line want
+  while IFS= read -r line; do
+    case "$line" in "repository "*) continue ;; esac
     want="$(cd "$line" 2>/dev/null && pwd -P)" || continue
     case "$1/" in "${want%/}/"*) return 0 ;; esac
-  done < "$trust_file"
+  done < <(trust_lines)
   return 1
+}
+
+# trusts_repository GITDIR: whether the trust file lists the repository
+# whose common git directory is GITDIR (both with links resolved).
+trusts_repository() {
+  local line want
+  while IFS= read -r line; do
+    case "$line" in "repository "*) ;; *) continue ;; esac
+    want="$(cd "${line#repository }" 2>/dev/null && pwd -P)" || continue
+    [ "$want" != "$1" ] || return 0
+  done < <(trust_lines)
+  return 1
+}
+
+# flake_trusted: whether the flake is trusted, by a directory at or above
+# it, or by its repository when its checkout is one git lists for that
+# repository (a `.git` file can name any repository's git directory).
+flake_trusted() {
+  trusted "$flake_dir" && return 0
+  [ -n "$repository" ] && trusts_repository "$repository"
+}
+
+# trust_line LINE WHAT: append LINE to the trust file, after a dated
+# comment, and say that WHAT is trusted.
+trust_line() {
+  local sep=""
+  mkdir -p "$(dirname "$trust_file")" || fail "cannot create $(dirname "$trust_file")"
+  # A newline first if the file's last line has none.
+  if [ -s "$trust_file" ] && [ -n "$(tail -c 1 "$trust_file")" ]; then sep=$'\n'; fi
+  printf '%s# --choose, %s\n%s\n' "$sep" "$(date -u +%Y-%m-%d)" "$1" >> "$trust_file" ||
+    fail "cannot write ${trust_file}"
+  say "trusted ${2} (${trust_file})"
 }
 
 # ---- The key (agda-for-flake.sh's, unchanged) ------------------------------
@@ -452,10 +502,15 @@ listed() {
   return 1
 }
 
+# The repository, for choices and for trust: its common git directory, with
+# links resolved, when the checkout is one git lists for it; else "".
+repository=""
+if [ -n "$common" ] && listed "$top"; then repository="$(cd "$common" && pwd -P)"; fi
+
 # The project's identity: its repository (shared by every worktree git
 # lists) and its directory within it; outside a repository, or in a
 # checkout its repository does not list, its path.
-if [ -n "$common" ] && listed "$top"; then
+if [ -n "$repository" ]; then
   rel="${project_root#"$top"}"
   choice_identity="repository ${common} project ${rel:-/}"
 else
@@ -577,12 +632,24 @@ decide() {
   how=discovered
   discover || fail "no Agda was run: Nix could not evaluate ${flake_dir}"
   pick || undecided "$pick_problem"
-  trusted "$flake_dir" && return 0
+  flake_trusted && return 0
   case "$method" in
     package) what="running its Agda environment ${name} runs the flake's code as you" ;;
     *)       what="entering its dev shell ${name} runs the project's shell hook as you" ;;
   esac
-  untrusted "${flake_dir} is not trusted, and ${what}: allow it with --choose trust:${flake_dir} (every flake at or below it) or --choose ${method}:${name} (this project), or list a directory at or above it in ${trust_file}"
+  untrusted "${flake_dir} is not trusted, and ${what}: allow it with --choose $(trust_grant) ($(trust_scope)), --choose trust:DIR (every flake at or below DIR), or --choose ${method}:${name} (this project); trust is kept in ${trust_file}"
+}
+
+# trust_grant, trust_scope: the trust a chooser offers first for this flake,
+# and what it covers: its repository, in a checkout git lists for one, so
+# that every worktree is covered at once; else the flake's directory.
+trust_grant() {
+  if [ -n "$repository" ]; then printf 'trust-repository:%s' "$repository"
+  else printf 'trust:%s' "$flake_dir"; fi
+}
+trust_scope() {
+  if [ -n "$repository" ]; then printf 'every worktree of its repository, now and later'
+  else printf 'every flake at or below it'; fi
 }
 
 # ---- Building: an attribute (agda-for-flake.sh's loop) ---------------------
@@ -921,7 +988,7 @@ explain_text() {
 
 # candidates: one JSON object per line, then an array of them.
 candidates() {
-  local choice line exe out ver seen=" " d
+  local choice line exe out ver seen=" " d what
   choice="$(read_choice)"
   local problem=""
   [ -z "$flake_dir" ] || problem="$(lock_problem)"
@@ -929,12 +996,18 @@ candidates() {
   {
     if [ -n "$flake_dir" ] && [ -z "${nix_missing:-}" ] && [ -z "$problem" ]; then
       discover || discovered='{"envs":[],"devshells":[]}'
-      # Trusting the flake, offered first when discovery would then decide.
-      if ! trusted "$flake_dir" && pick; then
-        jq -c --arg flake "$flake_dir" --arg would "${method}:${name}" --arg name "$name" '
-          {id: ("trust:" + $flake), kind: "trust",
+      # Trusting the flake, offered first when discovery would then decide:
+      # its repository's every worktree, or else its directory.
+      if ! flake_trusted && pick; then
+        if [ -n "$repository" ]; then
+          what="the repository of $(git -C "$top" worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p') and every worktree git lists for it, now and later"
+        else
+          what="${flake_dir} and every flake below it"
+        fi
+        jq -c --arg id "$(trust_grant)" --arg what "$what" --arg would "${method}:${name}" --arg name "$name" '
+          {id: $id, kind: "trust",
            version: (if ($would | startswith("package:")) then (.envs[] | select(.name == $name) | .version) else null end),
-           label: ("trust " + $flake + " and every flake below it, so that discovery runs what it finds there as you (" + $would + " here)")}' <<<"$discovered"
+           label: ("trust " + $what + ", so that discovery runs what it finds there as you (" + $would + " here)")}' <<<"$discovered"
       fi
       jq -c --arg flake "$flake_dir" '.envs[] | {id: ("package:" + .name), kind: "package", version: .version,
         label: (.name + " (Agda " + (.version // "?") + "), an Agda environment of " + $flake)}' <<<"$discovered"
@@ -978,18 +1051,26 @@ case "$mode" in
     fi ;;
   choose)
     case "$choose_id" in
-      trust:?*)
-        dir="$(cd "${choose_id#trust:}" 2>/dev/null && pwd -P)" || usage_error "${choose_id#trust:} is not a directory"
-        if trusted "$dir"; then say "${dir} is already trusted (${trust_file})"
-        else
-          mkdir -p "$(dirname "$trust_file")" || fail "cannot create $(dirname "$trust_file")"
-          # A newline first if the file's last line has none.
-          sep=""
-          if [ -s "$trust_file" ] && [ -n "$(tail -c 1 "$trust_file")" ]; then sep=$'\n'; fi
-          printf '%s# --choose trust:, %s\n%s\n' "$sep" "$(date -u +%Y-%m-%d)" "$dir" >> "$trust_file" ||
-            fail "cannot write ${trust_file}"
-          say "trusted ${dir} and every flake below it (${trust_file})"
-        fi
+      trust:?*|trust-repository:*)
+        case "$choose_id" in
+          trust:*)
+            dir="$(cd "${choose_id#trust:}" 2>/dev/null && pwd -P)" || usage_error "${choose_id#trust:} is not a directory"
+            if trusted "$dir"; then say "${dir} is already trusted (${trust_file})"
+            else trust_line "$dir" "${dir} and every flake below it"; fi ;;
+          *)
+            # GITDIR, or with none the project's repository.
+            gitdir="${choose_id#trust-repository:}"
+            if [ -z "$gitdir" ]; then
+              gitdir="$repository"
+              [ -n "$gitdir" ] || usage_error "${project_root} is not in a checkout git lists for a repository; name its git directory, or trust a directory"
+            fi
+            if ! gitdir="$(git --git-dir="$gitdir" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" ||
+               ! gitdir="$(cd "$gitdir" 2>/dev/null && pwd -P)"; then
+              usage_error "${choose_id#trust-repository:} is not a git directory"
+            fi
+            if trusts_repository "$gitdir"; then say "the repository ${gitdir} is already trusted (${trust_file})"
+            else trust_line "repository ${gitdir}" "the repository ${gitdir} and every worktree git lists for it"; fi ;;
+        esac
         # Discovery decides from now on; a choice would hide what it finds.
         if [ -f "$choice_file" ]; then rm -f "$choice_file"; say "forgot the choice for ${choice_identity}"; fi
         exit 0 ;;
@@ -1000,7 +1081,7 @@ case "$mode" in
                if [ ! -f "$exe" ] || [ ! -x "$exe" ]; then usage_error "${exe} is not an executable"; fi
                exe="$(physical "$exe" "$PWD")" || usage_error "${choose_id#path:} is not an executable"
                choose_id="path:${exe}" ;;
-      *) usage_error "an ID is package:NAME, devshell:NAME, path:FILE or trust:DIR (see --candidates)" ;;
+      *) usage_error "an ID is package:NAME, devshell:NAME, path:FILE, trust:DIR or trust-repository:[GITDIR] (see --candidates)" ;;
     esac
     mkdir -p "${state}/choices" || fail "cannot create ${state}/choices"
     if ! { printf '%s\n# %s\n' "$choose_id" "$choice_identity" > "${choice_file}.$$" &&
