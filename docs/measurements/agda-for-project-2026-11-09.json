@@ -98,5 +98,27 @@
       {"cwd": "~/git/IO/fls/worktrees/1276-dijkstra-gov-pov", "command": "agda-for-project --explain --json --no-build", "answer": {"decided": true, "reason": null, "decidedBy": "discovered", "name": "fls-agdaWithPackages", "built": "missing"}, "seconds": 0.83}
     ],
     "tests": "c3c36e0 adds a 26th case; it and the two cases whose refusal line and first candidate changed fail against d86ef94, and five mutations of repository trust are caught"
+  },
+  "thirdReview": {
+    "what": "the fixes for Copilot's third review of pull request 101 (ced0af4), against the launcher before them (4c0dadf), with real Nix",
+    "revision": "ced0af4",
+    "lockFlags": {
+      "flake": "a scratch git flake whose tracked flake.lock locks one input, extra, and whose flake.nix (edited, not committed) names a second, extra2",
+      "noWriteLockFile": "nix eval --no-write-lock-file evaluated: \"Added input 'extra2'\" at its newest revision, value \"extra-1 extra2-1\", nothing written",
+      "noUpdateLockFile": "nix eval --no-update-lock-file failed: \"requires lock file changes but they're not allowed due to '--no-update-lock-file'\"",
+      "both": "with both flags it evaluated, as under --no-write-lock-file alone",
+      "lockNeedingNoChange": "--no-update-lock-file on the same flake with flake.nix as committed evaluated (\"extra-1\")",
+      "launcherBefore": "4c0dadf went on past the evaluation: \"exports no Agda environment and no default dev shell\"",
+      "launcherAfter": "ced0af4 refused: \"the flake.lock in <flake> does not lock every input flake.nix names; run 'nix flake lock' there\", then \"no Agda was run: Nix could not evaluate <flake>\""
+    },
+    "callerInsideTheShell": {
+      "what": "the scratch dev shell of devShellRoot (its hook writes .agda/bin/agda and prepends .agda/bin to PATH), trusted by directory, first entry (fresh cache) with PATH=<proj>/.agda/bin:$PATH and AGDA_DIR=<proj>/.agda, as a caller inside that shell by direnv has",
+      "pathOrder": "nix develop puts the shell's PATH first and the caller's after: with a sentinel directory first in the caller's PATH, this repository's shell (no agda) found the sentinel's agda, at PATH entry 27, and the scratch shell found <proj>/.agda/bin/agda, at entry 1",
+      "launcherBefore": {"decided": false, "reason": "undecided", "error": "the dev shell <proj>#default adds no agda of its own (it finds <proj>/.agda/bin/agda, from the caller's PATH); see --candidates, then --choose"},
+      "launcherAfter": {"decided": true, "method": "devshell", "version": "2.8.0", "program": "<proj>/.agda/bin/agda", "env": {}}
+    },
+    "flsFreshCache": {"cwd": "~/git/IO/fls/master", "command": "agda-for-project --explain --json src/Ledger.lagda.md (repository trusted, fresh cache)", "answer": {"decided": true, "name": "fls-agdaWithPackages", "version": "2.8.0", "built": "yes"}, "seconds": 2.86},
+    "librariesFile": "the environment's libraries file of fls master (/nix/store/6qscaqml...-libraries) ends with a newline (5 lines, 5 entries), as nixpkgs writes it; only a hand-written libraryFile lacked one",
+    "tests": "28 cases; against 4c0dadf's launcher 5 fail (the dev-shell refusal's line; the caller inside its shell and its AGDA_DIR; the entry that fails after its hook; the libraries file's last line; the outgrown lock); seven mutations, one per fix, each caught"
   }
 }

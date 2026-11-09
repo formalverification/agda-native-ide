@@ -65,9 +65,10 @@
 #   4.  The flake's dev shell `default`, when it puts an `agda` on PATH
 #       that is its own (in the store, or in the checkout, as the shells of
 #       agda-algebras' downstream projects write `.agda/bin/agda`), and not
-#       one inherited from the caller's PATH (the two compared with their
-#       directories' links resolved, since a profile's bin, as
-#       ~/.nix-profile/bin, resolves into the store).
+#       one inherited from the caller's PATH: the shell is entered with a
+#       sentinel agda first in the caller's part of PATH, which nix develop
+#       puts after the shell's own, and without the caller's AGDA_DIR, so
+#       what it gives is its own whoever calls.
 #   5.  Otherwise nothing is decided: exit 69 with one line saying so, and
 #       --candidates lists what a chooser can offer.
 #   What discovery finds (3 or 4) is run only for a trusted flake (below).
@@ -181,7 +182,10 @@
 #   Nothing decided, an untrusted flake, no network on a miss, a failed
 #   build or evaluation, a checkout with no flake.lock or with one git does
 #   not track (Nix ignores it, and would resolve every input afresh; both
-#   are refused before any evaluation), an attribute with no bin/agda or
+#   are refused before any evaluation), a flake.lock that does not lock
+#   every input flake.nix names (every nix call passes
+#   --no-update-lock-file, so Nix refuses it rather than resolve the rest
+#   in memory), an attribute with no bin/agda or
 #   with no nix to build it: one line on stderr saying which, after any
 #   output of nix's own, and exit status 69 (EX_UNAVAILABLE; Agda itself
 #   uses 1, 42, 71 and 154).  A malformed
