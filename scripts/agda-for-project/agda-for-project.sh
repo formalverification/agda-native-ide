@@ -26,8 +26,9 @@
 #
 # The project and its flake:
 #   The project is the directory of the nearest `.agda-lib` at or above the
-#   starting directory (as Agda finds a file's library), or the starting
-#   directory itself when there is none.  The flake is the nearest
+#   starting directory (as Agda finds a file's library, past a nested
+#   repository's boundary too), or the starting directory itself when there
+#   is none.  The flake is the nearest
 #   `flake.nix` at or above the project, stopping at a repository's
 #   boundary (a directory holding `.git`).  The starting directory is the
 #   working directory, or AGDA_FOR_PROJECT_DIR when that is set (for a host
@@ -61,10 +62,10 @@
 #       agda-algebras' downstream projects write `.agda/bin/agda`), and not
 #       one inherited from the caller's PATH (the two compared with their
 #       directories' links resolved, since a profile's bin, as
-#       ~/.nix-profile/bin, resolves into the store); and only when the
-#       flake is trusted (below).
+#       ~/.nix-profile/bin, resolves into the store).
 #   5.  Otherwise nothing is decided: exit 69 with one line saying so, and
 #       --candidates lists what a chooser can offer.
+#   What discovery finds (3 or 4) is run only for a trusted flake (below).
 #   Why the environment comes before the dev shell (measured 2026-11-07 on
 #   formal-ledger-specifications, agda-algebras and agda-lattices): both
 #   are cheap once built (discovery 0.35 s and 1.0 s; a dev shell 0.3 s to
@@ -76,17 +77,21 @@
 #   dev shell with `--choose devshell:default`.
 #
 # Trust:
-#   Entering a dev shell runs the project's shell hook as the user, outside
-#   any sandbox, so opening a file of a repository just cloned would run its
-#   code; direnv asks for `direnv allow` for the same reason.  Discovery
-#   therefore enters a dev shell only for a flake at or below a directory
-#   listed in ${XDG_CONFIG_HOME:-$HOME/.config}/agda-for-project/trusted
-#   (one directory per line, `~/` for the home directory, `#` for a
-#   comment), and otherwise stops and says how to allow it; a choice of
-#   `devshell:NAME` is consent for that project.  Evaluating and building a
-#   package needs no such consent: the evaluation is pure, and builds run as
-#   Nix's build users, in its sandbox where the platform has one, exactly as
-#   a `nix build` by hand would.
+#   Running what a flake provides runs the flake's code as the user,
+#   outside any sandbox: a package's bin/agda can be any program, and a dev
+#   shell's hook runs on entry.  So opening a file of a repository just
+#   cloned must not be enough to run its Agda; direnv asks for `direnv
+#   allow` for the same reason.  What discovery finds is therefore run (or
+#   entered) only for a flake at or below a directory listed in
+#   ${XDG_CONFIG_HOME:-$HOME/.config}/agda-for-project/trusted (one
+#   directory per line, `~/` for the home directory, `#` for a comment);
+#   otherwise the program stops and says how to allow it.  `--choose
+#   trust:DIR` adds DIR to that file; an attribute named by the host and a
+#   choice are consent for their project.  Evaluating a flake needs no
+#   consent (the evaluation is pure), nor does building (builds run as
+#   Nix's build users, in its sandbox where the platform has one), so
+#   discovery evaluates an untrusted flake to say what trusting it would
+#   run.
 #
 # The project's own libraries:
 #   An environment cannot hold the project's own library (Agda would then
@@ -107,14 +112,20 @@
 #       its arguments and environment, its version, and the libraries file;
 #       builds first unless --no-build.  With --json, one JSON object on
 #       stdout, also when nothing is decided (`"decided": false`, with the
-#       reason in `error`), and the exit status says which.
+#       line in `error` and its kind in `reason`: `untrusted`, when trust
+#       would let discovery's answer, in `method` and `name`, run;
+#       `undecided`, when a choice would settle it; `failed` otherwise),
+#       and the exit status says which.
 #   --candidates [--json] [FILE]
-#       What a chooser can offer: each Agda environment of the flake, each
-#       dev shell, the Agdas this program has built, and `agda` on PATH,
-#       each with an `id` that --choose takes and its version where it is
-#       known without building.
+#       What a chooser can offer: trusting the flake (`trust:DIR`, when
+#       that would decide), each Agda environment of the flake, each dev
+#       shell, the Agdas this program has built, and `agda` on PATH, each
+#       with an `id` that --choose takes and its version where it is known
+#       without building.
 #   --choose ID [FILE]
-#       Remember ID for the project (see "Which Agda", step 2).
+#       Remember ID for the project (see "Which Agda", step 2); or, for
+#       `trust:DIR`, add DIR to the trust file and forget the project's
+#       choice, so that discovery decides.
 #   --forget [FILE]
 #       Forget the project's choice.
 #
@@ -139,10 +150,16 @@
 #      is checked against the key; <key>.lock; <key>.txt, a note of the
 #      checkout and the output that made it; <key>.libraries, the path of
 #      the environment's libraries file.
-#   +  devshell/<name>/<key>-<checkout>/: `profile`, the dev environment's
-#      gc root; `agda` and `agda-dir`, what its hook left on PATH and in
-#      AGDA_DIR, as absolute paths; `note.txt`.  Per checkout, since the
-#      shell's agda may live in the checkout.
+#   +  devshell/<name>/<key>-<checkout>/: `agda` and `agda-dir`, what its
+#      hook left on PATH and in AGDA_DIR, as absolute paths; `note.txt`.
+#      Beside it, <key>-<checkout>.profile (with its generation,
+#      .profile-1-link), the dev environment's gc root, made where it
+#      stays, since Nix registers a profile's root by its path.  Per
+#      checkout, since the shell's agda may live in the checkout.
+#   +  devshell/entered-<checkout>: the shell and key last entered for that
+#      checkout, under entered-<checkout>.lock.  A hook writes into the
+#      checkout (.agda/bin/agda, its libraries) whatever its key asks, so a
+#      record is used only while its key is the one last entered there.
 #   +  discover/<key>.json: which Agda the flake names, for that key.
 #   +  registries/<hash>.libraries: the libraries files written for
 #      sibling libraries, named by their contents.
@@ -150,12 +167,13 @@
 #   shows the newest first), then let `nix store gc` reclaim them.
 #
 # Failure, and what it never does:
-#   Nothing decided, no network on a miss, a failed build or evaluation, a
-#   checkout with no flake.lock or with one git does not track (Nix ignores
-#   it, and would resolve every input afresh; both are refused before any
-#   evaluation), an attribute with no bin/agda: one line on
-#   stderr saying which, after any output of nix's own, and exit status 69
-#   (EX_UNAVAILABLE; Agda itself uses 1, 42, 71 and 154).  A malformed
+#   Nothing decided, an untrusted flake, no network on a miss, a failed
+#   build or evaluation, a checkout with no flake.lock or with one git does
+#   not track (Nix ignores it, and would resolve every input afresh; both
+#   are refused before any evaluation), an attribute with no bin/agda or
+#   with no nix to build it: one line on stderr saying which, after any
+#   output of nix's own, and exit status 69 (EX_UNAVAILABLE; Agda itself
+#   uses 1, 42, 71 and 154).  A malformed
 #   command line exits 64 (EX_USAGE).  It never runs another Agda in place
 #   of the one decided, and never writes into the checkout itself (a dev
 #   shell's hook, run when that shell is the project's Agda, may).
@@ -170,8 +188,12 @@
 #   so this program writes nothing there except the answers of --explain
 #   and --candidates: nix's output goes to stderr, a dev shell's hook writes
 #   its banner to /dev/null, and nix reads /dev/null, never the requests
-#   waiting on Agda's stdin.  LD_LIBRARY_PATH and DYLD_LIBRARY_PATH are
-#   cleared for nix only; Agda gets the environment it was called with.
+#   waiting on Agda's stdin.  On stderr it writes a line before a first
+#   evaluation and before a build (once per key, so that a host which
+#   passes over a program silent for a few seconds waits for this one) and
+#   before a refusal; a warm start writes nothing.  LD_LIBRARY_PATH and
+#   DYLD_LIBRARY_PATH are cleared for nix only; Agda gets the environment
+#   it was called with.
 #
 # Environment:
 #   AGDA_FLAKE_ATTR, AGDA_FOR_PROJECT_DIR (above); XDG_CACHE_HOME,
@@ -190,7 +212,7 @@
 set -euo pipefail
 
 say() { echo "agda-for-project: $*" >&2; }
-usage_error() { say "$*"; say "usage: agda-for-project [AGDA-ARGS...] | --explain [--json] [--no-build] [FILE] | --candidates [--json] [FILE] | --choose ID [FILE] | --forget [FILE]"; exit 64; }
+usage_error() { say "$*"; say "usage: agda-for-project [AGDA-ARGS...] | --explain [--json] [--no-build] [FILE] | --candidates [--json] [FILE] | --choose ID [FILE] | --forget [FILE]; an ID is package:NAME, devshell:NAME, path:FILE or trust:DIR"; exit 64; }
 
 # ---- The command line ------------------------------------------------------
 mode=exec json=false build=true choose_id="" target="" attr="${AGDA_FLAKE_ATTR:-}" attr_flag=""
@@ -228,7 +250,10 @@ if [ -n "$attr_flag" ] && [ "$mode" != exec ] && [ "$mode" != explain ]; then
 fi
 
 # Exit 69 (EX_UNAVAILABLE): the Agda asked for cannot be run.  Under
-# --explain --json the answer is still one JSON object on stdout.
+# --explain --json the answer is still one JSON object on stdout, whose
+# `reason` is this one's kind: `failed`, or, from the two below,
+# `undecided` (a choice would settle it) or `untrusted` (trust would).
+reason=failed
 fail() {
   if [ "$mode" = explain ] && [ "$json" = true ]; then
     explain_json false "$*"
@@ -236,6 +261,8 @@ fail() {
   say "$*"
   exit 69
 }
+undecided() { reason=undecided; fail "$@"; }
+untrusted() { reason=untrusted; fail "$@"; }
 
 # ---- The starting directory, the project, and the flake --------------------
 if [ -n "$target" ]; then
@@ -469,6 +496,11 @@ discover() {
   key_for discover
   file="${cache}/discover/${key}.json"
   if [ -n "$key" ] && [ -f "$file" ]; then discovered="$(cat "$file")"; return 0; fi
+  # A first evaluation can take seconds (Nix may fetch the inputs), and
+  # agda-mode-vscode passes over a program silent for 3 s; so say so, once
+  # per key.  Outside git every call evaluates, and says nothing, since a
+  # host may read stderr during a session as an error of Agda's.
+  [ -z "$key" ] || say "evaluating ${flake_dir} to find its Agda (key ${key}); once per key"
   envs="$(nix_eval_json "packages.${system}" "$ENVS_EXPR")" ||
     { say "nix eval of ${flake_dir}#packages.${system} failed"; return 1; }
   shells="$(nix_eval_json "devShells.${system}" 'builtins.attrNames')" ||
@@ -480,11 +512,32 @@ discover() {
 }
 
 # ---- Deciding --------------------------------------------------------------
+# pick: set method and name to what discovery decides from discovered, or
+# set pick_problem to why nothing is, and return 1.  Trust is not asked.
+pick() {
+  local n
+  n="$(jq '.envs | length' <<<"$discovered")"
+  if [ "$n" = 1 ]; then method=package name="$(jq -r '.envs[0].name' <<<"$discovered")"; return 0; fi
+  if [ "$n" -gt 1 ]; then
+    if jq -e '.envs | any(.name == "default")' <<<"$discovered" >/dev/null; then
+      method=package name=default; return 0
+    fi
+    pick_problem="${flake_dir} exports ${n} Agda environments ($(jq -r '[.envs[].name] | join(", ")' <<<"$discovered")) and no default among them; choose one with --choose package:NAME"
+    return 1
+  fi
+  if jq -e '.devshells | index("default")' <<<"$discovered" >/dev/null; then
+    method=devshell name=default; return 0
+  fi
+  pick_problem="${flake_dir} exports no Agda environment and no default dev shell; see --candidates, then --choose"
+  return 1
+}
+
 # decide: set how (attribute, choice, discovered), method (package,
 # devshell, path) and name (an attribute, a shell, or an executable), or
-# fail with what is missing.
+# fail with what is missing.  Discovery's answer stands only for a trusted
+# flake; for another, method and name say what trusting it would run.
 decide() {
-  local choice n
+  local choice what
   if [ -n "$attr" ]; then how=attribute method=package name="$attr"; return 0; fi
   choice="$(read_choice)"
   if [ -n "$choice" ]; then
@@ -493,29 +546,23 @@ decide() {
       package:?*)  method=package  name="${choice#package:}" ;;
       devshell:?*) method=devshell name="${choice#devshell:}" ;;
       path:/*)     method=path     name="${choice#path:}" ;;
-      path:?*) fail "the Agda chosen for ${project_root}, ${choice#path:}, is not an absolute path; run --forget, then --choose" ;;
-      *) fail "the choice remembered for ${project_root} (${choice_file}) is not an ID; run --forget, then --choose" ;;
+      path:?*) undecided "the Agda chosen for ${project_root}, ${choice#path:}, is not an absolute path; run --forget, then --choose" ;;
+      *) undecided "the choice remembered for ${project_root} (${choice_file}) is not an ID; run --forget, then --choose" ;;
     esac
     return 0
   fi
   [ -n "$flake_dir" ] ||
-    fail "no flake.nix at or above ${project_root}, and no Agda chosen for it; see --candidates, then --choose"
+    undecided "no flake.nix at or above ${project_root}, and no Agda chosen for it; see --candidates, then --choose"
   require_lock
   how=discovered
   discover || fail "no Agda was run: Nix could not evaluate ${flake_dir}"
-  n="$(jq '.envs | length' <<<"$discovered")"
-  if [ "$n" = 1 ]; then method=package name="$(jq -r '.envs[0].name' <<<"$discovered")"; return 0; fi
-  if [ "$n" -gt 1 ]; then
-    if jq -e '.envs | any(.name == "default")' <<<"$discovered" >/dev/null; then
-      method=package name=default; return 0
-    fi
-    fail "${flake_dir} exports ${n} Agda environments ($(jq -r '[.envs[].name] | join(", ")' <<<"$discovered")) and no default among them; choose one with --choose package:NAME"
-  fi
-  if jq -e '.devshells | index("default")' <<<"$discovered" >/dev/null; then
-    if trusted "$flake_dir"; then method=devshell name=default; return 0; fi
-    fail "${flake_dir} exports no Agda environment; its dev shell may give one, but entering it runs the project's shell hook as you: allow it with --choose devshell:default, or list a directory at or above it in ${trust_file}"
-  fi
-  fail "${flake_dir} exports no Agda environment and no default dev shell; see --candidates, then --choose"
+  pick || undecided "$pick_problem"
+  trusted "$flake_dir" && return 0
+  case "$method" in
+    package) what="running its Agda environment ${name} runs the flake's code as you" ;;
+    *)       what="entering its dev shell ${name} runs the project's shell hook as you" ;;
+  esac
+  untrusted "${flake_dir} is not trusted, and ${what}: allow it with --choose trust:${flake_dir} (every flake at or below it) or --choose ${method}:${name} (this project), or list a directory at or above it in ${trust_file}"
 }
 
 # ---- Building: an attribute (agda-for-flake.sh's loop) ---------------------
@@ -523,7 +570,7 @@ decide() {
 # root on a miss, and libraries_of_env to its libraries file (or "").
 realize_package() {
   local root dir status built_key attempt=1
-  [ -n "$flake_dir" ] || fail "${name} is a flake attribute, but there is no flake.nix at or above ${project_root}"
+  [ -n "$flake_dir" ] || undecided "${name} is a flake attribute, but there is no flake.nix at or above ${project_root}"
   require_lock
   dir="${cache}/package/${name//[^A-Za-z0-9._+-]/_}"
   while :; do
@@ -547,7 +594,7 @@ realize_package() {
       [ "$status" = 0 ] ||
         fail "nix build ${flake_dir}#${name} failed (exit ${status}; offline, or a broken flake?); no Agda was run"
       [ -x "${root}.out/bin/agda" ] ||
-        fail "${name} built to $(readlink "${root}.out" || echo "${root}.out"), which has no executable bin/agda; name an Agda environment"
+        undecided "${name} built to $(readlink "${root}.out" || echo "${root}.out"), which has no executable bin/agda; name an Agda environment"
       built_key="$key"
       key_for package "$name"
       if [ "$key" != "$built_key" ]; then
@@ -586,7 +633,8 @@ realize_package() {
 # absolute path.  Set program and program_env.
 realize_devshell() {
   local root dir status outer captured raw shell_pwd agda_dir checkout_tag tmp
-  [ -n "$flake_dir" ] || fail "devshell:${name} needs a flake.nix at or above ${project_root}"
+  local profile entered want
+  [ -n "$flake_dir" ] || undecided "devshell:${name} needs a flake.nix at or above ${project_root}"
   require_lock
   # The caller's agda, resolved as the shell's is below, so that one
   # reached through a profile's links (~/.nix-profile/bin, NixOS's
@@ -598,19 +646,27 @@ realize_devshell() {
   checkout_tag="$(hash32 "$flake_dir" | cut -c1-12)"
   dir="${cache}/devshell/${name//[^A-Za-z0-9._+-]/_}"
   root="${dir}/${key:-nogit}-${checkout_tag}"
+  # The gc root, made where it stays: Nix registers a profile's root by its
+  # path, so a profile made elsewhere and moved here would keep nothing.
+  profile="${root}.profile"
+  # What the checkout holds is the last entered shell's (a hook writes
+  # .agda/bin/agda and its libraries for its own key), so a record is
+  # current only while its shell and key are the ones last entered here.
+  entered="${cache}/devshell/entered-${checkout_tag}" want="${name} ${key:-nogit}"
   # Outside git there is no key to say the shell is unchanged: enter it again.
   [ -n "$key" ] || [ "$build" = false ] || rm -f "${root}/agda"
-  if [ ! -f "${root}/agda" ] || [ ! -x "$(cat "${root}/agda")" ]; then
+  if ! devshell_current; then
     if [ "$build" = false ]; then program="" built=missing; return 0; fi
     mkdir -p "$dir" || fail "cannot create the cache directory ${dir}"
-    exec 9>"${root}.lock" || fail "cannot open the lock file ${root}.lock"
+    # One lock per checkout, since every shell entered there writes into it.
+    exec 9>"${entered}.lock" || fail "cannot open the lock file ${entered}.lock"
     if command -v flock >/dev/null 2>&1; then
       if ! flock -n 9; then
-        say "waiting for another start of the dev shell ${name} (${root}.lock)"
+        say "waiting for another start of a dev shell of ${flake_dir} (${entered}.lock)"
         flock 9
       fi
     fi
-    if [ ! -f "${root}/agda" ] || [ ! -x "$(cat "${root}/agda")" ]; then
+    if ! devshell_current; then
       say "entering ${flake_dir}#devShells.${system}.${name} to find its agda (key ${key}); once per key"
       tmp="${root}.tmp.$$"
       rm -rf "$tmp" && mkdir -p "$tmp"
@@ -619,11 +675,12 @@ realize_devshell() {
       # relative PATH entry or AGDA_DIR of the hook's is to be read.
       # shellcheck disable=SC2016  # expanded by the dev shell's sh
       ( cd "$flake_dir" &&
-        run_nix develop --no-write-lock-file "${flake_dir}#${name}" --profile "${tmp}/profile" \
+        run_nix develop --no-write-lock-file "${flake_dir}#${name}" --profile "$profile" \
           --command sh -c 'command -v agda > "$1" || : > "$1"; printf "%s" "${AGDA_DIR-}" > "$2"; printf "%s" "$PWD" > "$3"' \
           sh "${tmp}/agda" "${tmp}/agda-dir" "${tmp}/pwd" ) </dev/null >/dev/null 2>"${tmp}/stderr" || status=$?
       if [ "$status" != 0 ]; then
         cat "${tmp}/stderr" >&2
+        rm -rf "$tmp"
         fail "nix develop ${flake_dir}#${name} failed (exit ${status}); no Agda was run"
       fi
       raw="$(cat "${tmp}/agda")"
@@ -631,23 +688,23 @@ realize_devshell() {
       [ -n "$shell_pwd" ] || shell_pwd="$flake_dir"
       if [ -z "$raw" ]; then
         rm -rf "$tmp"
-        fail "the dev shell ${flake_dir}#${name} puts no agda on PATH; see --candidates, then --choose"
+        undecided "the dev shell ${flake_dir}#${name} puts no agda on PATH; see --candidates, then --choose"
       fi
       # Where it really is (absolute, its directory's links and `..`
       # resolved, as top is), before asking where it lives; this is the
       # path recorded, so a later call from any directory runs the same one.
       if ! captured="$(physical "$raw" "$shell_pwd")"; then
         rm -rf "$tmp"
-        fail "the dev shell ${flake_dir}#${name} gives ${raw}, whose directory does not exist; see --candidates, then --choose"
+        undecided "the dev shell ${flake_dir}#${name} gives ${raw}, whose directory does not exist; see --candidates, then --choose"
       fi
       case "$captured" in
         "${NIX_STORE_DIR:-/nix/store}"/*|"${top:-$flake_dir}"/*) ;;
         *) rm -rf "$tmp"
-           fail "the dev shell ${flake_dir}#${name} gives ${captured}, which is neither in the store nor in the checkout; see --candidates, then --choose" ;;
+           undecided "the dev shell ${flake_dir}#${name} gives ${captured}, which is neither in the store nor in the checkout; see --candidates, then --choose" ;;
       esac
       if [ -n "$outer" ] && [ "$captured" = "$outer" ]; then
         rm -rf "$tmp"
-        fail "the dev shell ${flake_dir}#${name} adds no agda of its own (it finds ${outer}, from the caller's PATH); see --candidates, then --choose"
+        undecided "the dev shell ${flake_dir}#${name} adds no agda of its own (it finds ${outer}, from the caller's PATH); see --candidates, then --choose"
       fi
       printf '%s' "$captured" > "${tmp}/agda"
       # AGDA_DIR only if the hook changed it, and absolute.
@@ -661,6 +718,8 @@ realize_devshell() {
       rm -f "${tmp}/stderr" "${tmp}/pwd"
       rm -rf "$root"
       mv "$tmp" "$root" || fail "cannot publish ${root}"
+      { printf '%s\n' "$want" > "${entered}.$$" && mv -f "${entered}.$$" "$entered"; } ||
+        fail "cannot write ${entered}"
       built=yes
     fi
     exec 9>&-
@@ -668,6 +727,12 @@ realize_devshell() {
   program="$(cat "${root}/agda")"
   agda_dir="$(cat "${root}/agda-dir" 2>/dev/null || true)"
   [ -z "$agda_dir" ] || program_env+=("AGDA_DIR=${agda_dir}")
+}
+# devshell_current: whether the record at root is usable: its agda is
+# there, and its shell and key are the ones last entered in the checkout.
+devshell_current() {
+  [ -f "${root}/agda" ] && [ -x "$(cat "${root}/agda")" ] &&
+    [ "$(cat "$entered" 2>/dev/null)" = "$want" ]
 }
 
 # ---- The project's own libraries -------------------------------------------
@@ -742,20 +807,22 @@ resolve() {
               [ -z "$program" ] || registry
               [ -z "$registry_file" ] || program_args=("--library-file=${registry_file}") ;;
     devshell) realize_devshell ;;
-    path)     [ -x "$name" ] || fail "the chosen Agda ${name} is not an executable; run --forget, then --choose"
+    path)     [ -x "$name" ] || undecided "the chosen Agda ${name} is not an executable; run --forget, then --choose"
               program="$name" ;;
   esac
 }
 
-# Without nix, only a chosen executable can run.
+# Without nix, only a chosen executable can run, and not over an attribute
+# the host names, which only nix can build.
 decide_without_nix() {
   local choice
+  [ -z "$attr" ] || fail "the host names the flake attribute ${attr}, and nix is not on PATH; no Agda was run"
   choice="$(read_choice)"
   case "$choice" in
     path:/*) how=choice method=path name="${choice#path:}"
-             [ -x "$name" ] || fail "the chosen Agda ${name} is not an executable; run --forget, then --choose"
+             [ -x "$name" ] || undecided "the chosen Agda ${name} is not an executable; run --forget, then --choose"
              program="$name" ;;
-    path:?*) fail "the Agda chosen for ${project_root}, ${choice#path:}, is not an absolute path; run --forget, then --choose" ;;
+    path:?*) undecided "the Agda chosen for ${project_root}, ${choice#path:}, is not an absolute path; run --forget, then --choose" ;;
     *) fail "nix is not on PATH" ;;
   esac
 }
@@ -773,7 +840,7 @@ explain_json() {
   local decided="$1" error="${2:-}" version=""
   [ "$decided" = false ] || version="$(version_of "$program")"
   jq -n \
-    --argjson decided "$decided" --arg error "$error" \
+    --argjson decided "$decided" --arg error "$error" --arg reason "$reason" \
     --arg start "$start" --arg root "$project_root" --arg lib "$agda_lib" \
     --arg flake "$flake_dir" --arg system "$system" \
     --arg how "${how:-}" --arg method "${method:-}" --arg name "${name:-}" \
@@ -788,6 +855,7 @@ explain_json() {
     {
       decided: $decided,
       error: ($error | nz),
+      reason: (if $decided then null else $reason end),
       start: $start,
       project: { root: $root, agdaLib: ($lib | nz) },
       flake: ($flake | nz),
@@ -841,6 +909,13 @@ candidates() {
   {
     if [ -n "$flake_dir" ] && [ -z "${nix_missing:-}" ] && [ -z "$problem" ]; then
       discover || discovered='{"envs":[],"devshells":[]}'
+      # Trusting the flake, offered first when discovery would then decide.
+      if ! trusted "$flake_dir" && pick; then
+        jq -c --arg flake "$flake_dir" --arg would "${method}:${name}" --arg name "$name" '
+          {id: ("trust:" + $flake), kind: "trust",
+           version: (if ($would | startswith("package:")) then (.envs[] | select(.name == $name) | .version) else null end),
+           label: ("trust " + $flake + " and every flake below it, so that discovery runs what it finds there as you (" + $would + " here)")}' <<<"$discovered"
+      fi
       jq -c --arg flake "$flake_dir" '.envs[] | {id: ("package:" + .name), kind: "package", version: .version,
         label: (.name + " (Agda " + (.version // "?") + "), an Agda environment of " + $flake)}' <<<"$discovered"
       jq -c --arg flake "$flake_dir" '.devshells[] | {id: ("devshell:" + .), kind: "devshell", version: null,
@@ -883,6 +958,21 @@ case "$mode" in
     fi ;;
   choose)
     case "$choose_id" in
+      trust:?*)
+        dir="$(cd "${choose_id#trust:}" 2>/dev/null && pwd -P)" || usage_error "${choose_id#trust:} is not a directory"
+        if trusted "$dir"; then say "${dir} is already trusted (${trust_file})"
+        else
+          mkdir -p "$(dirname "$trust_file")" || fail "cannot create $(dirname "$trust_file")"
+          # A newline first if the file's last line has none.
+          sep=""
+          if [ -s "$trust_file" ] && [ -n "$(tail -c 1 "$trust_file")" ]; then sep=$'\n'; fi
+          printf '%s# --choose trust:, %s\n%s\n' "$sep" "$(date -u +%Y-%m-%d)" "$dir" >> "$trust_file" ||
+            fail "cannot write ${trust_file}"
+          say "trusted ${dir} and every flake below it (${trust_file})"
+        fi
+        # Discovery decides from now on; a choice would hide what it finds.
+        if [ -f "$choice_file" ]; then rm -f "$choice_file"; say "forgot the choice for ${choice_identity}"; fi
+        exit 0 ;;
       package:?*|devshell:?*) ;;
       # FILE as given, from the working directory; kept absolute, so the
       # choice means the same executable from wherever a host starts.
@@ -890,7 +980,7 @@ case "$mode" in
                if [ ! -f "$exe" ] || [ ! -x "$exe" ]; then usage_error "${exe} is not an executable"; fi
                exe="$(physical "$exe" "$PWD")" || usage_error "${choose_id#path:} is not an executable"
                choose_id="path:${exe}" ;;
-      *) usage_error "an ID is package:NAME, devshell:NAME or path:FILE (see --candidates)" ;;
+      *) usage_error "an ID is package:NAME, devshell:NAME, path:FILE or trust:DIR (see --candidates)" ;;
     esac
     mkdir -p "${state}/choices" || fail "cannot create ${state}/choices"
     if ! { printf '%s\n# %s\n' "$choose_id" "$choice_identity" > "${choice_file}.$$" &&
