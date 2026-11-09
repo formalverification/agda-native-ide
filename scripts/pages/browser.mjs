@@ -17,7 +17,16 @@
 //       large text), with each ancestor's opacity folded in, and that every
 //       request went to the site's own origin;
 //   3.  searches for a word, which proves Material's search works without
-//       the lunr/ directory the flake removes.
+//       the lunr/ directory the flake removes;
+//   4.  clicks every link to the playground on every page, with Material's
+//       instant navigation engaged, and asserts that each click is a full
+//       load of play/ that starts the app, not a document fetched and
+//       swapped in (which would leave the app's scripts unrun).  Instant
+//       navigation intercepts a click only on a link the sitemap lists,
+//       with the sitemap's host and the page's equal; the server answers
+//       sitemap.xml with its addresses moved to its own origin, as they
+//       are on the deployed site, and the step first proves that a click
+//       on a page link is intercepted, or its finding would be vacuous.
 //
 // It writes pages-browser.json (every page's findings) and screenshots of
 // the home page and the page on each project's own Agda, both schemes,
@@ -26,7 +35,7 @@
 //   CHROME=<chromium> node scripts/pages/browser.mjs <tree> [--out DIR] [--prefix /agda-native-ide/]
 //   nix run .#pages-browser -- <tree> [--out DIR]
 
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, resolve, sep } from "node:path";
 import { parseArgs } from "node:util";
@@ -161,11 +170,24 @@ const AUDIT = () => {
 // path, to the tree, so that a URL under the path finds the tree's file.
 const holder = mkdtempSync(join(tmpdir(), "pages-browser-"));
 symlinkSync(tree, join(holder, prefix.replace(/\//g, "")));
-const server = await serve({ root: holder, prefix });
+// The sitemap names the deployed host; Material compares a link with it
+// by protocol and hostname, never the port, so on this server it would
+// match nothing, and instant navigation would intercept no click at all.
+// It is answered with its addresses on this server's origin instead.
+let origin = "";
+const server = await serve({
+  root: holder,
+  prefix,
+  answer: (path) =>
+    path === "/sitemap.xml"
+      ? { status: 200, body: Buffer.from(readFileSync(join(tree, "sitemap.xml"), "utf8").replace(/<loc>https?:\/\/[^/<]+/g, () => `<loc>${origin}`)) }
+      : undefined,
+});
+origin = server.origin;
 const chrome = await launch(process.env.CHROME);
 const page = chrome.page;
 const site = `${server.origin}${prefix}`;
-const record = { tree, site: prefix, date: new Date().toISOString(), browser: chrome.product, screenshots: [], pages: [], search: null, failure: null };
+const record = { tree, site: prefix, date: new Date().toISOString(), browser: chrome.product, screenshots: [], pages: [], search: null, playgroundLinks: null, failure: null };
 const errors = [];
 const offOrigin = [];
 await page.onConsole((entry) => {
@@ -290,6 +312,57 @@ try {
   );
   record.search = { query: "reactor", results: search.results, meta: search.meta };
   console.log(`ok  search: ${search.meta}`);
+
+  // 4.  The links to the playground.
+  const playground = `${prefix}play/`;
+  /** Open `path` and wait until Material has the sitemap, before which it
+   * intercepts no click (its click stream waits on the sitemap). */
+  const ready = async (path) => {
+    await open(`${site}${path}`);
+    await until(
+      page,
+      () => ({ ok: performance.getEntriesByType("resource").some((e) => e.name.endsWith("/sitemap.xml") && e.responseEnd > 0) }),
+      `the sitemap, on /${path}`,
+      20_000,
+    );
+    await sleep(300);
+    await page.eval(() => {
+      window.__beforeClick = true;
+    });
+  };
+  // The precondition: a click on a link to the next page is intercepted,
+  // so the page, and the marker set on it, survive the navigation.
+  await ready("");
+  const next = await page.eval(() => {
+    const link = document.querySelector("a.md-footer__link--next");
+    link?.click();
+    return link ? new URL(link.href).pathname : null;
+  });
+  if (!next) throw new Error("the home page has no link to the next page");
+  const kept = await until(page, (want) => ({ ok: location.pathname === want, marker: window.__beforeClick === true }), `the next page, ${next}`, 20_000, next);
+  if (!kept.marker) throw new Error(`instant navigation did not intercept a click on ${next}, so a full load of play/ would prove nothing`);
+  const links = [];
+  for (const path of websitePages()) {
+    await ready(path);
+    const count = await page.eval((want) => [...document.querySelectorAll("a[href]")].filter((a) => new URL(a.href).pathname === want).length, playground);
+    for (let index = 0; index < count; index++) {
+      if (index > 0) await ready(path);
+      const text = await page.eval(([want, i]) => {
+        const link = [...document.querySelectorAll("a[href]")].filter((a) => new URL(a.href).pathname === want)[i];
+        link.click();
+        return link.textContent.trim().replace(/\s+/g, " ");
+      }, [playground, index]);
+      await until(page, (want) => ({ ok: location.pathname === want && document.readyState === "complete" }), `play/, from /${path}`, 30_000, playground);
+      await sleep(500);
+      const swapped = await page.eval(() => window.__beforeClick === true);
+      if (swapped) throw new Error(`/${path}: the link "${text}" to play/ was swapped in by instant navigation, so the app's scripts never ran`);
+      await until(page, () => ({ ok: document.querySelector(".inspector-status") !== null }), `the app, from /${path}`, 30_000);
+      links.push({ from: path, text });
+    }
+  }
+  if (links.length === 0) throw new Error("no page links to play/");
+  record.playgroundLinks = { instantNavigation: next, links };
+  console.log(`ok  ${links.length} links to play/, on ${new Set(links.map((l) => l.from)).size} pages: each a full load that starts the app (a click on ${next} was intercepted)`);
 } catch (error) {
   record.failure = error instanceof Error ? error.message : String(error);
   console.error(`FAILED: ${record.failure}`);

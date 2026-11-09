@@ -21,7 +21,8 @@ site_description: >-
 # The canonical address, read by the canonical <link>, the sitemap, and
 # Material's instant navigation, which intercepts only the links the
 # sitemap lists: the playground under play/ is not a MkDocs page, so a link
-# to it is a full page load, as a standalone app needs.  A custom domain
+# to it is a full page load, as a standalone app needs (scripts/pages/
+# browser.mjs clicks each such link to prove it).  A custom domain
 # would change it here, with scripts/pages/check.mjs's --prefix and a
 # CNAME file in the tree; none is planned (issue 96).
 site_url: https://formalverification.github.io/agda-native-ide/
