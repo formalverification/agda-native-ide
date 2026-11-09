@@ -13,8 +13,9 @@ File: `agda-native-ide/docs/adr/0004-each-projects-own-agda.md`
    [#99] (VS Code, the mode and the companion's lanes); [#96] (the website's
    page on this feature, drawn from the [companion note][note]).
 +  **Ancestry**: agda-native-air's launcher `scripts/agda-for-flake.sh`
-   ([agda-native-air#344], read at `0359b4be`), whose key, build under a
-   lock and stream rules this one keeps; an investigation of 2026-11-07 of
+   ([agda-native-air#344], read at `0359b4be`), whose key (with the system
+   added here), build under a lock and stream rules this one keeps; an
+   investigation of 2026-11-07 of
    an Emacs configuration that picked an Agda per checkout from a hand-kept
    table, whose failures and tests are the evidence of § 1; and
    [ADR 0003][adr-0003] § 13, where the companion resolves one Agda from its
@@ -156,7 +157,9 @@ decided.
 
 1.  **An attribute named by the host**: `AGDA_FLAKE_ATTR`, or a leading
     `--flake-attr NAME`, agda-for-flake.sh's interface, so an agda-mcp
-    registration written for that script works unchanged.
+    registration written for that script works unchanged.  An empty
+    `NAME` is refused as a usage error (exit 64; agda-for-flake.sh refuses
+    it too), and `--explain` may follow the flag.
 2.  **A remembered choice** (§ 9).
 3.  **The flake's one Agda environment** (§ 4).
 4.  **The flake's default dev shell**, when it puts an `agda` of its own on
@@ -197,8 +200,9 @@ record][record], `discoveryProbes`):
 
 (See also [#97].)
 
-**Decision**.  An Agda environment is a package of the current system,
-named `default` or with `agda` in its name, that evaluates to a derivation
+**Decision**.  An Agda environment is a package of the system (Nix's own,
+unless `AGDA_FOR_PROJECT_SYSTEM` names another; § 5), named `default` or
+with `agda` in its name, that evaluates to a derivation
 whose `pname` is `agdaWithPackages`; with one, it decides, and with
 several, `default` decides if it is one, and nothing does otherwise.
 
@@ -232,11 +236,22 @@ tracked file of the checkout except Agda sources, and kept as a root under
 
 +  **The key**: the index's entry for each tracked file that is not an Agda
    source, or the working tree's type, mode and contents where it changes
-   the file, with the attribute and the flake's directory within the
-   repository.  Nix reads exactly the tracked files of a git flake, so the
-   key moves when anything Nix reads moves (a lock, a Nix file, a build
-   tool's sources), and holds while a session edits proofs, since an
-   environment for checking a project cannot depend on them.
+   the file, with the system, the attribute and the flake's directory
+   within the repository.  Nix reads exactly the tracked files of a git
+   flake, so the key moves when anything Nix reads moves (a lock, a Nix
+   file, a build tool's sources), and holds while a session edits proofs,
+   since an environment for checking a project cannot depend on them.
++  **One system throughout**: the system is Nix's own (`nix eval --impure
+   --expr builtins.currentSystem`, about 0.01 s), or the one
+   `AGDA_FOR_PROJECT_SYSTEM` names, and every `nix` call is passed it as
+   `--system`.  `nix build DIR#NAME` resolves `NAME` for Nix's own system,
+   so a system read from `uname` alone could make discovery and the build
+   disagree; agda-for-flake.sh builds for Nix's own system only, and so
+   needs none in its key.
++  **A locked flake only**: a `flake.lock` that git tracks, checked before
+   any evaluation.  In a git checkout Nix reads only tracked files, so it
+   ignores an untracked lock and resolves every input afresh, under a key
+   that would not move when those inputs did.
 +  **The build under a lock**: the first call builds under an exclusive
    `flock`, publishes the root only if the key is unchanged afterward, and
    a second call waits for it.
@@ -256,9 +271,17 @@ worktree of formal-ledger-specifications got two environments
 formal-ledger-test library shared the master checkout's root.  Tests: a
 miss builds and a hit does not; the key moves with the lock and an
 uncommitted edit of a Nix file and returns with the tree; it holds for
-Agda sources; worktrees share; two first calls build once.
+Agda sources; worktrees share; two first calls build once.  Copilot's
+review of [#101] (2026-11-08) found the key without the system: a
+discovery made for `x86_64-linux` was reused when the variable named
+`aarch64-linux`, with no evaluation.  It also found the lock checked only
+after discovery had evaluated the flake; with Nix 2.34.8, an untracked
+`flake.lock` in a git flake was ignored, and the input it pinned resolved
+afresh.  Tests now cover each system's own discovery and build, an
+untracked lock refused, and no evaluation of an unlocked flake.
 
-**Status**.  Adopted (2026-11-07, [#97]).
+**Status**.  Adopted (2026-11-07, [#97]); the system and the tracked lock
+added on 2026-11-08, after the review of [#101].
 
 ---
 
@@ -277,7 +300,14 @@ Agda sources; worktrees share; two first calls build once.
 +  **Its own, not inherited**: the `agda` must be in the store or in the
    checkout (agda-algebras' downstream shells write `.agda/bin/agda`), and
    not the one the caller's PATH already gives; otherwise the shell is
-   refused, since `nix develop` keeps the caller's PATH after its own.
+   refused, since `nix develop` keeps the caller's PATH after its own.  The
+   two are compared with their directories' links resolved, since a
+   profile's `bin` (`~/.nix-profile/bin`, NixOS's
+   `/run/current-system/sw/bin`) resolves into the store.
++  **Recorded absolute**: the `agda` is recorded as that resolved path, and
+   a relative PATH entry or `AGDA_DIR` of the hook's is read from the
+   shell's working directory, so a later call from any directory runs the
+   same `agda` with the same `AGDA_DIR`.
 +  **`AGDA_DIR` only when the hook changed it**: the caller's own
    (`~/.config/agda` on the machine measured) passes through the shell
    unchanged, and recording it would pin it.
@@ -287,9 +317,15 @@ Agda sources; worktrees share; two first calls build once.
 **Evidence**.  The probes of § 3 (formal-ledger-specifications' shell left
 `AGDA_DIR` as the caller had it); tests for each clause, three of them
 made to fail by mutations (an `AGDA_DIR` recorded when unchanged, any
-`agda` accepted, the inherited one not compared).
+`agda` accepted, the inherited one not compared).  The review of [#101]
+found the caller's `agda`, reached through a profile's link, accepted as
+the shell's own (the shell's path was resolved and the caller's was not;
+`~/.nix-profile/bin` resolves into `/nix/store` on the machine measured),
+and a relative PATH entry recorded as given, so that a call from a
+subdirectory entered the shell again and was refused.  A test covers each.
 
-**Status**.  Adopted (2026-11-07, [#97]).
+**Status**.  Adopted (2026-11-07, [#97]); the comparison through links and
+the absolute record added on 2026-11-08, after the review of [#101].
 
 ---
 
@@ -375,7 +411,8 @@ checkout.
    the project's path.
 +  **The IDs**: `package:NAME` (a flake attribute, built from each
    checkout's own lock), `devshell:NAME`, and `path:FILE` (an executable,
-   for a project with no flake); `--forget` removes it.
+   for a project with no flake, kept as an absolute path, since a host may
+   start from any directory of the project); `--forget` removes it.
 +  **Below the host's attribute and above discovery** (§ 3): a choice is
    the user's, and a registration's attribute is the host's configuration.
 
@@ -431,16 +468,16 @@ announced on [#98] and [#99].
 | 2 | The project is the nearest `.agda-lib`; the flake the nearest `flake.nix` within the repository; the start is the working directory, `AGDA_FOR_PROJECT_DIR`, or a `FILE` | Adopted ([#97]) | Tests; formal-ledger-test resolves to its checkout's flake (§ 2) |
 | 3 | Order: the host's attribute, a choice, the one environment, the default dev shell's own `agda`, else nothing (exit 69) | Adopted ([#97]) | Probes on three projects (§ 3) |
 | 4 | An environment is a `default` or `agda`-named package whose `pname` is `agdaWithPackages`; several decide only by `default` | Adopted ([#97]) | formal-ledger-specifications' four `agda` names; a mutation caught (§ 4) |
-| 5 | agda-for-flake.sh's key and build under a lock; discovery cached under the key; dev shells per checkout | Adopted ([#97]) | Two locks, two environments; tests (§ 5) |
-| 6 | A dev shell entered once per key and checkout; its own `agda`, in the store or the checkout; `AGDA_DIR` only if changed | Adopted ([#97]) | Probes; three mutations caught (§ 6) |
+| 5 | agda-for-flake.sh's key with the system added, one system for every `nix` call, and the build under a lock; only a tracked `flake.lock`, checked before any evaluation; discovery cached under the key; dev shells per checkout | Adopted ([#97]; system and lock 2026-11-08, [#101]) | Two locks, two environments; tests (§ 5) |
+| 6 | A dev shell entered once per key and checkout; its own `agda`, in the store or the checkout, not the caller's even through links; recorded absolute; `AGDA_DIR` only if changed | Adopted ([#97]; links and absolute paths 2026-11-08, [#101]) | Probes; three mutations caught; tests (§ 6) |
 | 7 | A second libraries file for sibling libraries, transitively, names without versions | Adopted ([#97]) | formal-ledger-test: 42 under the environment, 0 through the launcher (§ 8) |
-| 8 | Choices per repository and project, in the state directory | Adopted ([#97]) | Worktrees share; a mutation caught (§ 9) |
+| 8 | Choices per repository and project, in the state directory; a `path:` choice absolute | Adopted ([#97]) | Worktrees share; a mutation caught (§ 9) |
 | 9 | `--explain`, `--candidates`, `--choose`, `--forget`; exit 69 and 64 | Adopted ([#97]) | Tests; the acceptance run (§ 10) |
 | 10 | A dev shell is entered by discovery only under a trusted directory, or by a choice; a package needs no consent | Adopted ([#97]) | agda-lattices refused, then trusted and checked; two mutations caught (§ 7) |
 
 ## References
 
-+  Issues: [#96], [#97], [#98], [#99]; agda-native-air
++  Issues: [#96], [#97], [#98], [#99]; pull request [#101]; agda-native-air
    [#344][agda-native-air#344].
 +  Documents: [the companion note][note]; [ADR 0003][adr-0003] § 13; [the
    record][record] of 2026-11-07.
@@ -453,6 +490,7 @@ announced on [#98] and [#99].
 [#97]: https://github.com/formalverification/agda-native-ide/issues/97
 [#98]: https://github.com/formalverification/agda-native-ide/issues/98
 [#99]: https://github.com/formalverification/agda-native-ide/issues/99
+[#101]: https://github.com/formalverification/agda-native-ide/pull/101
 [agda-native-air#344]: https://github.com/formalverification/agda-native-air/pull/344
 [note]: ../notes/project-agda.md
 [adr-0003]: 0003-the-shared-core.md

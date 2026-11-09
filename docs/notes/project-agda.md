@@ -225,6 +225,9 @@ following:
 +  **The first build can take minutes** on a machine without the project's
    store paths, and nothing is shown in the editor until it ends; build it
    first from a shell with `agda-for-project --explain FILE`.
++  **A locked flake only**: the flake needs a `flake.lock` that git
+   tracks.  Nix ignores an untracked one and would resolve every input
+   afresh, so the program refuses such a flake before evaluating it.
 +  **`legacyPackages` is not searched**, and a flake outside git is
    evaluated on every start.
 +  **Linux and macOS** with bash and Nix; Windows is untested.
