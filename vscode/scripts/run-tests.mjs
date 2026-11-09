@@ -60,7 +60,12 @@ try {
   const manifest = JSON.parse(await readFile(path.join(installed, modeDirectory, 'package.json'), 'utf8'));
   if (manifest.version !== modeVersion) throw new Error(`Expected Agda mode ${modeVersion}; found ${manifest.version}`);
   const modeBundleHash = createHash('sha256').update(await readFile(path.join(installed, modeDirectory, manifest.main))).digest('hex');
-  for (const testCase of ['supported', 'mismatch']) {
+  // COMPANION_TESTS=projects runs the multi-root cases alone;
+  // COMPANION_TESTS=no-reload runs every case but the reload windows, whose
+  // hidden case fails on some machines (see the testing skill).
+  const only = process.env.COMPANION_TESTS;
+  const reloads = only !== 'no-reload';
+  for (const testCase of only === 'projects' ? [] : ['supported', 'mismatch']) {
     const root = path.join(temporary, testCase);
     const workspace = path.join(root, 'workspace');
     const extensions = path.join(root, 'extensions');
@@ -101,7 +106,7 @@ try {
         '--disable-workspace-trust', '--skip-welcome', '--skip-release-notes', '--no-sandbox', '--disable-gpu'],
     };
     await runTests(options);
-    if (testCase === 'supported') {
+    if (testCase === 'supported' && reloads) {
       const driver = path.join(root, 'reload-driver');
       await mkdir(driver);
       await writeFile(path.join(driver, 'package.json'), JSON.stringify({
@@ -126,12 +131,74 @@ try {
     }
     const report = JSON.parse(await readFile(path.join(caseOutput, `${testCase}.json`), 'utf8'));
     delete report.modeRoot;
-    report.reloadRestored = testCase === 'supported';
-    report.hiddenStateRestored = testCase === 'supported';
+    report.reloadRestored = testCase === 'supported' && reloads;
+    report.hiddenStateRestored = testCase === 'supported' && reloads;
     report.agda = nativeVersion;
     report.sourceSha256 = sourceHash;
     report.modeBundleSha256 = modeBundleHash;
     await writeFile(path.join(output, `${testCase}.json`), JSON.stringify(report, null, 2) + '\n');
+  }
+  // Each project's own Agda (issue 99): a multi-root workspace of alpha
+  // (the shell's Agda 2.9.0), beta (nixpkgs' 2.8.0, AGDA_OTHER) and gamma
+  // (nothing decided), each a library whose module imports a base with no
+  // goal; agda-for-project (AGDA_FOR_PROJECT, the flake's package) is the
+  // mode's one path, and decides alpha's and beta's Agdas by the choices
+  // made here, as a user's --choose would; run in both orders.
+  const launcher = process.env.AGDA_FOR_PROJECT;
+  const other = process.env.AGDA_OTHER;
+  if (!launcher || !other) throw new Error('Set AGDA_FOR_PROJECT and AGDA_OTHER (nix develop .#vscode sets them).');
+  const agdas = {
+    alpha: { path: execFileSync('readlink', ['-f', execFileSync('sh', ['-c', 'command -v "$1"', '--', agda], { encoding: 'utf8' }).trim()], { encoding: 'utf8' }).trim(), version: nativeVersion },
+    beta: { path: other, version: execFileSync(other, ['--numeric-version'], { encoding: 'utf8' }).trim() },
+  };
+  if (agdas.beta.version === nativeVersion) throw new Error(`AGDA_OTHER must be another version than ${nativeVersion}`);
+  for (const order of [['alpha', 'beta'], ['beta', 'alpha']]) {
+    const root = path.join(temporary, `projects-${order.join('-')}`);
+    const workspace = path.join(root, 'workspace');
+    const caseOutput = path.join(root, 'output');
+    const environment = { XDG_STATE_HOME: path.join(root, 'state'), XDG_CACHE_HOME: path.join(root, 'cache'), AGDA_DIR: path.join(root, 'agda-dir') };
+    await mkdir(environment.AGDA_DIR, { recursive: true });
+    await mkdir(caseOutput, { recursive: true });
+    for (const name of ['alpha', 'beta', 'gamma']) {
+      const Name = name[0].toUpperCase() + name.slice(1);
+      await mkdir(path.join(workspace, name), { recursive: true });
+      await writeFile(path.join(workspace, name, `${name}.agda-lib`), `name: ${name}\ninclude: .\n`);
+      await writeFile(path.join(workspace, name, `${Name}Base.agda`), `module ${Name}Base where\n\ndata N : Set where\n  z : N\n  s : N → N\n`);
+      await writeFile(path.join(workspace, name, `${Name}.agda`), `module ${Name} where\n\nopen import ${Name}Base\n\nx : N\nx = {! !}\n`);
+    }
+    for (const name of ['alpha', 'beta']) {
+      const Name = name[0].toUpperCase() + name.slice(1);
+      execFileSync(launcher, ['--choose', `path:${agdas[name].path}`, path.join(workspace, name, `${Name}.agda`)],
+        { env: { ...process.env, ...environment }, stdio: 'inherit' });
+    }
+    const quiet = {
+      'extensions.autoUpdate': false, 'extensions.autoCheckUpdates': false,
+      'telemetry.telemetryLevel': 'off', 'update.mode': 'none',
+      'workbench.startupEditor': 'none', 'window.restoreWindows': 'none',
+    };
+    const workspaceFile = path.join(workspace, 'projects.code-workspace');
+    await writeFile(workspaceFile, JSON.stringify({
+      folders: [{ path: 'alpha' }, { path: 'beta' }, { path: 'gamma' }],
+      settings: { 'agdaMode.connection.downloadPolicy': "No, and don't ask again", ...quiet },
+    }));
+    await mkdir(path.join(root, 'user/User'), { recursive: true });
+    await writeFile(path.join(root, 'user/User/settings.json'), JSON.stringify({ ...quiet, 'agdaMode.connection.paths': [launcher] }));
+    const extensions = path.join(root, 'extensions');
+    await cp(installed, extensions, { recursive: true });
+    await runTests({
+      vscodeExecutablePath: executable,
+      extensionDevelopmentPath: extensionRoot,
+      extensionTestsPath: path.join(extensionRoot, 'out/test/projects.js'),
+      extensionTestsEnv: {
+        ...environment, COMPANION_TEST_OUTPUT: caseOutput, COMPANION_PROJECT_ORDER: order.join(','),
+        COMPANION_PROJECT_AGDAS: JSON.stringify(agdas),
+      },
+      launchArgs: [workspaceFile, `--extensions-dir=${extensions}`, `--user-data-dir=${root}/user`,
+        '--disable-workspace-trust', '--skip-welcome', '--skip-release-notes', '--no-sandbox', '--disable-gpu'],
+    });
+    const report = JSON.parse(await readFile(path.join(caseOutput, `projects-${order.join('-')}.json`), 'utf8'));
+    report.modeBundleSha256 = modeBundleHash;
+    await writeFile(path.join(output, `projects-${order.join('-')}.json`), JSON.stringify(report, null, 2) + '\n');
   }
   console.log(`Companion reports: ${output}`);
 } finally {

@@ -64,7 +64,7 @@ endif
         library-gate
 # The companion's targets are separate from the browser app's gates.
 
-.PHONY: vscode-check vscode-build vscode-test vscode-unit
+.PHONY: vscode-check vscode-build vscode-test vscode-unit vscode-mode-findings vscode-desktop-run conformance-native-other
 .DEFAULT_GOAL := help
 
 # In `path` mode the resolved CLI is (typically) a Nix wrapper carrying
@@ -177,7 +177,18 @@ vscode-unit: vscode-build ## Check version policy and serialized state
 	npm --workspace vscode run test:unit
 
 vscode-test: vscode-check vscode-unit ## Run the real companion and Agda mode under Xvfb (nix develop .#vscode)
-	timeout 300s npm --workspace vscode test
+	timeout 420s npm --workspace vscode test
+
+# Issue 99's records: what decides agda-mode-vscode's Agda, each finding
+# confirmed in the real extension host; and two real projects on two Agdas
+# in one window (agda-algebras and formal-ledger-specifications, from
+# their usual checkouts), timed, with a screenshot per load when
+# ImageMagick's import is on PATH (nix shell nixpkgs#imagemagick).
+vscode-mode-findings: vscode-build ## Record what decides agda-mode-vscode's Agda, in the real host (nix develop .#vscode)
+	timeout 300s node vscode/scripts/mode-findings.mjs
+
+vscode-desktop-run: vscode-build ## Load a file of agda-algebras and of formal-ledger-specifications in one window, each under its own Agda (nix develop .#vscode)
+	timeout 900s node vscode/scripts/desktop-run.mjs --out vscode/test-output/desktop-run
 
 # agda-for-project, the launcher every host names in place of agda (issue
 # 97): shellcheck, then its tests against a stub nix, which need git, jq
@@ -202,6 +213,11 @@ CONFORMANCE_HARNESS := .build-tmp/conformance-harness
 
 conformance-native: packages ## Run the engine's conformance suite against native Agda (nix develop .#vscode)
 	timeout 600s node scripts/conformance/native.mjs --out $(CONFORMANCE)
+
+# The same suite against the second Agda the lanes speak (issue 99):
+# AGDA_OTHER, nixpkgs' 2.8.0 in the .#vscode shell.
+conformance-native-other: packages ## Run the engine's conformance suite against AGDA_OTHER, Agda 2.8.0 (nix develop .#vscode)
+	AGDA="$$AGDA_OTHER" AGDA_VERSION=2.8.0 timeout 600s node scripts/conformance/native.mjs --out $(CONFORMANCE)-2.8.0
 
 conformance-browser: packages ## Run the engine's conformance suite in headless Chromium against $(SITE)
 	CONFORMANCE_OUT=$(abspath $(CONFORMANCE_HARNESS)) npx vite build \

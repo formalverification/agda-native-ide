@@ -64,6 +64,8 @@ export interface Followed {
   answer?: Explained;
   /** Why there is no answer: the launcher's one line, or why it did not run. */
   error?: string;
+  /** How long the answer took (a build, the first time). */
+  explainMs?: number;
 }
 
 export class Steering implements vscode.Disposable {
@@ -81,8 +83,9 @@ export class Steering implements vscode.Disposable {
    * spawn runs. */
   private envKey: string | undefined;
   private offered = false;
-  /** The mode's restarts, with the project each was for (for the tests). */
-  readonly restarts: Array<{ root: string; replaced: number }> = [];
+  /** The mode's restarts: the project each was for, the process it
+   * replaced, and how long the restart and its load took. */
+  readonly restarts: Array<{ root: string; replaced: number; ms?: number }> = [];
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.status = vscode.window.createStatusBarItem('agdaWorkbench.agda', vscode.StatusBarAlignment.Left, 101);
@@ -183,8 +186,10 @@ export class Steering implements vscode.Disposable {
     this.followed = { file, root };
     this.showBuilding(root);
     let answer: Explained;
+    const asked = performance.now();
     try {
       answer = await this.withProgress(root, this.answerFor(file, root));
+      this.followed.explainMs = Math.round(performance.now() - asked);
     } catch (error) {
       if (sequence !== this.sequence) return;
       this.followed.error = error instanceof Error ? error.message : String(error);
@@ -225,8 +230,11 @@ export class Steering implements vscode.Disposable {
     const active = vscode.window.activeTextEditor;
     if (active?.document.uri.fsPath !== file) return;
     if (!(await vscode.commands.getCommands(true)).includes('agda-mode.restart')) return;
-    this.restarts.push({ root, replaced: running.pid });
+    const restart: { root: string; replaced: number; ms?: number } = { root, replaced: running.pid };
+    this.restarts.push(restart);
+    const started = performance.now();
     await vscode.commands.executeCommand('agda-mode.restart');
+    restart.ms = Math.round(performance.now() - started);
     if (this.followed?.answer) this.showAnswer(this.followed.answer, await this.modeProcess());
   }
 

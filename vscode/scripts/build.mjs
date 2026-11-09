@@ -24,6 +24,9 @@ const entries = {
   "extension.js": "src/extension.ts",
   "test/host.js": "src/test/host.ts",
   "test/reload.js": "src/test/reload.ts",
+  "test/mode-findings.js": "src/test/mode-findings.ts",
+  "test/projects.js": "src/test/projects.ts",
+  "test/desktop.js": "src/test/desktop.ts",
   "test/unit.js": "src/test/unit.ts",
 };
 const external = new Set(["vscode", ...builtinModules, ...builtinModules.map((name) => `node:${name}`)]);

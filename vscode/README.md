@@ -97,6 +97,72 @@ The mismatch test uses the same 0.10.4 bundle with a temporary manifest
 version of `999.0.0`; it establishes the warning path, not support for an
 additional release.
 
+## Each project's own Agda
+
+With agda-for-project, the resolver of [#97] ([ADR 0004][adr-0004]), the
+mode and the native lanes run the Agda each project pins in its flake: one
+window can hold agda-algebras on Agda 2.9.0 and formal-ledger-specifications
+on 2.8.0, and `C-c C-l` in a file of either checks it with that project's
+Agda, with no setting changed between them ([#99]).
+
+**Setup, once**.  Install the launcher, so that VS Code finds it on PATH:
+
+    nix profile install github:formalverification/agda-native-ide#agda-for-project
+
+Then name it as the mode's Agda.  When an Agda file opens and the mode does
+not run it, the companion offers to set `agdaMode.connection.paths` to
+`["agda-for-project"]` in your user settings, and writes nothing unless you
+say so; or set it yourself.  As the only entry it decides alone: the mode
+passes over a launcher that refuses (exit 69) or answers `--version` in
+silence for 3 s, and runs its next entry, or its downloads.  A choice made
+in the mode's own **Switch to a different Agda version** overrides the
+setting for that workspace.
+
+**How the mode is steered**.  agda-mode-vscode keeps one Agda for the whole
+window and reads its paths for the window, not for a folder; it starts
+Agda in the extension host's working directory, with the extension host's
+environment as it is at that moment.  So the companion sets one variable
+there, `AGDA_FOR_PROJECT_DIR`, to the active file's project (only the
+launcher reads it), builds that project's Agda first
+(`agda-for-project --explain`, behind a progress notification when it takes
+longer than a warm start), and restarts the mode (`agda-mode.restart`,
+which loads the active file again) only when the project needs another
+Agda than the mode runs.  Moving between files of one project, or between
+projects on the same Agda, restarts nothing.  `agdaWorkbench.mode.steer`
+turns this off.  The findings behind it, each confirmed in the extension
+host, are on [#99], and `src/steering.ts` says what was rejected and why.
+
+**The lanes** run the same answer: the launcher's program, arguments and
+environment, run directly, at the version it reports.  The engine speaks
+Agda 2.9.0 and 2.8.0 (the conformance suite passes against both); a project
+on another is refused with the reason.  `agdaWorkbench.agda.path` and
+`agdaWorkbench.agda.version`, when set, win.  Without a launcher (none in
+`agdaWorkbench.launcher.path`, and none as the mode's last path) the lanes
+resolve as below.
+
+**The status item** names the active project's Agda, with how it was
+decided in its tooltip, and shows the resolution (`--explain`) when
+clicked.  When the launcher decides nothing, it shows the launcher's line,
+the companion restarts nothing and runs no other Agda, and a click opens
+the chooser.
+
+**Choose the Project's Agda** offers the launcher's candidates
+(`--candidates`), remembered for the project and its worktrees with
+`--choose`; forgetting the choice; the mode's own Switch Agda Version; and,
+for a project with no flake, **Write a Starter flake.nix**, which shows a
+flake pinning nixpkgs' Agda 2.8.0 and the libraries its `.agda-lib` depends
+on, and writes it only when you confirm.  Choosing a dev shell is consent
+to run that project's shell hook as you.
+
+**What was tested**.  The extension-host suite runs a workspace of three
+projects (the shell's Agda 2.9.0, nixpkgs' 2.8.0, and one the launcher
+decides nothing for) in both orders: the restarts, the Agda that checked
+each file, the lanes on both, the refusal, a choice and its removal, and an
+override of the version.  The chooser is driven there with an ID, as its
+quick pick passes one; the quick pick itself, the mode's Switch Agda
+Version entry, the offer to set the mode's paths, and writing the starter
+flake (whose text is unit-tested) were not driven in a test.
+
 ## The native lanes
 
 The commands below answer from the native engine, in the panel's
@@ -119,8 +185,9 @@ edit, a failed load), so a warm question costs a few milliseconds.  After a
 give whose edit the editor took and saved, the file is Agda's text again
 and is not loaded again.
 
-**Which Agda they run**.  The first of the following that names an
-executable is the lanes' Agda:
+**Which Agda they run**.  With agda-for-project, the project's own (above).
+Without it, the first of the following that names an executable is the
+lanes' Agda:
 
 1.  `agdaWorkbench.agda.path`, with `agdaWorkbench.agda.commandLineOptions`,
     when the path is set (nothing else is then tried);
@@ -131,8 +198,9 @@ executable is the lanes' Agda:
 3.  `agda` on the extension host's PATH, with the mode's options.
 
 It is then asked `--numeric-version`, with its options, and refused unless
-it answers `agdaWorkbench.agda.version` (2.9.0 by default): a refusal in
-the panel names the setting to change.  The options are passed on the
+it answers `agdaWorkbench.agda.version`, when that is set, else 2.9.0 (or,
+for `agdaWorkbench.agda.path`, either version the lanes speak): a refusal
+in the panel names the setting to change.  The options are passed on the
 process's command line, as the mode passes them to its own Agda, so
 without a setting of its own the companion runs the mode's Agda with the
 mode's options, and the two read and write the same `_build/` interfaces.
@@ -303,3 +371,6 @@ No upstream code is copied.
 [webviews]: https://code.visualstudio.com/api/extension-guides/webview
 [paperproof-host]: https://github.com/Paper-Proof/paperproof/blob/05c68e9cb8e881f9e971abb94efd231a269e0229/extension/src/actions/toggleWebviewPanel/index.ts
 [paperproof-version]: https://github.com/Paper-Proof/paperproof/blob/05c68e9cb8e881f9e971abb94efd231a269e0229/extension/src/services/getLeanClient.ts
+[#97]: https://github.com/formalverification/agda-native-ide/issues/97
+[#99]: https://github.com/formalverification/agda-native-ide/issues/99
+[adr-0004]: ../docs/adr/0004-each-projects-own-agda.md
