@@ -54,7 +54,7 @@ import { readFile, writeFile, stat } from 'node:fs/promises';
 import * as vscode from 'vscode';
 import { findProjectRoot, locateExecutable } from '@agda-native-ide/engine/native';
 import {
-  affectsResolution, candidates, choose, decidedHow, explain, launcherName, libraryDepends, listProcesses, modeAgda, modeLauncher,
+  affectsResolution, candidateTitle, candidates, choose, decidedHow, explain, launcherName, libraryDepends, listProcesses, modeAgda, modeLauncher,
   resolutionDir, runKey, runLauncher, starterFlake, transient, type Explained, type Process,
 } from './project';
 
@@ -458,7 +458,7 @@ export class Steering implements vscode.Disposable {
       const answer = this.followed?.answer;
       type Item = vscode.QuickPickItem & { action: string };
       const items: Item[] = offered.map(candidate => ({
-        label: `${candidate.chosen ? '$(check) ' : ''}${candidate.kind === 'devshell' ? 'Dev shell' : `Agda ${candidate.version ?? '?'}`}`,
+        label: `${candidate.chosen ? '$(check) ' : ''}${candidateTitle(candidate)}`,
         description: candidate.id,
         detail: candidate.label,
         action: `choose ${candidate.id}`,
@@ -469,7 +469,7 @@ export class Steering implements vscode.Disposable {
       if (answer && !answer.flake) items.push({ label: '$(new-file) Write a starter flake.nix…', detail: 'Shown first; written into the project only if you confirm.', action: 'flake' });
       const pick = await vscode.window.showQuickPick(items, {
         title: `The Agda of ${answer?.project.root ?? dirname(file)}`,
-        placeHolder: 'Choosing a dev shell is consent to run the project\'s shell hook as you.',
+        placeHolder: 'Trusting the project, or choosing one of its Agdas, is consent to run its flake\'s code as you.',
         matchOnDescription: true, matchOnDetail: true,
       });
       if (!pick) return undefined;
