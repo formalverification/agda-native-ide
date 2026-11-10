@@ -72,12 +72,15 @@ exclude_docs: |
   !/adr/0001-runtime.md
   !/adr/0002-where-the-workbench-lives.md
   !/adr/0003-the-shared-core.md
+  !/adr/0004-each-projects-own-agda.md
   !/notes/
   !/notes/runtime.md
   !/notes/library-archives.md
   !/notes/explorer.md
   !/notes/platform-brief-2026-10-05.md
   !/notes/browser-ide-proposal.md
+  !/notes/project-agda.md
+  !/notes/emacs.md
   !/engine/
   !/engine/overview.md
   !/provenance.md
@@ -201,6 +204,9 @@ nav:
       - The platform brief: notes/platform-brief-2026-10-05.md
       - "ADR 0003: the shared core": adr/0003-the-shared-core.md
       - The shared core, explained: engine/overview.md
+      - "ADR 0004: each project's own Agda": adr/0004-each-projects-own-agda.md
+      - How the resolver decides: notes/project-agda.md
+      - The Emacs package: notes/emacs.md
       - The proposal: notes/browser-ide-proposal.md
   - Project:
       - The plan: https://github.com/formalverification/agda-native-ide/blob/main/docs/GITHUB_PROJECT.md
