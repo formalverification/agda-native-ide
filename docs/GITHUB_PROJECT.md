@@ -2203,7 +2203,7 @@ Emacs displays an SVG as one image with clickable hot-spots (the image `:map` pr
 
 <!-- BEGIN GENERATED: milestone-9 -->
 
-### Issue M9-1: The resolver: a file's project, its flake, and the Agda and libraries that flake names (#97)
+### Issue M9-1: The resolver: a file's project, its flake, and the Agda and libraries that flake names (#97, closed)
 
 **Labels:** `runtime`, `build`, `adr`, `core`, `milestone-9-project-agda`
 
@@ -2231,7 +2231,7 @@ The interface above (the launcher's name, its exit status 69, and the three opti
 
 ---
 
-### Issue M9-2: Emacs: each buffer's project's Agda, through the resolver (#98)
+### Issue M9-2: Emacs: each buffer's project's Agda, through the resolver (#98, closed)
 
 **Labels:** `emacs`, `milestone-9-project-agda`
 
@@ -2251,7 +2251,7 @@ agda2-mode runs one Agda for every buffer, the one `agda2-program-name` names, a
 
 ---
 
-### Issue M9-3: VS Code: each project's Agda, for agda-mode-vscode and the companion's lanes (#99)
+### Issue M9-3: VS Code: each project's Agda, for agda-mode-vscode and the companion's lanes (#99, closed)
 
 **Labels:** `vscode`, `milestone-9-project-agda`
 
