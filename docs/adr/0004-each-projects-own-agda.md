@@ -4,10 +4,12 @@
 
 File: `agda-native-ide/docs/adr/0004-each-projects-own-agda.md`
 
-+  **Status**: Proposed with [#97].  The decisions are this record's, taken
-   while building the resolver on 2026-11-07; each is built and tested
-   here, and measured on three real projects.  The two editors' use of it
-   is [#98]'s and [#99]'s, and each section's status says what they owe.
++  **Status**: Accepted with [#97] (PR [#101], merged on 2026-11-09).  The
+   decisions are this record's, taken while building the resolver on
+   2026-11-07; each is built and tested here, and measured on three real
+   projects.  The two editors' use of it is [#98]'s (PR [#104]) and
+   [#99]'s (PR [#102]), merged the same day; each section's status says
+   what they took from it.
 +  **Date**: 2026-11-07.
 +  **Tracking**: [#97] (this record, and the launcher); [#98] (Emacs);
    [#99] (VS Code, the mode and the companion's lanes); [#96] (the website's
@@ -50,9 +52,10 @@ decides how every host gets each project's own Agda instead: one program,
    (Agda 2.8.0, two locks), agda-algebras (Agda 2.9.0) and agda-lattices
    (a dev shell's wrapper): each file checks through it, where one Agda for
    all of them fails two ways.
-+  **Where it goes**: Emacs ([#98]) and VS Code ([#99]) name it and build
-   their choosers on its answers; agda-native-air's registrations can name
-   it in place of `agda-for-flake.sh`, whose interface it keeps.
++  **Where it goes**: Emacs ([#98]) and VS Code ([#99]) name it, since
+   2026-11-09, and build their choosers on its answers; agda-native-air's
+   registrations can name it in place of `agda-for-flake.sh`, whose
+   interface it keeps.
 
 ### Terms
 
@@ -168,8 +171,9 @@ checks ([the record of 2026-11-09][record-11-09], `nestedLibrary`).  So
 the nested flake's Agda would read the outer `.agda-lib` too.
 
 **Status**.  Adopted (2026-11-07, [#97]); the stop at `.git` for the
-library search declined on 2026-11-09.  [#99] decides whether the VS Code
-mode needs `AGDA_FOR_PROJECT_DIR`.
+library search declined on 2026-11-09.  The VS Code mode needs
+`AGDA_FOR_PROJECT_DIR`, [#99] found: the companion sets it to the active
+file's project ([ADR 0003][adr-0003] § 17).
 
 ---
 
@@ -666,7 +670,8 @@ to these fields is announced on [#98] and [#99].
 
 ## References
 
-+  Issues: [#96], [#97], [#98], [#99]; pull requests [#101] and [#105];
++  Issues: [#96], [#97], [#98], [#99]; pull requests [#101], [#102],
+   [#104] and [#105];
    agda-native-air [#344][agda-native-air#344].
 +  Documents: [the companion note][note]; [ADR 0003][adr-0003] § 13; [the
    record][record] of 2026-11-07 and [that of 2026-11-09][record-11-09].
@@ -680,6 +685,8 @@ to these fields is announced on [#98] and [#99].
 [#98]: https://github.com/formalverification/agda-native-ide/issues/98
 [#99]: https://github.com/formalverification/agda-native-ide/issues/99
 [#101]: https://github.com/formalverification/agda-native-ide/pull/101
+[#102]: https://github.com/formalverification/agda-native-ide/pull/102
+[#104]: https://github.com/formalverification/agda-native-ide/pull/104
 [#105]: https://github.com/formalverification/agda-native-ide/pull/105
 [agda-native-air#344]: https://github.com/formalverification/agda-native-air/pull/344
 [note]: ../notes/project-agda.md
