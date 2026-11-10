@@ -1,0 +1,872 @@
+{
+  "issue": 99,
+  "what": "Each project's own Agda in VS Code: what decides agda-mode-vscode's Agda, the engine against Agda 2.8.0, the multi-root suite, and the desktop run",
+  "date": "2026-11-08",
+  "machine": "alonzo linux 7.0.0-42-generic 12th Gen Intel(R) Core(TM) i9-12900H",
+  "mode": {
+    "extension": "banacorn.agda-mode 0.10.4",
+    "source": "https://github.com/banacorn/agda-mode-vscode/tree/535b3eb8f09132edbad87017562e6cb7aab99a7c"
+  },
+  "vscode": "1.141.0",
+  "modeFindings": {
+    "driver": "make vscode-mode-findings (vscode/scripts/mode-findings.mjs, vscode/src/test/mode-findings.ts)",
+    "record": {
+      "host": {
+        "vscode": "1.141.0",
+        "mode": "0.10.4",
+        "pid": 3514256,
+        "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+        "folders": [
+          "/tmp/nix-shell.FwoGRD/mode-findings-q7VAJd/workspace/alpha",
+          "/tmp/nix-shell.FwoGRD/mode-findings-q7VAJd/workspace/beta"
+        ]
+      },
+      "spawn": {
+        "ms": 261,
+        "calls": [
+          {
+            "at": 209,
+            "pid": 3514545,
+            "ppid": 3514544,
+            "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+            "mark": "set-after-activation",
+            "wrapper": "w",
+            "args": "--version"
+          },
+          {
+            "at": 227,
+            "pid": 3514555,
+            "ppid": 3514554,
+            "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+            "mark": "set-after-activation",
+            "wrapper": "w",
+            "args": "--interaction"
+          }
+        ],
+        "alphaBuilt": true
+      },
+      "oneConnection": {
+        "ms": 33,
+        "calls": [],
+        "betaBuilt": true
+      },
+      "folderSetting": {
+        "forTheFolder": [
+          "/tmp/nix-shell.FwoGRD/mode-findings-q7VAJd/bin/wb/agda"
+        ],
+        "forTheWindow": [
+          "/tmp/nix-shell.FwoGRD/mode-findings-q7VAJd/bin/w/agda"
+        ],
+        "ranAfterRestart": [
+          "w"
+        ]
+      },
+      "restart": {
+        "ms": 60,
+        "calls": [
+          {
+            "at": 16,
+            "pid": 3514565,
+            "ppid": 3514564,
+            "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+            "mark": "set-before-restart",
+            "wrapper": "w",
+            "args": "--version"
+          },
+          {
+            "at": 32,
+            "pid": 3514573,
+            "ppid": 3514572,
+            "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+            "mark": "set-before-restart",
+            "wrapper": "w",
+            "args": "--interaction"
+          }
+        ],
+        "oldPid": 3514555,
+        "oldPidAlive": false,
+        "betaLoadedAgain": true
+      },
+      "probe": {
+        "silent": {
+          "ms": 3098,
+          "calls": [
+            {
+              "at": 16,
+              "pid": 3514592,
+              "ppid": 3514591,
+              "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+              "mark": "set-before-restart",
+              "wrapper": "w",
+              "args": "--version"
+            },
+            {
+              "at": 3031,
+              "pid": 3514611,
+              "ppid": 3514610,
+              "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+              "mark": "set-before-restart",
+              "wrapper": "fallback",
+              "args": "--version"
+            },
+            {
+              "at": 3058,
+              "pid": 3514619,
+              "ppid": 3514618,
+              "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+              "mark": "set-before-restart",
+              "wrapper": "fallback",
+              "args": "--interaction"
+            }
+          ],
+          "betaBuilt": true,
+          "interaction": [
+            "fallback"
+          ]
+        },
+        "noisy": {
+          "ms": 8060,
+          "calls": [
+            {
+              "at": 12,
+              "pid": 3514629,
+              "ppid": 3514628,
+              "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+              "mark": "set-before-restart",
+              "wrapper": "w",
+              "args": "--version"
+            },
+            {
+              "at": 8031,
+              "pid": 3515292,
+              "ppid": 3515291,
+              "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+              "mark": "set-before-restart",
+              "wrapper": "w",
+              "args": "--interaction"
+            }
+          ],
+          "betaBuilt": true,
+          "interaction": [
+            "w"
+          ]
+        },
+        "stdoutAroundVersion": {
+          "ms": 61,
+          "calls": [
+            {
+              "at": 13,
+              "pid": 3515301,
+              "ppid": 3515300,
+              "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+              "mark": "set-before-restart",
+              "wrapper": "w",
+              "args": "--version"
+            },
+            {
+              "at": 30,
+              "pid": 3515309,
+              "ppid": 3515308,
+              "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+              "mark": "set-before-restart",
+              "wrapper": "w",
+              "args": "--interaction"
+            }
+          ],
+          "betaBuilt": true,
+          "interaction": [
+            "w"
+          ]
+        },
+        "stderrAtStart": {
+          "ms": 1064,
+          "calls": [
+            {
+              "at": 12,
+              "pid": 3515318,
+              "ppid": 3515317,
+              "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+              "mark": "set-before-restart",
+              "wrapper": "w",
+              "args": "--version"
+            },
+            {
+              "at": 29,
+              "pid": 3515326,
+              "ppid": 3515325,
+              "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+              "mark": "set-before-restart",
+              "wrapper": "w",
+              "args": "--interaction"
+            }
+          ],
+          "betaBuilt": true,
+          "interaction": [
+            "w"
+          ]
+        },
+        "refuse": {
+          "ms": 73,
+          "calls": [
+            {
+              "at": 15,
+              "pid": 3515344,
+              "ppid": 3515343,
+              "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+              "mark": "set-before-restart",
+              "wrapper": "w",
+              "args": "--version"
+            },
+            {
+              "at": 27,
+              "pid": 3515348,
+              "ppid": 3515347,
+              "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+              "mark": "set-before-restart",
+              "wrapper": "fallback",
+              "args": "--version"
+            },
+            {
+              "at": 42,
+              "pid": 3515356,
+              "ppid": 3515355,
+              "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+              "mark": "set-before-restart",
+              "wrapper": "fallback",
+              "args": "--interaction"
+            }
+          ],
+          "betaBuilt": true,
+          "interaction": [
+            "fallback"
+          ]
+        }
+      },
+      "refuseAlone": {
+        "ms": 31,
+        "calls": [
+          {
+            "at": 18,
+            "pid": 3515367,
+            "ppid": 3515366,
+            "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+            "mark": "set-before-restart",
+            "wrapper": "w",
+            "args": "--version"
+          }
+        ],
+        "betaBuilt": false,
+        "interaction": []
+      },
+      "switchVersion": {
+        "picked": {
+          "ms": 2102,
+          "calls": [
+            {
+              "at": 18,
+              "pid": 3515506,
+              "ppid": 3515505,
+              "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+              "mark": "set-before-restart",
+              "wrapper": "fallback",
+              "args": "--version"
+            },
+            {
+              "at": 33,
+              "pid": 3515515,
+              "ppid": 3515514,
+              "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+              "mark": "set-before-restart",
+              "wrapper": "fallback",
+              "args": "--interaction"
+            }
+          ]
+        },
+        "after": {
+          "ms": 71,
+          "calls": [
+            {
+              "at": 12,
+              "pid": 3515554,
+              "ppid": 3515553,
+              "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+              "mark": "set-before-restart",
+              "wrapper": "fallback",
+              "args": "--version"
+            },
+            {
+              "at": 28,
+              "pid": 3515562,
+              "ppid": 3515561,
+              "cwd": "/home/williamdemeo/git/formalverification/agda-native-ide/worktrees/99-m9-3-vs-code",
+              "mark": "set-before-restart",
+              "wrapper": "fallback",
+              "args": "--interaction"
+            }
+          ]
+        },
+        "pathsAfter": [
+          "/tmp/nix-shell.FwoGRD/mode-findings-q7VAJd/bin/fallback/agda",
+          "/tmp/nix-shell.FwoGRD/mode-findings-q7VAJd/bin/w/agda"
+        ],
+        "ranAfter": [
+          "fallback"
+        ],
+        "userSettings": [
+          "/tmp/nix-shell.FwoGRD/mode-findings-q7VAJd/bin/fallback/agda",
+          "/tmp/nix-shell.FwoGRD/mode-findings-q7VAJd/bin/w/agda"
+        ],
+        "workspaceFileSettingsUnchanged": true,
+        "betaFolderSettingsUnchanged": true
+      },
+      "run": {
+        "date": "2026-11-09T01:58:11.836Z",
+        "machine": "alonzo linux 7.0.0-42-generic 12th Gen Intel(R) Core(TM) i9-12900H",
+        "vscode": "1.141.0",
+        "mode": "0.10.4",
+        "agda": "2.9.0",
+        "temporary": "/tmp/nix-shell.FwoGRD/mode-findings-q7VAJd"
+      }
+    }
+  },
+  "conformance": {
+    "driver": "make conformance-native and make conformance-native-other (AGDA_VERSION=2.8.0)",
+    "native-2.9.0": {
+      "date": "2026-11-09T01:32:27.622Z",
+      "agdaVersion": "2.9.0",
+      "agda": {
+        "executable": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+        "version": "Agda version 2.9.0\nBuilt with flags (cabal -f)\n - enable-cluster-counting: unicode cluster counting in LaTeX backend using the ICU library\n - optimise-heavily: extra optimisations"
+      },
+      "passed": 13,
+      "failed": 0,
+      "scenarios": [
+        {
+          "name": "a session names its engine, its Agda and its lanes",
+          "ok": true,
+          "elapsedMs": 23
+        },
+        {
+          "name": "a load with open goals answers them, and is not a verdict",
+          "ok": true,
+          "elapsedMs": 42
+        },
+        {
+          "name": "Agda's goal type and context",
+          "ok": true,
+          "elapsedMs": 43
+        },
+        {
+          "name": "a valid give edits the goal and keeps the loaded basis",
+          "ok": true,
+          "elapsedMs": 37
+        },
+        {
+          "name": "a rejected term is Agda's answer, and leaves the goal open",
+          "ok": true,
+          "elapsedMs": 39
+        },
+        {
+          "name": "an edit inside one goal is a give; any other edit is a reload, which retires the old goals",
+          "ok": true,
+          "elapsedMs": 62
+        },
+        {
+          "name": "a module switch cannot reuse the previous module's goals",
+          "ok": true,
+          "elapsedMs": 49
+        },
+        {
+          "name": "a case split rewrites the clause, which a check then loads; a refine opens a goal",
+          "ok": true,
+          "elapsedMs": 50
+        },
+        {
+          "name": "positions in Unicode text, and terms outside ASCII",
+          "ok": true,
+          "elapsedMs": 35
+        },
+        {
+          "name": "positions in a text whose line ends are CR LF, which Agda reads as LF",
+          "ok": true,
+          "elapsedMs": 26
+        },
+        {
+          "name": "a literate module: goals in its code, none in its prose",
+          "ok": true,
+          "elapsedMs": 37
+        },
+        {
+          "name": "a verdict is a fresh Agda's exit code where the engine has a batch lane, and is refused where it has none",
+          "ok": true,
+          "elapsedMs": 143
+        },
+        {
+          "name": "an abort with nothing running is nothing",
+          "ok": true,
+          "elapsedMs": 9
+        }
+      ],
+      "lifecycle": {
+        "passed": 12,
+        "of": 12
+      }
+    },
+    "native-2.8.0-as-written-for-2.9.0": {
+      "date": "2026-11-09T01:30:53.720Z",
+      "agdaVersion": "2.8.0",
+      "agda": {
+        "executable": "/nix/store/2g2a7vwl59b8zp4049h3av3zw2dk0gf1-agdaWithPackages-2.8.0/bin/agda",
+        "version": "Agda version 2.8.0\nBuilt with flags (cabal -f)\n - optimise-heavily: extra optimisations\n - debug: enable debug printing ('-v' verbosity flags)"
+      },
+      "passed": 11,
+      "failed": 2,
+      "scenarios": [
+        {
+          "name": "a session names its engine, its Agda and its lanes",
+          "ok": true,
+          "elapsedMs": 39
+        },
+        {
+          "name": "a load with open goals answers them, and is not a verdict",
+          "ok": true,
+          "elapsedMs": 184
+        },
+        {
+          "name": "Agda's goal type and context",
+          "ok": true,
+          "elapsedMs": 49
+        },
+        {
+          "name": "a valid give edits the goal and keeps the loaded basis",
+          "ok": true,
+          "elapsedMs": 48
+        },
+        {
+          "name": "a rejected term is Agda's answer, and leaves the goal open",
+          "ok": false,
+          "error": "with its error: 1.1-5: error: [UnequalTerms]\nNat !=< A\nwhen checking that the expression zero has type A",
+          "elapsedMs": 42
+        },
+        {
+          "name": "an edit inside one goal is a give; any other edit is a reload, which retires the old goals",
+          "ok": true,
+          "elapsedMs": 62
+        },
+        {
+          "name": "a module switch cannot reuse the previous module's goals",
+          "ok": true,
+          "elapsedMs": 50
+        },
+        {
+          "name": "a case split rewrites the clause, which a check then loads; a refine opens a goal",
+          "ok": true,
+          "elapsedMs": 53
+        },
+        {
+          "name": "positions in Unicode text, and terms outside ASCII",
+          "ok": true,
+          "elapsedMs": 32
+        },
+        {
+          "name": "positions in a text whose line ends are CR LF, which Agda reads as LF",
+          "ok": true,
+          "elapsedMs": 32
+        },
+        {
+          "name": "a literate module: goals in its code, none in its prose",
+          "ok": true,
+          "elapsedMs": 38
+        },
+        {
+          "name": "a verdict is a fresh Agda's exit code where the engine has a batch lane, and is refused where it has none",
+          "ok": false,
+          "error": "the error and where: expected [\"UnequalTypes\",7,14], got [\"UnequalTerms\",7,14]",
+          "elapsedMs": 152
+        },
+        {
+          "name": "an abort with nothing running is nothing",
+          "ok": true,
+          "elapsedMs": 10
+        }
+      ],
+      "lifecycle": {
+        "passed": 12,
+        "of": 12
+      }
+    },
+    "native-2.8.0": {
+      "date": "2026-11-09T01:32:33.191Z",
+      "agdaVersion": "2.8.0",
+      "agda": {
+        "executable": "/nix/store/2g2a7vwl59b8zp4049h3av3zw2dk0gf1-agdaWithPackages-2.8.0/bin/agda",
+        "version": "Agda version 2.8.0\nBuilt with flags (cabal -f)\n - optimise-heavily: extra optimisations\n - debug: enable debug printing ('-v' verbosity flags)"
+      },
+      "passed": 13,
+      "failed": 0,
+      "scenarios": [
+        {
+          "name": "a session names its engine, its Agda and its lanes",
+          "ok": true,
+          "elapsedMs": 24
+        },
+        {
+          "name": "a load with open goals answers them, and is not a verdict",
+          "ok": true,
+          "elapsedMs": 44
+        },
+        {
+          "name": "Agda's goal type and context",
+          "ok": true,
+          "elapsedMs": 48
+        },
+        {
+          "name": "a valid give edits the goal and keeps the loaded basis",
+          "ok": true,
+          "elapsedMs": 44
+        },
+        {
+          "name": "a rejected term is Agda's answer, and leaves the goal open",
+          "ok": true,
+          "elapsedMs": 42
+        },
+        {
+          "name": "an edit inside one goal is a give; any other edit is a reload, which retires the old goals",
+          "ok": true,
+          "elapsedMs": 61
+        },
+        {
+          "name": "a module switch cannot reuse the previous module's goals",
+          "ok": true,
+          "elapsedMs": 52
+        },
+        {
+          "name": "a case split rewrites the clause, which a check then loads; a refine opens a goal",
+          "ok": true,
+          "elapsedMs": 54
+        },
+        {
+          "name": "positions in Unicode text, and terms outside ASCII",
+          "ok": true,
+          "elapsedMs": 37
+        },
+        {
+          "name": "positions in a text whose line ends are CR LF, which Agda reads as LF",
+          "ok": true,
+          "elapsedMs": 35
+        },
+        {
+          "name": "a literate module: goals in its code, none in its prose",
+          "ok": true,
+          "elapsedMs": 38
+        },
+        {
+          "name": "a verdict is a fresh Agda's exit code where the engine has a batch lane, and is refused where it has none",
+          "ok": true,
+          "elapsedMs": 152
+        },
+        {
+          "name": "an abort with nothing running is nothing",
+          "ok": true,
+          "elapsedMs": 12
+        }
+      ],
+      "lifecycle": {
+        "passed": 12,
+        "of": 12
+      }
+    }
+  },
+  "projects": {
+    "driver": "make vscode-test (vscode/src/test/projects.ts), here with COMPANION_TESTS=no-reload; the hidden reload failed as on the base",
+    "alpha-beta": {
+      "order": [
+        "alpha",
+        "beta"
+      ],
+      "agdas": {
+        "alpha": {
+          "path": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+          "version": "2.9.0"
+        },
+        "beta": {
+          "path": "/nix/store/2g2a7vwl59b8zp4049h3av3zw2dk0gf1-agdaWithPackages-2.8.0/bin/agda",
+          "version": "2.8.0"
+        }
+      },
+      "refusals": {
+        "gammaStatus": "$(warning) Agda: none",
+        "gammaTooltip": "no flake.nix at or above /tmp/nix-shell.JWQnxI/agda-companion-Ssw50j/projects-alpha-beta/workspace/gamma, and no Agda chosen for it; see --candidates, then --choose",
+        "versionOverride": "refused"
+      },
+      "steps": [
+        {
+          "name": "alpha",
+          "version": "2.9.0",
+          "status": "$(versions) Agda 2.9.0",
+          "restarted": 0,
+          "loadMs": 355,
+          "mode": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+          "verdict": {
+            "exitCode": 42,
+            "agdaMs": 30
+          },
+          "goal": {
+            "type": "N",
+            "load": "first",
+            "commandMs": 26
+          }
+        },
+        {
+          "name": "beta",
+          "version": "2.8.0",
+          "status": "$(versions) Agda 2.8.0",
+          "restarted": 1,
+          "loadMs": 23,
+          "mode": "/nix/store/3rlxq1awg6l02r7lsyfm5vz9gmyr6260-Agda-2.8.0-bin/bin/agda",
+          "verdict": {
+            "exitCode": 42,
+            "agdaMs": 32
+          },
+          "goal": {
+            "type": "N",
+            "load": "first",
+            "commandMs": 26
+          }
+        },
+        {
+          "name": "alpha",
+          "again": true,
+          "restarted": 1,
+          "sameProjectRestarts": 0
+        }
+      ],
+      "restarts": 4,
+      "modeBundleSha256": "22b4fbc5c8c7e537c2af4566c08e126b6fc5305c68aeedc9a0299995d9decef7"
+    },
+    "beta-alpha": {
+      "order": [
+        "beta",
+        "alpha"
+      ],
+      "agdas": {
+        "alpha": {
+          "path": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+          "version": "2.9.0"
+        },
+        "beta": {
+          "path": "/nix/store/2g2a7vwl59b8zp4049h3av3zw2dk0gf1-agdaWithPackages-2.8.0/bin/agda",
+          "version": "2.8.0"
+        }
+      },
+      "refusals": {
+        "gammaStatus": "$(warning) Agda: none",
+        "gammaTooltip": "no flake.nix at or above /tmp/nix-shell.JWQnxI/agda-companion-Ssw50j/projects-beta-alpha/workspace/gamma, and no Agda chosen for it; see --candidates, then --choose",
+        "versionOverride": "refused"
+      },
+      "steps": [
+        {
+          "name": "beta",
+          "version": "2.8.0",
+          "status": "$(versions) Agda 2.8.0",
+          "restarted": 0,
+          "loadMs": 457,
+          "mode": "/nix/store/3rlxq1awg6l02r7lsyfm5vz9gmyr6260-Agda-2.8.0-bin/bin/agda",
+          "verdict": {
+            "exitCode": 42,
+            "agdaMs": 49
+          },
+          "goal": {
+            "type": "N",
+            "load": "first",
+            "commandMs": 41
+          }
+        },
+        {
+          "name": "alpha",
+          "version": "2.9.0",
+          "status": "$(versions) Agda 2.9.0",
+          "restarted": 1,
+          "loadMs": 23,
+          "mode": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+          "verdict": {
+            "exitCode": 42,
+            "agdaMs": 37
+          },
+          "goal": {
+            "type": "N",
+            "load": "first",
+            "commandMs": 26
+          }
+        },
+        {
+          "name": "beta",
+          "again": true,
+          "restarted": 1,
+          "sameProjectRestarts": 0
+        }
+      ],
+      "restarts": 4,
+      "modeBundleSha256": "22b4fbc5c8c7e537c2af4566c08e126b6fc5305c68aeedc9a0299995d9decef7"
+    },
+    "ownPick": {
+      "date": "2026-11-08",
+      "machine": "alonzo",
+      "why": "Copilot review of PR 102: the mode's own Switch Agda Version pick overrides its paths",
+      "driver": "COMPANION_TESTS=projects make vscode-test (the case at the end of vscode/src/test/projects.ts)",
+      "alpha-beta": {
+        "status": "$(warning) Agda 2.9.0",
+        "tooltip": [
+          "Agda mode runs Agda 2.8.0, /nix/store/3rlxq1awg6l02r7lsyfm5vz9gmyr6260-Agda-2.8.0-bin/bin/agda --with-compiler=/nix/store/p0rwqwcnqwq27xxmzgd07kczn1fzgaph-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/qb49d9siypnvys8s4v4qn4kzcwlsa91b-libraries --interaction (pid 3798704)",
+          "Agda mode runs an Agda of its own (a Switch Agda Version pick, which overrides agdaMode.connection.paths), so it is not steered; the native lanes run the project's.  Choose an Agda to steer it again."
+        ],
+        "steerAgainRestarts": 1
+      },
+      "beta-alpha": {
+        "status": "$(warning) Agda 2.9.0",
+        "tooltip": [
+          "Agda mode runs Agda 2.8.0, /nix/store/3rlxq1awg6l02r7lsyfm5vz9gmyr6260-Agda-2.8.0-bin/bin/agda --with-compiler=/nix/store/p0rwqwcnqwq27xxmzgd07kczn1fzgaph-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/qb49d9siypnvys8s4v4qn4kzcwlsa91b-libraries --interaction (pid 3803319)",
+          "Agda mode runs an Agda of its own (a Switch Agda Version pick, which overrides agdaMode.connection.paths), so it is not steered; the native lanes run the project's.  Choose an Agda to steer it again."
+        ],
+        "steerAgainRestarts": 1
+      },
+      "mutations": {
+        "no-flag-on-mode-pick": "fails: the mode's own pick stops the steering",
+        "no-check-after-restart": "fails: the pick still stands, so the steering stops again"
+      }
+    },
+    "secondReview": {
+      "date": "2026-11-09",
+      "machine": "alonzo",
+      "why": "Copilot Balanced review of PR 102 on d6588f8",
+      "driver": "COMPANION_TESTS=no-reload make vscode-test; the cases near the end of vscode/src/test/projects.ts",
+      "alpha-beta": {
+        "lanesTakeModeOptions": {
+          "withOption": 0,
+          "without": 42
+        },
+        "skippedRestartRetried": true
+      },
+      "beta-alpha": {
+        "lanesTakeModeOptions": {
+          "withOption": 0,
+          "without": 42
+        },
+        "skippedRestartRetried": true
+      },
+      "mutations": {
+        "shortcut-ignores-key": "fails: the skipped restart is tried again",
+        "lanes-drop-options": "fails: the mode's options reach the lanes (exit 42)",
+        "key-ignores-version": "fails: the registry test replaces a lane whose Agda answers another version at the same path"
+      }
+    },
+    "thirdReview": {
+      "date": "2026-11-09",
+      "machine": "alonzo",
+      "why": "Copilot Balanced review of PR 102 on b0d4d87",
+      "driver": "COMPANION_TESTS=no-reload make vscode-test; the slow-launcher (5 s before --explain), folder-option and own-pick cases in vscode/src/test/projects.ts",
+      "alpha-beta": {
+        "gatedLoadMs": 5292,
+        "supersededMs": 24
+      },
+      "beta-alpha": {
+        "gatedLoadMs": 5280,
+        "supersededMs": 37
+      },
+      "earlierRun": {
+        "alpha-beta": {
+          "gatedLoadMs": 5280,
+          "supersededMs": 31
+        },
+        "beta-alpha": {
+          "gatedLoadMs": 5282,
+          "supersededMs": 36
+        }
+      },
+      "mutations": {
+        "no-supersede": "fails: beta was followed in 5066 ms, not after gamma's 5 s build",
+        "no-gate": "fails: the load waited for the restart",
+        "scoped-mode-settings": "fails: a folder's options are not the mode's",
+        "variable-cleared-when-not-steering": "fails: the variable follows the project while the mode runs its own pick",
+        "probe-key-without-realpath": "fails: the resolve test of a re-pointed path"
+      }
+    }
+  },
+  "desktop": {
+    "driver": "make vscode-desktop-run (vscode/scripts/desktop-run.mjs, vscode/src/test/desktop.ts)",
+    "run": {
+      "date": "2026-11-09T01:51:29.163Z",
+      "machine": "alonzo linux 7.0.0-42-generic 12th Gen Intel(R) Core(TM) i9-12900H",
+      "wallMs": 23307,
+      "launcher": "/nix/store/61bk2l7if3xzmq2ipvk5rclipy5cv11c-agda-for-project/bin/agda-for-project",
+      "checkouts": {
+        "agda-algebras": "4be28476e4c90970db5fffceb6a35c6e16a9d0c5 2026-11-06",
+        "formal-ledger-specifications": "ec066122d49631e9846a0218100901aedd2c5cce 2026-11-06"
+      }
+    },
+    "steps": [
+      {
+        "project": "agda-algebras",
+        "file": "src/Overture/Basic.lagda.md",
+        "status": "$(versions) Agda 2.9.0",
+        "decidedBy": "discovered",
+        "method": "package",
+        "name": "default",
+        "program": "/home/williamdemeo/.cache/agda-for-project/package/default/a55879da0ade3153e6b92f3a4ace7d34/bin/agda",
+        "args": [],
+        "followedMs": 213,
+        "explainMs": 112,
+        "restarted": 0,
+        "loadMs": 768,
+        "modeAgda": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+        "modeVersion": "2.9.0",
+        "screenshot": "1-agda-algebras.png"
+      },
+      {
+        "project": "formal-ledger-specifications",
+        "file": "src/Interface/STS.lagda.md",
+        "status": "$(versions) Agda 2.8.0",
+        "decidedBy": "discovered",
+        "method": "package",
+        "name": "fls-agdaWithPackages",
+        "program": "/home/williamdemeo/.cache/agda-for-project/package/fls-agdaWithPackages/fd3559bd5396ead0b364387e32012ce6/bin/agda",
+        "args": [],
+        "followedMs": 8840,
+        "explainMs": 155,
+        "restarted": 1,
+        "restartMs": 8610,
+        "loadMs": 529,
+        "modeAgda": "/nix/store/infalgzvfzl515yfbiaz998skj9lrwnn-fls-agda-2.8.0/bin/agda",
+        "modeVersion": "2.8.0",
+        "screenshot": "2-formal-ledger-specifications.png"
+      },
+      {
+        "project": "agda-algebras",
+        "file": "src/Overture/Basic.lagda.md",
+        "status": "$(versions) Agda 2.9.0",
+        "decidedBy": "discovered",
+        "method": "package",
+        "name": "default",
+        "program": "/home/williamdemeo/.cache/agda-for-project/package/default/a55879da0ade3153e6b92f3a4ace7d34/bin/agda",
+        "args": [],
+        "followedMs": 627,
+        "explainMs": 0,
+        "restarted": 1,
+        "restartMs": 543,
+        "loadMs": 43,
+        "modeAgda": "/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda",
+        "modeVersion": "2.9.0",
+        "screenshot": "3-agda-algebras.png"
+      }
+    ],
+    "restarts": 2,
+    "settingsUnchanged": true,
+    "screenshots": "kept beside the repository, runs-2026-11-08-vscode/desktop/ on alonzo (not committed: no binaries in the repository)",
+    "flsBatchOfTheSameAgda": {
+      "command": "agda-for-project src/Interface/STS.lagda.md, in the fls checkout",
+      "elapsedS": 9.29,
+      "maxRssKB": 1212024,
+      "checkingLines": 0
+    }
+  }
+}

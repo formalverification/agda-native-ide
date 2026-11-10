@@ -33,6 +33,9 @@ jobs:
       - name: Run the engine's conformance suite against native Agda 2.9.0
         if: ${{ !cancelled() }}
         run: nix develop .#vscode --command make conformance-native CONFORMANCE=conformance
+      - name: Run the engine's conformance suite against nixpkgs' Agda 2.8.0
+        if: ${{ !cancelled() }}
+        run: nix develop .#vscode --command make conformance-native-other CONFORMANCE=conformance
       - uses: actions/upload-artifact@v6
         if: always()
         with:
@@ -43,5 +46,7 @@ jobs:
         if: always()
         with:
           name: conformance-native
-          path: conformance
+          path: |
+            conformance
+            conformance-2.8.0
           if-no-files-found: error

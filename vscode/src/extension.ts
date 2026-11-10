@@ -9,17 +9,21 @@
 // lanes run the Agda the project uses (./resolution.ts) and read the
 // module as it is saved: a command saves a dirty buffer first, as the
 // mode's own load does, and never sends a buffer, so every answer and
-// every verdict names the file on disk.
+// every verdict names the file on disk.  With agda-for-project configured,
+// the mode and the lanes run each project's own Agda (./steering.ts,
+// issue 99).
 
 import * as vscode from 'vscode';
 import { LaneRegistry, findProjectRoot, resolveAgda, type FileUse, type LaneConfig, type LaneEnded, type LoadReason } from '@agda-native-ide/engine/native';
-import type { Failure, Refusal } from '@agda-native-ide/engine';
+import { refusal, type Failure, type Refusal } from '@agda-native-ide/engine';
 import { createToolSurface, type ToolResult } from '@agda-native-ide/tools';
 import { describeResult, type GiveResult } from './answers';
 import { compatibility, Compatibility } from './compatibility';
 import { tokenReader } from './highlighting';
 import { panelHtml, panelOptions } from './panel';
-import { agdaCandidates } from './resolution';
+import { decidedHow, laneVersionRefusal, laneVersions } from './project';
+import { agdaCandidates, splitOptions } from './resolution';
+import { Steering } from './steering';
 import { Action, CommandReport, isAction, isLaneAction, LaneAction, laneActions, modeActions, PanelState, restoreState } from './state';
 
 const viewType = 'agdaWorkbench';
@@ -98,6 +102,8 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
   private verdictUri: string | null = null;
   private readonly verdictItem: vscode.StatusBarItem;
   private shuttingDown: Promise<void> | undefined;
+  /** The active project's Agda, for the mode and the lanes. */
+  readonly steering: Steering;
 
   constructor(private readonly context: vscode.ExtensionContext) {
     // Capture before editor events or a version warning can open a new panel.
@@ -111,6 +117,7 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
     this.verdictItem = vscode.window.createStatusBarItem('agdaWorkbench.verdict', vscode.StatusBarAlignment.Left, 100);
     this.verdictItem.name = 'Agda Workbench verdict';
     this.verdictItem.command = 'agdaWorkbench.open';
+    this.steering = new Steering(context);
     this.modeCompatibility = this.readCompatibility();
     this.track(vscode.window.activeTextEditor, false);
     context.subscriptions.push(
@@ -286,6 +293,11 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
       await mode.activate();
       const editor = await this.editor();
       const document = editor.document;
+      // A command given while the file's project's Agda is being prepared
+      // waits for it, so the mode does not answer it with the last
+      // project's Agda.  (The mode's own keys cannot be held back without
+      // changing the mode.)
+      if (document.uri.scheme === 'file') await this.steering.ready(document.uri.fsPath);
       const before = document.getText();
       const started = performance.now();
       let tokenCount: number | undefined;
@@ -319,23 +331,71 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
   }
 
   /** A lane's root and Agda, resolved again on every request, so a change
-   * of the settings takes effect at the next command. */
+   * of the settings takes effect at the next command, in the following
+   * order:
+   *
+   *   1.  agdaWorkbench.agda.path, when set, which wins (with
+   *       agdaWorkbench.agda.version, when set, as the version it must be);
+   *   2.  with agda-for-project configured, the project's own Agda as it
+   *       decides it: its program, arguments and environment, run directly,
+   *       never another when it decides none, at the version it answers (or
+   *       agdaWorkbench.agda.version, when set);
+   *   3.  otherwise the Agda the mode's settings name (./resolution.ts), at
+   *       agdaWorkbench.agda.version or 2.9.0.
+   *
+   * Every lane runs an Agda whose protocol the engine speaks
+   * (laneVersions); another is refused with the reason. */
   private async resolveLane(path: string): Promise<LaneConfig | Refusal | Failure> {
     const uri = vscode.Uri.file(path);
     const workbench = vscode.workspace.getConfiguration('agdaWorkbench', uri);
-    const mode = vscode.workspace.getConfiguration('agdaMode', uri);
+    // The mode reads its settings for the window, with no resource (the
+    // findings on issue 99), so a folder's value is not the mode's.
+    const mode = vscode.workspace.getConfiguration('agdaMode');
     const folder = vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath;
     const project = await findProjectRoot(path, folder);
+    const ownPath = workbench.get<string>('agda.path')?.trim();
+    const ownVersion = workbench.get<string>('agda.version')?.trim() || undefined;
+    if (ownVersion) {
+      const why = laneVersionRefusal(ownVersion, 'agdaWorkbench.agda.version');
+      if (why) return refusal('configuration', why);
+    }
+    const launcher = ownPath ? undefined : this.steering.launcher(uri);
+    if (launcher) {
+      let answer;
+      try {
+        answer = await this.steering.answerFor(path, project);
+      } catch (error) {
+        return refusal('configuration', error instanceof Error ? error.message : String(error));
+      }
+      if (!answer.decided || !answer.program || !answer.version)
+        return refusal('configuration', `agda-for-project decided no Agda for ${answer.project.root}, and no other is run: ${answer.error ?? 'no program'}`);
+      const from = `the project's Agda (${decidedHow(answer)})`;
+      if (ownVersion && ownVersion !== answer.version)
+        return refusal('configuration', `agdaWorkbench.agda.version is ${ownVersion}; ${from} is Agda ${answer.version}`);
+      const why = laneVersionRefusal(answer.version, from);
+      if (why) return refusal('configuration', why);
+      const env: Record<string, string | undefined> = { ...process.env, ...answer.env };
+      delete env.AGDA_FOR_PROJECT_DIR;
+      // The mode passes its options to the launcher, which runs them after
+      // the project's arguments; the lanes do the same.
+      const args = [...answer.args, ...splitOptions(mode.get('connection.commandLineOptions'))];
+      const resolved = await resolveAgda([{ source: `agda-for-project (${decidedHow(answer)})`, executable: answer.program, args, argsSource: 'agdaMode.connection.commandLineOptions' }], {
+        expectedVersion: answer.version, cache: this.probes, cwd: project.root, env,
+      });
+      if ('kind' in resolved) return resolved;
+      return { root: project.root, executable: resolved.executable, args: resolved.args, env, version: resolved.version };
+    }
     // Resolved in the root, where the lanes run, as their spawn would.
     const resolved = await resolveAgda(agdaCandidates({
-      workbenchPath: workbench.get('agda.path'), workbenchOptions: workbench.get('agda.commandLineOptions'),
+      workbenchPath: ownPath, workbenchOptions: workbench.get('agda.commandLineOptions'),
       modePaths: mode.get('connection.paths'), modeOptions: mode.get('connection.commandLineOptions'),
     }), {
-      expectedVersion: workbench.get<string>('agda.version') || '2.9.0',
-      versionSource: 'agdaWorkbench.agda.version', cache: this.probes, cwd: project.root,
+      expectedVersion: ownVersion ?? (ownPath ? laneVersions : '2.9.0'),
+      versionSource: ownVersion ? 'agdaWorkbench.agda.version' : ownPath ? 'the versions the native lanes speak' : 'the engine\'s version, as agdaWorkbench.agda.version is unset',
+      cache: this.probes, cwd: project.root,
     });
     if ('kind' in resolved) return resolved;
-    return { root: project.root, executable: resolved.executable, args: resolved.args };
+    return { root: project.root, executable: resolved.executable, args: resolved.args, version: resolved.version };
   }
 
   private laneEnded(ended: LaneEnded): void {
@@ -489,6 +549,7 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
 
   dispose(): void {
     void this.shutdown();
+    this.steering.dispose();
     this.verdictItem.dispose();
     this.panel?.dispose();
     this.clearPanelSubscriptions();
@@ -505,6 +566,9 @@ export function activate(context: vscode.ExtensionContext): { companion: Compani
     companion,
     vscode.window.registerWebviewPanelSerializer(viewType, companion),
     vscode.commands.registerCommand('agdaWorkbench.open', () => companion.open()),
+    vscode.commands.registerCommand('agdaWorkbench.chooseAgda', (id?: unknown) => companion.steering.chooseAgda(id)),
+    vscode.commands.registerCommand('agdaWorkbench.showResolution', () => companion.steering.showResolution()),
+    vscode.commands.registerCommand('agdaWorkbench.starterFlake', () => companion.steering.starterFlake()),
     ...modeActions.map(action => vscode.commands.registerCommand(`agdaWorkbench.${action}`, () => companion.execute(action))),
     ...laneActions.map(action => vscode.commands.registerCommand(`agdaWorkbench.${action}`,
       (argument?: unknown) => companion.executeLane(action, argument))),

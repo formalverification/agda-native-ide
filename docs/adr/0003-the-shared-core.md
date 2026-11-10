@@ -10,15 +10,19 @@ File: `agda-native-ide/docs/adr/0003-the-shared-core.md`
    they leave to later issues is named in each section's status.
    **Amended** by [#64] on 2026-10-12, which gives the native engine its
    batch lane and hosts it in the VS Code companion: §§ 2, 4 and 6 to 10
-   say what changed, §§ 11 to 16 record its decisions, and the log (§ 17)
-   amends decisions 3 and 13 and adds 17 to 27.
-+  **Date**: 2026-10-11; amended 2026-10-12.
+   say what changed, §§ 11 to 16 record its decisions, and the log (§ 18)
+   amends decisions 3 and 13 and adds 17 to 27.  **Amended** by [#99] on
+   2026-11-08, which runs each project's own Agda in the companion through
+   agda-for-project ([#97], [ADR 0004][adr-0004]): § 13 says what changed,
+   § 17 records its decisions, and the log amends decision 22 and adds 28
+   to 33.
++  **Date**: 2026-10-11; amended 2026-10-12 and 2026-11-08.
 +  **Tracking**: [#62] (this record, and the packages); [#29] (the rest of
    the tool surface); [#30] (the page's batch lane); [#24] (the plugin
    manifest and its loader); [#64] (the native engine in the editor, with
    its batch lane); [#65] (the tools as an MCP server and as VS Code's LM
    tools); [#66] (the views in a webview); [#70] (the companion's
-   package).
+   package); [#99] (each project's own Agda in VS Code).
 +  **Ancestry**: [ADR 0002][adr-0002] § 3, which decided that the engine
    client, the tool surface, the manifest and the views are packages over
    one engine interface with two implementations, and left the interface
@@ -92,6 +96,12 @@ the page does not.  Where it goes: the page's batch lane ([#30]), the tools
 as an MCP server and LM tools ([#65]), the rest of the tools ([#29]), the
 plugin loader ([#24]), the views in the editor ([#66]), the companion's
 package ([#70]), and Windows (§ 16).
+
+[#99] amended it on 2026-11-08: with agda-for-project configured, the
+companion asks it for the active file's Agda and gives the one answer to
+agda-mode-vscode and to the native lanes, so one window holds projects on
+two Agdas (§ 17).  The version a lane must run now comes from the project,
+and the engine speaks Agda 2.8.0 as well as 2.9.0.
 
 ### Terms
 
@@ -982,7 +992,12 @@ setting that stands in for the project's pin).
    71), one probe per unchanged executable; the runner's check of options
    Agda refuses, before any lane starts.
 
-**Status**.  Adopted (2026-10-12, [#64]).
+**Status**.  Adopted (2026-10-12, [#64]).  Amended by [#99] (2026-11-08,
+§ 17): with agda-for-project configured, the project's own Agda, as it
+decides it, comes between `agdaWorkbench.agda.path` and the mode's paths,
+and stands in for the mode's paths entirely (no other Agda when it decides
+none); the version comes from the project, `agdaWorkbench.agda.version`
+is an override, empty by default, and a lane runs 2.9.0 or 2.8.0.
 
 ---
 
@@ -1119,7 +1134,159 @@ own, no process group).
 
 ---
 
-## 17.  Decision log
+## 17.  Each project's own Agda
+
+(See also [#99], [#97], [ADR 0004][adr-0004], [`vscode/README.md`][companion]
+"Each project's own Agda", and [the run's record][project-record].)
+
+**Decision**.  With agda-for-project configured (`agdaWorkbench.launcher.path`,
+or the launcher as the last entry of `agdaMode.connection.paths`), the
+companion asks it for the active file's Agda and gives the one answer to
+agda-mode-vscode and to the native lanes, as follows:
+
++  **Terms**.  *agda-for-project* (the launcher) is [#97]'s program, which a
+   host names in place of `agda`; it finds a file's project and flake,
+   decides its Agda, builds it, and runs it, or exits 69 with one line when
+   it decides nothing.  `AGDA_FOR_PROJECT_DIR` is its interface for a host
+   that cannot choose the directory it starts Agda in.  *Steering* the mode
+   is choosing which Agda agda-mode-vscode's next spawn runs.
++  **The mode, through the environment**.  The launcher is named once as
+   the mode's path (the companion offers to write it in the user's settings,
+   and writes only on consent); the companion sets `AGDA_FOR_PROJECT_DIR`
+   in the extension host to the active file's project; and it restarts the
+   mode (`agda-mode.restart`) only when that project needs another Agda
+   (another program, arguments, environment or version) while the mode
+   runs one.  The version is in the key because a dev shell's Agda may live
+   in the checkout, at one path a change of the flake rebuilds as another
+   Agda ([#102]'s review).  The key is recorded only once the mode is
+   restarted on it (or runs nothing), so a restart skipped because focus
+   left the file is made at the next focus of that project.
++  **One answer per project, asked again when its inputs change**.  An
+   answer is cached by the directory the launcher starts from (the
+   `.agda-lib`'s, else the file's; not the workspace folder, under which
+   two subdirectories may hold two flakes), and dropped when any file the
+   launcher's build key hashes changes (every tracked file but Agda
+   sources), debounced 250 ms; a failed or untrusted refusal is not kept
+   ([#102]'s second review).
++  **Build first**.  The companion runs `agda-for-project --explain --json
+   FILE`, which builds the project's Agda, behind a progress notification
+   when it outlasts a warm start (400 ms), and restarts the mode only after
+   it.  Follows run one at a time, so the mode's transitions never
+   overlap, but one waiting for a build gives way to the next, whose
+   project may be answered already (the build goes on into the cache).
+   The companion's own commands to the mode wait for the active file's
+   follow; the mode's own keys cannot be held back without changing the
+   mode, so `C-c C-l` pressed during a build still reaches the running
+   Agda until the restart ([#102]'s third review).
++  **Never into a refusal**.  When the launcher decides nothing, its line is
+   shown (status item, notification, lane refusal), the mode is not
+   restarted, and no other Agda runs in the lanes.
++  **The lanes run the answer directly**: the launcher's program, arguments
+   and environment, without `AGDA_FOR_PROJECT_DIR`, then
+   `agdaMode.connection.commandLineOptions` (as the mode's spawn through the
+   launcher has them, read with no resource as the mode reads them), at
+   the version it reports, which is part of a lane's key (the probe of
+   that version is cached by the file the path runs, since a symlink can
+   be re-pointed within the store, whose files share one modification
+   time); `agdaWorkbench.agda.path` and `agdaWorkbench.agda.version`
+   win when set.
++  **Two versions**.  The engine speaks Agda 2.9.0 and 2.8.0; a lane on
+   another is refused with the reason.
++  **Choosing**: a quick pick of the launcher's candidates, remembered with
+   `--choose`; beside them, forgetting the choice, the mode's own Switch
+   Agda Version, and for a project with no flake a starter `flake.nix`,
+   shown first and written only on consent.  The directory's name enters
+   that flake as a Nix string literal, escaped, never as Nix.
++  **The mode's own pick stops the steering**.  Switch Agda Version keeps
+   its pick in the mode's workspace state, and the pick overrides the
+   paths, so the mode no longer runs the launcher.  Chosen from the
+   chooser, it stops the restarts for the workspace; so does a restart
+   after which the mode runs another version than the launcher gave (the
+   pick made from the mode's own command, which the companion cannot see).
+   `AGDA_FOR_PROJECT_DIR` still follows the project, so the launcher, if
+   it is the pick, starts the project's Agda.  The status says the mode
+   runs an Agda of its own, the lanes keep the project's, and the
+   chooser's "Steer Agda mode again" resumes it ([#102]'s review).
++  **Rejected**: a setting per folder (the mode ignores it); a setting
+   written at each change of project (a write into the user's settings at
+   every switch); `process.chdir` in the shared extension host (every
+   extension's relative paths would move).
+
+**Evidence**.  On 2026-11-08, alonzo (Linux 7.0, i9-12900H), VS Code 1.141.0,
+agda-mode-vscode 0.10.4 (source at `535b3eb8`), with wrapper scripts that
+log each call ([the record][project-record], `modeFindings`):
+
++  The mode reads `agdaMode.connection.paths` with no resource
+   (`Config.res` lines 100 to 108): with beta's folder setting naming its
+   own wrapper, VS Code gave that list for a resource in beta, and the
+   mode's restart in beta ran the window's wrapper.
++  It spawns through a shell (`Connection__Transport__Process.res` line 71)
+   with no working directory or environment of its own: every call ran in
+   the extension host's directory, with a variable set after activation,
+   and a restart's spawn saw a value set just before it.
++  One Agda per window (`Registry__Connection.res` line 70): a load in the
+   other folder spawned nothing.  `agda-mode.restart` killed the running
+   Agda (its pid gone) and loaded the active file with a new one.
++  The probe is `--version` with a 3 s timeout that any output clears
+   (`Connection__Core.res` line 196): a silent wrapper was passed over for
+   the next entry at 3.03 s; one that wrote to stderr first was waited for
+   8.0 s and used; a wrapper exiting 69 was passed over at once.  As the
+   only entry, its refusal ran no Agda.
++  `agda-mode.switch-agda-version` lists the paths, last first, then
+   downloads; the pick changed no settings file, and the next connection
+   ran it instead of the last entry (the source keeps it in the mode's
+   workspace state, `Connection__Switch.res` line 307).
++  The conformance suite against nixpkgs' Agda 2.8.0: 11 of 13 shared
+   scenarios as written for 2.9.0, the two others failing only on the name
+   Agda gives one error (`UnequalTerms` for 2.9.0's `UnequalTypes`); with
+   the name per version, 13 of 13, and 12 of 12 lifecycle checks; 2.9.0
+   unchanged at 13 and 12.
++  The extension-host suite, a workspace of alpha (Agda 2.9.0), beta
+   (2.8.0) and gamma (no Agda decided), in both orders: each file loaded
+   through the mode under its own Agda (its interfaces under that version's
+   `_build/` alone, and the running Agda answering that version), one
+   restart per change of project and none within one, no restart into
+   gamma's refusal, the lanes answering on both and refusing gamma with the
+   launcher's line.
++  The desktop run, agda-algebras `4be28476` and formal-ledger-specifications
+   `ec066122` in one window with the launcher as the mode's one path and no
+   setting changed: agda-algebras under 2.9.0 (`default`, explain 112 ms,
+   load 768 ms), formal-ledger-specifications under 2.8.0
+   (`fls-agdaWithPackages`, explain 155 ms, restart and load 8.6 s with no
+   module checked again, then a load 529 ms), and back (restart 543 ms,
+   load 43 ms).
++  The mode's own pick, in the same suite: the chooser's Switch Agda
+   Version entry, driven through the mode's quick pick to nixpkgs' 2.8.0
+   while alpha's Agda is 2.9.0, left the mode on its pick with no restart
+   across projects and the status reading `$(warning) Agda 2.9.0` with the
+   mode's version; steering resumed while the pick stood restarted the
+   mode once, found it on 2.8.0, and stopped again.  Without either
+   mechanism (a mutation of each), the case fails.
++  After the second review, in the same suite, both orders: the mode's
+   `--allow-unsolved-metas` turned a lane's verdict on the open goal from
+   exit 42 to 0, and back once unset; a restart skipped because focus
+   moved to a non-Agda editor first was made at the next focus of alpha.
+   The registry replaces a lane whose Agda answers another version at the
+   same path.  A mutation of each of the three fails its case.
++  After the third review, in the same suite, both orders, through a
+   launcher that waits 5 s before `--explain`: a companion load given
+   while beta's Agda was prepared waited for the restart (5.3 s) and beta
+   was never checked by alpha's Agda; beta, answered, was followed 24 to
+   37 ms after gamma's stale build began (two runs of both orders); an option set only for a folder
+   stayed out of the lanes; the variable named the project while the mode
+   ran its own pick.  A resolve test re-points a symlink between two
+   files of one modification time.  A mutation of each fails its case.
+
+**Status**.  Adopted (2026-11-08, [#99]).  Untested: the quick pick
+itself, the offer to set the mode's
+paths, writing the starter flake, macOS (the mode's Agda is found with
+`ps`), and Windows (§ 16).  The mode's own fallback, which runs its next
+path or its downloads when the launcher refuses, is the mode's; the
+companion avoids it by offering the launcher as the only path.
+
+---
+
+## 18.  Decision log
 
 | # | Decision | Status | Evidence |
 |---|---|---|---|
@@ -1144,12 +1311,21 @@ own, no process group).
 | 19 | `check_file` and `fill_hole` answer from the batch lane, with agda-native-air's meaning sentences, and refuse where there is none | Adopted ([#64]); [#65] registers them | The tool surface's tests (§§ 8, 11) |
 | 20 | One lane per project root, with agda-native-air's persistence rules; the stamp is the text, compared with the snapshot, so a lane's own give is not loaded again; a crash is told once, busy or idle; a lane's sessions record a `?` as written | Adopted ([#64]) | Unit tests and four mutations; four checks against Agda (§ 12) |
 | 21 | A scenario may be conditional on a capability; the comparison reports a declared difference only once each run passed its own branch | Adopted ([#64]) | 12 identical and 1 declared; three controls each fail the comparison (§ 9) |
-| 22 | The Agda: a host's candidates in order, the first that names an executable deciding, refused unless its `--numeric-version` is the expected version; in the companion, its own setting, then the mode's paths from the last, then PATH; the language server is passed over | Adopted ([#64]) | The mode's bundle; unit tests; the runner's check (§ 13) |
+| 22 | The Agda: a host's candidates in order, the first that names an executable deciding, refused unless its `--numeric-version` is the expected version; in the companion, its own setting, then the mode's paths from the last, then PATH; the language server is passed over | Adopted ([#64]); amended by [#99]: with agda-for-project configured, the project's own Agda comes after the companion's setting and stands in for the rest | The mode's bundle; unit tests; the runner's check (§ 13); the projects suite (§ 17) |
 | 23 | Options ride the process's arguments, as the mode passes them, and every load inherits them | Adopted ([#64]); proposed as `Cmd_load`'s, as air's lane sends them, until the probe | Five probes of process and load arguments; a lane's two loads in the real suite (§ 13) |
 | 24 | An editor host saves the module and loads the file as it is; a buffer is never sent; a give's edit is applied and saved | Adopted ([#64]) | The real suite (§ 14) |
 | 25 | The companion is bundled with rolldown, the engine and the tools inside its CommonJS main; without a setting of its own its lanes run the mode's Agda, so the two share interfaces | Adopted ([#64]) | The bundle's externals; the real suite's lanes, each run checking only the module (§ 15) |
 | 26 | The companion's manifest declares its dependencies, at the cost of the flake's `npmDepsHash` | Adopted ([#64]) | The Nix site failed until the hash changed, then built (§ 15) |
 | 27 | Windows is a stated gap | Adopted ([#64]) | Read from the code and node's documentation, not run (§ 16) |
+| 28 | The mode is steered through the extension host's environment: the launcher named once as its path, on consent, and `AGDA_FOR_PROJECT_DIR` set to the active file's project | Adopted ([#99], 2026-11-08) | The mode reads its paths for the window and spawns with the host's environment at the spawn, each confirmed in the host (§ 17) |
+| 29 | The mode is restarted only when the active project needs another program, arguments, environment or version while it runs an Agda, and after the build | Adopted ([#99]; the version added after [#102]'s review) | One restart per change of project, none within one, in both orders; the 3 s probe that a silent build outlasts (§ 17) |
+| 30 | When the launcher decides nothing, its line is shown and nothing is restarted or run | Adopted ([#99]) | gamma in the projects suite (§ 17) |
+| 31 | The lanes run the launcher's answer directly, at its version, with the companion's settings as overrides | Adopted ([#99]) | The projects suite's lanes on both Agdas; the override refused (§ 17) |
+| 32 | The engine speaks Agda 2.8.0 too; another version is refused with the reason | Adopted ([#99]) | The conformance suite, 13 and 12 against 2.8.0 (§ 17) |
+| 33 | The chooser: the launcher's candidates, forgetting, the mode's Switch Agda Version, and a starter flake written only on consent | Adopted ([#99]); the quick pick and the write untested | The projects suite drives a choice and its removal by ID; unit tests of the flake's text, a hostile directory name among them (§ 17) |
+| 34 | The mode's own Switch Agda Version pick stops the steering, chosen from the chooser or found after a restart, until "Steer Agda mode again" | Adopted ([#102]'s review, 2026-11-08) | The projects suite drives the mode's quick pick in both orders; a mutation of each mechanism fails it (§ 17) |
+| 35 | Answers are cached per launcher start directory and dropped when any file its key covers changes, or when they are a failed or untrusted refusal; a skipped restart is retried; the lanes take the mode's options and key on the version | Adopted ([#102]'s second review, 2026-11-09) | The projects suite's options and retry cases; the registry's version test; unit tests of the filter and the start directory (§ 17) |
+| 36 | Follows give way while waiting for a build; the companion's commands to the mode wait for the active file's follow; the mode's settings are read unscoped; the variable follows the project while the mode runs its own pick | Adopted ([#102]'s third review, 2026-11-09); the mode's own keys are not held back | The projects suite's slow-launcher, folder-option and own-pick cases; the resolve test of a re-pointed path (§ 17) |
 
 ---
 
@@ -1160,15 +1336,19 @@ own, no process group).
    view), [#59] (the reactor and the drive), [#62] (this record), [#63]
    (the companion), [#64] (the native engine in the editor, this record's
    amendment), [#65] (the tools as an MCP server and LM tools), [#66] (the
-   views in a webview), [#70] (the companion's package).
-+  **Pull requests**: [#84] (the companion), [#85] (this record).
+   views in a webview), [#70] (the companion's package), [#97] (the
+   resolver), [#99] (each project's own Agda in VS Code, this record's
+   second amendment).
++  **Pull requests**: [#84] (the companion), [#85] (this record), [#101]
+   (the resolver).
 +  **Documents**: [`docs/engine/overview.md`][overview] (this record's
    companion note); [ADR 0001][adr-0001] and [ADR 0002][adr-0002];
    [`docs/notes/runtime.md`][runtime]; [`docs/provenance.md`][provenance];
    [`docs/measurements/engine-conformance-2026-10-11.json`][record];
    [`docs/measurements/shared-core-probes-2026-10-11.json`][probes];
    [`docs/measurements/native-engine-2026-10-12.json`][native-record];
-   [`vscode/README.md`][companion].
+   [`docs/measurements/vscode-project-agda-2026-11-08.json`][project-record];
+   [ADR 0004][adr-0004]; [`vscode/README.md`][companion].
 +  **Code**: `packages/engine/src/core/` (the interface: `session.ts`,
    `responses.ts`, `commands.ts`, `give-rule.ts`, `text.ts`, and since
    [#64] `diagnostics.ts`), `src/browser/` and `src/native/` (the
@@ -1178,7 +1358,9 @@ own, no process group).
    `scripts/conformance/` (the runners); `scripts/check-bundle.mjs`;
    `src/lib/controller.svelte.ts` and `src/lib/agda/handlers.js` (the
    page as host); `vscode/src/extension.ts`, `resolution.ts` and
-   `scripts/build.mjs` (the companion as host).
+   `scripts/build.mjs` (the companion as host), and since [#99]
+   `project.ts`, `steering.ts`, `test/projects.ts`, `test/mode-findings.ts`
+   and `scripts/mode-findings.mjs`.
 +  **Elsewhere**: agda-native-air's [ADR 0002][air-adr-0002] and its
    [interaction lane note][air-lane];
    agda-language-server [`v8`][als-v8]; Agda at [`da66a8c7`][agda-da66a8c].
@@ -1196,6 +1378,10 @@ own, no process group).
 [#66]: https://github.com/formalverification/agda-native-ide/issues/66
 [#70]: https://github.com/formalverification/agda-native-ide/issues/70
 [#84]: https://github.com/formalverification/agda-native-ide/pull/84
+[#97]: https://github.com/formalverification/agda-native-ide/issues/97
+[#99]: https://github.com/formalverification/agda-native-ide/issues/99
+[#101]: https://github.com/formalverification/agda-native-ide/pull/101
+[#102]: https://github.com/formalverification/agda-native-ide/pull/102
 [#85]: https://github.com/formalverification/agda-native-ide/pull/85
 [overview]: ../engine/overview.md
 [adr-0001]: 0001-runtime.md
@@ -1205,6 +1391,8 @@ own, no process group).
 [record]: ../measurements/engine-conformance-2026-10-11.json
 [probes]: ../measurements/shared-core-probes-2026-10-11.json
 [native-record]: ../measurements/native-engine-2026-10-12.json
+[project-record]: ../measurements/vscode-project-agda-2026-11-08.json
+[adr-0004]: 0004-each-projects-own-agda.md
 [companion]: ../../vscode/README.md
 [air-adr-0002]: https://github.com/formalverification/agda-native-air/blob/3de85b40bf08f84debf413b8fe3f4efb92aec21b/docs/adr/0002-agda-mcp.md
 [air-lane]: https://github.com/formalverification/agda-native-air/blob/3de85b40bf08f84debf413b8fe3f4efb92aec21b/docs/agda-mcp/agda-mcp-interaction-lane.md

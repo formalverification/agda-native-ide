@@ -620,6 +620,11 @@
           AGDA = "${native-agda.packages.${system}.base.bin}/bin/agda";
           AGDA_ALGEBRAS = companion-fixture.outPath;
           AGDA_STDLIB_ZIP = "${mkStdlib pkgs}/agda-stdlib-2.3-patched.zip";
+          # The multi-root test of issue 99: agda-for-project, the mode's
+          # and the lanes' launcher there, and a second Agda for its second
+          # project, nixpkgs' 2.8.0 (in cache.nixos.org, so nothing builds).
+          AGDA_FOR_PROJECT = "${self.packages.${system}.agda-for-project}/bin/agda-for-project";
+          AGDA_OTHER = "${pkgs.agda}/bin/agda";
         };
       } // lib.optionalAttrs (ghc-wasm-meta.packages ? ${system}) {
         # `nix develop .#compiler --command compiler/build-agda-2.9.0.sh`:

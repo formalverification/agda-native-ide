@@ -4,7 +4,7 @@
 // node scripts that answer `--numeric-version` as told, and count how
 // often they are asked.
 
-import { appendFileSync, chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -98,6 +98,19 @@ describe("which Agda a project uses", () => {
     expect(message).toMatch(/expects Agda 2\.9\.0 \(agdaWorkbench\.agda\.version\)/);
   });
 
+  it("accepts any of a host's versions, and names them all when it refuses", async () => {
+    const accepted = await resolveAgda([{ source: "agdaWorkbench.agda.path", executable: join(bin, "agda-2.8") }], {
+      expectedVersion: ["2.9.0", "2.8.0"],
+      env: env(),
+    });
+    expect(accepted).toMatchObject({ version: "2.8.0", source: "agdaWorkbench.agda.path" });
+    const refused = await resolveAgda([{ source: "agdaWorkbench.agda.path", executable: join(bin, "agda-2.8") }], {
+      expectedVersion: ["2.9.0", "2.7.0"],
+      env: env(),
+    });
+    expect((refused as { message: string }).message).toMatch(/which is Agda 2\.8\.0; the project expects Agda 2\.9\.0 or 2\.7\.0/);
+  });
+
   it("refuses options the Agda found refuses, with its words", async () => {
     const refused = await resolveAgda([{ source: "agdaMode.connection.commandLineOptions", executable: "agda", args: ["--bad"] }], {
       expectedVersion: "2.9.0",
@@ -126,6 +139,20 @@ describe("which Agda a project uses", () => {
         version: "2.9.0",
       });
     expect(asked() - before).toBe(1);
+  });
+
+  it("asks again when the path is re-pointed at another Agda with the same modification time", async () => {
+    // As a checkout's .agda/bin/agda re-pointed from one store path to another.
+    const [nine, eight] = [standIn("store-2.9", "2.9.0"), standIn("store-2.8", "2.8.0")];
+    for (const file of [nine, eight]) utimesSync(file, 1, 1);
+    const link = join(dir, "agda-link");
+    symlinkSync(nine, link);
+    const cache = new Map<string, string>();
+    const ask = () => resolveAgda([{ source: "agda-for-project", executable: link }], { expectedVersion: ["2.9.0", "2.8.0"], env: env(), cache });
+    expect(await ask()).toMatchObject({ version: "2.9.0" });
+    rmSync(link);
+    symlinkSync(eight, link);
+    expect(await ask()).toMatchObject({ version: "2.8.0" });
   });
 });
 

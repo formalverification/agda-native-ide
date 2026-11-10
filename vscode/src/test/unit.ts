@@ -6,6 +6,10 @@ import { describeResult } from '../answers';
 import { compatibility } from '../compatibility';
 import { tokenReader } from '../highlighting';
 import { agdaCandidates, isLanguageServer, splitOptions } from '../resolution';
+import {
+  candidates, choose, explain, lastLine, laneVersionRefusal, libraryDepends, modeAgda, modeLauncher, parsePs,
+  affectsResolution, nixString, resolutionDir, runKey, starterFlake, transient, type Explained, type Ran,
+} from '../project';
 import { restoreState } from '../state';
 
 test('the version list is exact, and unknown manifests remain unsupported', () => {
@@ -129,4 +133,124 @@ test('the panel says what the lanes answered', () => {
     result: { goal: 1, term: 'zero', accepted: false, error: 'Nat !=< A', applied: false },
   }), 'Agda refused zero for goal 1: Nat !=< A');
   assert.equal(describeResult({ tool: 'type_of', status: 'refused', reason: 'configuration', message: 'no Agda was found' }), 'no Agda was found');
+});
+
+const answer = (fields: Partial<Explained>): Explained => ({
+  decided: true, error: null, project: { root: '/p', agdaLib: '/p/p.agda-lib' }, flake: '/p', decidedBy: 'discovered',
+  method: 'package', name: 'default', program: '/nix/store/a-agda/bin/agda', args: [], env: {}, version: '2.9.0',
+  built: 'yes', choice: null, ...fields,
+});
+
+test('the launcher is asked about the file, and its refusals and failures say why', async () => {
+  const asked: string[][] = [];
+  const run = (reply: Ran) => async (_launcher: string, args: string[]) => { asked.push(args); return reply; };
+  const decided = await explain('agda-for-project', '/p/M.agda', run({ code: 0, stdout: JSON.stringify(answer({})), stderr: '' }));
+  assert.equal(decided.version, '2.9.0');
+  assert.deepEqual(asked.at(-1), ['--explain', '--json', '/p/M.agda']);
+  await explain('agda-for-project', '/p/M.agda', run({ code: 0, stdout: JSON.stringify(answer({})), stderr: '' }), true);
+  assert.deepEqual(asked.at(-1), ['--explain', '--json', '--no-build', '/p/M.agda']);
+  // Exit 69: one JSON object still, and the one line on stderr.
+  const refused = await explain('agda-for-project', '/p/M.agda', run({
+    code: 69, stdout: JSON.stringify(answer({ decided: false, error: null, program: null })),
+    stderr: 'building...\nagda-for-project: no flake.nix at or above /p\n',
+  }));
+  assert.equal(refused.decided, false);
+  assert.equal(refused.error, 'agda-for-project: no flake.nix at or above /p');
+  await assert.rejects(explain('agda-for-project', '/p/M.agda', run({ code: 64, stdout: '', stderr: 'agda-for-project: unknown option --json\n' })),
+    /--explain did not answer \(exit 64\): agda-for-project: unknown option --json/);
+  assert.equal(lastLine('a\n\n b \n'), 'b');
+  const offered = await candidates('agda-for-project', '/p/M.agda', run({ code: 0, stdout: '[{"id":"devshell:default","kind":"devshell","version":null,"label":"x","chosen":false}]', stderr: '' }));
+  assert.equal(offered[0]?.id, 'devshell:default');
+  await choose('agda-for-project', '/p/M.agda', 'path:/a', run({ code: 0, stdout: '', stderr: '' }));
+  assert.deepEqual(asked.at(-1), ['--choose', 'path:/a', '/p/M.agda']);
+  await choose('agda-for-project', '/p/M.agda', null, run({ code: 0, stdout: '', stderr: '' }));
+  assert.deepEqual(asked.at(-1), ['--forget', '/p/M.agda']);
+  await assert.rejects(choose('agda-for-project', '/p/M.agda', 'bad', run({ code: 64, stdout: '', stderr: 'agda-for-project: not an ID\n' })), /not an ID/);
+});
+
+test('one Agda serves two projects only when it runs the same program, arguments, environment and version', () => {
+  assert.equal(runKey(answer({ project: { root: '/a', agdaLib: null } })), runKey(answer({ project: { root: '/b', agdaLib: null } })));
+  assert.notEqual(runKey(answer({})), runKey(answer({ args: ['--library-file=/r.libraries'] })));
+  assert.notEqual(runKey(answer({})), runKey(answer({ env: { AGDA_DIR: '/p/.agda' } })));
+  assert.equal(runKey(answer({ env: { A: '1', B: '2' } })), runKey(answer({ env: { B: '2', A: '1' } })));
+  // A dev shell's Agda in the checkout: one path, rebuilt as another Agda.
+  assert.notEqual(runKey(answer({ program: '/p/.agda/bin/agda', version: '2.9.0' })), runKey(answer({ program: '/p/.agda/bin/agda', version: '2.8.0' })));
+});
+
+test("an answer is named by the launcher's start: the .agda-lib's directory, else the file's", () => {
+  assert.equal(resolutionDir('/w/lib/src/A.agda', { root: '/w/lib', source: 'agda-lib' }), '/w/lib');
+  // No .agda-lib: two subdirectories of one folder may hold two flakes.
+  assert.equal(resolutionDir('/w/one/A.agda', { root: '/w', source: 'fallback' }), '/w/one');
+  assert.notEqual(resolutionDir('/w/one/A.agda', { root: '/w', source: 'fallback' }), resolutionDir('/w/two/B.agda', { root: '/w', source: 'fallback' }));
+  assert.equal(resolutionDir('/x/A.agda', { root: '/x', source: 'directory' }), '/x');
+});
+
+test("a change to any file the launcher's key covers asks again; Agda's sources and what Agda and git write do not", () => {
+  for (const file of ['/w/flake.nix', '/w/flake.lock', '/w/x.agda-lib', '/w/nix/agda.nix', '/w/scripts/hook.sh', '/w/README.md', 'C:\\w\\nix\\agda.nix'])
+    assert.equal(affectsResolution(file), true, file);
+  for (const file of ['/w/A.agda', '/w/B.lagda', '/w/C.lagda.md', '/w/D.lagda.tex', '/w/_build/2.9.0/agda/A.agdai', '/w/A.agdai', '/w/.git/index', 'C:\\w\\_build\\x'])
+    assert.equal(affectsResolution(file), false, file);
+});
+
+test('a failed or untrusted refusal is not kept; a decided answer or an undecided one is', () => {
+  assert.equal(transient(answer({ decided: false, reason: 'failed' })), true);
+  assert.equal(transient(answer({ decided: false, reason: 'untrusted' })), true);
+  assert.equal(transient(answer({ decided: false, reason: 'undecided' })), false);
+  assert.equal(transient(answer({})), false);
+});
+
+test('the lanes speak 2.9.0 and 2.8.0, and refuse another, saying where it came from', () => {
+  assert.equal(laneVersionRefusal('2.9.0', 'x'), null);
+  assert.equal(laneVersionRefusal('2.8.0', 'x'), null);
+  assert.equal(laneVersionRefusal('2.7.0.1', "the project's Agda (the flake's default)"),
+    "the native lanes speak the protocol of Agda 2.9.0 and 2.8.0; the project's Agda (the flake's default) is Agda 2.7.0.1");
+});
+
+test('the mode runs the launcher only when the last of its paths names it', () => {
+  assert.equal(modeLauncher(['agda', 'agda-for-project']), 'agda-for-project');
+  assert.equal(modeLauncher(['/nix/profile/bin/agda-for-project ']), '/nix/profile/bin/agda-for-project');
+  assert.equal(modeLauncher(['agda-for-project', 'agda']), undefined);
+  assert.equal(modeLauncher(['agda-for-project-old']), undefined);
+  assert.equal(modeLauncher('agda-for-project'), undefined);
+  assert.equal(modeLauncher([]), undefined);
+});
+
+test("the mode's Agda is the host's descendant started with --interaction, not a lane's or its shell", () => {
+  const processes = parsePs([
+    '    1     0 /sbin/init',
+    '  100     1 code --type=extensionHost',
+    '  101   100 /bin/sh -c "/x/agda-for-project" --interaction',
+    '  102   101 /nix/store/b-agda/bin/agda --interaction --library-file=/r.libraries',
+    '  103   100 /nix/store/b-agda/bin/agda --interaction-json',
+    '  200     1 /nix/store/c-agda/bin/agda --interaction',
+  ].join('\n'));
+  assert.equal(processes.length, 6);
+  assert.deepEqual(modeAgda(processes, 100), { pid: 102, ppid: 101, args: '/nix/store/b-agda/bin/agda --interaction --library-file=/r.libraries' });
+  assert.equal(modeAgda(processes.filter(each => each.pid !== 102), 100), undefined);
+  assert.equal(modeAgda(processes, 999), undefined);
+});
+
+test('a starter flake holds the libraries nixpkgs has, and names the others', () => {
+  assert.deepEqual(libraryDepends('name: x\ndepend: standard-library-2.3\n  cubical, my-lib -- mine\ninclude: src\n'),
+    ['standard-library-2.3', 'cubical', 'my-lib']);
+  assert.deepEqual(libraryDepends('name: x\ninclude: .\n'), []);
+  const starter = starterFlake('x', ['standard-library-2.3', 'cubical', 'my-lib', 'IAL-1.3']);
+  assert.deepEqual(starter.included, ['standard-library', 'cubical', 'iowa-stdlib']);
+  assert.deepEqual(starter.missing, ['my-lib']);
+  assert.match(starter.text, /default = pkgs\.agda\.withPackages \(p: \[ p\.standard-library p\.cubical p\.iowa-stdlib \]\);/);
+  assert.match(starter.text, /inputs\.nixpkgs\.url = "github:NixOS\/nixpkgs\/nixos-25\.11";/);
+  assert.match(starter.text, /Not in nixpkgs, so not included: my-lib\./);
+  assert.match(starter.text, /legacyPackages\.\$\{system\}/);
+});
+
+test("a starter flake keeps its directory's name out of the Nix it evaluates", () => {
+  assert.equal(nixString('plain'), '"plain"');
+  assert.equal(nixString('x${builtins.currentSystem}'), '"x\\${builtins.currentSystem}"');
+  assert.equal(nixString('a\\"b'), '"a\\\\\\"b"');
+  assert.equal(nixString('l1\nl2\r\t'), '"l1\\nl2\\r\\t"');
+  const name = 'p${x}\n  description = "pwned";\n#';
+  const text = starterFlake(name, []).text;
+  assert.equal(text.split('\n').length, starterFlake('p', []).text.split('\n').length, 'the name breaks no line');
+  assert.ok(text.includes('  description = "The Agda environment of p\\${x}\\n  description = \\"pwned\\";\\n#";\n'));
+  assert.doesNotMatch(text, /^\s*description = "pwned"/m, 'no line of Nix but the comment holds it');
 });
