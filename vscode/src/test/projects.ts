@@ -172,6 +172,12 @@ export async function run(): Promise<void> {
   await options.update('connection.commandLineOptions', undefined, vscode.ConfigurationTarget.Global);
   const plain = await lane('checkFile');
   assert.ok(plain.result.status === 'verdict' && plain.result.verdict.exitCode === 42, 'and leave with them');
+  // The mode reads them for the window, so a folder's value is not its.
+  const betaMode = vscode.workspace.getConfiguration('agdaMode', vscode.Uri.file(folder('beta')));
+  await betaMode.update('connection.commandLineOptions', '--allow-unsolved-metas', vscode.ConfigurationTarget.WorkspaceFolder);
+  const folderOnly = await lane('checkFile');
+  await betaMode.update('connection.commandLineOptions', undefined, vscode.ConfigurationTarget.WorkspaceFolder);
+  assert.ok(folderOnly.result.status === 'verdict' && folderOnly.result.verdict.exitCode === 42, `a folder's options are not the mode's: ${JSON.stringify(folderOnly.result.status)}`);
 
   // A restart skipped because focus left the file before its follow ended
   // is tried again at the next focus of that project, its answer cached.
@@ -266,6 +272,8 @@ export async function run(): Promise<void> {
   assert.equal(ownStatus.text, `$(warning) Agda ${steered.version}`);
   assert.match(ownStatus.tooltip, new RegExp(`Agda mode runs Agda ${picked.version.replace(/\./g, '\\.')}, `));
   assert.match(ownStatus.tooltip, /Agda mode runs an Agda of its own/);
+  // The variable still names the project, for the launcher if it is the pick.
+  assert.equal(process.env.AGDA_FOR_PROJECT_DIR, folder('alpha'), 'the variable follows the project while the mode runs its own pick');
   const ownVerdict = await lane('checkFile');
   assert.ok(ownVerdict.result.status === 'verdict' && ownVerdict.result.verdict.exitCode === 42, 'the lanes keep the project\'s Agda');
   await deadline(vscode.commands.executeCommand('agdaWorkbench.chooseAgda', 'steer'), 'steer again');
