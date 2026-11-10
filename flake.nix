@@ -470,6 +470,17 @@
         # The standard library the page ships, patched (mkStdlib).
         inherit stdlib;
 
+        # agda-for-project, the launcher that runs a file's project's own
+        # Agda (issue 97): `nix run .#agda-for-project -- --explain FILE`.
+        # nix is not among its inputs: the caller's own nix builds the
+        # project's flake, as it would by hand.  writeShellApplication
+        # shellchecks the script when it builds.
+        agda-for-project = pkgs.writeShellApplication {
+          name = "agda-for-project";
+          runtimeInputs = with pkgs; [ coreutils findutils flock gawk git gnugrep gnused jq ];
+          text = builtins.readFile ./scripts/agda-for-project/agda-for-project.sh;
+        };
+
         # agda-algebras' interfaces and dependency graph, built by the
         # compiler's agda (mkAgdaAlgebrasInterfaces).
         agda-algebras-interfaces = mkAgdaAlgebrasInterfaces pkgs {
