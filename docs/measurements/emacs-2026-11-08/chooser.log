@@ -1,0 +1,58 @@
+Loading quail/latin-ltx...
+
+agda-for-project: ~/git/formalverification/agda-native-air/main exports no Agda environment; its dev shell may give one, but entering it runs the project's shell hook as you: allow it with --choose devshell:default, or list a directory at or above it in ~/.config/agda-for-project/trusted; C-c C-l offers the choices
+agda-for-project: ~/git/formalverification/agda-native-air/main exports no Agda environment; its dev shell may give one, but entering it runs the project's shell hook as you: allow it with --choose devshell:default, or list a directory at or above it in ~/.config/agda-for-project/trusted; C-c C-l offers the choices
+Highlighting not loaded: Problem encountered. The *agda2* buffer can perhaps explain why.
+
+agda-for-project: ~/git/formalverification/agda-native-air/main exports no Agda environment; its dev shell may give one, but entering it runs the project's shell hook as you: allow it with --choose devshell:default, or list a directory at or above it in ~/.config/agda-for-project/trusted
+  chooser: Agda for ~/git/formalverification/agda-native-air/main/agda-dojang/: 
+  chooser:   the agda of the dev shell all of ~/git/formalverification/agda-native-air/main (entering it runs the project's shell hook)  [devshell:all]
+  chooser:   the agda of the dev shell backend of ~/git/formalverification/agda-native-air/main (entering it runs the project's shell hook)  [devshell:backend]
+  chooser:   the agda of the dev shell default of ~/git/formalverification/agda-native-air/main (entering it runs the project's shell hook)  [devshell:default]
+  chooser:   the agda of the dev shell gpu of ~/git/formalverification/agda-native-air/main (entering it runs the project's shell hook)  [devshell:gpu]
+  chooser:   the agda of the dev shell mlPipeline of ~/git/formalverification/agda-native-air/main (entering it runs the project's shell hook)  [devshell:mlPipeline]
+  chooser:   the agda of the dev shell proofParser of ~/git/formalverification/agda-native-air/main (entering it runs the project's shell hook)  [devshell:proofParser]
+  chooser:   the agda of the dev shell site of ~/git/formalverification/agda-native-air/main (entering it runs the project's shell hook)  [devshell:site]
+  chooser:   Agda 2.9.0, built from default of ~/git/ualib/agda-algebras/master  [path:/nix/store/pl2l25q382nsgnxdbrqhifhriy05lf20-agdaWithPackages-2.9.0/bin/agda]
+  chooser:   Agda 2.8.0, built from fls-agdaWithPackages of ~/git/IO/fls/worktrees/1352-dijkstra-chain-ticked-epoch-state  [path:/nix/store/ws6a1ika52v3b26mxqvlx43h2l08i8ah-agdaWithPackages-2.8.0/bin/agda]
+  chooser:   Agda 2.8.0, built from fls-agdaWithPackages of ~/git/IO/fls/master  [path:/nix/store/0vx59n9g1597p7gzmflmmya161hr695h-agdaWithPackages-2.8.0/bin/agda]
+  chooser: picked devshell:default
+agda-for-project: building the Agda of ~/git/formalverification/agda-native-air/main/agda-dojang/ (devshell default), once per change of the inputs of its flake; Emacs waits until it is built...
+
+  probe: real agda /nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda
+  probe: args --with-compiler=/nix/store/npkfdjd7i3622gm0yq5fb39q5n7l6jz6-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/8hlc34i9vdh7x0smbfgfqp2m5zkjr17f-libraries --interaction
+  probe: AGDA_DIR=~/git/formalverification/agda-native-air/main/agda
+  probe: load 6.2 s
+  probe: resolved by choice, version 2.9.0, in 5.96 s
+~/git/formalverification/agda-native-air/main/agda-dojang/agda/AgdaDojang/Examples.agda
+  agda: /nix/store/farh1v7zh9niln08bs9q0h4v4m7bdd4c-agda-env-2.9.0/bin/agda --interaction
+  *Type-checking* 
+  *Type-checking* Checking AgdaDojang.Examples (~/git/formalverification/agda-native-air/main/agda-dojang/agda/AgdaDojang/Examples.agda).
+  *All Goals* ?0 : Nat → Nat → Nat
+
+  probe: real agda /nix/store/infalgzvfzl515yfbiaz998skj9lrwnn-fls-agda-2.8.0/bin/agda
+  probe: args --with-compiler=/nix/store/m70mqskiwdjvaph5qxn5cddy2nsqa5lx-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/6qscaqmlqlfl6708bf2f34fdga9015kz-libraries --interaction --library-file=$SCRATCH/xdg-final/cache/agda-for-project/registries/11c5b4813e488e5079e2e23b7e758c0f.libraries
+  probe: AGDA_DIR=~/.config/agda
+  probe: load 9.6 s
+  probe: resolved by discovered, version 2.8.0, in 0.31 s
+~/git/IO/fls/master/formal-ledger-test/src/Test/Examples/MultiSig/Datum.lagda.md
+  agda: $SCRATCH/xdg-final/cache/agda-for-project/package/fls-agdaWithPackages/fd3559bd5396ead0b364387e32012ce6/bin/agda --interaction --library-file=$SCRATCH/xdg-final/cache/agda-for-project/registries/11c5b4813e488e5079e2e23b7e758c0f.libraries
+  *Type-checking* 
+  *All Done* 
+
+agda-for-project: no flake.nix at or above $SCRATCH/scratch-project, and no Agda chosen for it; see --candidates, then --choose
+  chooser: Agda for $SCRATCH/scratch-project/: 
+  chooser:   Agda 2.9.0, built from default of ~/git/ualib/agda-algebras/master  [path:/nix/store/pl2l25q382nsgnxdbrqhifhriy05lf20-agdaWithPackages-2.9.0/bin/agda]
+  chooser:   Agda 2.8.0, built from fls-agdaWithPackages of ~/git/IO/fls/worktrees/1352-dijkstra-chain-ticked-epoch-state  [path:/nix/store/ws6a1ika52v3b26mxqvlx43h2l08i8ah-agdaWithPackages-2.8.0/bin/agda]
+  chooser:   Agda 2.8.0, built from fls-agdaWithPackages of ~/git/IO/fls/master  [path:/nix/store/0vx59n9g1597p7gzmflmmya161hr695h-agdaWithPackages-2.8.0/bin/agda]
+  chooser: picked path:/nix/store/pl2l25q382nsgnxdbrqhifhriy05lf20-agdaWithPackages-2.9.0/bin/agda
+  probe: real agda /nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda
+  probe: args --with-compiler=/nix/store/iyypanjqg8pwsyxjfylpd5sqjhbripk3-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries --interaction
+  probe: AGDA_DIR=~/.config/agda
+  probe: load 1.5 s
+  probe: resolved by choice, version 2.9.0, in 0.42 s
+$SCRATCH/scratch-project/Scratch.agda
+  agda: /nix/store/pl2l25q382nsgnxdbrqhifhriy05lf20-agdaWithPackages-2.9.0/bin/agda --interaction
+  *Type-checking* 
+  *All Done* 
+AGDA_FOR_PROJECT=$S/afp/bin/agda-for-project AFP_FALLBACK_ASK=1 AFP_PICK= =    21.96s user 3.45s system 101% cpu 25.010 total

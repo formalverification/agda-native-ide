@@ -1,0 +1,16 @@
+Type q in help window to delete it
+agda-for-project for ~/git/IO/fls/master/formal-ledger-test/src/Test/Examples/MultiSig/Datum.lagda.md
+
+project    ~/git/IO/fls/master/formal-ledger-test (formal-ledger-test.agda-lib)
+flake      ~/git/IO/fls/master
+decided by discovery in the flake, for x86_64-linux
+agda       package: fls-agdaWithPackages
+program    $SCRATCH/xdg/cache/agda-for-project/package/fls-agdaWithPackages/fd3559bd5396ead0b364387e32012ce6/bin/agda --library-file=$SCRATCH/xdg/cache/agda-for-project/registries/11c5b4813e488e5079e2e23b7e758c0f.libraries
+version    2.8.0
+libraries  /nix/store/6qscaqmlqlfl6708bf2f34fdga9015kz-libraries (the environment's)
+libraries  $SCRATCH/xdg/cache/agda-for-project/registries/11c5b4813e488e5079e2e23b7e758c0f.libraries (with ~/git/IO/fls/master/formal-ledger.agda-lib)
+
+exit status 0
+
+This buffer's project root: ~/git/IO/fls/master/formal-ledger-test/
+The running Agda was started for: nothing (no Agda started by this mode runs)

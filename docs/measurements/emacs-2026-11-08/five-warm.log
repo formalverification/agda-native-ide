@@ -1,0 +1,51 @@
+Loading quail/latin-ltx...
+
+  probe: real agda /nix/store/infalgzvfzl515yfbiaz998skj9lrwnn-fls-agda-2.8.0/bin/agda
+  probe: args --with-compiler=/nix/store/m70mqskiwdjvaph5qxn5cddy2nsqa5lx-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/6qscaqmlqlfl6708bf2f34fdga9015kz-libraries --interaction
+  probe: AGDA_DIR=~/.config/agda
+  probe: load 9.0 s
+  probe: resolved by discovered, version 2.8.0, in 0.18 s
+~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda
+  agda: $SCRATCH/xdg-final/cache/agda-for-project/package/fls-agdaWithPackages/fd3559bd5396ead0b364387e32012ce6/bin/agda --interaction
+  *Type-checking* 
+  *All Done* 
+
+  probe: real agda /nix/store/infalgzvfzl515yfbiaz998skj9lrwnn-fls-agda-2.8.0/bin/agda
+  probe: args --with-compiler=/nix/store/m70mqskiwdjvaph5qxn5cddy2nsqa5lx-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/xza7nddh5281vmdwfqrq3k2hjhgj20fz-libraries --interaction
+  probe: AGDA_DIR=~/.config/agda
+  probe: load 9.4 s
+  probe: resolved by discovered, version 2.8.0, in 0.22 s
+~/git/IO/fls/worktrees/1352-dijkstra-chain-ticked-epoch-state/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda
+  agda: $SCRATCH/xdg-final/cache/agda-for-project/package/fls-agdaWithPackages/0e17c287778df5b30c05ad85c136cba1/bin/agda --interaction
+  *Type-checking* 
+  *All Done* 
+
+  probe: real agda /nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda
+  probe: args --with-compiler=/nix/store/iyypanjqg8pwsyxjfylpd5sqjhbripk3-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries --interaction
+  probe: AGDA_DIR=~/.config/agda
+  probe: load 1.0 s
+  probe: resolved by discovered, version 2.9.0, in 0.19 s
+~/git/ualib/agda-algebras/master/src/Setoid/Operations.lagda.md
+  agda: $SCRATCH/xdg-final/cache/agda-for-project/package/default/a55879da0ade3153e6b92f3a4ace7d34/bin/agda --interaction
+  *Type-checking* 
+  *All Done* 
+
+  probe: real agda /nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda
+  probe: args --with-compiler=/nix/store/iyypanjqg8pwsyxjfylpd5sqjhbripk3-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries --no-default-libraries --library-file ~/git/ualib/agda-lattices/main/.agda/libraries --library standard-library --library agda-algebras --library agda-lattices --interaction
+  probe: AGDA_DIR=~/git/ualib/agda-lattices/main/.agda
+  probe: load 2.3 s
+  probe: resolved by choice, version 2.9.0, in 0.07 s
+~/git/ualib/agda-lattices/main/src/Lattices/Bounded/Covers.lagda.md
+  agda: ~/git/ualib/agda-lattices/main/.agda/bin/agda --interaction
+  *Type-checking* 
+  *All Done* 
+  probe: real agda /nix/store/infalgzvfzl515yfbiaz998skj9lrwnn-fls-agda-2.8.0/bin/agda
+  probe: args --with-compiler=/nix/store/m70mqskiwdjvaph5qxn5cddy2nsqa5lx-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/6qscaqmlqlfl6708bf2f34fdga9015kz-libraries --interaction
+  probe: AGDA_DIR=~/.config/agda
+  probe: load 9.8 s
+  probe: resolved by discovered, version 2.8.0, in 0.18 s
+~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda
+  agda: $SCRATCH/xdg-final/cache/agda-for-project/package/fls-agdaWithPackages/fd3559bd5396ead0b364387e32012ce6/bin/agda --interaction
+  *Type-checking* 
+  *All Done* 
+CONFIG_UNDER_TEST=$S/replacement-shim.el timeout 1800 emacs --batch -Q -l $H   19.88s user 2.55s system 53% cpu 42.078 total

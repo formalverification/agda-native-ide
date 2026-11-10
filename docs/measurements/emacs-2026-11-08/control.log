@@ -1,0 +1,11 @@
+Loading quail/latin-ltx...
+
+  probe: real agda /nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda
+  probe: --library-file=/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries
+  probe: AGDA_DIR=~/.config/agda
+  probe: load 0.1 s
+~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda
+  agda: ~/.cache/agda-2.9.0/bin/agda --interaction
+  *Type-checking* 
+  *Error* error: [LibraryError] Library 'standard-library-classes' not found. Add the path to its .agda-lib file to   '~/.config/agda/libraries' to install. Installed libraries:   standar
+CONFIG=$W/emacs/test/batch-probe.el CONFIG_UNDER_TEST=$S/control-live-block.e  0.10s user 0.04s system 6% cpu 2.272 total
