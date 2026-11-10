@@ -236,7 +236,9 @@ project's root and the file in its src/ directory."
   "An answer a choice settles offers the candidates, chooses, and starts."
   (aft/with-project (file :lib t)
     (aft/write "explain-nobuild.json"
-               (aft/undecided "/repo exports no Agda environment; its dev shell may give one, but entering it runs the project's shell hook as you: allow it with --choose devshell:default, or list a directory at or above it in ~/.config/agda-for-project/trusted"))
+               ;; The resolver's refusal for a flake not trusted, as it
+               ;; words it since repository trust (PR 101).
+               (aft/undecided "/repo is not trusted, and entering its dev shell default runs the project's shell hook as you: allow it with --choose trust-repository:/repo/.git (every worktree of its repository, now and later), --choose trust:DIR (every flake at or below DIR), or --choose devshell:default (this project); trust is kept in ~/.config/agda-for-project/trusted"))
     (aft/write "explain-nobuild.status" "69")
     (aft/write "explain-chosen.json"
                (aft/decided :decidedBy "choice" :method "devshell" :name "default"
