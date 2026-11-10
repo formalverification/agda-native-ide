@@ -49,7 +49,8 @@ Open Panel** from the command palette.
 ## What comes next
 
 +  **Each project's own Agda** ([#99]): agda-mode-vscode and the lanes run
-   each project's Agda as its flake pins it, with no setting touched, so
+   each project's Agda as its flake pins it, with no setting touched once
+   you trust your own checkouts, so
    that one window can hold projects on different Agdas.  See
    [Each project's own Agda](each-projects-own-agda.md).
 +  **Agents** ([#65]): the tool contract registered for the agents already
