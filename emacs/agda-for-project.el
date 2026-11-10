@@ -78,8 +78,9 @@
 
 (defcustom agda-for-project-program "agda-for-project"
   "The resolver: agda-for-project, by name on variable `exec-path' or as a path.
-Install it with `nix profile install
-github:formalverification/agda-native-ide#agda-for-project'."
+Install it with `nix profile add
+github:formalverification/agda-native-ide#agda-for-project' (before
+Nix 2.30, `nix profile install')."
   :type 'string)
 
 (defcustom agda-for-project-fallback nil
@@ -243,8 +244,9 @@ REASON, the resolver's own line, heads the prompt.  Returns the ID."
 
 (defun agda-for-project--wants-choice-p (answer)
   "Whether ANSWER, an undecided --explain, is one a choice settles.
-The resolver ends every such line with the advice to choose (\"see
---candidates, then --choose\", \"allow it with --choose devshell:default\");
+The resolver advises a choice in every such line (\"see --candidates,
+then --choose\"; for a flake not trusted, \"allow it with --choose
+trust-repository:GITDIR ..., or --choose package:NAME (this project)\");
 a failed evaluation or build says \"no Agda was run\" instead."
   (string-match-p "--choose" (or (alist-get 'error answer) "")))
 

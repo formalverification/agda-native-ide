@@ -70,12 +70,14 @@ answers in one of four ways, as follows:
 +  **An Agda not built yet**: the echo area says that a build is starting
    and that Emacs waits for it; then the resolver builds it (once per
    change of the flake's inputs) and it starts.
-+  **Nothing decided, and a choice would settle it** (a flake with several
-   Agda environments and no default, a dev shell that is not trusted, a
++  **Nothing decided, and a choice would settle it** (a flake you have not
+   trusted, a flake with several Agda environments and no default, a
    flake with no Agda at all): the package offers the resolver's
    candidates through `completing-read`, remembers the pick with the
    resolver's `--choose` (for every worktree of the project), and starts
-   it.  A dev shell is offered with the words "entering it runs the
+   it.  For a flake you have not trusted, the candidates include trusting
+   its repository, when that would decide ("Trusting your checkouts",
+   below).  A dev shell is offered with the words "entering it runs the
    project's shell hook", because choosing one is consent to run that
    project's code as you.
 +  **A failure** (an evaluation or a build that failed, a flake with no
@@ -90,9 +92,10 @@ it, which is what agda2-mode would run without the package.
 ## Installing
 
 The package needs the resolver on `exec-path`, or named by
-`agda-for-project-program`.  With Nix:
+`agda-for-project-program`.  With Nix (before Nix 2.30, the command is
+`nix profile install`):
 
-    nix profile install github:formalverification/agda-native-ide#agda-for-project
+    nix profile add github:formalverification/agda-native-ide#agda-for-project
 
 or, to keep it as a gc root at a fixed path (which works whatever PATH
 Emacs inherited):
@@ -102,8 +105,6 @@ Emacs inherited):
 
 and then `(setq agda-for-project-program
 (expand-file-name "~/.cache/agda-for-project-bin/bin/agda-for-project"))`.
-Until [#101] is merged, the flake output exists only on its branch:
-append `/97-m9-1-the-resolver` to the flake reference.
 
 **Plain Emacs**, from a checkout of this repository:
 
@@ -139,10 +140,8 @@ and in `config.el`,
 then `doom sync` and restart Emacs.  The mode command is autoloaded, so
 the call loads the package.
 
-Until [#98]'s pull request is merged, add `:branch "98-m9-2-emacs"` to the
-recipe (or `:branch "98-m9-2-emacs"` to the `:vc` specification).  Both
-installs were tested on 2026-11-08 from that branch, in scratch Emacs
-directories under Emacs 29.3: the `:vc` specification through
+Both installs were tested on 2026-11-08, from [#98]'s branch, in scratch
+Emacs directories under Emacs 29.3: the `:vc` specification through
 `package-vc-install` (which Emacs 30's `use-package :vc` calls), and the
 Doom recipe through Doom's own copy of straight.el, which `package!`
 hands it to.  Enable the mode before the first Agda file is
@@ -151,15 +150,38 @@ opened, since agda2-mode starts Agda when it opens one.
 A running Agda keeps the program it was started with; after installing,
 restart Emacs, or Agda (`C-c C-x C-r`) in a buffer of the right project.
 
-## Trusting dev shells
+**If `doom sync` fails** with `couldn't find remote ref refs/heads/master`
+from straight.el's clone of MELPA, the clone predates MELPA's move of its
+default branch from `master` to `main`: straight.el fetches the branch the
+clone names as its remote's HEAD, still `master` there.  Point the clone
+at `main`, then run `doom sync` again (met and fixed in a Doom
+configuration on 2026-11-09):
 
-The resolver enters a flake's dev shell on its own only when the flake
-lies under a directory listed in `~/.config/agda-for-project/trusted`,
-one per line (see [the resolver's note][project-agda], "Trusting dev
-shells").  agda-algebras' downstream projects (agda-lattices, for one)
-give their Agda through the dev shell, so either list their parent
-directory there, or answer the chooser once per project with
-`devshell:default`.
+    cd ~/.config/emacs/.local/straight/repos/melpa
+    git remote set-branches origin main
+    git fetch origin
+    git remote set-head origin main
+    git branch -m master main
+    git branch -u origin/main main
+    git branch -r -d origin/master
+    git merge --ff-only origin/main
+
+## Trusting your checkouts
+
+The resolver runs what it discovers in a flake (an Agda environment, or a
+dev shell's own `agda`) only for a flake you trust, since running it runs
+the flake's code as you ([the resolver's note][project-agda], "Trusting a
+flake").  So the first `C-c C-l` in a repository you have not trusted
+opens the chooser; pick the entry that begins "trust the repository",
+which trusts it and every worktree git lists for it, now and later.  Or
+trust every checkout under a directory once, from a shell:
+
+    agda-for-project --choose trust:$HOME/git
+
+Either writes one line in `~/.config/agda-for-project/trusted`, which
+VS Code's companion and agda-mcp read too, since they run the same
+resolver; delete the line to take the trust back.  Picking one of a
+project's Agdas in the chooser instead is consent for that project alone.
 
 ## Commands
 
@@ -267,7 +289,6 @@ record of every run are in
    project with a flake.
 
 [#98]: https://github.com/formalverification/agda-native-ide/issues/98
-[#101]: https://github.com/formalverification/agda-native-ide/pull/101
 [adr-0004]: ../adr/0004-each-projects-own-agda.md
 [project-agda]: project-agda.md
 [record]: ../measurements/emacs-2026-11-08.json

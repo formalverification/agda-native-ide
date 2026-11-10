@@ -44,13 +44,27 @@ export interface Explained {
   choice: string | null;
 }
 
-/** One entry of `--candidates --json`. */
+/** One entry of `--candidates --json`.  A `trust` entry, offered first
+ * when trusting the flake would decide, trusts the project's repository
+ * (`trust-repository:GITDIR`) or its directory (`trust:DIR`); its version
+ * is the Agda discovery would then run, when that is an environment's. */
 export interface Candidate {
   id: string;
-  kind: 'package' | 'devshell' | 'built' | 'PATH';
+  kind: 'trust' | 'package' | 'devshell' | 'built' | 'PATH';
   version: string | null;
   label: string;
   chosen: boolean;
+}
+
+/** A candidate's name in the chooser's list: what picking it does.  The
+ * launcher's own label, which says it in full, is the item's detail. */
+export function candidateTitle(candidate: Candidate): string {
+  const version = candidate.version ? `, Agda ${candidate.version}` : '';
+  if (candidate.kind === 'trust') {
+    return `Trust this ${candidate.id.startsWith('trust-repository:') ? 'repository' : 'directory'}${version}`;
+  }
+  if (candidate.kind === 'devshell') return 'Dev shell';
+  return `Agda ${candidate.version ?? '?'}`;
 }
 
 export interface Ran { code: number | null; stdout: string; stderr: string }

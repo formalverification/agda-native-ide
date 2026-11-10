@@ -7,8 +7,8 @@ import { compatibility } from '../compatibility';
 import { tokenReader } from '../highlighting';
 import { agdaCandidates, isLanguageServer, splitOptions } from '../resolution';
 import {
-  candidates, choose, explain, lastLine, laneVersionRefusal, libraryDepends, modeAgda, modeLauncher, parsePs,
-  affectsResolution, nixString, resolutionDir, runKey, starterFlake, transient, type Explained, type Ran,
+  candidateTitle, candidates, choose, explain, lastLine, laneVersionRefusal, libraryDepends, modeAgda, modeLauncher, parsePs,
+  affectsResolution, nixString, resolutionDir, runKey, starterFlake, transient, type Candidate, type Explained, type Ran,
 } from '../project';
 import { restoreState } from '../state';
 
@@ -166,6 +166,17 @@ test('the launcher is asked about the file, and its refusals and failures say wh
   await choose('agda-for-project', '/p/M.agda', null, run({ code: 0, stdout: '', stderr: '' }));
   assert.deepEqual(asked.at(-1), ['--forget', '/p/M.agda']);
   await assert.rejects(choose('agda-for-project', '/p/M.agda', 'bad', run({ code: 64, stdout: '', stderr: 'agda-for-project: not an ID\n' })), /not an ID/);
+});
+
+test('the chooser names a trust entry as trust, never as an Agda', () => {
+  const entry = (fields: Partial<Candidate>): Candidate => ({ id: 'path:/a', kind: 'built', version: null, label: 'x', chosen: false, ...fields });
+  // The launcher's two trust IDs (agda-for-project.sh, trust_grant), with
+  // and without the version of the environment trusting would run.
+  assert.equal(candidateTitle(entry({ id: 'trust-repository:/r/.git', kind: 'trust', version: '2.9.0' })), 'Trust this repository, Agda 2.9.0');
+  assert.equal(candidateTitle(entry({ id: 'trust:/r', kind: 'trust' })), 'Trust this directory');
+  assert.equal(candidateTitle(entry({ id: 'devshell:default', kind: 'devshell' })), 'Dev shell');
+  assert.equal(candidateTitle(entry({ id: 'package:default', kind: 'package', version: '2.8.0' })), 'Agda 2.8.0');
+  assert.equal(candidateTitle(entry({})), 'Agda ?');
 });
 
 test('one Agda serves two projects only when it runs the same program, arguments, environment and version', () => {

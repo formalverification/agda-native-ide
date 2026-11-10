@@ -57,10 +57,11 @@ them.  [In the browser](browser.md)
 
 <span class="state">From source</span>
 
-A companion beside agda-mode-vscode: a panel that follows the active
-module, and a native engine on your own checkout, with an interaction lane
-per project and a fresh Agda for each verdict.  Not yet published to a
-marketplace.  [In VS Code](vscode.md)
+A companion beside agda-mode-vscode: each project's own Agda in one
+window, a panel that follows the active module, and a native engine on
+your own checkout, with an interaction lane per project and a fresh Agda
+for each verdict.  Not yet published to a marketplace.
+[In VS Code](vscode.md)
 
 </div>
 
@@ -68,11 +69,11 @@ marketplace.  [In VS Code](vscode.md)
 
 ### In Emacs
 
-<span class="state">In progress</span>
+<span class="state">From source</span>
 
-Nothing ships for Emacs yet.  The first package, under way, makes
-agda2-mode start each buffer's project's own Agda; the agent and search
-tools follow.  [In Emacs](emacs.md)
+A package that makes agda2-mode start each buffer's project's own Agda,
+so that projects on Agda 2.8.0 and 2.9.0 load in one session, installed
+from GitHub; the agent and search tools follow.  [In Emacs](emacs.md)
 
 </div>
 
@@ -89,11 +90,10 @@ records how, and [the overview](engine/overview.md) explains it.
 
 An editor runs one Agda for every file, so a file of a project pinned to
 another Agda, or to other libraries, fails with errors that read as broken
-code.  The workbench's next milestone makes every native host run each
-project's own Agda, as its flake pins it, with no setting touched once
-you trust your own checkouts.
-[Each project's own Agda](each-projects-own-agda.md) says what is built
-and what is not yet.
+code.  In VS Code and in Emacs, the workbench runs each project's own
+Agda instead, as its flake pins it, with no setting touched once you trust
+your own checkouts.  [Each project's own Agda](each-projects-own-agda.md)
+says how it decides, and what its runs in both editors showed.
 
 ## Principles
 

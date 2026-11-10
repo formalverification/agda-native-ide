@@ -179,49 +179,81 @@ to Agda.
    buffer of another project, and accept the version the resolved Agda
    reports, so that Agda 2.8.0 and 2.9.0 both load under one agda2-mode.
    agda2-mode keeps one Agda process, so a switch of project restarts it,
-   and the other buffer needs a load again.
-+  **VS Code** ([#99], in [#102]): agda-mode-vscode and the companion's
-   lanes run each project's Agda through the resolver.  agda-mode-vscode
-   runs one Agda for the whole window, so the companion names the resolver
-   as the mode's one path, tells it which project is active, and restarts
-   the mode when the active file moves to a project on another Agda.  A
+   and the other buffer needs a load again.  [In Emacs](emacs.md) says
+   how to install it.
++  **VS Code** ([#99]): agda-mode-vscode and the companion's lanes run
+   each project's Agda through the resolver.  agda-mode-vscode runs one
+   Agda for the whole window, so the companion names the resolver as the
+   mode's one path, tells it which project is active, and restarts the
+   mode when the active file moves to a project on another Agda.  A
    status-bar item names the active project's Agda and how it was decided,
    and a quick pick offers the candidates when nothing decides.
+   [In VS Code](vscode.md) says how to install it.
 +  **agda-mcp**, agda-native-air's tool server for agents, can name the
    resolver as its Agda, so an agent checks a file with the same Agda the
    editor does.
 
 ## What is done, and what is not
 
-+  **The resolver** is written and tested, with its design record (ADR
-   0004) and its note, in [#101], which is under review; the account above
-   is drawn from that note and changes with it.  Its interface (the program
-   in place of `agda`, exit 69, `--explain`, `--candidates` and `--choose`)
-   is what the editors build on.
-+  **VS Code's run is done, in [#102]**, which is under review: on
-   2026-11-08, one VS Code window (1.141.0, with agda-mode-vscode 0.10.4)
-   held agda-algebras and formal-ledger-specifications, with the resolver
-   as the mode's one path and no setting changed.  A file of agda-algebras
-   loaded under its flake's Agda 2.9.0; a file of
-   formal-ledger-specifications under its Agda 2.8.0, after the mode
-   restarted on the switch (8.6 s, a fresh Agda reading the project's
-   interfaces); and agda-algebras again under 2.9.0.  The figures are the
-   run's record, [`vscode-project-agda-2026-11-08.json`][vscode-run], on
-   [#102]'s branch.  Its three screenshots are not on this page yet: the
-   repository commits no binaries, and they wait for a home that is pinned
-   by hash, as every file the site serves is.
-+  **Emacs's run is not done yet**: one `emacs --batch` session loading
-   files of formal-ledger-specifications (Agda 2.8.0), agda-algebras (Agda
-   2.9.0) and agda-lattices (its dev shell's Agda) in turn, each under its
-   own Agda, is [#98]'s acceptance run.  This section will show its
-   transcript when it lands.
+All three parts were merged on 2026-11-09: the resolver in [#101], Emacs
+in [#104] and VS Code in [#102].
+
++  **The resolver** is written and tested, with its design record,
+   [ADR 0004][adr-0004], and [its note][resolver-note], from which the
+   account above is drawn.  Its interface (the program in place of
+   `agda`, exit 69, `--explain`, `--candidates` and `--choose`) is what
+   the editors build on.
+
++  **Emacs's run**: one `emacs --batch` session with the real agda2-mode
+   (Doom's, GNU Emacs 29.3) loaded five files in turn, each with `C-c C-l`,
+   on 2026-11-08, with the resolver's cache warm, as follows:
+
+    | File | Agda | Libraries | Resolved | Load |
+    |---|---|---|---|---|
+    | formal-ledger-specifications, `Axiom/Set/Map/Extra.agda` | 2.8.0 | `6qscaqml…-libraries` | 0.18 s | 9.0 s |
+    | a worktree of it on an older lock, the same file | 2.8.0 | `xza7nddh…-libraries` | 0.22 s | 9.4 s |
+    | agda-algebras, `Setoid/Operations.lagda.md` | 2.9.0 | `v81rfymb…-libraries` | 0.19 s | 1.0 s |
+    | agda-lattices, `Lattices/Bounded/Covers.lagda.md` | 2.9.0 | its dev shell's | 0.07 s | 2.3 s |
+    | formal-ledger-specifications again | 2.8.0 | `6qscaqml…-libraries` | 0.18 s | 9.8 s |
+
+    Every load ended `*All Done*`, each under its own project's Agda and
+    libraries, read from the running process; the worktree got a build of
+    its own, and agda-lattices was chosen once, through the chooser, and
+    remembered.  "Load" runs from `C-c C-l` to Agda's verdict and includes
+    the restart.  The figures are the run's record,
+    [`emacs-2026-11-08.json`][emacs-run], and [the Emacs note][emacs-note]
+    has the rest of it.
+
++  **VS Code's run**: on 2026-11-08, one VS Code window (1.141.0, with
+   agda-mode-vscode 0.10.4) held agda-algebras and
+   formal-ledger-specifications, with the resolver as the mode's one path
+   and no setting changed.  A file of agda-algebras loaded under its
+   flake's Agda 2.9.0; a file of formal-ledger-specifications under its
+   Agda 2.8.0, after the mode restarted on the switch (8.6 s, a fresh Agda
+   reading the project's interfaces); and agda-algebras again under 2.9.0.
+   The figures are the run's record,
+   [`vscode-project-agda-2026-11-08.json`][vscode-run].  Its three
+   screenshots are not on this page yet: the repository commits no
+   binaries, and they wait for a home that is pinned by hash, as every
+   file the site serves is.
+
++  **Not shown yet**: the milestone's exit criterion asks the VS Code
+   window to hold agda-lattices as well, and a worktree on a moved lock,
+   which its run did not.  Both runs also came before the resolver asked
+   for trust in every flake (2026-11-09): there, only a dev shell needed
+   it, which is why agda-lattices went through the chooser.
 
 [#97]: https://github.com/formalverification/agda-native-ide/issues/97
 [#98]: https://github.com/formalverification/agda-native-ide/issues/98
 [#99]: https://github.com/formalverification/agda-native-ide/issues/99
 [#101]: https://github.com/formalverification/agda-native-ide/pull/101
 [#102]: https://github.com/formalverification/agda-native-ide/pull/102
-[vscode-run]: https://github.com/formalverification/agda-native-ide/blob/99-m9-3-vs-code/docs/measurements/vscode-project-agda-2026-11-08.json
+[#104]: https://github.com/formalverification/agda-native-ide/pull/104
+[adr-0004]: adr/0004-each-projects-own-agda.md
+[resolver-note]: notes/project-agda.md
+[emacs-note]: notes/emacs.md
+[emacs-run]: measurements/emacs-2026-11-08.json
+[vscode-run]: measurements/vscode-project-agda-2026-11-08.json
 [formal-ledger-specifications]: https://github.com/IntersectMBO/formal-ledger-specifications
 [agda-algebras]: https://github.com/ualib/agda-algebras
 [agda-lattices]: https://github.com/ualib/agda-lattices
