@@ -162,6 +162,36 @@ export async function run(): Promise<void> {
   await beta.update('agda.version', undefined, vscode.ConfigurationTarget.WorkspaceFolder);
   record.refusals = { gammaStatus: refused.text, gammaTooltip: refused.tooltip.split('\n')[0], versionOverride: 'refused' };
 
+  // The mode's options reach the lanes too, as the mode passes them to the
+  // launcher, which runs them after the project's arguments:
+  // --allow-unsolved-metas turns the open goal's exit 42 into 0.
+  const options = vscode.workspace.getConfiguration('agdaMode');
+  await options.update('connection.commandLineOptions', '--allow-unsolved-metas', vscode.ConfigurationTarget.Global);
+  const optioned = await lane('checkFile');
+  assert.ok(optioned.result.status === 'verdict' && optioned.result.verdict.exitCode === 0, `the mode's options reach the lanes: ${JSON.stringify(optioned.result)}`);
+  await options.update('connection.commandLineOptions', undefined, vscode.ConfigurationTarget.Global);
+  const plain = await lane('checkFile');
+  assert.ok(plain.result.status === 'verdict' && plain.result.verdict.exitCode === 42, 'and leave with them');
+
+  // A restart skipped because focus left the file before its follow ended
+  // is tried again at the next focus of that project, its answer cached.
+  await deadline(vscode.commands.executeCommand('agdaWorkbench.load'), 'load beta');
+  assert.equal(versionOf((await running())!.args), agdas.beta!.version, 'the mode runs beta\'s Agda');
+  restartsBefore = steering.restarts.length;
+  const prose = await vscode.workspace.openTextDocument({ content: 'not Agda\n' });
+  const alphaDocument = await vscode.workspace.openTextDocument(path.join(folder('alpha'), 'Alpha.agda'));
+  void vscode.window.showTextDocument(alphaDocument, { viewColumn: vscode.ViewColumn.One, preview: false });
+  await vscode.window.showTextDocument(prose, { viewColumn: vscode.ViewColumn.One, preview: false });
+  await settled('alpha');
+  assert.equal(steering.restarts.length, restartsBefore, 'focus left alpha before its restart');
+  assert.equal(versionOf((await running())!.args), agdas.beta!.version, 'so the mode still runs beta\'s Agda');
+  await show('alpha');
+  await settled('alpha');
+  assert.equal(steering.restarts.length - restartsBefore, 1, 'the skipped restart is tried again');
+  assert.equal(versionOf((await running())!.args), agdas.alpha!.version, 'and the mode runs alpha\'s Agda');
+  record.lanesTakeModeOptions = { withOption: optioned.result.verdict.exitCode, without: plain.result.verdict.exitCode };
+  record.skippedRestartRetried = true;
+
   // The mode's own Switch Agda Version: its pick, kept in the mode's
   // workspace state, overrides its paths, so the mode no longer runs the
   // launcher.  Chosen from the chooser, it stops the steering: no restart

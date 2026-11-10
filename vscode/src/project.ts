@@ -11,7 +11,7 @@
 // with none.  It imports nothing of VS Code's, so its tests run under node.
 
 import { execFile } from 'node:child_process';
-import { basename } from 'node:path';
+import { basename, dirname } from 'node:path';
 
 /** The launcher's name, as a host names it in place of `agda`. */
 export const launcherName = 'agda-for-project';
@@ -37,6 +37,9 @@ export interface Explained {
   args: string[];
   env: Record<string, string>;
   version: string | null;
+  /** Why nothing was decided: `failed` (a build or evaluation), `untrusted`
+   * or `undecided`; null when decided. */
+  reason?: 'failed' | 'untrusted' | 'undecided' | null;
   built: 'yes' | 'no' | 'missing';
   choice: string | null;
 }
@@ -101,6 +104,32 @@ export async function candidates(launcher: string, file: string, run: Runner = r
 export async function choose(launcher: string, file: string, id: string | null, run: Runner = runLauncher): Promise<void> {
   const ran = await run(launcher, id === null ? ['--forget', file] : ['--choose', id, file]);
   if (ran.code !== 0) throw new Error(`${launcher} ${id === null ? '--forget' : `--choose ${id}`} failed (exit ${ran.code ?? '?'}): ${lastLine(ran.stderr)}`);
+}
+
+/** The directory the launcher starts from for a file, which names its
+ * answer: the `.agda-lib`'s, as the launcher finds it, or else the file's
+ * own (the launcher's project root then), not the workspace folder the
+ * lanes fall back to, under which two subdirectories may hold two flakes. */
+export function resolutionDir(file: string, project: { root: string; source: string }): string {
+  return project.source === 'agda-lib' ? project.root : dirname(file);
+}
+
+/** Whether a change to this file can change the launcher's answer: its
+ * build key hashes every tracked file of the checkout but Agda sources
+ * (`*.agda`, `*.lagda`, `*.lagda.*`), so any other file may, except what
+ * Agda and git write themselves (interfaces, `_build/`, `.git/`). */
+export function affectsResolution(file: string): boolean {
+  const path = file.replace(/\\/g, '/');
+  if (/\/(\.git|_build)\//.test(path)) return false;
+  const name = path.slice(path.lastIndexOf('/') + 1);
+  return !/\.(agda|lagda|agdai)$/.test(name) && !/\.lagda\.[^/]*$/.test(name);
+}
+
+/** Whether an answer may change with no change to the files: a failed
+ * build or evaluation (the network, the store), or trust given outside
+ * the checkout; so it is not kept. */
+export function transient(answer: Explained): boolean {
+  return !answer.decided && (answer.reason === 'failed' || answer.reason === 'untrusted');
 }
 
 /** What a mode spawn of this resolution runs: two answers with one key

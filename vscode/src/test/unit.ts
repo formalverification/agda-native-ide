@@ -8,7 +8,7 @@ import { tokenReader } from '../highlighting';
 import { agdaCandidates, isLanguageServer, splitOptions } from '../resolution';
 import {
   candidates, choose, explain, lastLine, laneVersionRefusal, libraryDepends, modeAgda, modeLauncher, parsePs,
-  nixString, runKey, starterFlake, type Explained, type Ran,
+  affectsResolution, nixString, resolutionDir, runKey, starterFlake, transient, type Explained, type Ran,
 } from '../project';
 import { restoreState } from '../state';
 
@@ -175,6 +175,28 @@ test('one Agda serves two projects only when it runs the same program, arguments
   assert.equal(runKey(answer({ env: { A: '1', B: '2' } })), runKey(answer({ env: { B: '2', A: '1' } })));
   // A dev shell's Agda in the checkout: one path, rebuilt as another Agda.
   assert.notEqual(runKey(answer({ program: '/p/.agda/bin/agda', version: '2.9.0' })), runKey(answer({ program: '/p/.agda/bin/agda', version: '2.8.0' })));
+});
+
+test("an answer is named by the launcher's start: the .agda-lib's directory, else the file's", () => {
+  assert.equal(resolutionDir('/w/lib/src/A.agda', { root: '/w/lib', source: 'agda-lib' }), '/w/lib');
+  // No .agda-lib: two subdirectories of one folder may hold two flakes.
+  assert.equal(resolutionDir('/w/one/A.agda', { root: '/w', source: 'fallback' }), '/w/one');
+  assert.notEqual(resolutionDir('/w/one/A.agda', { root: '/w', source: 'fallback' }), resolutionDir('/w/two/B.agda', { root: '/w', source: 'fallback' }));
+  assert.equal(resolutionDir('/x/A.agda', { root: '/x', source: 'directory' }), '/x');
+});
+
+test("a change to any file the launcher's key covers asks again; Agda's sources and what Agda and git write do not", () => {
+  for (const file of ['/w/flake.nix', '/w/flake.lock', '/w/x.agda-lib', '/w/nix/agda.nix', '/w/scripts/hook.sh', '/w/README.md', 'C:\\w\\nix\\agda.nix'])
+    assert.equal(affectsResolution(file), true, file);
+  for (const file of ['/w/A.agda', '/w/B.lagda', '/w/C.lagda.md', '/w/D.lagda.tex', '/w/_build/2.9.0/agda/A.agdai', '/w/A.agdai', '/w/.git/index', 'C:\\w\\_build\\x'])
+    assert.equal(affectsResolution(file), false, file);
+});
+
+test('a failed or untrusted refusal is not kept; a decided answer or an undecided one is', () => {
+  assert.equal(transient(answer({ decided: false, reason: 'failed' })), true);
+  assert.equal(transient(answer({ decided: false, reason: 'untrusted' })), true);
+  assert.equal(transient(answer({ decided: false, reason: 'undecided' })), false);
+  assert.equal(transient(answer({})), false);
 });
 
 test('the lanes speak 2.9.0 and 2.8.0, and refuse another, saying where it came from', () => {

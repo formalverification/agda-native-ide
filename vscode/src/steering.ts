@@ -53,8 +53,8 @@ import { readFile, writeFile, stat } from 'node:fs/promises';
 import * as vscode from 'vscode';
 import { findProjectRoot, locateExecutable } from '@agda-native-ide/engine/native';
 import {
-  candidates, choose, decidedHow, explain, launcherName, libraryDepends, listProcesses, modeAgda, modeLauncher,
-  runKey, runLauncher, starterFlake, type Explained, type Process,
+  affectsResolution, candidates, choose, decidedHow, explain, launcherName, libraryDepends, listProcesses, modeAgda, modeLauncher,
+  resolutionDir, runKey, runLauncher, starterFlake, transient, type Explained, type Process,
 } from './project';
 
 const variable = 'AGDA_FOR_PROJECT_DIR';
@@ -72,6 +72,9 @@ export interface Followed {
   file: string;
   /** The project's root, as findProjectRoot has it (the lanes' root). */
   root: string;
+  /** The directory the launcher starts from (resolutionDir), which names
+   * its answer. */
+  dir: string;
   answer?: Explained;
   /** Why there is no answer: the launcher's one line, or why it did not run. */
   error?: string;
@@ -83,16 +86,19 @@ export class Steering implements vscode.Disposable {
   private readonly status: vscode.StatusBarItem;
   private readonly output: vscode.OutputChannel;
   private readonly subscriptions: vscode.Disposable[] = [];
-  /** Each project's answer, by its root, built once; cleared when a file
-   * that decides an Agda changes, or a choice is made. */
+  /** Each project's answer, by the directory the launcher starts from,
+   * built once; cleared when a file the launcher's key covers changes, or
+   * a choice is made; a transient refusal (a failed build) is not kept. */
   private readonly answers = new Map<string, Promise<Explained>>();
   private readonly original = process.env[variable];
   private followed: Followed | undefined;
   private following: Promise<void> = Promise.resolve();
   private sequence = 0;
-  /** The key of the resolution the variable names, which the mode's next
-   * spawn runs. */
+  /** The key of the resolution the mode runs, or will at its next spawn:
+   * set only once the mode is restarted on it, or runs nothing, so that a
+   * restart skipped (focus left the file) is tried again. */
   private envKey: string | undefined;
+  private watched: ReturnType<typeof setTimeout> | undefined;
   private offered = false;
   /** The version each mode process answers, by pid. */
   private readonly modeVersions = new Map<number, Promise<string | undefined>>();
@@ -104,8 +110,15 @@ export class Steering implements vscode.Disposable {
     this.status = vscode.window.createStatusBarItem('agdaWorkbench.agda', vscode.StatusBarAlignment.Left, 101);
     this.status.name = 'Agda Workbench: the project\'s Agda';
     this.output = vscode.window.createOutputChannel('Agda Workbench: Agda resolution');
-    const watcher = vscode.workspace.createFileSystemWatcher('**/{flake.nix,flake.lock,*.agda-lib}');
-    const changed = () => { this.answers.clear(); this.refollow(); };
+    // The launcher's key hashes every tracked file but Agda sources, so a
+    // change to any other file may change its answer: ask again, once a
+    // burst of changes (a checkout, a save of several) has settled.
+    const watcher = vscode.workspace.createFileSystemWatcher('**/*');
+    const changed = (uri: vscode.Uri) => {
+      if (!affectsResolution(uri.fsPath)) return;
+      clearTimeout(this.watched);
+      this.watched = setTimeout(() => { this.answers.clear(); this.refollow(); }, 250);
+    };
     this.subscriptions.push(
       this.status, this.output, watcher,
       watcher.onDidChange(changed), watcher.onDidCreate(changed), watcher.onDidDelete(changed),
@@ -155,17 +168,26 @@ export class Steering implements vscode.Disposable {
   /** Settles when the companion has followed the last change of editor. */
   idle(): Promise<void> { return this.following; }
 
-  /** A file's Agda, from the launcher, built once per project root. */
-  answerFor(file: string, root: string): Promise<Explained> {
-    let answer = this.answers.get(root);
+  /** A file's Agda, from the launcher, built once per directory it starts
+   * from (`project` is findProjectRoot's for the file). */
+  answerFor(file: string, project: { root: string; source: string }): Promise<Explained> {
+    const dir = resolutionDir(file, project);
+    let answer = this.answers.get(dir);
     if (!answer) {
       const launcher = this.launcher(vscode.Uri.file(file));
       if (!launcher) return Promise.reject(new Error('no agda-for-project is configured'));
-      answer = explain(launcher, file);
-      this.answers.set(root, answer);
-      answer.catch(() => { if (this.answers.get(root) === answer) this.answers.delete(root); });
+      const asked = explain(launcher, file);
+      answer = asked;
+      this.answers.set(dir, asked);
+      const evict = () => { if (this.answers.get(dir) === asked) this.answers.delete(dir); };
+      asked.then(answered => { if (transient(answered)) evict(); }, evict);
     }
     return answer;
+  }
+
+  /** The key the mode runs under for an answer: its runKey, or a refusal's. */
+  private steeredKey(answer: Explained, dir: string): string {
+    return answer.decided ? runKey(answer) : `refused ${dir}`;
   }
 
   private track(editor: vscode.TextEditor | undefined): void {
@@ -189,29 +211,35 @@ export class Steering implements vscode.Disposable {
     if (sequence !== this.sequence) return;
     const uri = vscode.Uri.file(file);
     const folder = vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath;
-    const root = (await findProjectRoot(file, folder)).root;
+    const project = await findProjectRoot(file, folder);
+    const root = project.root;
+    const dir = resolutionDir(file, project);
     const launcher = this.launcher(uri);
     if (!launcher) {
-      this.followed = { file, root };
+      this.followed = { file, root, dir };
       this.status.hide();
       void this.offerSteering();
       return;
     }
-    if (!force && this.followed?.root === root && this.followed.answer) {
+    const steering = this.steersMode();
+    // The same project, and the mode on its Agda (or not steered): nothing
+    // to do.  A restart that was skipped leaves the key behind, and so is
+    // tried again here.
+    if (!force && this.followed?.dir === dir && this.followed.answer &&
+        (!steering || this.envKey === this.steeredKey(this.followed.answer, dir))) {
       this.followed.file = file;
       return;
     }
-    const steering = this.steersMode();
     if (!steering) this.restoreVariable();
     // The next spawn of the mode is for this project, even before its
     // build ends: a load meanwhile runs the launcher, which waits for it.
-    if (steering) process.env[variable] = root;
-    this.followed = { file, root };
+    if (steering) process.env[variable] = dir;
+    this.followed = { file, root, dir };
     this.showBuilding(root);
     let answer: Explained;
     const asked = performance.now();
     try {
-      answer = await this.withProgress(root, this.answerFor(file, root));
+      answer = await this.withProgress(root, this.answerFor(file, project));
       this.followed.explainMs = Math.round(performance.now() - asked);
     } catch (error) {
       if (sequence !== this.sequence) return;
@@ -228,7 +256,7 @@ export class Steering implements vscode.Disposable {
       void vscode.window.showWarningMessage(`${basename(root)}: ${this.followed.error}`, 'Choose an Agda…').then(pick => {
         if (pick) void vscode.commands.executeCommand('agdaWorkbench.chooseAgda');
       });
-      if (steering) this.envKey = `refused ${root}`;
+      if (steering) this.envKey = this.steeredKey(answer, dir);
       return;
     }
     const mode = this.namesLauncher() ? await this.modeProcess() : undefined;
@@ -236,10 +264,10 @@ export class Steering implements vscode.Disposable {
     if (!steering) return;
     process.env[variable] = answer.project.root;
     const key = runKey(answer);
-    const previous = this.envKey;
-    this.envKey = key;
-    if (key === previous || !mode) return;
-    await this.restartMode(file, root, mode);
+    if (key === this.envKey) return;
+    // With no Agda running, the mode's next spawn runs this one.
+    if (!mode) { this.envKey = key; return; }
+    if (await this.restartMode(file, root, mode) === 'restarted') this.envKey = key;
   }
 
   /** The mode's Agda, if it runs one. */
@@ -249,17 +277,17 @@ export class Steering implements vscode.Disposable {
 
   /** Restart the mode on the file, which the restart loads: it acts on the
    * active editor. */
-  private async restartMode(file: string, root: string, running: Process): Promise<void> {
+  private async restartMode(file: string, root: string, running: Process): Promise<'restarted' | 'skipped' | 'own'> {
     const active = vscode.window.activeTextEditor;
-    if (active?.document.uri.fsPath !== file) return;
-    if (!(await vscode.commands.getCommands(true)).includes('agda-mode.restart')) return;
+    if (active?.document.uri.fsPath !== file) return 'skipped';
+    if (!(await vscode.commands.getCommands(true)).includes('agda-mode.restart')) return 'skipped';
     const restart: { root: string; replaced: number; ms?: number } = { root, replaced: running.pid };
     this.restarts.push(restart);
     const started = performance.now();
     await vscode.commands.executeCommand('agda-mode.restart');
     restart.ms = Math.round(performance.now() - started);
     const answer = this.followed?.answer;
-    if (!answer) return;
+    if (!answer) return 'restarted';
     // Restarted with the variable on this project, the mode runs the
     // launcher's Agda, unless a Switch Agda Version pick overrides its
     // paths: then it runs another, and steering it only reloads that one.
@@ -269,8 +297,11 @@ export class Steering implements vscode.Disposable {
       this.output.appendLine(`[steer] restarted for ${root}, Agda mode runs Agda ${version} (${now!.args}), not ${answer.version}: it runs an Agda of its own, and is not steered until "Steer Agda mode again"`);
       await this.context.workspaceState.update(ownPickKey, true);
       this.restoreVariable();
+      await this.showAnswer(answer, now);
+      return 'own';
     }
     await this.showAnswer(answer, now);
+    return 'restarted';
   }
 
   /** The version a mode process answers, asked of its executable (a

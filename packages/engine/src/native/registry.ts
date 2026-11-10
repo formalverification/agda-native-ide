@@ -55,6 +55,9 @@ export interface LaneConfig {
   args: readonly string[];
   /** Its environment (default: this process's). */
   env?: Record<string, string | undefined>;
+  /** The version it answered, when known: part of the lane's key, since a
+   * rebuild can put another Agda at the same path with the same arguments. */
+  version?: string;
 }
 
 /** Whether a request loaded its file, and why, in air's words: `reused`
@@ -138,7 +141,7 @@ interface Slot {
 const DEFAULT_IDLE_MS = 15 * 60_000;
 
 const keyOf = (config: LaneConfig) =>
-  JSON.stringify([config.executable, config.args, Object.entries(config.env ?? {}).sort()]);
+  JSON.stringify([config.executable, config.args, Object.entries(config.env ?? {}).sort(), config.version ?? null]);
 
 function isConfig(value: LaneConfig | Refusal | Failure): value is LaneConfig {
   return !("kind" in value);

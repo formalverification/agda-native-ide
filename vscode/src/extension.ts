@@ -22,7 +22,7 @@ import { compatibility, Compatibility } from './compatibility';
 import { tokenReader } from './highlighting';
 import { panelHtml, panelOptions } from './panel';
 import { decidedHow, laneVersionRefusal, laneVersions } from './project';
-import { agdaCandidates } from './resolution';
+import { agdaCandidates, splitOptions } from './resolution';
 import { Steering } from './steering';
 import { Action, CommandReport, isAction, isLaneAction, LaneAction, laneActions, modeActions, PanelState, restoreState } from './state';
 
@@ -356,7 +356,7 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
     if (launcher) {
       let answer;
       try {
-        answer = await this.steering.answerFor(path, project.root);
+        answer = await this.steering.answerFor(path, project);
       } catch (error) {
         return refusal('configuration', error instanceof Error ? error.message : String(error));
       }
@@ -369,11 +369,14 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
       if (why) return refusal('configuration', why);
       const env: Record<string, string | undefined> = { ...process.env, ...answer.env };
       delete env.AGDA_FOR_PROJECT_DIR;
-      const resolved = await resolveAgda([{ source: `agda-for-project (${decidedHow(answer)})`, executable: answer.program, args: answer.args }], {
+      // The mode passes its options to the launcher, which runs them after
+      // the project's arguments; the lanes do the same.
+      const args = [...answer.args, ...splitOptions(mode.get('connection.commandLineOptions'))];
+      const resolved = await resolveAgda([{ source: `agda-for-project (${decidedHow(answer)})`, executable: answer.program, args, argsSource: 'agdaMode.connection.commandLineOptions' }], {
         expectedVersion: answer.version, cache: this.probes, cwd: project.root, env,
       });
       if ('kind' in resolved) return resolved;
-      return { root: project.root, executable: resolved.executable, args: resolved.args, env };
+      return { root: project.root, executable: resolved.executable, args: resolved.args, env, version: resolved.version };
     }
     // Resolved in the root, where the lanes run, as their spawn would.
     const resolved = await resolveAgda(agdaCandidates({
@@ -385,7 +388,7 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
       cache: this.probes, cwd: project.root,
     });
     if ('kind' in resolved) return resolved;
-    return { root: project.root, executable: resolved.executable, args: resolved.args };
+    return { root: project.root, executable: resolved.executable, args: resolved.args, version: resolved.version };
   }
 
   private laneEnded(ended: LaneEnded): void {

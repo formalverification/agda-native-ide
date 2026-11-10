@@ -223,6 +223,18 @@ describe("the lane registry", () => {
     await registry.dispose();
   });
 
+  it("replaces a lane whose Agda answers another version at the same path", async () => {
+    let version = "2.9.0";
+    const { registry, ended } = registryWith({ config: () => ({ version }) });
+    const one = join(rootA, "One.agda");
+    const before = (await registry.withFile(one, async (use) => use.pid)) as number;
+    expect(await registry.withFile(one, async (use) => use.spawned)).toBe(false);
+    version = "2.8.0";
+    expect(await registry.withFile(one, async (use) => look(use))).toMatchObject({ load: "first", spawned: true });
+    expect(ended).toMatchObject([{ pid: before, reason: "replaced" }]);
+    await registry.dispose();
+  });
+
   it("gives a verdict through a root's lane, loading nothing", async () => {
     const { registry } = registryWith();
     const three = join(rootB, "Three.agda");
