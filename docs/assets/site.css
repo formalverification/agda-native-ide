@@ -1,0 +1,326 @@
+/* File: docs/assets/site.css
+
+   The website's look (issue 96): Material's custom palette, filled from
+   the playground's own tokens (static/theme.css, issue 17), so that the
+   site and the workbench it describes look like one thing; JuliaMono for
+   code, from the playground's pinned fonts (docs/assets/vendor/, which the
+   build fills); and the home page's hero, cards and figures.  The text
+   colors were measured against their surfaces with WCAG 2.2's formula by
+   scripts/pages/browser.mjs, in both schemes, and each passes AA. */
+
+@font-face {
+  font-family: "JuliaMono";
+  src: url("vendor/fonts/JuliaMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JuliaMono";
+  src: url("vendor/fonts/JuliaMono-RegularItalic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JuliaMono";
+  src: url("vendor/fonts/JuliaMono-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --md-text-font-family: system-ui, -apple-system, "Segoe UI", Roboto,
+    "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+  --md-code-font-family: "JuliaMono", ui-monospace, "SFMono-Regular",
+    Menlo, Consolas, monospace;
+}
+
+/* == light: the playground's light palette ============================ */
+
+[data-md-color-scheme="default"] {
+  --site-canvas: #f8f9f5;
+  --site-surface: #ffffff;
+  --site-soft: #e7eae3;
+  --site-line: #747c70;
+  --site-text: #171a16;
+  --site-muted: #565d54;
+  --site-accent: #156b52;
+  --site-accent-strong: #0e503c;
+  --site-accent-soft: #dcebe3;
+  --site-goal: #dff3e8;
+
+  --md-default-bg-color: var(--site-canvas);
+  --md-default-fg-color: var(--site-text);
+  --md-default-fg-color--light: var(--site-muted);
+  --md-default-fg-color--lighter: #6f776d;
+  --md-default-fg-color--lightest: #d6dbd2;
+  --md-typeset-color: var(--site-text);
+  --md-typeset-a-color: var(--site-accent);
+  --md-code-bg-color: #eef1eb;
+  --md-code-fg-color: #242a23;
+  --md-footer-bg-color: #1d2a24;
+  --md-footer-bg-color--dark: #16201b;
+}
+
+[data-md-color-scheme="default"][data-md-color-primary="custom"] {
+  --md-primary-fg-color: var(--site-accent-strong);
+  --md-primary-fg-color--light: var(--site-accent);
+  --md-primary-fg-color--dark: #0a3b2c;
+  --md-primary-bg-color: #ffffff;
+  --md-primary-bg-color--light: #ffffffd9;
+}
+
+[data-md-color-scheme="default"][data-md-color-accent="custom"] {
+  --md-accent-fg-color: #0a3b2c;
+  --md-accent-fg-color--transparent: #156b521a;
+  --md-accent-bg-color: #ffffff;
+}
+
+/* == dark: the playground's dark palette (agda-algebras' Aurora) ======= */
+
+[data-md-color-scheme="slate"] {
+  --site-canvas: #0c0e1d;
+  --site-surface: #15172e;
+  --site-soft: #1c203a;
+  --site-line: #737b9c;
+  --site-text: #d7dcff;
+  --site-muted: #b3bad8;
+  --site-accent: #5eead4;
+  --site-accent-strong: #9af3e5;
+  --site-accent-soft: #1b353b;
+  --site-goal: #1b3037;
+
+  --md-default-bg-color: var(--site-canvas);
+  --md-default-fg-color: var(--site-text);
+  --md-default-fg-color--light: var(--site-muted);
+  --md-default-fg-color--lighter: #a7b0d0;
+  --md-default-fg-color--lightest: #2a2f4d;
+  --md-typeset-color: var(--site-text);
+  --md-typeset-a-color: var(--site-accent);
+  --md-code-bg-color: #12152e;
+  --md-code-fg-color: #d7dcff;
+  --md-footer-bg-color: #0a0b18;
+  --md-footer-bg-color--dark: #07080f;
+}
+
+[data-md-color-scheme="slate"][data-md-color-primary="custom"] {
+  --md-primary-fg-color: var(--site-surface);
+  --md-primary-fg-color--light: var(--site-soft);
+  --md-primary-fg-color--dark: var(--site-canvas);
+  --md-primary-bg-color: var(--site-text);
+  --md-primary-bg-color--light: #d7dcffcc;
+}
+
+[data-md-color-scheme="slate"][data-md-color-accent="custom"] {
+  --md-accent-fg-color: var(--site-accent-strong);
+  --md-accent-fg-color--transparent: #5eead41a;
+  --md-accent-bg-color: var(--site-canvas);
+}
+
+/* Material dims small type and inactive navigation with opacity, which
+   the contrast of a color cannot see; give them a muted color instead. */
+.md-typeset small {
+  opacity: 1;
+  color: var(--site-muted);
+}
+
+/* == the home page ===================================================== */
+
+.md-typeset .hero {
+  margin: 0 0 2rem;
+}
+.md-typeset .hero p.lede {
+  font-size: 1.15em;
+  line-height: 1.55;
+  max-width: 40em;
+}
+.md-typeset .hero .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 1.2rem 0 1.4rem;
+}
+.md-typeset .hero .actions .md-button {
+  margin: 0;
+}
+
+/* A screenshot shown in the scheme the reader sees: both are in the
+   page, and the other is hidden.  `.shot` frames it like a window. */
+.md-typeset figure.shot {
+  margin: 0;
+  max-width: 100%;
+}
+.md-typeset figure.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--site-line);
+  border-radius: 0.4rem;
+  box-shadow: 0 0.4rem 1.6rem #0000001f;
+}
+.md-typeset figure.shot figcaption {
+  max-width: none;
+  margin: 0.6rem 0 0;
+  font-size: 0.8em;
+  font-style: normal;
+  color: var(--site-muted);
+  text-align: left;
+}
+[data-md-color-scheme="default"] .only-dark,
+[data-md-color-scheme="slate"] .only-light {
+  display: none !important;
+}
+
+/* The three platforms, side by side when there is room. */
+.md-typeset .platforms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.md-typeset .platforms > div {
+  min-width: 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--site-line);
+  border-radius: 0.4rem;
+  background: var(--site-surface);
+}
+.md-typeset .platforms h3 {
+  margin: 0 0 0.4rem;
+}
+.md-typeset .platforms p {
+  margin: 0.4rem 0;
+}
+.md-typeset .platforms .state {
+  display: inline-block;
+  padding: 0 0.45em;
+  border-radius: 0.3em;
+  font-size: 0.8em;
+  font-weight: 600;
+  background: var(--site-accent-soft);
+  color: var(--site-text);
+}
+
+/* == diagrams ========================================================== */
+
+/* An inline SVG takes its colors from these, so it reads in both
+   schemes; it scales to its column and never forces a sideways scroll. */
+.md-typeset figure.diagram {
+  /* Material sizes a figure to its content, which an SVG with no width
+     of its own makes a small one; take the column instead. */
+  width: 100%;
+  margin: 1.5rem 0;
+  max-width: 100%;
+}
+.md-typeset figure.diagram svg {
+  display: block;
+  width: 100%;
+  max-width: 46rem;
+  height: auto;
+  margin: 0 auto;
+  font-family: var(--md-text-font-family);
+}
+.md-typeset figure.diagram figcaption {
+  max-width: 40em;
+  font-size: 0.8em;
+  color: var(--site-muted);
+}
+.diagram .box {
+  fill: var(--site-surface);
+  stroke: var(--site-line);
+  stroke-width: 1.5;
+}
+.diagram .box.key {
+  fill: var(--site-goal);
+  stroke: var(--site-accent);
+}
+.diagram .box.stop {
+  fill: var(--site-soft);
+  stroke-dasharray: 5 4;
+}
+.diagram text {
+  fill: var(--site-text);
+  font-size: 15px;
+}
+.diagram text.small {
+  fill: var(--site-muted);
+  font-size: 13px;
+}
+.diagram .edge {
+  fill: none;
+  stroke: var(--site-muted);
+  stroke-width: 1.5;
+}
+.diagram .head {
+  fill: var(--site-muted);
+}
+
+/* The line a Mermaid diagram's source is shown under
+   (scripts/python/site/website_hook.py). */
+.md-typeset p.diagram-source {
+  margin-bottom: 0.4em;
+  font-size: 0.85em;
+  color: var(--site-muted);
+}
+
+/* A long word (a store path, a module name) wraps rather than pushing
+   the page sideways on a phone. */
+.md-typeset {
+  overflow-wrap: break-word;
+}
+.md-typeset table:not([class]) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* == buttons =========================================================== */
+
+/* Material colors a button with the primary color, which in the dark
+   scheme is the header's surface, nearly the canvas; draw both schemes'
+   buttons in the accent instead. */
+.md-typeset .md-button {
+  color: var(--site-accent);
+  border-color: var(--site-accent);
+}
+.md-typeset .md-button--primary {
+  background-color: var(--site-accent);
+  border-color: var(--site-accent);
+  color: var(--site-canvas);
+}
+[data-md-color-scheme="default"] .md-typeset .md-button--primary {
+  background-color: var(--site-accent-strong);
+  border-color: var(--site-accent-strong);
+  color: #ffffff;
+}
+.md-typeset .md-button:is(:hover, :focus) {
+  background-color: var(--md-accent-fg-color);
+  border-color: var(--md-accent-fg-color);
+  color: var(--md-accent-bg-color);
+}
+
+/* == code ============================================================== */
+
+/* Highlighted code in the playground's Agda hues (static/theme.css), in
+   place of Material's, whose light keyword blue measured 4.33:1 on the
+   code surface. */
+[data-md-color-scheme="default"] {
+  --md-code-hl-comment-color: #5f5f5f;
+  --md-code-hl-keyword-color: #a53e00;
+  --md-code-hl-string-color: #b22222;
+  --md-code-hl-number-color: #8e0ede;
+  --md-code-hl-function-color: #0000cd;
+  --md-code-hl-constant-color: #006f00;
+  --md-code-hl-special-color: #bc0057;
+}
+[data-md-color-scheme="slate"] {
+  --md-code-hl-comment-color: #a7b0d0;
+  --md-code-hl-keyword-color: #ff8a3d;
+  --md-code-hl-string-color: #c3a0ff;
+  --md-code-hl-number-color: #ffb86c;
+  --md-code-hl-function-color: #9693ff;
+  --md-code-hl-constant-color: #5eead4;
+  --md-code-hl-special-color: #ff9ed6;
+}

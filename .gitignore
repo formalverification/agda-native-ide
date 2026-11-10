@@ -70,3 +70,10 @@ vite.config.js.timestamp-*
 
 # The report the gate writes (`make library-gate`).
 /library-gate/
+
+# The website (issue 96): what `make website` builds, the fonts and the
+# favicon `make website-assets` copies for `mkdocs serve`, and what the
+# site's gates write
+/public
+/docs/assets/vendor/
+/pages-check/

@@ -61,7 +61,8 @@ endif
         assets assets-check dev build test check browser-check \
         browser-check-notices provenance-check packages \
         conformance-native conformance-browser conformance-compare \
-        library-gate
+        library-gate website-assets website-serve website-test \
+        pages pages-browser pages-check pages-browser-check
 # The companion's targets are separate from the browser app's gates.
 
 .PHONY: vscode-check vscode-build vscode-test vscode-unit vscode-mode-findings vscode-desktop-run conformance-native-other
@@ -383,3 +384,58 @@ provenance-check: ## Check the unchanged files, and that docs/provenance.md list
 	      !($$1 in seen) { print "provenance-check: " $$2 " is pinned but not in docs/provenance.md"; bad = 1 } \
 	      END { exit bad }' docs/provenance.md $(PINS) && \
 	  echo "provenance-check: docs/provenance.md lists all $$(grep -c . $(PINS)) pins"
+
+# ---------------------------------------------------------------------
+# The website (issue 96): MkDocs Material over a chosen part of docs/
+# (mkdocs.yml), with the playground under play/, as GitHub Pages serves it
+# at https://formalverification.github.io/agda-native-ide/.  The flake
+# pins the toolchain, so CI and a laptop build the same bytes:
+# `nix build .#website` is the website, `nix build .#pages` adds `nix
+# build .#site` under play/.  .github/workflows/pages.yml runs these
+# targets on every pull request and deploys from main.
+#
+#   make pages pages-browser pages-check pages-browser-check
+#
+# builds the tree into $(PAGES) (writable: pages-browser writes the home
+# page's two pictures of the playground into it), checks the website in
+# headless Chromium (both schemes, desktop and phone, contrast, no
+# sideways scroll, no request off the origin), checks every link, anchor
+# and fetch of the tree (with the pictures, which the home page shows),
+# and runs the browser check on the playground at /play/.  Their records
+# go to $(PAGES_CHECK).  `make website-test` runs the link hook's tests and
+# `make website-serve` serves the pages alone while they are edited, both
+# in `nix develop .#website`.
+#
+#   PAGES          the tree      (default: public)
+#   PAGES_CHECK    the records   (default: pages-check)
+#   WEBSITE_PORT   website-serve's port (default: 8000)
+
+PAGES ?= public
+PAGES_CHECK ?= pages-check
+WEBSITE_PORT ?= 8000
+
+website-assets: ## Copy the website's fonts and favicon (nix build .#website-assets) into docs/assets/vendor/
+	@out=$$(nix build .#website-assets --no-link --print-out-paths) && \
+	  rm -rf docs/assets/vendor && mkdir -p docs/assets/vendor && \
+	  cp -R --no-preserve=mode,ownership "$$out"/. docs/assets/vendor/ && \
+	  echo "website-assets: copied $$out into docs/assets/vendor/"
+
+website-serve: website-assets ## Serve the website alone at http://127.0.0.1:$(WEBSITE_PORT)/agda-native-ide/ (nix develop .#website)
+	env -u SOURCE_DATE_EPOCH mkdocs serve --strict --dev-addr 127.0.0.1:$(WEBSITE_PORT)
+
+website-test: ## Run the website's hook tests (nix develop .#website)
+	python3 -m pytest -q scripts/python/tests
+
+pages: ## Build the Pages tree (nix build .#pages) into $(PAGES)
+	@out=$$(nix build .#pages --no-link --print-out-paths) && \
+	  rm -rf "$(PAGES)" && cp -R --no-preserve=mode,ownership "$$out" "$(PAGES)" && \
+	  echo "pages: copied $$out into $(PAGES)/ ($$(find "$(PAGES)" -type f | wc -l) files)"
+
+pages-browser: ## Check the website in $(PAGES) in headless Chromium, and take the playground's pictures
+	nix run .#pages-browser -- $(PAGES) --out $(PAGES_CHECK)/browser
+
+pages-check: ## Check every link, anchor and fetch in $(PAGES), and that nothing is fetched off the origin
+	node scripts/pages/check.mjs $(PAGES) --out $(PAGES_CHECK)
+
+pages-browser-check: ## Check Main.agda at /play/ of $(PAGES) in headless Chromium
+	nix run .#browser-check -- $(PAGES) --path /play/ --out $(PAGES_CHECK)/browser-check

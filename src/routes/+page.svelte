@@ -45,7 +45,10 @@
   // (issue 14): the question sits at the foot of the code pane, as the
   // minibuffer does, with no spinner, since nothing is under way while it
   // waits; the fetch shows its progress in the inspector's heading, with a
-  // STOP.
+  // STOP.  PLFA's index, its interface manifest and archives, and its
+  // chapters' sources are fetched through asset(), as everything else the
+  // page fetches is, so that the site works under a path, as it is
+  // deployed, at play/ of the project's website (issue 96).
 
   import { onDestroy, onMount } from "svelte";
   import { setThemePreference, watchTheme, type ThemePreference } from "$lib/theme";
@@ -688,7 +691,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     // A reload or a navigation away saves what waits.
     window.addEventListener("pagehide", flushSaves);
 
-    plfaManifestPromise = fetch("/plfa/manifest.json")
+    plfaManifestPromise = fetch(asset("/plfa/manifest.json"))
       .then((response) => {
         if (!response.ok) throw new Error("Could not load the PLFA index");
         return response.json();
@@ -754,7 +757,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
   function loadPlfaInterfaceManifest() {
     if (plfaInterfaceManifestPromise) return plfaInterfaceManifestPromise;
     plfaInterfaceManifestPromise = fetch(
-      `/plfa/interfaces/manifest.json?cache=${cacheTokens.plfaInterfaces}`,
+      `${asset("/plfa/interfaces/manifest.json")}?cache=${cacheTokens.plfaInterfaces}`,
     )
       .then((response) => {
         if (!response.ok)
@@ -951,7 +954,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
     if (!plfaManifest) return [];
     return archiveUrls(
       planChapterArchives(plfaManifest, plfaInterfaceManifest, chapter.id),
-      "/plfa/interfaces",
+      asset("/plfa/interfaces"),
       cacheTokens.plfaInterfaces,
     );
   }
@@ -1113,7 +1116,7 @@ length-hom (x ∷ xs) ys = cong suc (length-hom xs ys)
       // A chapter open already is shown as it was left (issue 10).
       let source: string | undefined;
       if (!controller.isOpen(file.path)) {
-        const sourceResponse = await fetch(chapter.sourcePath);
+        const sourceResponse = await fetch(asset(chapter.sourcePath));
         if (!sourceResponse.ok) throw new Error(`Could not open ${chapter.name}`);
         const originalSource = await sourceResponse.text();
         if (request !== chapterRequest) return;

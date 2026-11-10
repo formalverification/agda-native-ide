@@ -329,7 +329,7 @@ silence.
 
 +  **The browser**: the language server's `ResponseEnd`, which it sends
    once Agda's loop has ended the command and its responses are sent.  The
-   acknowledgement of the `agda` request (`CmdRes`) only says the command
+   acknowledgment of the `agda` request (`CmdRes`) only says the command
    was queued; one that carries an error means it never ran, and the
    transport ends it itself.
 +  **Native**: the prompt `JSON> `, which Agda prints from its main loop

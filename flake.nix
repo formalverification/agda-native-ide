@@ -388,6 +388,67 @@
         };
         hash = npmDepsHash;
       };
+
+      # The project's website (issue 96): MkDocs Material over a chosen
+      # part of docs/ (mkdocs.yml), with the playground under play/.
+      #
+      # The Python that builds it pins mkdocs 1.6.1 (nixos-25.11's own) and
+      # mkdocs-material 9.5.49, nixpkgs' derivation overridden to that
+      # version from its PyPI sdist, as agda-native-air's flake pins them
+      # (its mkSitePython), so that the two sites render alike; pytest runs
+      # the link hook's tests.
+      mkWebsitePython = pkgs:
+        let
+          ps = pkgs.python3Packages;
+          mkdocs-material = ps.mkdocs-material.overridePythonAttrs (_: rec {
+            version = "9.5.49";
+            src = ps.fetchPypi {
+              pname = "mkdocs_material";
+              inherit version;
+              hash = "sha256-NnG7KCtPU6HHLgitvgTSSBqY+F/tOSUwBR+A/5SpYh0=";
+            };
+          });
+        in
+        pkgs.python3.withPackages (p: [ p.mkdocs mkdocs-material p.pytest ]);
+
+      # What the website's build reads besides the flake's source listing:
+      # its configuration, the pages, the theme's overrides and the hooks.
+      websiteSource = lib.fileset.toSource {
+        root = ./.;
+        fileset = lib.fileset.unions [
+          ./mkdocs.yml
+          ./docs
+          ./website
+          ./scripts/python/site
+        ];
+      };
+
+      # The files the website's assets directory holds that are not in
+      # git, or are in git elsewhere: JuliaMono's regular, italic and bold
+      # faces, the page's own pinned fonts (upstream/assets.sha256), for
+      # code; and the page's favicon, the Agda mark (NOTICE, section 9).  `make
+      # website-assets` copies them into docs/assets/vendor/ for `mkdocs
+      # serve`; the build installs them itself.
+      websiteFonts = [
+        "static/JuliaMono-Regular.woff2"
+        "static/JuliaMono-RegularItalic.woff2"
+        "static/JuliaMono-Bold.woff2"
+      ];
+      mkWebsiteAssets = pkgs: pkgs.runCommand "agda-native-ide-website-assets" { } (
+        lib.concatMapStrings (pin: ''
+          install -D -m 444 ${fetchPin pkgs pin} "$out/fonts/${baseNameOf pin.path}"
+        '') (builtins.filter (pin: builtins.elem pin.path websiteFonts) pins) + ''
+          install -m 444 ${./static/favicon.svg} "$out/favicon.svg"
+        '');
+
+      # The files git tracks, one per line: the flake's source is exactly
+      # those, and the link hook (scripts/python/site/links_hook.py) sends a
+      # link to any of them to GitHub and refuses a link to anything else.
+      # The sandbox has no git, so the list is read from the source.
+      mkRepoFiles = pkgs: pkgs.runCommand "agda-native-ide-files" { } ''
+        cd ${self}
+        find . \( -type f -o -type l \) -printf '%P\n' | LC_ALL=C sort > "$out"
+      '';
     in
     {
       packages = forAllSystems (system: pkgs: let
@@ -491,6 +552,44 @@
           # has nothing to do.
           dontFixup = true;
         };
+
+        # The website's files (fonts) that are not in git.
+        website-assets = mkWebsiteAssets pkgs;
+
+        # The website alone, as `mkdocs build --strict` writes it (issue
+        # 96).  SOURCE_DATE_EPOCH is the commit's time, which MkDocs stamps
+        # into the sitemap, so that two builds of one commit are identical
+        # and the date is true.  Two directories Material copies in are
+        # removed: lunr/, its search's other languages (one of them
+        # LGPL-3.0), which an English site never loads (the search itself
+        # is in the worker), and images/, its own favicon, which no page
+        # names.  NOTICE, section 10, names what remains.
+        website = pkgs.stdenvNoCC.mkDerivation {
+          name = "agda-native-ide-website";
+          src = websiteSource;
+          nativeBuildInputs = [ (mkWebsitePython pkgs) ];
+          SITE_REPO_FILES = mkRepoFiles pkgs;
+          SOURCE_DATE_EPOCH = toString (self.lastModified or 1);
+          buildPhase = ''
+            runHook preBuild
+            mkdir -p docs/assets/vendor
+            cp -R --no-preserve=mode ${website-assets}/. docs/assets/vendor/
+            mkdocs build --strict --site-dir "$out"
+            rm -r "$out/assets/javascripts/lunr" "$out/assets/images"
+            runHook postBuild
+          '';
+          dontInstall = true;
+          dontFixup = true;
+        };
+
+        # What GitHub Pages serves (issue 96): the website at the root and
+        # the playground, `nix build .#site`, under play/, with its notice
+        # (NOTICE.txt and licenses/, which `make build` puts beside it).
+        pages = pkgs.runCommand "agda-native-ide-pages" { } ''
+          cp -R --no-preserve=mode ${website} "$out"
+          cp -R --no-preserve=mode ${site} "$out/play"
+          test -f "$out/play/index.html" && test -f "$out/play/NOTICE.txt"
+        '';
       });
 
       # mkAgdaData, for a build of agda-data.zip from another Agda (issue
@@ -505,6 +604,11 @@
             pkgs.nodejs_22
             github-project.packages.${system}.gh-project-engine
           ];
+        };
+        # `nix develop .#website`: the website's MkDocs (issue 96), for
+        # `make website-serve` and `make website-test`.
+        website = pkgs.mkShell {
+          packages = [ (mkWebsitePython pkgs) pkgs.gnumake pkgs.nodejs_22 ];
         };
       } // lib.optionalAttrs pkgs.stdenv.isLinux {
         vscode = pkgs.mkShell {
@@ -572,6 +676,25 @@
             "Check Main.agda in a built site, in headless Chromium";
           browser-check-notices = checkApp "browser-check-notices" "notices.mjs"
             "Check a built site's notices for a browser it cannot run in, and for a compiler that fails, in headless Chromium";
+          # `nix run .#pages-browser -- <tree> [--out DIR]`: the website in
+          # headless Chromium, every page in both schemes at a desktop and a
+          # phone width, after it takes the home page's pictures of the
+          # playground (scripts/pages/browser.mjs, issue 96).
+          pages-browser = {
+            type = "app";
+            program = toString (pkgs.writeShellScript "pages-browser" ''
+              export CHROME=${lib.getExe pkgs.chromium}
+              exec ${lib.getExe pkgs.nodejs_22} ${lib.fileset.toSource {
+                root = ./scripts;
+                fileset = lib.fileset.unions [
+                  ./scripts/pages/browser.mjs
+                  ./scripts/browser-check/cdp.mjs
+                  ./scripts/browser-check/serve.mjs
+                ];
+              }}/pages/browser.mjs "$@"
+            '');
+            meta.description = "Check the website in headless Chromium, and take the home page's pictures of the playground";
+          };
           # `nix run .#conformance-browser -- <site> --harness DIR [--out
           # DIR]`: the engine's conformance suite in headless Chromium,
           # against a built site's reactor (scripts/conformance/browser.mjs,

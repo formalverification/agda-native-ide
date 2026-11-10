@@ -387,7 +387,7 @@ These came in with the import; they are text, so they are in git, unchanged.
 | `static/plfa/content/**/*.lagda.md` | PLFA's chapters at `870f9bb1` (`scripts/sync-plfa.mjs`) | CC BY 4.0 |
 | `static/plfa/LICENSE` | Byte-identical to plfa/plfa.github.io's `LICENSE` at `870f9bb1` | The CC BY 4.0 text |
 | `static/favicon.svg` | Upstream's adaptation of agda/agda's `doc/user-manual/agda.svg` (its own comment says so) | MIT |
-| `src/`, `scripts/`, `packages/engine/src/browser/worker/`; in part `packages/engine/src/browser/index.ts` (the startup and the acknowledgement of the server's requests), `packages/engine/src/core/give-rule.ts` (the give rule) and `packages/views/src/*.svelte` (the inspector's components); the rest | Upstream's own code; its `NOTICE.md` says the WASI worker, the virtual filesystem, the highlighting, the input method and the transport began from [agda-web/als-demo], whose `LICENSE` is byte-identical to upstream's | MIT |
+| `src/`, `scripts/`, `packages/engine/src/browser/worker/`; in part `packages/engine/src/browser/index.ts` (the startup and the acknowledgment of the server's requests), `packages/engine/src/core/give-rule.ts` (the give rule) and `packages/views/src/*.svelte` (the inspector's components); the rest | Upstream's own code; its `NOTICE.md` says the WASI worker, the virtual filesystem, the highlighting, the input method and the transport began from [agda-web/als-demo], whose `LICENSE` is byte-identical to upstream's | MIT |
 
 ## Changes to upstream files
 
@@ -461,6 +461,7 @@ Each change is its own commit, named here by its subject.
 | `src/routes/+page.svelte`, `src/lib/controller.svelte.ts`, `src/lib/codemirror/lsp-hover.ts` | A module of agda-algebras opens read-only from the Explorer, loaded with the session's load of its path, which writes nothing, after the archives of its own closure are mounted, with a line that says it is the checked library and links its page; hover sends its position, and reads its answer's range, in code points, which the language server counts, where CodeMirror's client sent UTF-16 code units ([#10]) | "Open agda-algebras' modules read-only, loaded as the drive holds them" |
 | `src/routes/+page.svelte`, `src/lib/controller.svelte.ts` | A module of agda-algebras, or a selection in it, is copied into a file of the playground's project, named by its path, listed in the Explorer and kept in the browser, and written to the drive when Agda starts; a name Agda finds already is refused; `open import` of the module is added to Main ([#10]) | "Copy a library module, or a selection, into the playground" |
 | `src/routes/+page.svelte`, `src/lib/controller.svelte.ts` | A file shown again that Agda does not hold shows no goals, and a goal command there is refused; the playground's files are the keys of their text; a copy is refused under a playground file's name, Main's among them; a library module open already is shown after Agda stops; a chapter shown again keeps its scroll ([#10]'s review) | "Close the corners an adversarial review found" |
+| `src/routes/+page.svelte` | PLFA's index, its interface manifest and archives, and its chapters' sources are fetched through `asset()`, where the page fetched them by root-absolute URLs, so that the site works under a path, as GitHub Pages serves it at `play/` of the project's website ([#96]) | "Fetch PLFA's files through the base path, for the playground under play/" |
 
 [upstream]: https://github.com/SeungheonOh/plfa-playground
 [upstream-license]: ../LICENSE.plfa-playground
@@ -486,6 +487,7 @@ Each change is its own commit, named here by its subject.
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59
 [#62]: https://github.com/formalverification/agda-native-ide/issues/62
 [#64]: https://github.com/formalverification/agda-native-ide/issues/64
+[#96]: https://github.com/formalverification/agda-native-ide/issues/96
 [agda-web/als-demo]: https://github.com/agda-web/als-demo
 [agda/agda]: https://github.com/agda/agda
 [ualib/agda-algebras]: https://github.com/ualib/agda-algebras
