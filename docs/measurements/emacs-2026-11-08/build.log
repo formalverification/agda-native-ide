@@ -1,0 +1,15 @@
+Loading quail/latin-ltx...
+
+agda-for-project: building the Agda of $SCRATCH/fresh-flake/ (package default), once per change of the inputs of its flake; Emacs waits until it is built...
+
+  probe: real agda /nix/store/6vrn9b06pa1yl6cis4v4npdypgv38hck-Agda-2.7.0.1-bin/bin/agda
+  probe: args --with-compiler=/nix/store/jvz0j2bp1m4aa90izsg5grr5dr39snkn-ghc-9.8.4-with-packages/bin/ghc --library-file=/nix/store/j9hymqf0n1y4j00n5hcawfdigivalfps-libraries --interaction
+  probe: AGDA_DIR=~/.config/agda
+  probe: load 2.4 s
+  probe: resolved by discovered, version 2.7.0.1, in 327.21 s
+$SCRATCH/fresh-flake/Fresh.agda
+  agda: $SCRATCH/xdg-build/cache/agda-for-project/package/default/edcaa7168c465aea7a9b8fbda52be8be/bin/agda --interaction
+  *Type-checking* 
+  *Type-checking* Checking Fresh ($SCRATCH/fresh-flake/Fresh.agda). 
+  *All Done* 
+XDG_CACHE_HOME=$S/xdg-build/cache XDG_STATE_HOME=$S/xdg-build/state = = CONFI  27.74s user 5.45s system 10% cpu 5:31.82 total

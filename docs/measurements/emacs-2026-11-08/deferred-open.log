@@ -1,0 +1,24 @@
+Loading quail/latin-ltx...
+
+agda-for-project: ~/git/ualib/agda-lattices/main exports no Agda environment; its dev shell may give one, but entering it runs the project's shell hook as you: allow it with --choose devshell:default, or list a directory at or above it in ~/.config/agda-for-project/trusted; C-c C-l offers the choices
+agda-for-project: ~/git/ualib/agda-lattices/main exports no Agda environment; its dev shell may give one, but entering it runs the project's shell hook as you: allow it with --choose devshell:default, or list a directory at or above it in ~/.config/agda-for-project/trusted; C-c C-l offers the choices
+Highlighting not loaded: Problem encountered. The *agda2* buffer can perhaps explain why.
+
+agda-for-project: ~/git/ualib/agda-lattices/main exports no Agda environment; its dev shell may give one, but entering it runs the project's shell hook as you: allow it with --choose devshell:default, or list a directory at or above it in ~/.config/agda-for-project/trusted
+  chooser: Agda for ~/git/ualib/agda-lattices/main/: 
+  chooser:   the agda of the dev shell default of ~/git/ualib/agda-lattices/main (entering it runs the project's shell hook)  [devshell:default]
+  chooser:   Agda 2.9.0, built from default of ~/git/ualib/agda-algebras/master  [path:/nix/store/pl2l25q382nsgnxdbrqhifhriy05lf20-agdaWithPackages-2.9.0/bin/agda]
+  chooser:   Agda 2.8.0, built from fls-agdaWithPackages of ~/git/IO/fls/worktrees/1352-dijkstra-chain-ticked-epoch-state  [path:/nix/store/ws6a1ika52v3b26mxqvlx43h2l08i8ah-agdaWithPackages-2.8.0/bin/agda]
+  chooser:   Agda 2.8.0, built from fls-agdaWithPackages of ~/git/IO/fls/master  [path:/nix/store/0vx59n9g1597p7gzmflmmya161hr695h-agdaWithPackages-2.8.0/bin/agda]
+  chooser: picked devshell:default
+
+  probe: real agda /nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda
+  probe: args --with-compiler=/nix/store/iyypanjqg8pwsyxjfylpd5sqjhbripk3-ghc-9.10.3-with-packages/bin/ghc --library-file=/nix/store/v81rfymb8ia9nsap20y16w208dgmhb11-libraries --no-default-libraries --library-file ~/git/ualib/agda-lattices/main/.agda/libraries --library standard-library --library agda-algebras --library agda-lattices --interaction
+  probe: AGDA_DIR=~/git/ualib/agda-lattices/main/.agda
+  probe: load 2.7 s
+  probe: resolved by choice, version 2.9.0, in 0.44 s
+~/git/ualib/agda-lattices/main/src/Lattices/Bounded/Covers.lagda.md
+  agda: ~/git/ualib/agda-lattices/main/.agda/bin/agda --interaction
+  *Type-checking* 
+  *All Done* 
+XDG_CACHE_HOME=$S/xdg/cache XDG_STATE_HOME=$S/xdg-state-fresh AGDA_FOR_PROJEC  0.38s user 0.38s system 15% cpu 4.982 total

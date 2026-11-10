@@ -1,0 +1,33 @@
+# File: .github/workflows/emacs.yml
+#
+# agda-for-project.el, the Emacs package that starts each buffer's
+# project's Agda (issue 98): byte-compile it with warnings as errors and
+# run its unit tests, against a stub launcher, under the runner's Emacs.
+name: emacs
+
+on:
+  pull_request:
+    paths:
+      - emacs/**
+      - .github/workflows/emacs.yml
+      - Makefile
+  push:
+    branches: [main]
+    paths:
+      - emacs/**
+      - .github/workflows/emacs.yml
+      - Makefile
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Emacs
+        run: sudo apt-get update -q && sudo apt-get install -y -q emacs-nox shellcheck
+      - name: Byte-compile, and the unit tests
+        run: emacs --version | head -1 && make emacs-test

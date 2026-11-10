@@ -1,0 +1,12 @@
+Loading quail/latin-ltx...
+
+  probe: real agda /nix/store/w03s7aiar2xnqg20dgv4jknhhn46b2q9-fls-agda-2.8.0/bin/agda
+  probe: --library-file=/nix/store/ha6i5dxz2slnnddpimd5mcqw3hlmvyz2-libraries
+  probe: AGDA_DIR=~/.config/agda
+  probe: load 9.5 s
+~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda
+  agda: ~/ledger-agda/bin/agda --interaction
+  *Type-checking* 
+  *Type-checking* Checking abstract-set-theory.Axiom.Set.Map.Extra (~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda). 
+  *Error* ~/git/IO/fls/master/src-lib-exts/abstract-set-theory/Axiom/Set/Map/Extra.agda:127.25-26: error: [NotInScope] Not in scope:   ∥   at ~/git/IO/fls/master/src-lib-ext
+CONFIG=$W/emacs/test/batch-probe.el CONFIG_UNDER_TEST=$S/control-toggled.el =  0.10s user 0.06s system 1% cpu 11.940 total
