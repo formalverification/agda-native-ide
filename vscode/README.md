@@ -128,12 +128,20 @@ launcher reads it), builds that project's Agda first
 longer than a warm start), and restarts the mode (`agda-mode.restart`,
 which loads the active file again) only when the project needs another
 Agda than the mode runs.  Moving between files of one project, or between
-projects on the same Agda, restarts nothing.  `agdaWorkbench.mode.steer`
+projects on the same Agda, restarts nothing; a restart skipped because
+focus left the file first is made at the next focus of that project.  The
+answer is kept per project (the `.agda-lib`'s directory, or else the
+file's), and asked again when any file the launcher's build key covers
+changes: every tracked file but Agda sources, so `flake.nix`, `flake.lock`
+and an imported `nix/agda.nix` or shell-hook script alike.  A failed build
+is not kept, so the next command tries again.  `agdaWorkbench.mode.steer`
 turns this off.  The findings behind it, each confirmed in the extension
 host, are on [#99], and `src/steering.ts` says what was rejected and why.
 
 **The lanes** run the same answer: the launcher's program, arguments and
-environment, run directly, at the version it reports.  The engine speaks
+environment, run directly, at the version it reports, followed by
+`agdaMode.connection.commandLineOptions`, as the mode's own spawn through
+the launcher passes them.  The engine speaks
 Agda 2.9.0 and 2.8.0 (the conformance suite passes against both); a project
 on another is refused with the reason.  `agdaWorkbench.agda.path` and
 `agdaWorkbench.agda.version`, when set, win.  Without a launcher (none in

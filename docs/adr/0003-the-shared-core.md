@@ -1158,7 +1158,16 @@ agda-mode-vscode and to the native lanes, as follows:
    (another program, arguments, environment or version) while the mode
    runs one.  The version is in the key because a dev shell's Agda may live
    in the checkout, at one path a change of the flake rebuilds as another
-   Agda ([#102]'s review).
+   Agda ([#102]'s review).  The key is recorded only once the mode is
+   restarted on it (or runs nothing), so a restart skipped because focus
+   left the file is made at the next focus of that project.
++  **One answer per project, asked again when its inputs change**.  An
+   answer is cached by the directory the launcher starts from (the
+   `.agda-lib`'s, else the file's; not the workspace folder, under which
+   two subdirectories may hold two flakes), and dropped when any file the
+   launcher's build key hashes changes (every tracked file but Agda
+   sources), debounced 250 ms; a failed or untrusted refusal is not kept
+   ([#102]'s second review).
 +  **Build first**.  The companion runs `agda-for-project --explain --json
    FILE`, which builds the project's Agda, behind a progress notification
    when it outlasts a warm start (400 ms), and restarts the mode only after
@@ -1167,9 +1176,11 @@ agda-mode-vscode and to the native lanes, as follows:
    shown (status item, notification, lane refusal), the mode is not
    restarted, and no other Agda runs in the lanes.
 +  **The lanes run the answer directly**: the launcher's program, arguments
-   and environment, without `AGDA_FOR_PROJECT_DIR`, at the version it
-   reports; `agdaWorkbench.agda.path` and `agdaWorkbench.agda.version` win
-   when set.
+   and environment, without `AGDA_FOR_PROJECT_DIR`, then
+   `agdaMode.connection.commandLineOptions` (as the mode's spawn through the
+   launcher has them), at the version it reports, which is part of a
+   lane's key; `agdaWorkbench.agda.path` and `agdaWorkbench.agda.version`
+   win when set.
 +  **Two versions**.  The engine speaks Agda 2.9.0 and 2.8.0; a lane on
    another is refused with the reason.
 +  **Choosing**: a quick pick of the launcher's candidates, remembered with
@@ -1241,6 +1252,12 @@ log each call ([the record][project-record], `modeFindings`):
    mode's version; steering resumed while the pick stood restarted the
    mode once, found it on 2.8.0, and stopped again.  Without either
    mechanism (a mutation of each), the case fails.
++  After the second review, in the same suite, both orders: the mode's
+   `--allow-unsolved-metas` turned a lane's verdict on the open goal from
+   exit 42 to 0, and back once unset; a restart skipped because focus
+   moved to a non-Agda editor first was made at the next focus of alpha.
+   The registry replaces a lane whose Agda answers another version at the
+   same path.  A mutation of each of the three fails its case.
 
 **Status**.  Adopted (2026-11-08, [#99]).  Untested: the quick pick
 itself, the offer to set the mode's
@@ -1289,6 +1306,7 @@ companion avoids it by offering the launcher as the only path.
 | 32 | The engine speaks Agda 2.8.0 too; another version is refused with the reason | Adopted ([#99]) | The conformance suite, 13 and 12 against 2.8.0 (§ 17) |
 | 33 | The chooser: the launcher's candidates, forgetting, the mode's Switch Agda Version, and a starter flake written only on consent | Adopted ([#99]); the quick pick and the write untested | The projects suite drives a choice and its removal by ID; unit tests of the flake's text, a hostile directory name among them (§ 17) |
 | 34 | The mode's own Switch Agda Version pick stops the steering, chosen from the chooser or found after a restart, until "Steer Agda mode again" | Adopted ([#102]'s review, 2026-11-08) | The projects suite drives the mode's quick pick in both orders; a mutation of each mechanism fails it (§ 17) |
+| 35 | Answers are cached per launcher start directory and dropped when any file its key covers changes, or when they are a failed or untrusted refusal; a skipped restart is retried; the lanes take the mode's options and key on the version | Adopted ([#102]'s second review, 2026-11-09) | The projects suite's options and retry cases; the registry's version test; unit tests of the filter and the start directory (§ 17) |
 
 ---
 

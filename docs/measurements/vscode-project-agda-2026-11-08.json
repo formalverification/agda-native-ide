@@ -734,6 +734,31 @@
         "no-flag-on-mode-pick": "fails: the mode's own pick stops the steering",
         "no-check-after-restart": "fails: the pick still stands, so the steering stops again"
       }
+    },
+    "secondReview": {
+      "date": "2026-11-09",
+      "machine": "alonzo",
+      "why": "Copilot Balanced review of PR 102 on d6588f8",
+      "driver": "COMPANION_TESTS=no-reload make vscode-test; the cases near the end of vscode/src/test/projects.ts",
+      "alpha-beta": {
+        "lanesTakeModeOptions": {
+          "withOption": 0,
+          "without": 42
+        },
+        "skippedRestartRetried": true
+      },
+      "beta-alpha": {
+        "lanesTakeModeOptions": {
+          "withOption": 0,
+          "without": 42
+        },
+        "skippedRestartRetried": true
+      },
+      "mutations": {
+        "shortcut-ignores-key": "fails: the skipped restart is tried again",
+        "lanes-drop-options": "fails: the mode's options reach the lanes (exit 42)",
+        "key-ignores-version": "fails: the registry test replaces a lane whose Agda answers another version at the same path"
+      }
     }
   },
   "desktop": {
