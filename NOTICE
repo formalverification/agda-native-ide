@@ -7,7 +7,8 @@ MIT License; see LICENSE.
 
 This notice names every artifact the agda-native-ide app ships (the code
 bundled into its page, and every file served beside it) with its copyright
-and its license.  The license texts are in licenses/, each copied verbatim
+and its license, and, in section 10, what the project's website ships
+around it.  The license texts are in licenses/, each copied verbatim
 from its source; the build publishes this file as NOTICE.txt, with
 licenses/ beside it.  docs/provenance.md records where each file comes
 from, with its SHA-256.
@@ -24,6 +25,7 @@ Contents
   7.  PLFA: plfa/
   8.  JuliaMono: JuliaMono-*.woff2
   9.  The Agda mark: favicon.svg and favicon.png
+  10. The website: Material for MkDocs, and what its scripts bundle
 
 
 1.  The app: plfa-playground
@@ -537,3 +539,53 @@ Contents
     extra-doc-files, under Agda's MIT license (licenses/compiler/agda.txt
     is that license as of agda/agda da66a8c); the adaptation is
     plfa-playground's (section 1).
+
+
+10. The website: Material for MkDocs, and what its scripts bundle
+
+    The project's website, https://formalverification.github.io/agda-native-ide/,
+    is built by MkDocs from docs/ (MIT, as the repository is) with the
+    theme Material for MkDocs 9.5.49 (issue 96), and serves the app under
+    play/, where this notice is published.  Besides its pages, the site
+    ships the following:
+
+    +  Material for MkDocs 9.5.49, https://github.com/squidfunk/mkdocs-material:
+       its stylesheets, its page script (assets/javascripts/bundle.*.min.js)
+       and its search worker (assets/javascripts/workers/search.*.min.js),
+       with their source maps.  Copyright (c) 2016-2024 Martin Donath.  MIT
+       License: licenses/website/mkdocs-material.txt.
+    +  Bundled into the page script, at the versions Material 9.5.49's
+       package-lock.json names: RxJS 7.8.1 (Apache-2.0;
+       licenses/website/rxjs.txt), clipboard.js 2.0.11 (MIT, Copyright (c)
+       Zeno Rocha; licenses/website/clipboard.txt), escape-html 1.0.3 (MIT,
+       Copyright (c) 2012-2013 TJ Holowaychuk, 2015 Andreas Lubbe, 2015
+       Tiancheng "Timothy" Gu; licenses/website/escape-html.txt),
+       focus-visible 5.2.1 (W3C Software and Document License;
+       licenses/website/focus-visible.txt, the package's own file, which
+       names that license) and tslib 2.7.0 (0BSD, Copyright (c) Microsoft
+       Corporation; licenses/website/tslib.txt).  The source maps list
+       these packages and no others.
+    +  Bundled into the search worker: lunr 2.3.9 (MIT, Copyright (C) 2013
+       by Oliver Nightingale; licenses/website/lunr.txt).  Material's
+       lunr/ directory, its search's other languages, is not shipped.
+    +  Icons Material inlines into each page and into its stylesheet, from
+       the three icon sets it carries in templates/.icons/, each with the
+       set's own license file as Material 9.5.49 ships it:
+       +  Material Design Icons, by the Pictogrammers icon group (the
+          header's, the search's and the palette toggle's icons, and the
+          stylesheet's admonition, copy and navigation icons): icons under
+          the Apache License 2.0, as the Pictogrammers Free License says;
+          licenses/website/material-design-icons.txt, with the Apache
+          License's text in licenses/website/rxjs.txt.
+       +  Octicons (the stylesheet's icons for the repository chip's facts
+          and a task list's check), Copyright (c) 2024 GitHub Inc.  MIT
+          License: licenses/website/octicons.txt.
+       +  The GitHub mark from Font Awesome Free 6.7.1, Copyright (c) 2024
+          Fonticons, Inc.  Icons CC BY 4.0,
+          https://creativecommons.org/licenses/by/4.0/:
+          licenses/website/font-awesome.txt.
+    +  JuliaMono's regular, italic and bold faces (section 8) and the Agda
+       mark (section 9), as in the app.
+    +  Two pictures of the app, taken when the site is deployed (assets/
+       screenshots/), which show the app's own text and the modules of
+       agda-algebras and the standard library it loads (sections 5 and 6).

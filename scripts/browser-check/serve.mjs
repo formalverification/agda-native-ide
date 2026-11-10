@@ -11,8 +11,11 @@
 // to see what the page does when a request fails (issue 8).  It can send
 // `no-store` for chosen paths, so that every request for them reaches its
 // log rather than the browser's HTTP cache: a check that no archive was
-// requested must not be passed by that cache (issue 14).  Adapted from the
-// 2026-10-04 investigation's harness (issue 5).
+// requested must not be passed by that cache (issue 14).  It can serve a
+// tree whose site lies under a path, as GitHub Pages serves the playground
+// at play/ of the project's website (issue 96): each request's URL is then
+// logged from that path, and one outside it is marked `outside`.  Adapted
+// from the 2026-10-04 investigation's harness (issue 5).
 //
 //   node scripts/browser-check/serve.mjs <site> [port] [--isolated]
 
@@ -42,25 +45,30 @@ const TYPES = {
  * asked first for each request's path, and its answer, if any, is sent in
  * place of the file; with `cut`, the answer claims twice its length, and
  * the connection is dropped after its body, as a transfer that breaks off.
- * @param {{ root: string, port?: number, isolated?: boolean,
+ * @param {{ root: string, port?: number, isolated?: boolean, prefix?: string,
  *   answer?: (path: string) =>
  *     { status: number, body: Buffer, cut?: boolean } | undefined,
  *   noStore?: string[] }} options  `noStore`: the path prefixes sent with
- *   `cache-control: no-store` instead of `max-age=600`
+ *   `cache-control: no-store` instead of `max-age=600`; `prefix`: the path
+ *   the site lies under (`/` by default), from which the log records each
+ *   URL, and which `answer` and `noStore` are matched from too
  */
-export function serve({ root, port = 0, isolated = false, answer, noStore = [] }) {
+export function serve({ root, port = 0, isolated = false, answer, noStore = [], prefix = "/" }) {
   // Every file must lie under this prefix; the filesystem root is its own
   // prefix, already ending in a separator.
   const resolved = resolve(root);
   const base = resolved.endsWith(sep) ? resolved : resolved + sep;
-  /** @type {{ t: number, method: string, url: string, status: number, bytes: number }[]} */
+  /** @type {{ t: number, method: string, url: string, status: number, bytes: number, outside?: boolean }[]} */
   const log = [];
+  /** A request's URL from the prefix, and whether it lay outside it. */
+  const fromPrefix = (/** @type {string} */ url) =>
+    url.startsWith(prefix) ? { url: url.slice(prefix.length - 1) } : { url, outside: true };
   const t0 = performance.now();
   const server = createServer(async (request, response) => {
     const entry = {
       t: Math.round(performance.now() - t0),
       method: request.method ?? "GET",
-      url: request.url ?? "/",
+      ...fromPrefix(request.url ?? "/"),
       status: 0,
       bytes: 0,
     };
@@ -83,7 +91,7 @@ export function serve({ root, port = 0, isolated = false, answer, noStore = [] }
     const answered =
       file === null
         ? undefined
-        : answer?.(new URL(request.url ?? "/", "http://127.0.0.1").pathname);
+        : answer?.(new URL(entry.url, "http://127.0.0.1").pathname);
     if (file === null) {
       // Answered above.
     } else if (answered) {
@@ -109,7 +117,7 @@ export function serve({ root, port = 0, isolated = false, answer, noStore = [] }
           ? (TYPES[extname(file ?? "")] ?? "application/octet-stream")
           : "text/plain; charset=utf-8",
       "content-length": cut ? 2 * body.length : body.length,
-      "cache-control": noStore.some((prefix) => entry.url.startsWith(prefix)) ? "no-store" : "max-age=600",
+      "cache-control": noStore.some((start) => entry.url.startsWith(start)) ? "no-store" : "max-age=600",
       ...(isolated
         ? {
             "cross-origin-opener-policy": "same-origin",

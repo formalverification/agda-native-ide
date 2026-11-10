@@ -1,0 +1,126 @@
+# File: .github/workflows/pages.yml
+#
+# The project's website (issue 96): built and checked on every pull
+# request and every push to main, and deployed to GitHub Pages from main,
+# at https://formalverification.github.io/agda-native-ide/, with the
+# playground at play/.
+#
+#   verify  builds the tree as a laptop does (`nix build .#pages`: the
+#           website by `mkdocs build --strict`, with mkdocs and Material
+#           pinned in the flake, and `nix build .#site` under play/), then
+#           runs the gates in the following order, each of which refuses
+#           rather than publish something wrong:
+#
+#             make website-test         the link hook's tests;
+#             make pages-browser        every page in headless Chromium, in
+#                                       both schemes, at a desktop and a
+#                                       phone width: the scheme drawn, no
+#                                       sideways scroll, no error, WCAG AA
+#                                       contrast, no request off the origin,
+#                                       and search; first it opens the
+#                                       playground and takes the home page's
+#                                       two pictures of it, into the tree;
+#             make pages-check          every link, anchor and fetch of the
+#                                       tree resolves (the pictures
+#                                       included), nothing is fetched from
+#                                       another origin, and the outbound
+#                                       links are listed;
+#             make pages-browser-check  the browser check of Main.agda, on
+#                                       the playground at /play/ of the
+#                                       tree, which fails if the page
+#                                       requests anything outside play/.
+#
+#           The records and screenshots are uploaded as `pages-check`; on
+#           main, the tree is uploaded as the Pages artifact.  It reads the
+#           formalverification Cachix cache, as site.yml does, and writes
+#           nothing to it.
+#   deploy  on main only, after verify: deploys that artifact.  It runs no
+#           repository code, and is the only job holding the tokens that
+#           publish.
+#
+# The repository setting this needs, which is William's to make:
+# Settings, Pages, "Build and deployment", Source: "GitHub Actions"
+# (`gh api repos/formalverification/agda-native-ide/pages --jq .build_type`
+# says `workflow` once it is made).  Until then, deploy fails and nothing
+# else does.
+
+name: pages
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # So the site can be deployed again without a commit.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time, and never one cancelled half done.
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@v27
+      - uses: cachix/cachix-action@v17
+        with:
+          name: formalverification
+          skipPush: true
+      - name: The link hook's tests
+        run: nix develop .#website --command make website-test
+      - name: Build the tree (the website, strict, and the playground under play/)
+        run: nix build .#pages --print-build-logs && nix develop --command make pages
+      - name: The website in headless Chromium, and the home page's pictures
+        run: nix develop --command make pages-browser
+      - name: Every link, anchor and fetch of the tree
+        run: nix develop --command make pages-check
+      - name: The browser check, on the playground at /play/
+        run: nix develop --command make pages-browser-check
+      - name: Record what was built
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo "### The Pages tree"
+            echo
+            echo "Revision $(git rev-parse HEAD), $(find public -type f | wc -l) files, $(du -sb public | cut -f1) bytes"
+            echo
+            echo '```'
+            jq -c '{pages, stylesheets, urls, outbound, problems}' pages-check/check.json
+            jq -c '{browser, views: (.pages | length), search, failure}' pages-check/browser/pages-browser.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: pages-check
+          path: pages-check
+          if-no-files-found: error
+      - name: Upload the tree as the Pages artifact
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+  deploy:
+    needs: verify
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
