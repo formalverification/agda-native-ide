@@ -26,7 +26,7 @@
 
 import { execFile } from "node:child_process";
 import { constants } from "node:fs";
-import { access, readdir, stat } from "node:fs/promises";
+import { access, readdir, realpath, stat } from "node:fs/promises";
 import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { refusal, type Refusal } from "../core/index.js";
@@ -154,8 +154,10 @@ export async function resolveAgda(
     }
     const args = [...(candidate.args ?? [])];
     let key: string | undefined;
+    // By the file it runs, too: a path can be a symlink re-pointed at
+    // another Agda, and the store's files all share one modification time.
     try {
-      key = JSON.stringify([executable, args, (await stat(executable)).mtimeMs]);
+      key = JSON.stringify([executable, await realpath(executable), args, (await stat(executable)).mtimeMs]);
     } catch {
       key = undefined;
     }

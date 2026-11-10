@@ -94,6 +94,10 @@ export class Steering implements vscode.Disposable {
   private followed: Followed | undefined;
   private following: Promise<void> = Promise.resolve();
   private sequence = 0;
+  /** Releases a follow waiting for a build the next follow made stale. */
+  private supersede: () => void = () => {};
+  /** The file the last follow was queued for. */
+  private queued: string | undefined;
   /** The key of the resolution the mode runs, or will at its next spawn:
    * set only once the mode is restarted on it, or runs nothing, so that a
    * restart skipped (focus left the file) is tried again. */
@@ -200,14 +204,35 @@ export class Steering implements vscode.Disposable {
     if (this.followed) this.followFile(this.followed.file, true);
   }
 
+  /** Follow a file.  Follows run one at a time, so that the mode's
+   * transitions do not overlap; but a follow waiting for a build gives way
+   * to the next one, whose project may be built already (the build goes
+   * on, and its answer is kept). */
   private followFile(file: string, force = false): void {
     const sequence = ++this.sequence;
-    this.following = this.following.then(() => this.follow(file, sequence, force)).catch(error => {
+    this.queued = file;
+    this.supersede();
+    const superseded = new Promise<undefined>(done => { this.supersede = () => done(undefined); });
+    this.following = this.following.then(() => this.follow(file, sequence, force, superseded)).catch(error => {
       this.output.appendLine(`[follow] ${error instanceof Error ? error.message : String(error)}`);
     });
   }
 
-  private async follow(file: string, sequence: number, force: boolean): Promise<void> {
+  /** Settles when the companion has followed `file` (the active editor's,
+   * whose change of editor may not have reached it yet): the mode runs its
+   * project's Agda, or the launcher's refusal is shown.  The companion's
+   * own commands wait for it before they reach the mode. */
+  async ready(file: string): Promise<void> {
+    if (this.queued !== file && this.launcher(vscode.Uri.file(file))) this.followFile(file);
+    // Until no follow is queued behind the one awaited: the one queued here
+    // may give way to the editor's own, for the same file.
+    for (let chain = this.following; ; chain = this.following) {
+      await chain;
+      if (chain === this.following) return;
+    }
+  }
+
+  private async follow(file: string, sequence: number, force: boolean, superseded: Promise<undefined>): Promise<void> {
     if (sequence !== this.sequence) return;
     const uri = vscode.Uri.file(file);
     const folder = vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath;
@@ -217,6 +242,7 @@ export class Steering implements vscode.Disposable {
     const launcher = this.launcher(uri);
     if (!launcher) {
       this.followed = { file, root, dir };
+      this.restoreVariable();
       this.status.hide();
       void this.offerSteering();
       return;
@@ -230,16 +256,21 @@ export class Steering implements vscode.Disposable {
       this.followed.file = file;
       return;
     }
-    if (!steering) this.restoreVariable();
-    // The next spawn of the mode is for this project, even before its
+    // The next spawn of the launcher is for this project, even before its
     // build ends: a load meanwhile runs the launcher, which waits for it.
-    if (steering) process.env[variable] = dir;
+    // So is a probe of the mode's own Switch Agda Version, which is why the
+    // variable follows the project even while the mode is not restarted.
+    if (this.namesLauncher()) process.env[variable] = dir;
+    else this.restoreVariable();
+    if (!steering) this.envKey = undefined;
     this.followed = { file, root, dir };
     this.showBuilding(root);
     let answer: Explained;
     const asked = performance.now();
     try {
-      answer = await this.withProgress(root, this.answerFor(file, project));
+      const answered = await this.withProgress(root, Promise.race([this.answerFor(file, project), superseded]));
+      if (answered === undefined) return;
+      answer = answered;
       this.followed.explainMs = Math.round(performance.now() - asked);
     } catch (error) {
       if (sequence !== this.sequence) return;
@@ -261,8 +292,8 @@ export class Steering implements vscode.Disposable {
     }
     const mode = this.namesLauncher() ? await this.modeProcess() : undefined;
     await this.showAnswer(answer, mode);
+    if (this.namesLauncher()) process.env[variable] = answer.project.root;
     if (!steering) return;
-    process.env[variable] = answer.project.root;
     const key = runKey(answer);
     if (key === this.envKey) return;
     // With no Agda running, the mode's next spawn runs this one.
@@ -296,7 +327,7 @@ export class Steering implements vscode.Disposable {
     if (version && answer.version && version !== answer.version) {
       this.output.appendLine(`[steer] restarted for ${root}, Agda mode runs Agda ${version} (${now!.args}), not ${answer.version}: it runs an Agda of its own, and is not steered until "Steer Agda mode again"`);
       await this.context.workspaceState.update(ownPickKey, true);
-      this.restoreVariable();
+      this.envKey = undefined;
       await this.showAnswer(answer, now);
       return 'own';
     }
@@ -447,9 +478,11 @@ export class Steering implements vscode.Disposable {
     }
     if (action === 'mode') {
       // The mode's pick overrides its paths, so it no longer runs the
-      // launcher: stop steering it, for this workspace, as its pick is.
+      // launcher: stop restarting it, for this workspace, as its pick is.
+      // The variable still names the project, so that the launcher, if it
+      // is the pick, starts this project's Agda.
       await this.context.workspaceState.update(ownPickKey, true);
-      this.restoreVariable();
+      this.envKey = undefined;
       await vscode.commands.executeCommand('agda-mode.switch-agda-version');
       this.followFile(file, true);
       await this.idle();
@@ -476,12 +509,15 @@ export class Steering implements vscode.Disposable {
     const file = this.activeFile();
     if (!file) throw new Error('Open an Agda module of the project first.');
     const project = await findProjectRoot(file, vscode.workspace.getWorkspaceFolder(vscode.Uri.file(file))?.uri.fsPath);
-    const target = vscode.Uri.joinPath(vscode.Uri.file(project.root), 'flake.nix');
+    // The launcher's project: the .agda-lib's directory, else the file's,
+    // not a workspace folder that may hold the repository.
+    const root = resolutionDir(file, project);
+    const target = vscode.Uri.joinPath(vscode.Uri.file(root), 'flake.nix');
     if (await stat(target.fsPath).then(() => true, () => false)) throw new Error(`${target.fsPath} exists already.`);
     const depends = project.library ? libraryDepends(await readFile(project.library, 'utf8')) : [];
-    const { text, missing } = starterFlake(basename(project.root), depends);
+    const { text, missing } = starterFlake(basename(root), depends);
     await vscode.window.showTextDocument(await vscode.workspace.openTextDocument({ language: 'nix', content: text }), { preview: true });
-    const write = await vscode.window.showInformationMessage(`Write this flake.nix into ${project.root}?`, {
+    const write = await vscode.window.showInformationMessage(`Write this flake.nix into ${root}?`, {
       modal: true,
       detail: `It writes one file into your checkout.${missing.length ? `  Not in nixpkgs, so left out: ${missing.join(', ')}.` : ''}  Nix reads only the files git tracks, so then run \`git add flake.nix && nix flake lock\` there.`,
     }, 'Write flake.nix');
@@ -489,7 +525,7 @@ export class Steering implements vscode.Disposable {
     await writeFile(target.fsPath, text, { flag: 'wx' });
     const next = await vscode.window.showInformationMessage(`Wrote ${target.fsPath}.`, 'Open a Terminal There');
     if (next) {
-      const terminal = vscode.window.createTerminal({ name: 'agda-for-project', cwd: project.root });
+      const terminal = vscode.window.createTerminal({ name: 'agda-for-project', cwd: root });
       terminal.show();
       // Typed, not run: the user presses Enter.
       terminal.sendText('git add flake.nix && nix flake lock', false);

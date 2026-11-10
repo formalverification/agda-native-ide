@@ -293,6 +293,11 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
       await mode.activate();
       const editor = await this.editor();
       const document = editor.document;
+      // A command given while the file's project's Agda is being prepared
+      // waits for it, so the mode does not answer it with the last
+      // project's Agda.  (The mode's own keys cannot be held back without
+      // changing the mode.)
+      if (document.uri.scheme === 'file') await this.steering.ready(document.uri.fsPath);
       const before = document.getText();
       const started = performance.now();
       let tokenCount: number | undefined;
@@ -343,7 +348,9 @@ export class Companion implements vscode.Disposable, vscode.WebviewPanelSerializ
   private async resolveLane(path: string): Promise<LaneConfig | Refusal | Failure> {
     const uri = vscode.Uri.file(path);
     const workbench = vscode.workspace.getConfiguration('agdaWorkbench', uri);
-    const mode = vscode.workspace.getConfiguration('agdaMode', uri);
+    // The mode reads its settings for the window, with no resource (the
+    // findings on issue 99), so a folder's value is not the mode's.
+    const mode = vscode.workspace.getConfiguration('agdaMode');
     const folder = vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath;
     const project = await findProjectRoot(path, folder);
     const ownPath = workbench.get<string>('agda.path')?.trim();

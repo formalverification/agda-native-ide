@@ -4,7 +4,7 @@
 // node scripts that answer `--numeric-version` as told, and count how
 // often they are asked.
 
-import { appendFileSync, chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -139,6 +139,20 @@ describe("which Agda a project uses", () => {
         version: "2.9.0",
       });
     expect(asked() - before).toBe(1);
+  });
+
+  it("asks again when the path is re-pointed at another Agda with the same modification time", async () => {
+    // As a checkout's .agda/bin/agda re-pointed from one store path to another.
+    const [nine, eight] = [standIn("store-2.9", "2.9.0"), standIn("store-2.8", "2.8.0")];
+    for (const file of [nine, eight]) utimesSync(file, 1, 1);
+    const link = join(dir, "agda-link");
+    symlinkSync(nine, link);
+    const cache = new Map<string, string>();
+    const ask = () => resolveAgda([{ source: "agda-for-project", executable: link }], { expectedVersion: ["2.9.0", "2.8.0"], env: env(), cache });
+    expect(await ask()).toMatchObject({ version: "2.9.0" });
+    rmSync(link);
+    symlinkSync(eight, link);
+    expect(await ask()).toMatchObject({ version: "2.8.0" });
   });
 });
 

@@ -192,6 +192,43 @@ export async function run(): Promise<void> {
   record.lanesTakeModeOptions = { withOption: optioned.result.verdict.exitCode, without: plain.result.verdict.exitCode };
   record.skippedRestartRetried = true;
 
+  // A slow build (a launcher that waits 5 s before --explain): a companion
+  // load given while the active project's Agda is prepared waits for the
+  // restart, so the mode never checks the file with the last project's
+  // Agda; and a follow waiting for a build gives way to the next project's,
+  // already answered.
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  const realLauncher = vscode.workspace.getConfiguration('agdaMode').get<string[]>('connection.paths')!.at(-1)!;
+  const slow = path.join(output, 'slow-launcher.sh');
+  await writeFile(slow, `#!/bin/sh\n[ "$1" = --explain ] && sleep 5\nexec ${JSON.stringify(realLauncher)} "$@"\n`, { mode: 0o755 });
+  const workbenchSettings = vscode.workspace.getConfiguration('agdaWorkbench');
+  await workbenchSettings.update('launcher.path', slow, vscode.ConfigurationTarget.Global);
+  await sleep(500);
+  await deadline(steering.idle(), 'alpha through the slow launcher');
+  restartsBefore = steering.restarts.length;
+  await show('beta');
+  const gatedStarted = performance.now();
+  await deadline(vscode.commands.executeCommand<DocumentSnapshot>('agdaWorkbench.load'), 'load beta while its Agda is prepared');
+  const gatedMs = Math.round(performance.now() - gatedStarted);
+  assert.equal(steering.restarts.length - restartsBefore, 1, 'the load waited for the restart');
+  assert.equal(versionOf((await running())!.args), agdas.beta!.version, 'and the mode runs beta\'s Agda');
+  assert.deepEqual(checkedBy('beta', versions), [agdas.beta!.version], 'beta was never checked by alpha\'s Agda');
+  // gamma has not been asked through the slow launcher: its refusal takes
+  // 5 s, and beta, answered, does not wait for it.
+  await show('gamma');
+  await until(() => steering.getFollowed()?.root === folder('gamma'), 'following gamma');
+  const supersedeStarted = performance.now();
+  await show('beta');
+  await until(() => steering.getFollowed()?.root === folder('beta') && steering.getFollowed()?.answer !== undefined, 'beta, past gamma\'s build');
+  const supersededMs = Math.round(performance.now() - supersedeStarted);
+  assert.ok(supersededMs < 3000, `beta was followed in ${supersededMs} ms, not after gamma's 5 s build`);
+  await deadline(steering.idle(), 'settled on beta');
+  assert.equal(steering.getStatus().text, `$(versions) Agda ${agdas.beta!.version}`);
+  await workbenchSettings.update('launcher.path', undefined, vscode.ConfigurationTarget.Global);
+  await sleep(500);
+  await deadline(steering.idle(), 'back to the launcher');
+  record.slowBuild = { gatedLoadMs: gatedMs, supersededMs };
+
   // The mode's own Switch Agda Version: its pick, kept in the mode's
   // workspace state, overrides its paths, so the mode no longer runs the
   // launcher.  Chosen from the chooser, it stops the steering: no restart
