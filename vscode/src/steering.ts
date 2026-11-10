@@ -36,11 +36,12 @@
 //   +  The mode's own Switch Agda Version keeps its pick in the mode's
 //      workspace state, and that pick overrides agdaMode.connection.paths,
 //      so the mode no longer runs the launcher.  Choosing it from the
-//      companion's chooser stops the steering for the workspace, and so
+//      companion's chooser stops the restarts for the workspace, and so
 //      does a restart after which the mode runs another version than the
 //      launcher gave (the pick made from the mode's own command, which the
-//      companion cannot see); the status says so, and the chooser's "Steer
-//      Agda mode again" resumes it.
+//      companion cannot see); the variable still follows the project, the
+//      status says so, and the chooser's "Steer Agda mode again" resumes
+//      it.
 //
 // Rejected: a setting written per folder (ignored by the mode) or per
 // change of project (a write into the user's settings at every switch);

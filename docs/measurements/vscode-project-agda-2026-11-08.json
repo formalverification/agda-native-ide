@@ -759,6 +759,37 @@
         "lanes-drop-options": "fails: the mode's options reach the lanes (exit 42)",
         "key-ignores-version": "fails: the registry test replaces a lane whose Agda answers another version at the same path"
       }
+    },
+    "thirdReview": {
+      "date": "2026-11-09",
+      "machine": "alonzo",
+      "why": "Copilot Balanced review of PR 102 on b0d4d87",
+      "driver": "COMPANION_TESTS=no-reload make vscode-test; the slow-launcher (5 s before --explain), folder-option and own-pick cases in vscode/src/test/projects.ts",
+      "alpha-beta": {
+        "gatedLoadMs": 5292,
+        "supersededMs": 24
+      },
+      "beta-alpha": {
+        "gatedLoadMs": 5280,
+        "supersededMs": 37
+      },
+      "earlierRun": {
+        "alpha-beta": {
+          "gatedLoadMs": 5280,
+          "supersededMs": 31
+        },
+        "beta-alpha": {
+          "gatedLoadMs": 5282,
+          "supersededMs": 36
+        }
+      },
+      "mutations": {
+        "no-supersede": "fails: beta was followed in 5066 ms, not after gamma's 5 s build",
+        "no-gate": "fails: the load waited for the restart",
+        "scoped-mode-settings": "fails: a folder's options are not the mode's",
+        "variable-cleared-when-not-steering": "fails: the variable follows the project while the mode runs its own pick",
+        "probe-key-without-realpath": "fails: the resolve test of a re-pointed path"
+      }
     }
   },
   "desktop": {

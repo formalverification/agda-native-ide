@@ -129,7 +129,11 @@ longer than a warm start), and restarts the mode (`agda-mode.restart`,
 which loads the active file again) only when the project needs another
 Agda than the mode runs.  Moving between files of one project, or between
 projects on the same Agda, restarts nothing; a restart skipped because
-focus left the file first is made at the next focus of that project.  The
+focus left the file first is made at the next focus of that project.  A
+command given through the companion during a switch waits for it; the
+mode's own keys cannot be held back, so `C-c C-l` pressed while a new
+project's Agda builds reaches the running Agda until the restart.  Moving
+on while a build runs does not wait for it.  The
 answer is kept per project (the `.agda-lib`'s directory, or else the
 file's), and asked again when any file the launcher's build key covers
 changes: every tracked file but Agda sources, so `flake.nix`, `flake.lock`
@@ -165,9 +169,11 @@ to run that project's shell hook as you.
 **The mode's own Switch Agda Version** keeps its pick in the mode's
 workspace state, where it overrides `agdaMode.connection.paths`, so the
 mode no longer runs the launcher.  Chosen from the chooser, it stops the
-companion steering the mode in that workspace; a pick made from the mode's
-own command is found at the next restart, when the mode runs another
-version than the launcher gave, and stops it too.  The status item then
+companion restarting the mode in that workspace; a pick made from the
+mode's own command is found at the next restart, when the mode runs
+another version than the launcher gave, and stops it too.  The variable
+still names the active project, so agda-for-project, if it is the pick,
+starts that project's Agda.  The status item then
 warns, and says what the mode runs, while the lanes keep the project's
 Agda.  To steer the mode again, pick agda-for-project in Switch Agda
 Version, then **Steer Agda mode again** in the chooser.

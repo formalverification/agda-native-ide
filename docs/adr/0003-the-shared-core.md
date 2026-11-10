@@ -1171,15 +1171,24 @@ agda-mode-vscode and to the native lanes, as follows:
 +  **Build first**.  The companion runs `agda-for-project --explain --json
    FILE`, which builds the project's Agda, behind a progress notification
    when it outlasts a warm start (400 ms), and restarts the mode only after
-   it.
+   it.  Follows run one at a time, so the mode's transitions never
+   overlap, but one waiting for a build gives way to the next, whose
+   project may be answered already (the build goes on into the cache).
+   The companion's own commands to the mode wait for the active file's
+   follow; the mode's own keys cannot be held back without changing the
+   mode, so `C-c C-l` pressed during a build still reaches the running
+   Agda until the restart ([#102]'s third review).
 +  **Never into a refusal**.  When the launcher decides nothing, its line is
    shown (status item, notification, lane refusal), the mode is not
    restarted, and no other Agda runs in the lanes.
 +  **The lanes run the answer directly**: the launcher's program, arguments
    and environment, without `AGDA_FOR_PROJECT_DIR`, then
    `agdaMode.connection.commandLineOptions` (as the mode's spawn through the
-   launcher has them), at the version it reports, which is part of a
-   lane's key; `agdaWorkbench.agda.path` and `agdaWorkbench.agda.version`
+   launcher has them, read with no resource as the mode reads them), at
+   the version it reports, which is part of a lane's key (the probe of
+   that version is cached by the file the path runs, since a symlink can
+   be re-pointed within the store, whose files share one modification
+   time); `agdaWorkbench.agda.path` and `agdaWorkbench.agda.version`
    win when set.
 +  **Two versions**.  The engine speaks Agda 2.9.0 and 2.8.0; a lane on
    another is refused with the reason.
@@ -1191,12 +1200,13 @@ agda-mode-vscode and to the native lanes, as follows:
 +  **The mode's own pick stops the steering**.  Switch Agda Version keeps
    its pick in the mode's workspace state, and the pick overrides the
    paths, so the mode no longer runs the launcher.  Chosen from the
-   chooser, it stops the steering for the workspace; so does a restart
+   chooser, it stops the restarts for the workspace; so does a restart
    after which the mode runs another version than the launcher gave (the
    pick made from the mode's own command, which the companion cannot see).
-   The status says the mode runs an Agda of its own, the lanes keep the
-   project's, and the chooser's "Steer Agda mode again" resumes it
-   ([#102]'s review).
+   `AGDA_FOR_PROJECT_DIR` still follows the project, so the launcher, if
+   it is the pick, starts the project's Agda.  The status says the mode
+   runs an Agda of its own, the lanes keep the project's, and the
+   chooser's "Steer Agda mode again" resumes it ([#102]'s review).
 +  **Rejected**: a setting per folder (the mode ignores it); a setting
    written at each change of project (a write into the user's settings at
    every switch); `process.chdir` in the shared extension host (every
@@ -1258,6 +1268,14 @@ log each call ([the record][project-record], `modeFindings`):
    moved to a non-Agda editor first was made at the next focus of alpha.
    The registry replaces a lane whose Agda answers another version at the
    same path.  A mutation of each of the three fails its case.
++  After the third review, in the same suite, both orders, through a
+   launcher that waits 5 s before `--explain`: a companion load given
+   while beta's Agda was prepared waited for the restart (5.3 s) and beta
+   was never checked by alpha's Agda; beta, answered, was followed 24 to
+   37 ms after gamma's stale build began (two runs of both orders); an option set only for a folder
+   stayed out of the lanes; the variable named the project while the mode
+   ran its own pick.  A resolve test re-points a symlink between two
+   files of one modification time.  A mutation of each fails its case.
 
 **Status**.  Adopted (2026-11-08, [#99]).  Untested: the quick pick
 itself, the offer to set the mode's
@@ -1307,6 +1325,7 @@ companion avoids it by offering the launcher as the only path.
 | 33 | The chooser: the launcher's candidates, forgetting, the mode's Switch Agda Version, and a starter flake written only on consent | Adopted ([#99]); the quick pick and the write untested | The projects suite drives a choice and its removal by ID; unit tests of the flake's text, a hostile directory name among them (§ 17) |
 | 34 | The mode's own Switch Agda Version pick stops the steering, chosen from the chooser or found after a restart, until "Steer Agda mode again" | Adopted ([#102]'s review, 2026-11-08) | The projects suite drives the mode's quick pick in both orders; a mutation of each mechanism fails it (§ 17) |
 | 35 | Answers are cached per launcher start directory and dropped when any file its key covers changes, or when they are a failed or untrusted refusal; a skipped restart is retried; the lanes take the mode's options and key on the version | Adopted ([#102]'s second review, 2026-11-09) | The projects suite's options and retry cases; the registry's version test; unit tests of the filter and the start directory (§ 17) |
+| 36 | Follows give way while waiting for a build; the companion's commands to the mode wait for the active file's follow; the mode's settings are read unscoped; the variable follows the project while the mode runs its own pick | Adopted ([#102]'s third review, 2026-11-09); the mode's own keys are not held back | The projects suite's slow-launcher, folder-option and own-pick cases; the resolve test of a re-pointed path (§ 17) |
 
 ---
 
