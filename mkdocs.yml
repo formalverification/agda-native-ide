@@ -44,7 +44,11 @@ copyright: >-
 # readers, so nothing in it is published unless it is named here: the first
 # pattern excludes everything, each `!` line re-includes one thing, and
 # `validation.omitted_files` makes a published page missing from the nav a
-# build failure.  Left out on purpose: the measurement records
+# build failure.  The patterns are gitignore's, and each `!` line starts
+# with `/`, so it names one path below docs/: without it, an entry with no
+# slash before its end (`emacs.md`, `assets/`) matches at any depth
+# (`!emacs.md` once published docs/notes/emacs.md as well, which no nav
+# lists, and --strict stopped the build).  Left out on purpose: the measurement records
 # (docs/measurements/*.json, linked on GitHub, not rendered), docs/agents.md
 # (for contributors' agents), anything git ignores (docs/kickoffs/), and the
 # plan, docs/GITHUB_PROJECT.md, which the nav links on GitHub: its issue
@@ -57,26 +61,26 @@ copyright: >-
 docs_dir: docs
 exclude_docs: |
   *
-  !index.md
-  !browser.md
-  !vscode.md
-  !emacs.md
-  !each-projects-own-agda.md
-  !assets/
-  !assets/**
-  !adr/
-  !adr/0001-runtime.md
-  !adr/0002-where-the-workbench-lives.md
-  !adr/0003-the-shared-core.md
-  !notes/
-  !notes/runtime.md
-  !notes/library-archives.md
-  !notes/explorer.md
-  !notes/platform-brief-2026-10-05.md
-  !notes/browser-ide-proposal.md
-  !engine/
-  !engine/overview.md
-  !provenance.md
+  !/index.md
+  !/browser.md
+  !/vscode.md
+  !/emacs.md
+  !/each-projects-own-agda.md
+  !/assets/
+  !/assets/**
+  !/adr/
+  !/adr/0001-runtime.md
+  !/adr/0002-where-the-workbench-lives.md
+  !/adr/0003-the-shared-core.md
+  !/notes/
+  !/notes/runtime.md
+  !/notes/library-archives.md
+  !/notes/explorer.md
+  !/notes/platform-brief-2026-10-05.md
+  !/notes/browser-ide-proposal.md
+  !/engine/
+  !/engine/overview.md
+  !/provenance.md
 
 # Not site/: that name is too near `nix build .#site`, the playground.
 site_dir: public

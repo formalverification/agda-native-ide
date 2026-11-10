@@ -90,7 +90,8 @@ records how, and [the overview](engine/overview.md) explains it.
 An editor runs one Agda for every file, so a file of a project pinned to
 another Agda, or to other libraries, fails with errors that read as broken
 code.  The workbench's next milestone makes every native host run each
-project's own Agda, as its flake pins it, with no setting touched.
+project's own Agda, as its flake pins it, with no setting touched once
+you trust your own checkouts.
 [Each project's own Agda](each-projects-own-agda.md) says what is built
 and what is not yet.
 
