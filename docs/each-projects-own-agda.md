@@ -4,7 +4,8 @@
 
 Open several Agda projects that depend on different Agdas and different
 libraries, in VS Code or in Emacs, and check any file of any of them, with
-no setting touched and no Agda switched by hand.  That is Milestone 9 of
+no Agda switched by hand and no setting touched once you trust your own
+checkouts.  That is Milestone 9 of
 [the plan](GITHUB_PROJECT.md), added on 2026-11-07, and this page says what
 it builds, how, and what is done.
 
@@ -48,7 +49,7 @@ it from `agda`.
 <figure class="diagram">
 <svg class="diagram" viewBox="0 0 720 650" role="img" aria-labelledby="resolver-title resolver-desc">
 <title id="resolver-title">How agda-for-project decides which Agda runs a file</title>
-<desc id="resolver-desc">From the file, the resolver finds its project and its flake, then tries four answers in order: an attribute the host names, a choice you remembered, the flake's one Agda environment, and a trusted dev shell with its own agda.  The first that answers is built once per key, given the checkout's sibling libraries if needed, and run with every argument.  If none answers, it exits 69 without running any Agda.</desc>
+<desc id="resolver-desc">From the file, the resolver finds its project and its flake, then tries four answers in order: an attribute the host names, a choice you remembered, the flake's one Agda environment, and a dev shell with its own agda, these two only for a flake you trust.  The first that answers is built once per key, given the checkout's sibling libraries if needed, and run with every argument.  If none answers, it exits 69 without running any Agda.</desc>
 <defs>
 <marker id="resolver-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
 </defs>
@@ -68,10 +69,10 @@ it from `agda`.
 <text x="185" y="388" text-anchor="middle" class="small">--choose, kept outside the checkout</text>
 <rect class="box key" x="30" y="430" width="310" height="52" rx="6"/>
 <text x="185" y="452" text-anchor="middle">3. One Agda environment?</text>
-<text x="185" y="472" text-anchor="middle" class="small">an agda.withPackages among the packages</text>
+<text x="185" y="472" text-anchor="middle" class="small">an agda.withPackages, if you trust the flake</text>
 <rect class="box key" x="30" y="514" width="310" height="52" rx="6"/>
-<text x="185" y="536" text-anchor="middle">4. A trusted dev shell?</text>
-<text x="185" y="556" text-anchor="middle" class="small">one that puts its own agda on PATH</text>
+<text x="185" y="536" text-anchor="middle">4. A dev shell's own agda?</text>
+<text x="185" y="556" text-anchor="middle" class="small">on its PATH, if you trust the flake</text>
 <rect class="box stop" x="30" y="596" width="310" height="44" rx="6"/>
 <text x="185" y="623" text-anchor="middle">Nothing decided: exit 69, no Agda</text>
 <path class="edge" d="M185,60 V90" marker-end="url(#resolver-arrow)"/>
@@ -120,22 +121,30 @@ none answers it runs no Agda at all.  Drawn from the resolver's note in
    interface of agda-native-air's launcher for `agda-mcp`, so a
    registration written for that launcher works here.
 +  **A choice you made** for the project comes next.  `agda-for-project
-   --candidates` lists what can run it (the flake's environments and dev
-   shells, the Agdas already built on this machine, `agda` on PATH), and
+   --candidates` lists what can run it (trusting the flake, its
+   environments and dev shells, the Agdas already built on this machine,
+   `agda` on PATH), and
    `--choose ID` remembers one, in your state directory and never in the
    checkout, for every worktree of the repository.
 +  **The flake's one Agda environment**: a package named `default`, or with
-   `agda` in its name, that is an `agda.withPackages`.  The resolver
+   `agda` in its name, that is an `agda.withPackages`, when you trust the
+   flake (below).  The resolver
    evaluates the candidates rather than trusting their names:
    formal-ledger-specifications has four packages with `agda` in the name,
    and one environment among them.
 +  **The flake's default dev shell**, when entering it puts an `agda` of its
    own on PATH, as agda-algebras' downstream projects (such as
-   [agda-lattices]) do, and you trust the flake.  Entering a dev shell runs
-   the project's shell hook as you, so the resolver does it on its own only
-   for a flake under a directory you list in
-   `~/.config/agda-for-project/trusted`, or after you choose the dev shell
-   for that project.
+   [agda-lattices]) do, and you trust the flake.
++  **Trust**: running a flake's Agda runs the flake's code as you, since an
+   environment's `agda` is whatever program the flake builds and a dev
+   shell's hook runs when it is entered.  So the resolver runs what it
+   finds only for a flake you trust: one line in
+   `~/.config/agda-for-project/trusted` for the directory you keep your
+   own checkouts in (`agda-for-project --choose trust:$HOME/git` writes
+   it), or the first entry of an editor's chooser, which trusts the file's
+   repository and every worktree of it.  A choice for the project is
+   consent too, and a repository cloned anywhere else is never run
+   unasked.
 +  **Otherwise nothing is decided**: the resolver says so on one line and
    exits 69 without running any Agda.  It never runs some other Agda
    instead.
