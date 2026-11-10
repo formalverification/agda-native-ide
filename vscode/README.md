@@ -62,8 +62,11 @@ even if VS Code is already running.  In an agda-algebras dev shell that
 PATH includes its Agda wrapper and library registry.  The mode uses its
 normal connection settings; if it selects another executable, use its
 **Switch to a different Agda version** command to select the checkout's
-`.agda/bin/agda`.  This package is not published; [#70] owns packaging and
-publishing.
+`.agda/bin/agda`.  With agda-for-project as the mode's Agda ("Each
+project's own Agda", below), no dev shell is needed: run the same `code`
+command, without `nix develop --command`, from any shell, and name as many
+checkouts as you like.  This package is not published; [#70] owns
+packaging and publishing.
 
 Open an `.agda` or `.lagda.md` module and run `Agda Workbench: Open Panel`
 from the command palette.  Opening preserves editor focus.  Load
@@ -105,9 +108,10 @@ window can hold agda-algebras on Agda 2.9.0 and formal-ledger-specifications
 on 2.8.0, and `C-c C-l` in a file of either checks it with that project's
 Agda, with no setting changed between them ([#99]).
 
-**Setup, once**.  Install the launcher, so that VS Code finds it on PATH:
+**Setup, once**.  Install the launcher, so that VS Code finds it on PATH
+(before Nix 2.30, the command is `nix profile install`):
 
-    nix profile install github:formalverification/agda-native-ide#agda-for-project
+    nix profile add github:formalverification/agda-native-ide#agda-for-project
 
 Then name it as the mode's Agda.  When an Agda file opens and the mode does
 not run it, the companion offers to set `agdaMode.connection.paths` to
@@ -163,8 +167,12 @@ the chooser.
 `--choose`; forgetting the choice; the mode's own Switch Agda Version; and,
 for a project with no flake, **Write a Starter flake.nix**, which shows a
 flake pinning nixpkgs' Agda 2.8.0 and the libraries its `.agda-lib` depends
-on, and writes it only when you confirm.  Choosing a dev shell is consent
-to run that project's shell hook as you.
+on, and writes it only when you confirm.  The candidates begin with
+trusting the project's repository (or its directory) when that would
+decide, as for a repository you have not trusted yet.  Trusting it, or
+choosing one of its Agdas, is consent to run that project's code as you:
+an environment's `agda` is whatever the flake builds, and entering a dev
+shell runs its hook.
 
 **The mode's own Switch Agda Version** keeps its pick in the mode's
 workspace state, where it overrides `agdaMode.connection.paths`, so the

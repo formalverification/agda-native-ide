@@ -182,9 +182,9 @@ From a shell, with nothing installed but Nix:
     nix run github:formalverification/agda-native-ide#agda-for-project -- --explain path/to/File.agda
 
 Or install it into your profile, so that editors find `agda-for-project`
-on PATH:
+on PATH (before Nix 2.30, the command is `nix profile install`):
 
-    nix profile install github:formalverification/agda-native-ide#agda-for-project
+    nix profile add github:formalverification/agda-native-ide#agda-for-project
 
 `--explain` shows what it decided, building first if needed (`--no-build`
 to only look).  For a module of formal-ledger-test, on 2026-11-07:
@@ -203,11 +203,13 @@ integrations read.  When nothing is decided, its `reason` says why:
 `untrusted` (trust the flake, or choose), `undecided` (choose), or
 `failed` (an evaluation or a build failed, or the flake is not locked).
 
-+  **Emacs**: an agda2-mode package that starts each buffer's project's
-   Agda through this program, restarting Agda when you switch projects, is
-   [#98].
-+  **VS Code**: agda-mode-vscode and this repository's companion running
-   each project's Agda through it are [#99].  The companion offers the
++  **Emacs**: `agda-for-project.el`, in `emacs/`, makes agda2-mode start
+   each buffer's project's Agda through this program, restarting Agda
+   when you switch projects ([#98]); [the Emacs note][emacs-note] explains
+   it and how to install it.
++  **VS Code**: this repository's companion, in `vscode/`, has
+   agda-mode-vscode and its own lanes run each project's Agda through it
+   ([#99]); [its README][companion] explains how.  The companion offers the
    chooser, trust among its entries; agda-mode-vscode alone does not, and
    when the program refuses (an untrusted flake, say), it quietly tries the
    next Agda it knows.  Without the companion, trust your checkouts once
@@ -297,3 +299,5 @@ entry for its repository, or a choice for the project.
 [adr-0004]: ../adr/0004-each-projects-own-agda.md
 [#98]: https://github.com/formalverification/agda-native-ide/issues/98
 [#99]: https://github.com/formalverification/agda-native-ide/issues/99
+[companion]: ../../vscode/README.md#each-projects-own-agda
+[emacs-note]: emacs.md
