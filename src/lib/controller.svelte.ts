@@ -12,7 +12,8 @@
 // That compiler is this repository's build of Agda 2.9.0 and its language
 // server (compiler/build-agda-2.9.0.sh), which answers in the raw format
 // the engine reads only when started with --raw; the standard library is
-// 2.3 patched to check under 2.9.0 (stdlib/patches/; issue 58).
+// 2.4.1, its release for Agda 2.9.0 (issue 108; until then 2.3, patched to
+// check under 2.9.0, issue 58).
 //
 // The controller is the page's host of the engine (issue 62): it holds the
 // page's Svelte state and does what is the page's own, and asks the
@@ -183,12 +184,12 @@ export const agdaVersionMap: Record<SupportedAgdaVersion, AgdaVersionSpec> = {
 
 /** The playground: Main.agda in its own project, whose library depends
  * on the standard library the page ships (its `.agda-lib` names it
- * standard-library-2.3) and agda-algebras, as stage.sh writes it. */
+ * standard-library-2.4) and agda-algebras, as stage.sh writes it. */
 export const PLAYGROUND = {
   file: "/play/Main.agda",
   library: {
     path: "/play/play.agda-lib",
-    text: "name: play\ndepend: standard-library-2.3 agda-algebras\ninclude: .\n",
+    text: "name: play\ndepend: standard-library-2.4 agda-algebras\ninclude: .\n",
   },
   /** Where Agda finds the modules Main imports: the project's own
    * directory and its libraries' include directories, in that order
@@ -459,7 +460,7 @@ export class AgdaController {
         glueUrl: new URL(spec.gluePath, location.href).href,
         archives: {
           builtin: spec.dataPath,
-          stdlib: `${asset("/agda-stdlib-2.3-patched.zip")}?cache=${cacheTokens.stdlib}`,
+          stdlib: `${asset("/agda-stdlib-2.4.1.zip")}?cache=${cacheTokens.stdlib}`,
           // agda-algebras at /agda-algebras, which the playground's project
           // depends on; PLFA at the root, where its chapters are.
           libraries: [

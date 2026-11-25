@@ -158,36 +158,32 @@
             | TZ=UTC zip -X -D -0 -q "$out/agda-data.zip" -@
         '';
 
-      # The standard library the page ships under Agda 2.9.0 (issue 58):
-      # agda-stdlib v2.3, which agda-algebras depends on, with the five
-      # patches in stdlib/patches/ (two commits of its agda-master branch, a
-      # third ported by hand, and two of its master branch), with which the
-      # whole library checks under 2.9.0 and no released version does
-      # (issue 61: row 2b, and two later fixes).  The archive holds what the
-      # page's drive takes from it (src/, standard-library.agda-lib) and the
-      # library's LICENCE, under agda-stdlib-2.3/, as a zip whose bytes
-      # depend on its input alone: entries sorted, one fixed time.
+      # The standard library the page ships under Agda 2.9.0 (issue 108):
+      # agda-stdlib v2.4.1, its compatibility release for Agda 2.9.0, which
+      # agda-algebras depends on (its library is standard-library-2.4), as
+      # released.  The page shipped v2.3 with five patches until then
+      # (issue 58; docs/provenance.md, "Retired pins").  The archive holds
+      # what the page's drive takes from it (src/, standard-library.agda-lib)
+      # and the library's LICENCE, under agda-stdlib-2.4.1/, as a zip whose
+      # bytes depend on its input alone: entries sorted, one fixed time.
+      stdlibVersion = "2.4.1";
       stdlibSource = pkgs: pkgs.fetchFromGitHub {
         owner = "agda";
         repo = "agda-stdlib";
-        rev = "8326c7475af1fa456ca04a0203c168d5d7ff842b"; # v2.3
-        hash = "sha256-JOeoek6OfyIk9vwTj5QUJU6LnRzwfiG0e0ysW6zbhZ8=";
+        rev = "ac7c79b24ecf16cf82decc872d2690c2ee9d8498"; # v2.4.1
+        hash = "sha256-7TFjdpqG6tv6qTtWdaGhVXXR7RJYL1R4QlKkYaWdVvI=";
       };
-      mkStdlib = pkgs: pkgs.runCommand "agda-stdlib-2.3-patched" {
-          nativeBuildInputs = [ pkgs.zip pkgs.patch ];
+      stdlibZip = "agda-stdlib-${stdlibVersion}.zip";
+      mkStdlib = pkgs: pkgs.runCommand "agda-stdlib-${stdlibVersion}" {
+          nativeBuildInputs = [ pkgs.zip ];
         } ''
-          cp -R --no-preserve=mode ${stdlibSource pkgs} agda-stdlib-2.3
-          for p in ${./stdlib/patches}/*.patch; do
-            patch --quiet -p1 -d agda-stdlib-2.3 < "$p"
-          done
-          find agda-stdlib-2.3 -name '*.orig' -delete
+          dir=agda-stdlib-${stdlibVersion}
+          cp -R --no-preserve=mode ${stdlibSource pkgs} "$dir"
           mkdir -p "$out"
-          find agda-stdlib-2.3/src agda-stdlib-2.3/standard-library.agda-lib \
-              agda-stdlib-2.3/LICENCE -type f \
+          find "$dir/src" "$dir/standard-library.agda-lib" "$dir/LICENCE" -type f \
             -exec chmod 644 {} + -exec touch -d @315532800 {} +
-          find agda-stdlib-2.3/src agda-stdlib-2.3/standard-library.agda-lib \
-              agda-stdlib-2.3/LICENCE -type f | LC_ALL=C sort \
-            | TZ=UTC zip -X -D -9 -q "$out/agda-stdlib-2.3-patched.zip" -@
+          find "$dir/src" "$dir/standard-library.agda-lib" "$dir/LICENCE" -type f \
+            | LC_ALL=C sort | TZ=UTC zip -X -D -9 -q "$out/${stdlibZip}" -@
         '';
 
       # The plain agda of the 2.9.0 compiler, run under wasmtime with the
@@ -270,7 +266,7 @@
           export HOME=$TMPDIR/home WORK=$TMPDIR/work
           export WASMTIME=${pkgs.wasmtime}/bin/wasmtime AGDA_WASM=${compiler}/agda.wasm
           export AGDA_DATA_ZIP=${agdaData}/agda-data.zip \
-            STDLIB_ZIP=${stdlib}/agda-stdlib-2.3-patched.zip \
+            STDLIB_ZIP=${stdlib}/${stdlibZip} \
             SOURCES_ZIP=${sources}/agda-algebras-sources.zip
           mkdir -p "$HOME"
           bash ${libraryScripts [
@@ -292,7 +288,7 @@
           ]}/pack.mjs \
             --interfaces ${interfaces} \
             --sources ${sources}/agda-algebras-sources.zip \
-            --stdlib ${stdlib}/agda-stdlib-2.3-patched.zip \
+            --stdlib ${stdlib}/${stdlibZip} \
             --builtins ${agdaData}/agda-data.zip \
             --wasm ${compiler}/agda.wasm \
             --commit ${agdaAlgebras.rev} \
@@ -311,7 +307,7 @@
           export HOME=$TMPDIR/home WORK=$TMPDIR/work
           export WASMTIME=${pkgs.wasmtime}/bin/wasmtime AGDA_WASM=${compiler}/agda.wasm
           export AGDA_DATA_ZIP=${agdaData}/agda-data.zip \
-            STDLIB_ZIP=${stdlib}/agda-stdlib-2.3-patched.zip
+            STDLIB_ZIP=${stdlib}/${stdlibZip}
           # A Nix that passes cores = 0 through means every core.
           cores=$NIX_BUILD_CORES
           [ "$cores" -ge 1 ] || cores=$(nproc)
@@ -470,7 +466,7 @@
         # The 2.8.0 compiler, kept pinned and not shipped.
         compiler-2_8_0 = fetchPin pkgs compiler-2_8_0;
 
-        # The standard library the page ships, patched (mkStdlib).
+        # The standard library the page ships, as released (mkStdlib).
         inherit stdlib;
 
         # agda-for-project, the launcher that runs a file's project's own
@@ -524,7 +520,7 @@
             install -D -m 444 ${agdaData}/agda-data.zip "$out/static/agda-data.zip"
             install -D -m 444 ${compiler}/als-reactor.wasm "$out/static/als-reactor-2.9.0.wasm"
             install -D -m 444 ${compiler}/als-reactor.js "$out/static/als-reactor-2.9.0.js"
-            install -D -m 444 ${stdlib}/agda-stdlib-2.3-patched.zip "$out/static/agda-stdlib-2.3-patched.zip"
+            install -D -m 444 ${stdlib}/${stdlibZip} "$out/static/${stdlibZip}"
             install -D -m 444 ${agdaAlgebrasSources}/agda-algebras-sources.zip "$out/static/agda-algebras-sources.zip"
             install -D -m 444 ${agdaAlgebrasModules}/agda-algebras-modules.json "$out/static/agda-algebras-modules.json"
             install -D -m 444 ${agda-algebras-archives}/index.json "$out/static/agda-algebras/index.json"
@@ -622,7 +618,7 @@
           ];
           AGDA = "${native-agda.packages.${system}.base.bin}/bin/agda";
           AGDA_ALGEBRAS = companion-fixture.outPath;
-          AGDA_STDLIB_ZIP = "${mkStdlib pkgs}/agda-stdlib-2.3-patched.zip";
+          AGDA_STDLIB_ZIP = "${mkStdlib pkgs}/${stdlibZip}";
           # The multi-root test of issue 99: agda-for-project, the mode's
           # and the lanes' launcher there, and a second Agda for its second
           # project, nixpkgs' 2.8.0 (in cache.nixos.org, so nothing builds).

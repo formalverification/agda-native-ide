@@ -77,7 +77,6 @@ on:
       - flake.nix
       - flake.lock
       - Makefile
-      - stdlib/patches/**
       - compiler/agda-2.9.0.sha256
       - scripts/library-archives/**
       - packages/engine/src/core/**
@@ -94,7 +93,6 @@ on:
       - flake.nix
       - flake.lock
       - Makefile
-      - stdlib/patches/**
       - compiler/agda-2.9.0.sha256
       - scripts/library-archives/**
       - packages/engine/src/core/**

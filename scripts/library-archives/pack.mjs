@@ -96,7 +96,7 @@ function filesUnder(dir) {
     .sort();
 }
 
-/** The directory of a zip that holds `file` (`agda-stdlib-2.3/` for
+/** The directory of a zip that holds `file` (`agda-stdlib-2.4.1/` for
  * `standard-library.agda-lib`), and that file's `name:`, so that nothing
  * here names a version of the library.
  * @param {string} zip @param {string} file */

@@ -37,7 +37,7 @@ export const ASSETS = {
   compiler: "als-reactor-2.9.0.wasm",
   glue: "als-reactor-2.9.0.js",
   builtins: "agda-data.zip",
-  stdlib: "agda-stdlib-2.3-patched.zip",
+  stdlib: "agda-stdlib-2.4.1.zip",
   agdaAlgebras: "agda-algebras-sources.zip",
   agdaAlgebrasModules: "agda-algebras-modules.json",
   agdaAlgebrasIndex: "agda-algebras/index.json",

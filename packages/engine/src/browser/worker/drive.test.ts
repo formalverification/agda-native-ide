@@ -60,9 +60,9 @@ describe("the drive's libraries", () => {
     const fs = await layOutDrive({
       builtin: null,
       stdlib: await zip({
-        "agda-stdlib-2.3/standard-library.agda-lib": "name: standard-library-2.3\ninclude: src\n",
-        "agda-stdlib-2.3/src/Data/Nat.agda": "module Data.Nat where\n",
-        "agda-stdlib-2.3/README.md": "not on the drive\n",
+        "agda-stdlib-2.4.1/standard-library.agda-lib": "name: standard-library-2.4\ninclude: src\n",
+        "agda-stdlib-2.4.1/src/Data/Nat.agda": "module Data.Nat where\n",
+        "agda-stdlib-2.4.1/README.md": "not on the drive\n",
       }),
       libraries: [
         {
@@ -92,13 +92,13 @@ describe("the drive's libraries", () => {
   });
 
   it("writes the registry as the page's drive had it, for the standard library and PLFA", async () => {
-    const stdlib = await zip({ "agda-stdlib-2.3/standard-library.agda-lib": "name: standard-library-2.3\n" });
+    const stdlib = await zip({ "agda-stdlib-2.4.1/standard-library.agda-lib": "name: standard-library-2.4\n" });
     const alone = await layOutDrive({ builtin: null, stdlib, libraries: [] });
     expect(text(alone, "/home/root/.config/agda/libraries")).toBe("/stdlib/standard-library.agda-lib\n");
     expect(text(alone, "/home/root/.config/agda/defaults")).toBe("standard-library\n");
     const withPlfa = await layOutDrive({
       builtin: null,
-      stdlib: await zip({ "agda-stdlib-2.3/standard-library.agda-lib": "name: standard-library-2.3\n" }),
+      stdlib: await zip({ "agda-stdlib-2.4.1/standard-library.agda-lib": "name: standard-library-2.4\n" }),
       libraries: [{ data: await zip({ "plfa.agda-lib": "name: plfa\n" }), agdaLib: "/plfa.agda-lib", name: "plfa" }],
     });
     expect(text(withPlfa, "/home/root/.config/agda/libraries")).toBe(
@@ -124,11 +124,11 @@ describe("the drive's libraries", () => {
   });
 
   it("writes the host's files over the archives and what the cache restores, and registers none of them", async () => {
-    const play = "name: play\ndepend: standard-library-2.3 agda-algebras\ninclude: .\n";
+    const play = "name: play\ndepend: standard-library-2.4 agda-algebras\ninclude: .\n";
     const fs = await prepareDrive(
       {
         builtin: null,
-        stdlib: await zip({ "agda-stdlib-2.3/standard-library.agda-lib": "name: standard-library-2.3\n" }),
+        stdlib: await zip({ "agda-stdlib-2.4.1/standard-library.agda-lib": "name: standard-library-2.4\n" }),
         libraries: [
           {
             data: await zip({

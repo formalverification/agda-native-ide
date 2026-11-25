@@ -36,7 +36,7 @@ beforeEach(() => {
   write("als-reactor-2.9.0.wasm", "compiler v1");
   write("als-reactor-2.9.0.js", "glue v1");
   write("agda-data.zip", "builtins v1");
-  write("agda-stdlib-2.3-patched.zip", "stdlib v1");
+  write("agda-stdlib-2.4.1.zip", "stdlib v1");
   write("agda-algebras-sources.zip", "agda-algebras v1");
   write("agda-algebras-modules.json", "modules v1");
   write("plfa/project.zip", "plfa v1");
@@ -60,7 +60,7 @@ function writeIndex({ archive = "a v1", sources = "agda-algebras v1" } = {}) {
       schema: 1,
       libraries: {
         "agda-algebras": { sources: { path: "agda-algebras-sources.zip", sha256: sha256(sources) } },
-        "standard-library": { sources: { path: "agda-stdlib-2.3-patched.zip", sha256: sha256("stdlib v1") } },
+        "standard-library": { sources: { path: "agda-stdlib-2.4.1.zip", sha256: sha256("stdlib v1") } },
         builtins: { sources: { path: "agda-data.zip", sha256: sha256("builtins v1") } },
       },
       archives: { "interfaces/A.zip": { bytes: 4, sha256: sha256(archive), modules: 1 } },
@@ -163,8 +163,8 @@ describe("the asset manifest", () => {
   });
 
   it("refuses a missing asset, unless it is not building", () => {
-    rmSync(join(dir, "agda-stdlib-2.3-patched.zip"));
-    expect(() => assetManifest(dir)).toThrow(/agda-stdlib-2\.3-patched\.zip/);
+    rmSync(join(dir, "agda-stdlib-2.4.1.zip"));
+    expect(() => assetManifest(dir)).toThrow(/agda-stdlib-2\.4\.1\.zip/);
     const manifest = assetManifest(dir, { strict: false });
     expect(manifest.tokens.stdlib).toBe("missing");
     expect(manifest.tokens.compiler).toBe(sha256("compiler v1").slice(0, 16));
