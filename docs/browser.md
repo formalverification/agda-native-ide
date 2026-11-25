@@ -11,7 +11,7 @@ a worker of the page, and every file they read is fetched from this site.
 ## What you can do
 
 +  **Write in `Main.agda`**, a module of a project of its own, whose
-   library depends on the standard library 2.3 and agda-algebras.  The
+   library depends on the standard library 2.4.1 and agda-algebras.  The
    default `Main.agda` carries agda-algebras' options line, `--without-K
    --exact-split --safe`, so a postulate is refused there as the library
    refuses it.  Its first check opens one goal, which the inspector shows

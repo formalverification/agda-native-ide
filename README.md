@@ -64,8 +64,7 @@ together from one `package-lock.json`.
    as they are), `scripts/*.mjs` (the build's post-step and the PLFA
    tooling), `compiler/` (the recipe that builds the compiler, Agda 2.9.0 and
    its language server, `build-agda-2.9.0.sh`, with its patches and pins, and
-   upstream's recipe for the fork's 2.8.0 compiler), `stdlib/patches/` (the
-   standard library 2.3's patches for Agda 2.9.0), and the build's
+   upstream's recipe for the fork's 2.8.0 compiler), and the build's
    configuration (`package.json`, `svelte.config.js`, `vite.config.js`,
    `tsconfig.json`, `tsconfigs/`).  Upstream's own guide is
    [`README.plfa-playground.md`][upstream-readme]; its "Run locally" assumes
@@ -119,18 +118,18 @@ together from one `package-lock.json`.
 ## Working on the app
 
 Everything here runs in the dev shell (`nix develop`), which carries node
-22.22.2, make, gh and the plan file's engine.  The binaries the app ships
-(the compiler, the archives, the fonts and one icon) are not in git: `make
-assets` fetches them by hash into `static/`, with Agda's builtin library,
-the patched standard library and agda-algebras' sources, which the flake
-builds (`nix build .#agda-data`, `nix build .#stdlib`, and
-`mkAgdaAlgebrasSources`, from the commit it pins).  The compiler is fetched
-by the hashes in `compiler/agda-2.9.0.sha256` (`nix build .#compiler`) from
-the release `agda-2.9.0-da66a8c-als-8` of
-[formalverification/agda-wasm-builds] ([#58]); the site ships its reactor
-build and that build's JavaScript glue ([#59]).  `nix develop .#compiler --command compiler/build-agda-2.9.0.sh
-OUT` rebuilds the four files from their sources (a run took 27 minutes on
-a 20-core workstation).
+22.22.2, make, gh and the plan file's engine.  The binaries the app ships (the
+compiler, the archives, the fonts and one icon) are not in git: `make assets`
+fetches them by hash into `static/`, with Agda's builtin library, the standard
+library and agda-algebras' sources, which the flake builds
+(`nix build .#agda-data`, `nix build .#stdlib`, and `mkAgdaAlgebrasSources`,
+from the commit it pins).  The compiler is fetched by the hashes in
+`compiler/agda-2.9.0.sha256` (`nix build .#compiler`) from the release
+`agda-2.9.0-da046d6-als-11` of [formalverification/agda-wasm-builds] ([#58],
+[#108]); the site ships its reactor build and that build's JavaScript glue
+([#59]).  `nix develop .#compiler --command compiler/build-agda-2.9.0.sh OUT`
+rebuilds the four files from their sources (from an empty work directory, 35
+minutes on a 20-core workstation, 2026-11-25).
 
 ```sh
 make assets                 # fetch the pins and the compiler, build the rest, into static/
@@ -522,3 +521,4 @@ every artifact the app ships, with its license.
 [#58]: https://github.com/formalverification/agda-native-ide/issues/58
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59
 [#96]: https://github.com/formalverification/agda-native-ide/issues/96
+[#108]: https://github.com/formalverification/agda-native-ide/issues/108

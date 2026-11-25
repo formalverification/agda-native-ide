@@ -213,29 +213,32 @@ check Agda are the following:
    lays it out checks.
 
 **Which Agda**.  On 2026-10-12 the page's Agda and both native ones came
-from one commit, as follows:
+from one commit, agda/agda `da66a8c7` (the `nightly` of 2026-10-05), with
+the standard library v2.3 patched for it.  Since 2026-11-24 ([#108]) the
+page and this repository's native Agda are the releases, and
+agda-native-air's are not yet, as follows:
 
-+  The page's compiler is built from agda/agda at `da66a8c7` (2026-10-05;
-   Agda has no `v2.9.0` tag), as `compiler/build-agda-2.9.0.sh` pins it.
++  The page's compiler is built from agda/agda's tag `v2.9.0` (`da046d69`,
+   2026-11-13), as `compiler/build-agda-2.9.0.sh` pins it, and ships the
+   standard library v2.4.1 as released.
 +  This repository's native Agda, the `.#vscode` shell's `$AGDA`, comes
    from Agda's own flake at the same commit:
-   `/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin`.
-+  agda-native-air moved to 2.9.0 with its issue 234, and its flake pins
-   the same commit.  The launcher's shell runs a wrapper around the same
-   store path.
-+  The standard libraries match too: the page's v2.3 with the five patches
-   in `stdlib/patches/`, and agda-native-air's `formalverification/agda-stdlib`
-   at `fb5d1840` (tag `v2.3-agda-2.9.0`), have identical `src/` and
-   `standard-library.agda-lib`.
-+  agda-algebras does not: the launcher's shell registers agda-native-air's
-   pin, `4662373d` (2026-09-07), and the page pins `d32f045f`.
+   `/nix/store/nn21fg3qhwv9rx7a3qnfnlhxxxab6xq6-Agda-2.9.0-bin`.
++  agda-native-air's flake still pins the nightly `da66a8c7` and
+   `formalverification/agda-stdlib` at `fb5d1840` (tag `v2.3-agda-2.9.0`,
+   the same `src/` as the page's old patched v2.3), so its launcher's shell
+   runs another Agda and another standard library than the page's (checked
+   2026-11-24, at its `f66cd987`).
++  agda-algebras does not match either: the launcher's shell registers
+   agda-native-air's pin, `4662373d` (2026-09-07), and the page pins
+   `66c324f8`.
 
 **Whether the native Agda must match the page's**.  For a verdict, it
 must.  A session's `check_file` is evidence about the page only when it ran
 the page's Agda and standard library; with another Agda (nixpkgs' 2.8.0,
 or a later 2.9.0 commit) a verdict can change wherever the language changed
-between the two, and the patches the page carries exist because Agda 2.9.0
-rejects the standard library v2.3 as released ([#61]).  At the same
+between the two; Agda 2.9.0 rejected the standard library v2.3 as
+released, for one ([#61]).  At the same
 commit, ADR 0003's conformance suite found the native engine's answers and
 the page's identical on the 12 scenarios the two share.  For interfaces,
 matching is not enough: the native Agda writes 64-bit interfaces, which the
@@ -259,17 +262,19 @@ scratch=/path/to/scratch       # outside the worktree
 air=/path/to/agda-native-air   # a checkout whose server is built
 agda=$(nix develop .#vscode --command printenv AGDA)
 server=$(cd "$air" && nix develop .#backend --command bash -c 'cd agda-mcp && cabal list-bin exe:agda-mcp' | tail -n 1)
-zip=$(nix build .#stdlib --no-link --print-out-paths)/agda-stdlib-2.3-patched.zip
+zip=$(nix build .#stdlib --no-link --print-out-paths)/agda-stdlib-2.4.1.zip
 mkdir -p "$scratch/plfa/part1"
 unzip -q -o -d "$scratch" "$zip"
-echo "$scratch/agda-stdlib-2.3/standard-library.agda-lib" > "$scratch/libraries"
+echo "$scratch/agda-stdlib-2.4.1/standard-library.agda-lib" > "$scratch/libraries"
 printf 'name: plfa\ndepend: standard-library\ninclude: .\n' > "$scratch/plfa.agda-lib"
 cp static/plfa/content/part1/Naturals.lagda.md "$scratch/plfa/part1/"
 ```
 
 `$agda` is a store path, which depends on the system and on the flake's
 pins: on x86_64-linux at this repository's `flake.lock` it was
-`/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda`.  The
+`/nix/store/1axa6adsvwbz7wbck03d7wbsfdr1x8hq-Agda-2.9.0-bin/bin/agda` at
+the nightly, and since [#108] it is
+`/nix/store/nn21fg3qhwv9rx7a3qnfnlhxxxab6xq6-Agda-2.9.0-bin/bin/agda`.  The
 registrations below are written from the variables in the same shell,
 rather than copied, so they name what this machine built.  Then the
 registration, per harness, as follows:
@@ -391,5 +396,6 @@ this page gains how each harness registers them.
 [#61]: https://github.com/formalverification/agda-native-ide/issues/61
 [#63]: https://github.com/formalverification/agda-native-ide/issues/63
 [#65]: https://github.com/formalverification/agda-native-ide/issues/65
+[#108]: https://github.com/formalverification/agda-native-ide/issues/108
 [claude-tooling#27]: https://github.com/williamdemeo/claude-tooling/issues/27
 [claude-tooling#49]: https://github.com/williamdemeo/claude-tooling/pull/49

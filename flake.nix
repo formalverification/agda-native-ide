@@ -12,19 +12,20 @@
 # upstream/assets.sha256 from upstream's repository at the commit this
 # repository imported, one fixed-output fetch per file, so a byte that
 # differs from its pin fails the fetch, and adds this repository's own:
-# the compiler, which `nix build .#compiler` fetches by the hashes in
+# the compiler, Agda 2.9.0 and its language server from their releases,
+# which `nix build .#compiler` fetches by the hashes in
 # compiler/agda-2.9.0.sha256 (`nix develop .#compiler` is the dev shell
 # that builds it, compiler/build-agda-2.9.0.sh); Agda's builtin library,
 # agda-data.zip, which `nix build .#agda-data` builds from the compiler's
-# own lib/prim (mkAgdaData, below); the standard library, which `nix
-# build .#stdlib` builds patched; and agda-algebras' sources, zipped from
-# its pinned commit (mkAgdaAlgebrasSources), with the list of its modules
-# (mkAgdaAlgebrasModules), and its archive index and interface archives
-# (agda-algebras-archives), so the site's build depends on the interfaces'
-# (issue 14).  `make assets` copies the result into static/, and `make
-# build` checks the files there against their pins before it builds.
-# docs/provenance.md records where each file
-# comes from and its license.
+# own lib/prim (mkAgdaData, below); the standard library 2.4.1, which `nix
+# build .#stdlib` zips from its release, unpatched; and agda-algebras'
+# sources, zipped from its pinned commit (mkAgdaAlgebrasSources), with the
+# list of its modules (mkAgdaAlgebrasModules), and its archive index and
+# interface archives (agda-algebras-archives), so the site's build depends
+# on the interfaces' (issue 14).  `make assets` copies the result into
+# static/, and `make build` checks the files there against their pins
+# before it builds.  docs/provenance.md records where each file comes from
+# and its license.
 #
 # `nix build .#site` builds the static site: the npm dependencies are
 # one fixed-output fetch of everything package-lock.json names (pinned
