@@ -3,7 +3,8 @@
 // Agda's interaction commands, built as the one line of text Agda reads:
 // `IOTCM <file> <level> <method> (<command>)`.  The grammar is Agda's
 // `Interaction'` and `IOTCM'` (src/full/Agda/Interaction/Base.hs at the
-// pinned commit, da66a8c7); both engines read the same line, natively on
+// pinned tag, v2.9.0, where they are as at the nightly da66a8c7 they were
+// first read at); both engines read the same line, natively on
 // standard input and in the page inside the language server's `agda`
 // request.  Every string is a Haskell string literal, which Agda reads
 // with `read`: JSON's escapes (`≡`) are refused with "cannot read".

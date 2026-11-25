@@ -38,17 +38,20 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
   inputs.github-project.url = "github:williamdemeo/github-project";
   # The companion's real command tests use the page's Agda source commit,
-  # compiled natively, and a copied public library module as their fixture.
-  inputs.native-agda.url = "github:agda/agda/da66a8c75f11d10699a6b38b261efdf244b66f2a";
+  # compiled natively (the tag v2.9.0 since issue 108), and a copied public
+  # library module, agda-algebras' Overture.Basic, as their fixture, at the
+  # commit the page's archives are built from.
+  inputs.native-agda.url = "github:agda/agda/da046d6903b7f587f5add669650e52f378f57834";
   inputs.companion-fixture = {
     url = "github:ualib/agda-algebras/d32f045fe2ef885a62c5546358ebe6de09ec1ba1";
     flake = false;
   };
   # The WebAssembly toolchain of the compiler (issue 58): GHC 9.10 for
   # wasm32-wasi, its cabal, binaryen and wasmtime, at the commit Agda's own
-  # flake pins at the Agda commit the compiler is built from, with that
-  # commit's own nixpkgs, so the store paths are the ones Agda's dev shell
-  # gives (compiler/build-agda-2.9.0.sh).
+  # flake pins at the Agda commit the compiler is built from (the same at
+  # the nightly da66a8c and at the tag v2.9.0), with that commit's own
+  # nixpkgs, so the store paths are the ones Agda's dev shell gives
+  # (compiler/build-agda-2.9.0.sh).
   inputs.ghc-wasm-meta.url = "git+https://gitlab.haskell.org/haskell-wasm/ghc-wasm-meta.git?rev=58260711fd5c8ffbb81f4ac56e40323ff509d43b";
 
   outputs = { self, nixpkgs, github-project, ghc-wasm-meta, native-agda, companion-fixture }:
@@ -90,7 +93,7 @@
       # (sha256sum's format, with a file name), fetched by hash from the
       # release that holds the files, in formalverification/agda-wasm-builds
       # (public, since 2026-10-07).
-      compilerRelease = "https://github.com/formalverification/agda-wasm-builds/releases/download/agda-2.9.0-da66a8c-als-8";
+      compilerRelease = "https://github.com/formalverification/agda-wasm-builds/releases/download/agda-2.9.0-da046d6-als-11";
       compilerPins = map (line:
           let m = builtins.match "([0-9a-f]{64})  ([^ /]+)" line;
           in if m == null

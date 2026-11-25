@@ -18,8 +18,8 @@
 # use-xdg-data-home the server's data directory is $Agda_datadir itself,
 # where the page puts lib/prim.
 #
-# Against: agda/agda-language-server 0f77a209243185cb8e36a11bfc7b6ab47f5125b4
-# (tag v8).
+# Against: agda/agda-language-server 2aab2ac66bee78fcc7b6d4f5d7cef74dfbbe51f4
+# (tag v11), whose cabal.project.wasm32 is v8's.
 #
 diff --git a/cabal.project.wasm32 b/cabal.project.wasm32
 index 4e37f38..41aba3c 100644
@@ -31,7 +31,7 @@ index 4e37f38..41aba3c 100644
 -constraints:
 -  lsp == 2.7.0.1,
 -  lsp-types == 2.3.0.1
-+index-state: 2026-10-05T16:41:29Z
++index-state: 2026-11-13T06:53:39Z
  
  packages:
    .

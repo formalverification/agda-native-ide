@@ -3,10 +3,11 @@
 #
 # Builds the compiler of issue 58 from pinned sources: Agda 2.9.0 for
 # wasm32-wasi, and the Agda Language Server against it in two variants,
-# the command module the page runs today and the reactor module issue 59
-# needs.  No agda-web patch is involved: Agda builds for WASI as it is
-# since agda/agda PR 8205, and the server's own patches for 2.9.0 are the
-# two files in compiler/patches/ named below.
+# the command module and the reactor module the page runs (issue 59).
+# Since issue 108 both are releases: Agda's tag v2.9.0 and the server's
+# tag v11, its first with Agda 2.9.0.  No agda-web patch is involved:
+# Agda builds for WASI as it is since agda/agda PR 8205, and the server's
+# own patches are the two files in compiler/patches/ named below.
 #
 # Run it in the dev shell that pins its toolchain (flake.nix, `compiler`):
 #
@@ -21,16 +22,17 @@
 # give the same bytes only from the same path.  What is pinned, and where,
 # is as follows:
 #
-#   +  Agda: agda/agda at AGDA_COMMIT, built with Agda's default flags
-#      (optimise-heavily on, use-xdg-data-home off, so that the data
-#      directory is $Agda_datadir itself, where the page puts it).
-#   +  The server: agda/agda-language-server at ALS_COMMIT (tag v8), its
+#   +  Agda: agda/agda at AGDA_COMMIT (tag v2.9.0), built with Agda's
+#      default flags (optimise-heavily on, use-xdg-data-home off, so that
+#      the data directory is $Agda_datadir itself, where the page puts it).
+#   +  The server: agda/agda-language-server at ALS_COMMIT (tag v11), its
 #      submodules network and lsp at the commits that tag records, its
 #      Agda submodule replaced by AGDA_COMMIT, and the two patches.
 #   +  Hackage: INDEX_STATE, the Agda commit's time, for every build.
 #   +  The source-repository-packages: by commit, in the project files.
 #   +  The toolchain: ghc-wasm-meta at flake.lock's `ghc-wasm-meta` input
 #      (wasm32-wasi-ghc 9.10, wasm32-wasi-cabal, binaryen's wasm-opt),
+#      the commit Agda's flake.lock names at AGDA_COMMIT,
 #      and the native alex, happy, hpack, autoconf and node of the
 #      flake's nixpkgs.  cabal builds its own alex and happy for wasm (the
 #      build-tool-depends), which cannot run; the native ones on PATH
@@ -38,13 +40,13 @@
 #
 # Network access: git clones and Hackage downloads, both pinned.  From
 # an empty work directory, a run took 27 minutes on a 20-core
-# workstation (2026-10-07).
+# workstation (2026-10-07, at the nightly da66a8c).
 
 set -euo pipefail
 
-AGDA_COMMIT=da66a8c75f11d10699a6b38b261efdf244b66f2a
-ALS_COMMIT=0f77a209243185cb8e36a11bfc7b6ab47f5125b4
-INDEX_STATE=2026-10-05T16:41:29Z
+AGDA_COMMIT=da046d6903b7f587f5add669650e52f378f57834
+ALS_COMMIT=2aab2ac66bee78fcc7b6d4f5d7cef74dfbbe51f4
+INDEX_STATE=2026-11-13T06:53:39Z
 
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 out=$(realpath -m "${1:-$repo/../compiler-out}")
@@ -85,7 +87,7 @@ checkout https://github.com/agda/agda-language-server.git "$ALS_COMMIT" "$work/a
   git -C wasm-submodules/agda clean -qfdx
   # --whitespace=nowarn: a configured apply.whitespace=fix would rewrite
   # the patched lines (Haskell indents with spaces), and change the build.
-  git apply --whitespace=nowarn "$patches/agda-language-server-agda-2.9.0.patch" \
+  git apply --whitespace=nowarn "$patches/agda-language-server-reactor-setup.patch" \
     "$patches/agda-language-server-wasm-project.patch"
   hpack -f > /dev/null
   (cd wasm-submodules/network && autoreconf -i 2> /dev/null)
