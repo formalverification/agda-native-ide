@@ -3,17 +3,17 @@
     "companion-fixture": {
       "flake": false,
       "locked": {
-        "lastModified": 1792123556,
-        "narHash": "sha256-nUsrkvfiGaIvAGk86b0Z2wVrai4oLuyQTSOMzpfc1YQ=",
+        "lastModified": 1795574425,
+        "narHash": "sha256-KdkzADcULxAIleOn1xNjq2uxyGvbFW36ympcIKrZ+Gc=",
         "owner": "ualib",
         "repo": "agda-algebras",
-        "rev": "d32f045fe2ef885a62c5546358ebe6de09ec1ba1",
+        "rev": "66c324f89de176c2d5b4d3513d76034e4ffff2dd",
         "type": "github"
       },
       "original": {
         "owner": "ualib",
         "repo": "agda-algebras",
-        "rev": "d32f045fe2ef885a62c5546358ebe6de09ec1ba1",
+        "rev": "66c324f89de176c2d5b4d3513d76034e4ffff2dd",
         "type": "github"
       }
     },
