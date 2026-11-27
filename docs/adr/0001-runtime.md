@@ -1259,8 +1259,10 @@ these, so the times are upper bounds; [#108]'s findings have each run.
    does (`Level`, where v8 with the patch printed `Agda.Primitive.Level`);
    the notices check passes; the conformance suite passes 13 of 13 in the
    page and against the native Agda at the tag, 12 answered identically
-   and one differing only by the declared batch lane.  `make test` (5,547
-   tests) and `make check` pass as before.
+   and one differing only by the declared batch lane.  `make test` passes
+   all 5,552 tests once `make assets` has filled `static/` (without the
+   assets, the five that read the shipped index and module list skip),
+   and `make check` passes.
 
 **Status**.  Adopted in [#108]'s pull request.  Open: agda-native-air
 still pins the nightly and the patched v2.3 (`docs/agents.md`); the 2.8.0
