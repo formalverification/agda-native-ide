@@ -155,11 +155,10 @@ carry it on.
    fallback was a 404 the page swallowed, and the dev server now serves the
    gzip itself, compressing the raw file in `static/` (`vite.config.js`).
    Meanwhile the page fetches the data: `agda-data.zip` (Agda's builtin
-   library), `agda-stdlib-2.3-patched.zip` (the standard library 2.3 with
-   the five patches that make it check under Agda 2.9.0,
-   `stdlib/patches/`, [#61]) and `plfa/project.zip`.  Each of these URLs,
-   the glue's, and those of PLFA's interface archives, carries a `?cache=`
-   token that the build derives from the file's content
+   library), `agda-stdlib-2.4.1.zip` (the standard library 2.4.1, its
+   release for Agda 2.9.0, unpatched, [#108]) and `plfa/project.zip`.
+   Each of these URLs, the glue's, and those of PLFA's interface archives,
+   carries a `?cache=` token that the build derives from the file's content
    (`src/lib/assets.ts`), so a changed file is never served from a cache
    under its old URL.
 2. **The drive**.  The worker lays out the drive from the archives
@@ -421,7 +420,7 @@ depends on the standard library and agda-algebras, so that what the library
 refuses, `Main` refuses ([#11]).
 
 +  **Where it lives**: `/play/Main.agda`, beside `/play/play.agda-lib`
-   (`name: play`, `depend: standard-library-2.3 agda-algebras`, `include:
+   (`name: play`, `depend: standard-library-2.4 agda-algebras`, `include:
    .`), the play library that `scripts/library-archives/stage.sh` writes and
    [#13]'s gate checks every root of agda-algebras under.  The page names
    that file among the drive's first files (`PLAYGROUND` in
@@ -436,8 +435,8 @@ refuses, `Main` refuses ([#11]).
    lands at `/agda-algebras`; PLFA's follows.  The libraries file names
    `/stdlib/standard-library.agda-lib`,
    `/agda-algebras/agda-algebras.agda-lib` and `/plfa.agda-lib`, and
-   agda-algebras' `depend: standard-library-2.3` resolves because the
-   shipped standard library, 2.3 with five patches, keeps that name.
+   agda-algebras' `depend: standard-library-2.4` resolves because the
+   shipped standard library, 2.4.1, declares that name ([#108]).
    Without agda-algebras in the list even the default `Main` fails, with
    Agda's `[LibraryError]`, "Library 'agda-algebras' not found".
 +  **Which flags apply to `Main`**: its own options line, `{-# OPTIONS
@@ -741,6 +740,7 @@ acceptance is counted, never inferred: the running info prints one
 [#59]: https://github.com/formalverification/agda-native-ide/issues/59
 [#61]: https://github.com/formalverification/agda-native-ide/issues/61
 [#62]: https://github.com/formalverification/agda-native-ide/issues/62
+[#108]: https://github.com/formalverification/agda-native-ide/issues/108
 [adr-0003]: ../adr/0003-the-shared-core.md
 [engine]: ../engine/overview.md
 [playground-record]: ../measurements/playground-2026-10-12.json

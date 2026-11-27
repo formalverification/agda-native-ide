@@ -1,0 +1,33 @@
+# File: compiler/patches/agda-language-server-reactor-setup.patch
+#
+# What: the import of Agda.Setup's setup in the server's reactor module,
+# app/Reactor.hs, for every Agda from 2.8.0 on.
+#
+# Why: the reactor (the build flag `reactor`, which the page runs since
+# issue 59) calls setup in runSetup under MIN_VERSION_Agda(2,8,0), and
+# none of its imports provides it, so the module does not compile (as
+# measured at v8, issue 58); upstream's own builds are native, or wasm
+# command modules, and never compile it.  This is the one
+# part of issue 58's agda-language-server-agda-2.9.0.patch that the
+# server's v11 does not carry: v11 adds the Agda-2-9-0 flag and ports the
+# server to Agda 2.9.0's API itself (agda/agda-language-server PR 73).
+#
+# Against: agda/agda-language-server 2aab2ac66bee78fcc7b6d4f5d7cef74dfbbe51f4
+# (tag v11), with Agda da046d6903b7f587f5add669650e52f378f57834 (tag
+# v2.9.0).  Apply with `git apply` in the server's checkout.
+#
+diff --git a/app/Reactor.hs b/app/Reactor.hs
+index ad26f84..90f6dba 100644
+--- a/app/Reactor.hs
++++ b/app/Reactor.hs
+@@ -17,6 +17,10 @@ import Data.ByteString.Lazy (LazyByteString)
+ import Language.LSP.Server (ServerConfig(..), runServerWithConfig)
+ import qualified Data.Attoparsec.ByteString as Attoparsec
+ 
++#if MIN_VERSION_Agda(2,8,0)
++import Agda.Setup (setup)
++#endif
++
+ data ReactorEnv = ReactorEnv
+   { options :: Options
+   , incomingMessage :: MVar B.StrictByteString

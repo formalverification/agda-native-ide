@@ -144,18 +144,18 @@ describe("the keys", () => {
 
 const shipped = new URL("../../../static/agda-algebras-modules.json", import.meta.url);
 describe.skipIf(!existsSync(shipped))("agda-algebras' tree (after make assets)", () => {
-  it("lists every module once, a folder beside its module as one row, Legacy the one folder alone", () => {
+  it("lists every module once, a folder beside its module as one row, two folders alone", () => {
     const list = JSON.parse(readFileSync(shipped, "utf8"));
     const items = moduleTree(list.modules, "aa:");
     const { rows } = treeRows(items, all);
     const opened = rows.filter((row) => row.item.path);
     expect(opened.map((row) => row.item.name)).toEqual(list.modules.map((entry: { name: string }) => entry.name));
     const folders = rows.filter((row) => row.item.kind === "folder").map((row) => row.item.id);
-    expect(folders).toEqual(["aa:Legacy"]);
+    expect(folders).toEqual(["aa:Examples.Setoid.Certificates", "aa:Legacy"]);
     const paired = rows.filter((row) => row.item.kind === "module" && row.expanded !== undefined);
     expect({ rows: rows.length, modules: opened.length, paired: paired.length, deepest: Math.max(...rows.map((row) => row.level)) }).toEqual({
-      rows: 352,
-      modules: 351,
+      rows: 345,
+      modules: 343,
       paired: 64,
       deepest: 5,
     });

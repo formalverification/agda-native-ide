@@ -276,7 +276,7 @@ library-gate: packages ## Check agda-algebras' archives under $(SITE)'s language
 # .#agda-data`), the compiler's language server, its reactor build
 # als-reactor-2.9.0.wasm with its glue als-reactor-2.9.0.js (`nix build
 # .#compiler`, fetched by its pins in compiler/agda-2.9.0.sha256), and
-# the standard library, agda-stdlib-2.3-patched.zip (`nix build
+# the standard library, agda-stdlib-2.4.1.zip (`nix build
 # .#stdlib`), and agda-algebras' sources, agda-algebras-sources.zip, for
 # the playground's project (issue 11), with the list of its modules,
 # agda-algebras-modules.json, for the Explorer (issue 9); and agda-algebras'
@@ -315,7 +315,7 @@ PINS      ?= upstream/assets.sha256
 # The files in static/ that are the flake's own (built, or pinned by
 # compiler/agda-2.9.0.sha256) rather than upstream's.
 OWN_ASSETS := agda-data.zip als-reactor-2.9.0.wasm als-reactor-2.9.0.js \
-              agda-stdlib-2.3-patched.zip agda-algebras-sources.zip \
+              agda-stdlib-2.4.1.zip agda-algebras-sources.zip \
               agda-algebras-modules.json
 # The directory in static/ that is wholly the flake's: `make assets`
 # replaces it, so an archive the index no longer names does not stay.

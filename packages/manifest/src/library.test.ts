@@ -102,8 +102,8 @@ describe("the archive index", () => {
     const parsed = parseArchiveIndex(shipped);
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
-    expect(Object.keys(parsed.value.archives)).toHaveLength(398);
-    expect(parsed.value.roots).toHaveLength(351);
+    expect(Object.keys(parsed.value.archives)).toHaveLength(392);
+    expect(parsed.value.roots).toHaveLength(343);
   });
 
   it("names a wrong field, quoting a key that holds a dot", () => {
@@ -162,8 +162,8 @@ describe("the plan of an import", () => {
     ];
     for (const roots of sets) expect(planArchives(parsed.value, roots), roots.join()).toEqual(needs(shipped, roots));
     // The browser check's import, and the milestone's.
-    expect(planArchives(parsed.value, ["Overture.Signatures"])).toMatchObject({ archives: { length: 3 }, bytes: 206_933 });
-    expect(planArchives(parsed.value, ["Setoid.Varieties.HSP"])).toMatchObject({ archives: { length: 129 }, bytes: 39_399_945 });
+    expect(planArchives(parsed.value, ["Overture.Signatures"])).toMatchObject({ archives: { length: 3 }, bytes: 223_215 });
+    expect(planArchives(parsed.value, ["Setoid.Varieties.HSP"])).toMatchObject({ archives: { length: 132 }, bytes: 40_436_566 });
   });
 });
 

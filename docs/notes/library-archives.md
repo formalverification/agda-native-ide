@@ -76,7 +76,7 @@ the check does not rebuild the interfaces.
    library's `stdlibSource`); the three archives the page mounts, exactly as
    it ships or will ship them: `agda-data.zip` (the builtins, with their
    interfaces, built by the same `agda.wasm`; `mkAgdaData`),
-   `agda-stdlib-2.3-patched.zip` (`mkStdlib`) and
+   `agda-stdlib-2.4.1.zip` (`mkStdlib`) and
    `agda-algebras-sources.zip`; the compiler's `agda.wasm` (`nix build
    .#compiler`); and nixpkgs' wasmtime, 38.0.4 at this flake's nixpkgs.
 +  **The stage**: a directory laid out as the page's drive (`layOutDrive`,
@@ -649,8 +649,8 @@ kept "so that the HTML and LaTeX backends can generate their output";
    rebuilds the builtins, the interfaces and the archives, since each takes
    the compiler as an input; the interfaces move to `_build/<version>/`,
    which `pack.mjs` reads from the build and the index records.  A new
-   standard library is a new `stdlib/patches/` or source pin, and the same
-   rebuild.
+   standard library is a new source pin (`stdlibSource` and
+   `stdlibVersion`), and the same rebuild.
 +  **The page's cache**: the index's digest is in the drive cache's
    namespace (`scripts/asset-manifest.mjs`), so a drive persisted against
    one set of archives is not restored against another, and the page

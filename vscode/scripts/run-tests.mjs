@@ -28,7 +28,7 @@ await mkdir(output, { recursive: true });
 const temporary = await mkdtemp(path.join(os.tmpdir(), 'agda-companion-'));
 const stdlib = path.join(temporary, 'stdlib');
 await mkdir(stdlib);
-execFileSync('unzip', ['-q', process.env.AGDA_STDLIB_ZIP ?? path.join(extensionRoot, '../static/agda-stdlib-2.3-patched.zip'), '-d', stdlib]);
+execFileSync('unzip', ['-q', process.env.AGDA_STDLIB_ZIP ?? path.join(extensionRoot, '../static/agda-stdlib-2.4.1.zip'), '-d', stdlib]);
 const executable = process.env.VSCODE_EXECUTABLE ?? await downloadAndUnzipVSCode({
   version: vscodeVersion, cachePath: path.join(extensionRoot, '.vscode-test'),
 });
@@ -91,7 +91,7 @@ try {
     await writeFile(path.join(workspace, 'Overture/Basic.agda'), blocks.join('\n').replace('ℓ₁ = suc 0ℓ', 'ℓ₁ = {! suc 0ℓ !}'));
     await writeFile(path.join(workspace, '.vscode/settings.json'), JSON.stringify({
       'agdaMode.connection.paths': [agda],
-      'agdaMode.connection.commandLineOptions': `--no-libraries --no-default-libraries -i ${stdlib}/agda-stdlib-2.3/src -i ${workspace}`,
+      'agdaMode.connection.commandLineOptions': `--no-libraries --no-default-libraries -i ${stdlib}/agda-stdlib-2.4.1/src -i ${workspace}`,
       'agdaMode.connection.downloadPolicy': "No, and don't ask again",
       'extensions.autoUpdate': false, 'extensions.autoCheckUpdates': false,
       'telemetry.telemetryLevel': 'off', 'update.mode': 'none',

@@ -28,7 +28,7 @@
   // The icons are Lucide's (chevron-right, folder, file-text, file-code;
   // ISC, as NOTICE lists @lucide/svelte), drawn as plain SVG: a row of
   // Lucide's components costs two component instances, and opening every
-  // row of agda-algebras mounts 351 rows at once.
+  // row of agda-algebras mounts 343 rows at once.
 
   import { tick, untrack } from "svelte";
   import {

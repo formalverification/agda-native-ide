@@ -44,7 +44,7 @@ upstream commit.
 | `NOTICE.md` | imported, then removed | `NOTICE` supersedes it and carries its text verbatim. |
 | 35 binaries under `static/` | not imported; pinned | Fetched by hash ([below](#pinned-binaries)); 33 of them still ship. |
 | `static/als-2.8ext.wasm` | not imported; pinned, then retired | The fork's compiler, for Agda 2.8.0.  The page runs this repository's build of Agda 2.9.0 instead ([below](#the-compiler-built-here), [#58]); the pin stays in the flake, unshipped, until that compiler passes [#13]'s gate ([below](#retired-pins)). |
-| `static/agda-stdlib-2.3.zip` | not imported; pinned, then retired | The standard library 2.3, which does not check under Agda 2.9.0; the page ships it patched instead ([below](#the-standard-library-patched-here), [#58]). |
+| `static/agda-stdlib-2.3.zip` | not imported; pinned, then retired | The standard library 2.3, which does not check under Agda 2.9.0; the page shipped it patched instead ([#58]), and ships the release 2.4.1 since [#108] ([below](#the-standard-library-built-here)). |
 | `static/agda-data.zip` | not imported; pinned, then replaced | Upstream's held Agda 2.7.0.1's builtin library, which the shipped Agda rejects; the flake builds one instead ([below](#agdas-builtin-library-built-here), [#49]). |
 | `static/als-2.8ext.wasm.gz` | not imported; not pinned | The build makes its own ([below](#the-compilers-gzip)). |
 | `src/lib/worker/proxy-wasi-drive.ts`, `src/lib/worker/patch-wasi.ts`, `src/lib/worker/wrap-poll-oneoff.ts`, `src/lib/worker/util-base64.js` | imported, then removed | They proxied the drive's calls to the drive worker through shared memory, and read the language server's standard input from it; the server's reactor build, with the drive in its worker, needs neither ([#59]). |
@@ -147,19 +147,31 @@ Removing PLFA is [#20].
 
 The Agda Language Server for Agda 2.9.0, and Agda 2.9.0 itself, compiled to
 WASI by this repository's recipe, `compiler/build-agda-2.9.0.sh`, in the dev
-shell that pins its toolchain (`nix develop .#compiler`): agda/agda
-`da66a8c75f11d10699a6b38b261efdf244b66f2a`; agda/agda-language-server
-`0f77a209243185cb8e36a11bfc7b6ab47f5125b4` (tag `v8`), its submodules at the
-commits that tag records, and the two patches in `compiler/patches/`;
-ghc-wasm-meta `58260711fd5c8ffbb81f4ac56e40323ff509d43b` (GHC
-9.10.3.20260731); the Hackage index at 2026-10-05T16:41:29Z ([#58]).
+shell that pins its toolchain (`nix develop .#compiler`), from the releases
+([#108]): agda/agda `da046d6903b7f587f5add669650e52f378f57834` (tag `v2.9.0`,
+2026-11-13); agda/agda-language-server
+`2aab2ac66bee78fcc7b6d4f5d7cef74dfbbe51f4` (tag `v11`, 2026-11-20), its
+submodules at the commits that tag records, and the two patches in
+`compiler/patches/`; ghc-wasm-meta `58260711fd5c8ffbb81f4ac56e40323ff509d43b`
+(GHC 9.10.3.20260731, the commit Agda's `flake.lock` names at the tag); the
+Hackage index at 2026-11-13T06:53:39Z, the tag's time.
 `compiler/agda-2.9.0.sha256` pins the four files it writes, and the flake
 fetches them by those hashes (`nix build .#compiler`, `mkCompiler`) from the
-release `agda-2.9.0-da66a8c-als-8` of
-[formalverification/agda-wasm-builds][agda-wasm-builds], public since
-2026-10-07.  `.github/workflows/compiler.yml` rebuilds them with the recipe
-and checks the bytes against the pins; its run of 2026-10-07 on GitHub's
-runner built the pinned bytes.
+release `agda-2.9.0-da046d6-als-11` of
+[formalverification/agda-wasm-builds][agda-wasm-builds].
+`.github/workflows/compiler.yml` rebuilds them with the recipe and checks the
+bytes against the pins.  Built twice here on 2026-11-25, the second time from
+an empty work directory at the same path, it gave the same files and plans,
+byte for byte (35 and 32 minutes on 20 cores).
+
+From 2026-10-07 to 2026-11-24 the files were built by the same recipe from
+the pre-release Agda `da66a8c75f11d10699a6b38b261efdf244b66f2a` (the
+`nightly` of 2026-10-05) and the server's `v8`
+(`0f77a209243185cb8e36a11bfc7b6ab47f5125b4`) with a patch for Agda 2.9.0's
+API, at the index state 2026-10-05T16:41:29Z ([#58]), and published as the
+release `agda-2.9.0-da66a8c-als-8`; their bytes are the second column
+below.  The server's `v11` carries that patch's port itself, so only its
+import for the reactor remains (`agda-language-server-reactor-setup.patch`).
 
 +  `als-reactor.wasm`, the language server's reactor build, and its glue,
    `als-reactor.js`, are the compiler the page runs, since [#59]:
@@ -175,55 +187,73 @@ runner built the pinned bytes.
 License: NOTICE section 3 names everything the server links and the
 license of each.
 
-| File | Bytes | SHA-256 |
-|---|---:|---|
-| `agda.wasm` | 34,277,969 | `da2f1efc6b13e0d8b8a69311511c8ed6fbfbc2759bd8ec299004580fcfba1eb1` |
-| `als.wasm` | 35,880,158 | `b1f45936329c529b5677e38bc0e8d22d7a1c9c47277e8f77146f5667c76228e4` |
-| `als-reactor.wasm` | 35,817,413 | `a0c7ae5741dd3f11c6be9e9fac4281889f2861ec2b53b5379452d11a4a23e8c9` |
-| `als-reactor.js` | 5,044 | `c782dbaca349830299055c71ec9c4f72ec543c0d612d08b7c40fbb364e601dce` |
+| File | Bytes | Bytes at `da66a8c` | SHA-256 |
+|---|---:|---:|---|
+| `agda.wasm` | 34,508,797 | 34,277,969 | `64ce7ae30de134ff4753cdb7c43a8de1498de666101241b098d9d78789d01155` |
+| `als.wasm` | 36,179,686 | 35,880,158 | `b63bd689e88a1ae6e363dd9ff5289bec8a32f509336ee0c5e207c938e0af22a1` |
+| `als-reactor.wasm` | 36,112,189 | 35,817,413 | `085a34edc69cc8e39c23f6713ecc7e3db28f9f91cac0cb63baf15a2ca2006622` |
+| `als-reactor.js` | 5,044 | 5,044 | `c782dbaca349830299055c71ec9c4f72ec543c0d612d08b7c40fbb364e601dce` |
 
-## The standard library, patched here
+At `da66a8c` the first three were
+`da2f1efc6b13e0d8b8a69311511c8ed6fbfbc2759bd8ec299004580fcfba1eb1`,
+`b1f45936329c529b5677e38bc0e8d22d7a1c9c47277e8f77146f5667c76228e4` and
+`a0c7ae5741dd3f11c6be9e9fac4281889f2861ec2b53b5379452d11a4a23e8c9`; the glue
+came out the same file, byte for byte.
 
-`static/agda-stdlib-2.3-patched.zip` is the Agda standard library 2.3 with
-five patches that make the whole library check under Agda 2.9.0 ([#61]: row
-2b, and two later fixes), which no released version does.  The flake builds
-it (`nix build .#stdlib`, `mkStdlib` in `flake.nix`) from agda/agda-stdlib
-at `v2.3` (`8326c7475af1fa456ca04a0203c168d5d7ff842b`, fetched by its NAR
-hash) and `stdlib/patches/*.patch`: agda-stdlib's own `1896499f` and
-`1b7f26af` from its `agda-master` branch, unchanged; its `39631ce9` ported
-to v2.3 by [#61]'s session; and its `fbf6ce16` and `b0d29e13` from its
-`master` branch, unchanged.  The archive holds what the page's drive takes,
-`src/` and `standard-library.agda-lib`, and the library's `LICENCE`, under
-`agda-stdlib-2.3/`: 1,156 files, the same as the tag `v2.3-agda-2.9.0` of
-formalverification/agda-stdlib (`fb5d1840d26909038b5ae1459733b0db425a7488`,
-compared file by file), stored with one fixed time and in a fixed order, so
-`nix build .#stdlib --rebuild` finds no difference.
-License: MIT, the library's (`LICENCE`, unchanged by the patches, which are
-under the same license).
+## The standard library, built here
+
+`static/agda-stdlib-2.4.1.zip` is the Agda standard library 2.4.1, as
+released: agda/agda-stdlib at `v2.4.1`
+(`ac7c79b24ecf16cf82decc872d2690c2ee9d8498`, 2026-11-17, its "compatibility
+release with Agda 2.9.0", fetched by its NAR hash), unchanged ([#108]).  Its
+library is named `standard-library-2.4`, the name agda-algebras depends on.
+The flake builds it (`nix build .#stdlib`, `mkStdlib` in `flake.nix`).  The
+archive holds what the page's drive takes, `src/` (1,187 modules) and
+`standard-library.agda-lib`, and the library's `LICENCE`, under
+`agda-stdlib-2.4.1/`: 1,189 files, deflated, every entry dated 1980-01-01
+and in a fixed order, so `nix build .#stdlib --rebuild` finds no
+difference.  License: MIT, the library's (`LICENCE`; `licenses/agda-stdlib.txt`
+is the same text, Copyright (c) 2007-2026).
 
 | Path | Bytes | SHA-256 |
 |---|---:|---|
-| `static/agda-stdlib-2.3-patched.zip` | 1,536,421 | `773c59515bf4cd2ebf6d86aed6d57ec4493333538b28c1ace55509ece7e7aacd` |
+| `static/agda-stdlib-2.4.1.zip` | 1,590,359 | `be7ca5d03db81c08c2047ecdb41132f598b541b5fda319a908d8630bb0bcbf68` |
+
+From 2026-10-07 to 2026-11-24 the page shipped
+`static/agda-stdlib-2.3-patched.zip` instead (1,536,421 bytes, SHA-256
+`773c59515bf4cd2ebf6d86aed6d57ec4493333538b28c1ace55509ece7e7aacd`): v2.3
+(`8326c7475af1fa456ca04a0203c168d5d7ff842b`) with the five patches of
+`stdlib/patches/`, since no released version checked under Agda 2.9.0 ([#61],
+[#58]).  Those patches were agda-stdlib's own `1896499f` and `1b7f26af` from
+its `agda-master` branch, its `39631ce9` ported to v2.3, and its `fbf6ce16` and
+`b0d29e13` from its `master` branch; the archive's 1,156 files equaled the tag
+`v2.3-agda-2.9.0` of formalverification/agda-stdlib (`fb5d1840`).
+`stdlib/patches/` is retired with [#108]: 2.4.1 is a release made for Agda
+2.9.0, and it checks whole under it unpatched (all 1,187 modules,
+`agda --build-library` with the native Agda at the tag, exit 0, 209 s,
+2026-11-25), so the page ships no library patched here.
 
 ## agda-algebras' sources, built here
 
-`static/agda-algebras-sources.zip` is agda-algebras at
-[ualib/agda-algebras] `d32f045fe2ef885a62c5546358ebe6de09ec1ba1` (its
-`master` on 2026-10-15), unchanged: `agda-algebras.agda-lib`, `src/`, and
-the license texts its `NOTICE` names for them (`LICENSE`, `LICENSE-data`,
-`NOTICE`), under `agda-algebras/`, 356 files.  The flake builds it
-(`mkAgdaAlgebrasSources` in `flake.nix`) from the commit `agdaAlgebras`
-pins, fetched by its NAR hash, deflated, with every entry dated 1980-01-01
-and in a fixed order, so that its bytes depend on the commit alone; the
-same derivation is the input of agda-algebras' interfaces and their index
-([#12]), which records this digest, and the page mounts it at
-`/agda-algebras`, a library the playground's project depends on ([#11]).
-License: Apache-2.0, the library's own for `src/` (`LICENSE`, with its
-`NOTICE`); `licenses/agda-algebras/` holds both, copied from the archive.
+`static/agda-algebras-sources.zip` is agda-algebras at [ualib/agda-algebras]
+`66c324f89de176c2d5b4d3513d76034e4ffff2dd` (its `master` on 2026-11-25, the
+merge of its PR 642, which moved it to Agda 2.9.0 and the standard library
+2.4.1, its issue 597; `d32f045f`, of 2026-10-15, until [#108]), unchanged:
+`agda-algebras.agda-lib`, `src/`, and the license texts its `NOTICE` names for
+them (`LICENSE`, `LICENSE-data`, `NOTICE`), under `agda-algebras/`, 348 files
+(356 at `d32f045f`).  The flake builds it (`mkAgdaAlgebrasSources` in
+`flake.nix`) from the commit `agdaAlgebras` pins, fetched by its NAR hash,
+deflated, with every entry dated 1980-01-01 and in a fixed order, so that its
+bytes depend on the commit alone; the same derivation is the input of
+agda-algebras' interfaces and their index ([#12]), which records this digest,
+and the page mounts it at `/agda-algebras`, a library the playground's project
+depends on ([#11]). License: Apache-2.0, the library's own for `src/`
+(`LICENSE`, with its `NOTICE`); `licenses/agda-algebras/` holds both, copied
+from the archive.
 
 | Path | Bytes | SHA-256 |
 |---|---:|---|
-| `static/agda-algebras-sources.zip` | 1,012,304 | `5628fb359ab90c4184d6d85fc827c7afb8993e353925101097ffcb0ed1297664` |
+| `static/agda-algebras-sources.zip` | 1,006,145 | `79fd84ddaae69f76c71acd99911157f5027bdcaf71993cab088445b890ff07eb` |
 
 `static/agda-algebras-modules.json` is the list of the modules in that
 archive, which the Explorer shows ([#9]): each module's dotted name, its
@@ -236,31 +266,30 @@ derived from the sources the section above names, under their license.
 
 | Path | Bytes | SHA-256 |
 |---|---:|---|
-| `static/agda-algebras-modules.json` | 60,086 | `6bb9db05e9bef9e86f362aafa7d977dbdb415ea76f1d850f7c9c32cf2b271337` |
+| `static/agda-algebras-modules.json` | 58,528 | `9aa69bbec967e0a55aa51f00de1e62fbd2616f760b00b9eb344d64e689527dfb` |
 
 ## agda-algebras' interface archives, built here
 
-`static/agda-algebras/` holds agda-algebras' archive index, `index.json`,
-and its 398 interface archives, `interfaces/*.zip`, as `nix build
-.#agda-algebras-archives` writes them ([#12]), copied by `make assets` and
-the site's derivation ([#14]).  The interfaces are built in the Nix sandbox
-by the compiler's own plain `agda.wasm` from the sources above and the
-patched standard library, and packed with their index from Agda's own
-dependency graph; the build reproduces byte for byte, here and on GitHub's
-runner (`docs/notes/library-archives.md`).  `make assets-check` compares
-the directory with the flake's, and the site's build refuses an archive
-whose bytes are not the SHA-256 the index records for it, so the index's
-digest, below, names every archive.  Licenses: agda-algebras' interfaces
-are Apache-2.0, like its sources, since an interface holds its module's
-source text; the standard library's are MIT, like its sources; the index
-is a machine-extracted representation under agda-algebras' `LICENSE-data`
-(Apache-2.0 or CC0-1.0), which `licenses/agda-algebras/` holds, copied from
-the sources archive.
+`static/agda-algebras/` holds agda-algebras' archive index, `index.json`, and
+its 392 interface archives, `interfaces/*.zip` (398 at `d32f045f`), as `nix
+build .#agda-algebras-archives` writes them ([#12]), copied by `make assets`
+and the site's derivation ([#14]).  The interfaces are built in the Nix sandbox
+by the compiler's own plain `agda.wasm` from the sources above and the standard
+library 2.4.1, and packed with their index from Agda's own dependency graph;
+the build reproduces byte for byte, here and on GitHub's runner
+(`docs/notes/library-archives.md`).  `make assets-check` compares the directory
+with the flake's, and the site's build refuses an archive whose bytes are not
+the SHA-256 the index records for it, so the index's digest, below, names every
+archive.  Licenses: agda-algebras' interfaces are Apache-2.0, like its sources,
+since an interface holds its module's source text; the standard library's are
+MIT, like its sources; the index is a machine-extracted representation under
+agda-algebras' `LICENSE-data` (Apache-2.0 or CC0-1.0), which
+`licenses/agda-algebras/` holds, copied from the sources archive.
 
 | Path | Bytes | SHA-256 |
 |---|---:|---|
-| `static/agda-algebras/index.json` | 286,709 | `ff28598381cc65f396c11df4c8026fa1fbece63d2a3330687aa555f4ef42afb9` |
-| `static/agda-algebras/interfaces/` | 71,419,730 (398 files) | each the index's |
+| `static/agda-algebras/index.json` | 281,652 | `5250de96b2ffad06771512da6d0b0893c1ea709eaaa7251eb7709e96228374d3` |
+| `static/agda-algebras/interfaces/` | 73,285,365 (392 files) | each the index's |
 
 ## Retired pins
 
@@ -306,12 +335,12 @@ archive as `agda-stdlib-2.3/LICENCE`, identical to the tag's.
 ## Agda's builtin library, built here
 
 `static/agda-data.zip` is Agda's `lib/prim`, whole: the sources of the
-`Agda.Primitive` and `Agda.Builtin` modules, `agda-builtins.agda-lib`, and
-the interfaces of every module under `_build/<version>/agda/`.  The flake
-builds it (`nix build .#agda-data`, `mkAgdaData` in `flake.nix`) from the
-compiler's plain `agda` ([above](#the-compiler-built-here)), Agda 2.9.0 at
-agda/agda `da66a8c7`, run under nixpkgs' wasmtime with the build's root as
-its own (`agdaWasm` in `flake.nix`), as follows:
+`Agda.Primitive` and `Agda.Builtin` modules, `agda-builtins.agda-lib`, and the
+interfaces of every module under `_build/<version>/agda/`.  The flake builds it
+(`nix build .#agda-data`, `mkAgdaData` in `flake.nix`) from the compiler's
+plain `agda` ([above](#the-compiler-built-here)), Agda 2.9.0 at agda/agda's tag
+`v2.9.0` (`da046d69`; at `da66a8c7` until [#108]), run under nixpkgs' wasmtime
+with the build's root as its own (`agdaWasm` in `flake.nix`), as follows:
 
 +  that Agda writes its own data files into a throwaway data directory
    (`agda --setup`), and builds its `lib/prim` in place there (`agda
@@ -336,13 +365,16 @@ and the wasm32 server cannot read a 64-bit Agda's ([#58]).  Until
 SHA-256 `37063713ccc641ee11f30895ddee4542e24b1529e55f22aa85a8dfddbb875203`:
 36 sources, 36 interfaces of header version 202507030, and the library
 file).  Since then the archive holds 83 entries: 41 sources, 41
-interfaces (header version 202610030, little-endian, with a zstd payload)
-and the library file.  License: Agda's (MIT), as of agda/agda `da66a8c7`
-(`licenses/agda-builtins.txt`, Agda's `LICENSE` at that commit).
+interfaces (little-endian, with a zstd payload) and the library file.  The
+interfaces' header version was 202610030 at the nightly (580,637 bytes,
+SHA-256 `b250cb2154c15efb882139c6698b5b4c3514a3fb1e361bbde58f58a2eed943c0`),
+and is 202610261 at the tag, in all 41 ([#108]).  License: Agda's (MIT), as
+of agda/agda `v2.9.0` (`licenses/agda-builtins.txt`, Agda's `LICENSE` at
+that tag, Copyright (c) 2005-2026).
 
 | Path | Bytes | SHA-256 |
 |---|---:|---|
-| `static/agda-data.zip` | 580,637 | `b250cb2154c15efb882139c6698b5b4c3514a3fb1e361bbde58f58a2eed943c0` |
+| `static/agda-data.zip` | 581,641 | `e10fc08c349a1ee4b5841982172769d75600444c7822521b93a6d3a4d76e6307` |
 
 Upstream's archive, a pin until [#49] replaced it, held Agda 2.7.0.1's
 `lib/prim`: 37 sources, 37 interfaces of header version 202406290, which

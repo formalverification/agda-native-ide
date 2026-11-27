@@ -206,7 +206,10 @@ const READ_ONLY = {
   infer: "Signature",
   type: "(𝓞 𝓥 : Level) → Type (lsuc 𝓞 ⊔ lsuc 𝓥)",
   hoverLine: "Level-of-Signature : {𝓞 𝓥 : Level} → Signature 𝓞 𝓥 → Level",
-  hover: "(𝓞 𝓥 : Agda.Primitive.Level) →",
+  /** The hover's answer begins so.  The language server's v11 renders a
+   * type as Agda prints it, where v8, with this repository's patch for
+   * Agda 2.9.0, qualified every name ("Agda.Primitive.Level"; issue 108). */
+  hover: "(𝓞 𝓥 : Level) →",
   /** An edit to Main before it opens, which undo there must take back: one
    * undo group in either browser (Firefox's typing sends a newline as
    * Enter, which starts a group, so it has none at its end). */

@@ -19,7 +19,7 @@ Contents
   2.  The JavaScript bundled into the page
   3.  The compiler: als-reactor-2.9.0.wasm.gz and als-reactor-2.9.0.js
   4.  Agda's builtin library: agda-data.zip
-  5.  The Agda standard library 2.3, patched: agda-stdlib-2.3-patched.zip
+  5.  The Agda standard library 2.4.1: agda-stdlib-2.4.1.zip
   6.  agda-algebras: agda-algebras-sources.zip, agda-algebras-modules.json,
       and agda-algebras/
   7.  PLFA: plfa/
@@ -145,19 +145,20 @@ Contents
     exports): this repository's build, compiler/build-agda-2.9.0.sh, from
     these sources:
 
-      agda/agda-language-server  0f77a209243185cb8e36a11bfc7b6ab47f5125b4
-                                 (tag v8), with compiler/patches/
+      agda/agda-language-server  2aab2ac66bee78fcc7b6d4f5d7cef74dfbbe51f4
+                                 (tag v11), with compiler/patches/
                                  agda-language-server-*.patch
-      agda/agda                  da66a8c75f11d10699a6b38b261efdf244b66f2a
+      agda/agda                  da046d6903b7f587f5add669650e52f378f57834
+                                 (tag v2.9.0)
       haskell/lsp                965490d9fe64b68370f8fb1c4127ac9ce6f20afd
                                  (the server's submodule)
       ghc-wasm-meta              58260711fd5c8ffbb81f4ac56e40323ff509d43b
                                  (the 9.10 flavour)
-      Hackage                    index state 2026-10-05T16:41:29Z
+      Hackage                    index state 2026-11-13T06:53:39Z
 
     The uncompressed binary is als-reactor.wasm of
     compiler/agda-2.9.0.sha256, SHA-256
-    a0c7ae5741dd3f11c6be9e9fac4281889f2861ec2b53b5379452d11a4a23e8c9; the
+    085a34edc69cc8e39c23f6713ecc7e3db28f9f91cac0cb63baf15a2ca2006622; the
     build ships it gzipped.  Beside it ships its JavaScript glue,
     als-reactor.js of the same file, SHA-256
     c782dbaca349830299055c71ec9c4f72ec543c0d612d08b7c40fbb364e601dce, which
@@ -169,12 +170,12 @@ Contents
     records and not shipped.  The binary contains the following, each under
     its own license.
 
-    3.1  The Agda Language Server 8.  MIT, Copyright (c) 2017 - 2020 Luā
+    3.1  The Agda Language Server 11.  MIT, Copyright (c) 2017 - 2020 Luā
          Tîng-Giān.  licenses/compiler/agda-language-server.txt.  This
          repository's two patches to it are under the same license.
 
-    3.2  Agda 2.9.0 (agda/agda da66a8c, unreleased).  MIT, Copyright (c)
-         2005-2025 remains with the authors.  licenses/compiler/agda.txt.
+    3.2  Agda 2.9.0 (agda/agda's tag v2.9.0, da046d6).  MIT, Copyright (c)
+         2005-2026 remains with the authors.  licenses/compiler/agda.txt.
 
     3.3  GHC's runtime system and boot libraries, from GHC 9.10.3.20260731
          (ghc-wasm-bindists release 20260731T193144), and the reactor's
@@ -201,7 +202,7 @@ Contents
          01149ce3471128e9fe0feca607579981f4b64395, the GMP that GHC 9.10
          builds.  Every public release of the compiler attaches the same
          tarball and patches, beside the binaries and their build plans:
-         the first is agda-2.9.0-da66a8c-als-8, at
+         the one the page ships is agda-2.9.0-da046d6-als-11, at
          https://github.com/formalverification/agda-wasm-builds/releases.
 
          To relink with a modified GMP: every other part of the compiler
@@ -222,7 +223,7 @@ Contents
          adjunctions 4.4.4                       BSD-2-Clause    Hackage
          aeson 2.2.5.1                           BSD-3-Clause    Hackage
          Agda 2.9.0                              MIT             local
-         agda-language-server 8                  MIT             local
+         agda-language-server 11                 MIT             local
          ansi-terminal 1.1.5                     BSD-3-Clause    Hackage
          ansi-terminal-types 1.1.3               BSD-3-Clause    Hackage
          ap-normalize 0.1.0.1                    MIT             Hackage
@@ -241,7 +242,7 @@ Contents
          boxes 0.1.5                             BSD-3-Clause    Hackage
          bytestring 0.12.2.0                     BSD-3-Clause    GHC
          call-stack 0.4.0                        MIT             Hackage
-         case-insensitive 1.2.1.0                BSD-3-Clause    Hackage
+         case-insensitive 1.2.2.0                BSD-3-Clause    Hackage
          character-ps 0.1                        BSD-3-Clause    Hackage
          clock 0.8.4                             BSD-3-Clause    Hackage
          co-log-core 0.3.2.7                     MPL-2.0         Hackage
@@ -259,7 +260,7 @@ Contents
          distributive 0.6.3                      BSD-3-Clause    Hackage
          dlist 1.0                               BSD-3-Clause    Hackage
          edit-distance 0.2.2.1                   BSD-3-Clause    Hackage
-         enummapset 0.7.3.0                      BSD-3-Clause    Hackage
+         enummapset 0.7.4.0                      BSD-3-Clause    Hackage
          equivalence 0.4.1.1                     BSD-3-Clause    Hackage
          exceptions 0.10.9                       BSD-3-Clause    GHC
          extra 1.8.1                             BSD-3-Clause    Hackage
@@ -297,7 +298,7 @@ Contents
          murmur-hash 0.1.0.11                    BSD-3-Clause    Hackage
          network-uri 2.6.4.2                     BSD-3-Clause    Hackage
          nonempty-containers 0.4.0.0             BSD-3-Clause    Hackage
-         nonempty-vector 0.2.4                   BSD-3-Clause    Hackage
+         nonempty-vector 1.0                     BSD-3-Clause    Hackage
          OneTuple 0.4.3                          BSD-3-Clause    Hackage
          os-string 2.0.7                         BSD-3-Clause    GHC
          parallel 3.3.0.0                        BSD-3-Clause    Hackage
@@ -314,12 +315,12 @@ Contents
          random 1.3.1                            BSD-3-Clause    Hackage
          reflection 2.1.9                        BSD-3-Clause    Hackage
          regex-base 0.94.0.3                     BSD-3-Clause    Hackage
-         regex-tdfa 1.3.2.6                      BSD-3-Clause    Hackage
+         regex-tdfa 1.3.2.7                      BSD-3-Clause    Hackage
          row-types 1.0.1.2                       MIT             Hackage
          rts 1.0.2                               BSD-3-Clause    GHC
          safe 0.3.21                             BSD-3-Clause    Hackage
          safe-exceptions 0.1.7.4                 MIT             Hackage
-         scientific 0.3.9.0                      BSD-3-Clause    Hackage
+         scientific 0.3.10.0                     BSD-3-Clause    Hackage
          semialign 1.4                           BSD-3-Clause    Hackage
          semigroupoids 6.0.2                     BSD-2-Clause    Hackage
          semirings 0.7                           BSD-3-Clause    Hackage
@@ -366,17 +367,12 @@ Contents
          system-cxx-std-lib has no license file of its own: it stands for
          libc++, in 3.6.  rts is GHC's runtime, under GHC's license (3.3).
          zstd carries the Zstandard library's C sources, in 3.6.
-         nonempty-vector 0.2.4 declares BSD-3-Clause and "(c) 2019-2024
-         Emily Pillmore" in its cabal file, but its LICENSE is an empty
-         file, in the Hackage tarball and in its repository alike; the
-         empty file is kept as shipped, and LICENSE.supplied beside it is
-         the BSD-3-Clause text as SPDX publishes it, with that copyright
-         line, supplied by this notice rather than by the author.
          pqueue 1.7.0.0's LICENSE, in its tarball and its repository
          alike, is two lines, "Copyright Louis Wasserman 2010" and "BSD
          license", with none of the license's conditions; its cabal file
-         declares BSD-3-Clause, so LICENSE.supplied beside it is the same
-         SPDX text with that copyright line, supplied the same way.
+         declares BSD-3-Clause, so LICENSE.supplied beside it is the
+         BSD-3-Clause text as SPDX publishes it, with that copyright line,
+         supplied by this notice rather than by the author.
 
          How the list was made.  The plan is the build's own
          (dist-newstyle/cache/plan.json of the recipe's reactor build,
@@ -447,32 +443,27 @@ Contents
     modules, agda-builtins.agda-lib, and their interfaces), as Agda 2.9.0
     writes it and builds it: made by this repository's flake
     (packages.agda-data, mkAgdaData in flake.nix) with the compiler's own
-    plain agda (agda/agda da66a8c, section 3), run under wasmtime.
-    MIT, Copyright (c) 2005-2025 remains with the authors:
-    licenses/agda-builtins.txt (Agda's LICENSE at da66a8c).
+    plain agda (agda/agda's tag v2.9.0, section 3), run under wasmtime.
+    MIT, Copyright (c) 2005-2026 remains with the authors:
+    licenses/agda-builtins.txt (Agda's LICENSE at v2.9.0).
 
 
-5.  The Agda standard library 2.3, patched: agda-stdlib-2.3-patched.zip
+5.  The Agda standard library 2.4.1: agda-stdlib-2.4.1.zip
 
-    The sources of https://github.com/agda/agda-stdlib at v2.3, modified:
-    this repository's five patches, stdlib/patches/*.patch, change
-    twelve modules and add one (Relation.Nullary.Recomputable.Unsafe), so
-    that the library checks under Agda 2.9.0.  Four of them are
-    agda-stdlib's own commits, applied unchanged: 1896499f and 1b7f26af
-    (its agda-master branch), and fbf6ce16 and b0d29e13 (its master
-    branch); the third ports its commit 39631ce9 to v2.3.  Made by this
-    repository's flake (packages.stdlib).
-    MIT, Copyright (c) 2007-2025 Nils Anders Danielsson, Ulf Norell, and
-    the others its LICENCE names; the patches are under the same license.
-    The archive carries its LICENCE as agda-stdlib-2.3/LICENCE;
-    licenses/agda-stdlib.txt is the same text.
+    The sources of https://github.com/agda/agda-stdlib at v2.4.1
+    (ac7c79b24ecf16cf82decc872d2690c2ee9d8498), unchanged: its src/,
+    standard-library.agda-lib and LICENCE, under agda-stdlib-2.4.1/.  Made
+    by this repository's flake (packages.stdlib), which zips that tag.
+    MIT, Copyright (c) 2007-2026 Nils Anders Danielsson, Ulf Norell, and
+    the others its LICENCE names.  The archive carries its LICENCE as
+    agda-stdlib-2.4.1/LICENCE; licenses/agda-stdlib.txt is the same text.
 
 
 6.  agda-algebras: agda-algebras-sources.zip, agda-algebras-modules.json,
     and agda-algebras/
 
     The sources of https://github.com/ualib/agda-algebras at
-    d32f045fe2ef885a62c5546358ebe6de09ec1ba1 (2026-10-15), unchanged: its
+    66c324f89de176c2d5b4d3513d76034e4ffff2dd (2026-11-25), unchanged: its
     agda-algebras.agda-lib and src/, with its LICENSE, LICENSE-data and
     NOTICE, under agda-algebras/.  Made by this repository's flake
     (mkAgdaAlgebrasSources in flake.nix), which zips that commit.  The
@@ -485,8 +476,8 @@ Contents
     team: licenses/agda-algebras/LICENSE, with its NOTICE as
     licenses/agda-algebras/NOTICE, both the archive's files.
 
-    agda-algebras/interfaces/*.zip, 398 archives: the interfaces Agda 2.9.0
-    writes for agda-algebras' 351 modules and for the 253 modules of the
+    agda-algebras/interfaces/*.zip, 392 archives: the interfaces Agda 2.9.0
+    writes for agda-algebras' 343 modules and for the 253 modules of the
     standard library (section 5) they import, built by the compiler's own
     plain agda (section 3) from these sources, and packed so that an
     import fetches its closure's interfaces and nothing else.  Made by
@@ -537,7 +528,7 @@ Contents
     doc/user-manual/agda.svg in https://github.com/agda/agda, designed by
     Miëtek Bak.  The mark ships in the Agda package as one of its
     extra-doc-files, under Agda's MIT license (licenses/compiler/agda.txt
-    is that license as of agda/agda da66a8c); the adaptation is
+    is that license as of agda/agda v2.9.0); the adaptation is
     plfa-playground's (section 1).
 
 

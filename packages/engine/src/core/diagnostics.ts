@@ -5,8 +5,9 @@
 // change it: a change in Agda's message format can empty the list, never
 // turn a failing run green (agda-native-air ADR 0002 § 3).
 //
-// Batch Agda 2.9.0 (da66a8c7) prints each message on standard output as a
-// header line and the message's lines after it, as follows:
+// Batch Agda 2.9.0 (da66a8c7, and the tag v2.9.0) prints each message on
+// standard output as a header line and the message's lines after it, as
+// follows:
 //
 //   /p/Bad.agda:5.7-11: error: [UnequalTypes]
 //   The type

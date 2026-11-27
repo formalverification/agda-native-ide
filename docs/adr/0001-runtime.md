@@ -11,9 +11,12 @@ File: `agda-native-ide/docs/adr/0001-runtime.md`
    2026-10-08 the server's reactor build, with the drive in its worker, so
    that the page needs no cross-origin isolation (§ 8), and it says so when
    a browser cannot run it (§ 9).  Since 2026-10-13 it mounts the interface
-   archives a check's imports need, after stating their bytes (§ 12).
+   archives a check's imports need, after stating their bytes (§ 12), and
+   since 2026-11-25 it runs the released Agda 2.9.0 with the standard
+   library 2.4.1 (§ 13).
 +  **Date**: 2026-10-04; § 7 2026-10-07; § 8 and § 9 2026-10-08; § 10
-   2026-10-11 and 2026-10-12; § 11 2026-10-12; § 12 2026-10-13.
+   2026-10-11 and 2026-10-12; § 11 2026-10-12; § 12 2026-10-13; § 13
+   2026-11-25.
 +  **Tracking**: [#7] (this record); [#2] (the fork), [#48] (the notice),
    [#4] (the pins; its mirror and rebuild stay open), [#3] (its dev-shell
    clause); [#30] (the second lane); [#53] (the license questions deferred
@@ -21,7 +24,7 @@ File: `agda-native-ide/docs/adr/0001-runtime.md`
    § 7); [#59] (the reactor and the drive in one worker, § 8); [#8] (the
    page's notices, § 9); [#12] and [#13] (the library archives, § 10);
    [#11] (the playground's project, § 11); [#14] (mounting what the
-   imports need, § 12).
+   imports need, § 12); [#108] (the releases, § 13).
 +  **Ancestry**: agda-native-air's [browser IDE proposal][proposal], § 1
    "Fork the runtime"; agda-algebras PR [585][pr-585] and its
    [ADR-011][adr-011], which built and measured the second lane; the
@@ -53,7 +56,9 @@ compiler, the archives, the fonts and an icon) were pinned by SHA-256 in the
 flake and fetched, and Agda's builtin library is built by the flake from a
 pinned Agda ([#49]).  Since 2026-10-07 the compiler is this repository's
 own build, pinned by its hashes, and the standard library is built here,
-patched (§ 7), so 33 of upstream's pins remain.  The build refuses a file
+patched (§ 7); since 2026-11-25 both come from releases, Agda 2.9.0 and
+the standard library 2.4.1, unpatched (§ 13).  33 of upstream's pins
+remain.  The build refuses a file
 that differs from its pin, and `NOTICE` names everything the built site
 ships, with the license texts beside it.
 
@@ -662,9 +667,9 @@ the binaries exists since 2026-10-07, and CI fetches from it; the page has
 run the reactor since 2026-10-08 (§ 8).  [#13]'s gate passes under 2.9.0
 since 2026-10-12, on archives built by a wasm32 Agda (§ 10): the server
 accepts every interface that agda-algebras' 350 roots (its modules, each
-of which a reader may import) need.  Open: the move to
-Agda's 2.9.0 release; the 2.8.0 compiler's pin, which row 22 kept until
-that gate passed.
+of which a reader may import) need.  The move to Agda's 2.9.0 release is
+§ 13's (2026-11-25).  Open: the 2.8.0 compiler's pin, which row 22 kept
+until that gate passed.
 
 ---
 
@@ -1168,7 +1173,104 @@ manifest, which generalizes the library's description.
 
 ---
 
-## 13.  Decision log
+## 13.  The releases
+
+(See also [#108], [#58], [#61], [#13], [ualib/agda-algebras#597],
+[`compiler/build-agda-2.9.0.sh`][recipe], and
+[`docs/provenance.md`][provenance].)
+
+**Decision**.  The page moves from the pre-release Agda it was built on
+(§ 7) to the releases: Agda 2.9.0, the language server's first release for
+it, and the standard library 2.4.1, unpatched; agda-algebras' archives are
+rebuilt from its own move to the same releases.  William's decisions of
+2026-11-24 set the target: the standard library 2.4.1 now, rather than a
+wait for 3.0.
+
++  **Agda**: agda/agda's tag `v2.9.0` (`da046d69`, 2026-11-13), 67 commits
+   after the `nightly` `da66a8c7`, built as before and unpatched; the
+   Hackage index moves to the tag's time, 2026-11-13T06:53:39Z.
++  **The language server**: agda/agda-language-server's tag `v11`
+   (`2aab2ac6`, 2026-11-20), which adds the `Agda-2-9-0` flag and ports the
+   server to Agda 2.9.0's API itself (its PR 73).  Of § 7's two patches,
+   the first shrinks to the one import v11's reactor module still lacks
+   (`compiler/patches/agda-language-server-reactor-setup.patch`); the
+   second, the wasm project file, stays, with the new index state, since
+   v11's `cabal.project.wasm32` is v8's.
++  **The toolchain is unchanged**: Agda's `flake.lock` names the same
+   ghc-wasm-meta, `58260711`, at the tag as at the nightly.
++  **The binaries**: a new release of formalverification/agda-wasm-builds,
+   `agda-2.9.0-da046d6-als-11`, holds the four pinned files, the plans and
+   GMP's source; `compiler/agda-2.9.0.sha256` pins them.
++  **The standard library**: agda/agda-stdlib's tag `v2.4.1` (`ac7c79b2`,
+   2026-11-17), as released, shipped as `agda-stdlib-2.4.1.zip`; its library
+   is `standard-library-2.4`.  `stdlib/patches/` is removed.
++  **agda-algebras**: its sources, module list and archives from
+   `66c324f8`, the merge of its PR 642, which moved it to the same releases
+   ([ualib/agda-algebras#597]); built by the new compiler's `agda.wasm`, as
+   row 20 requires, since the interfaces' format version changes.
++  **The native Agda** (the companion's tests and the native engine) moves
+   to the same tag, and the companion's fixture to the same agda-algebras
+   commit.
+
+**Evidence**.  Measured 2026-11-24 and 2026-11-25 (UTC) on this
+workstation (20 cores, 64 GB), with other sessions' builds running beside
+these, so the times are upper bounds; [#108]'s findings have each run.
+
++  **The compiler builds from the releases**: the recipe, from an empty work
+   directory, ran 35 min 8 s (the plain `agda` 20 min 15 s, the server's
+   command module 12 min 41 s, the reactor 8 s over it), peak resident memory
+   9.0 GiB; `agda.wasm` is 34,508,797 bytes, `als.wasm` 36,179,686 and
+   `als-reactor.wasm` 36,112,189 (34,277,969, 35,880,158 and 35,817,413 at the
+   nightly), and the reactor's glue is the same file.  A second run from an
+   empty work directory at the same path built the same four files and the same
+   three plans, byte for byte (32 min 23 s).
++  **The patches**: v11 does not take the old server patch (`git apply
+   --check` fails in 9 of its 11 files), and builds for Agda 2.9.0 with the
+   reactor import alone; the wasm project patch applies to v11 unchanged
+   but for its index state.  Agda itself was never patched (§ 7).
++  **The plans move a little**: the server's link closure is still 141
+   packages, with five Hackage packages at newer versions
+   (case-insensitive 1.2.2.0, enummapset 0.7.4.0, nonempty-vector 1.0,
+   regex-tdfa 1.3.2.7, scientific 0.3.10.0) besides the server's own;
+   NOTICE § 3 lists them, regenerated from the plan, and nonempty-vector
+   1.0 ships a license text of its own, so the one NOTICE supplied is
+   gone.
++  **The interface format changes**: the header version is 202610261 at
+   the tag (202610030 at the nightly), in all 41 builtin interfaces and
+   all 596 of the archives' interfaces, so every interface the page ships
+   is rebuilt, by the new `agda.wasm`.
++  **The standard library 2.4.1 checks whole, unpatched**: all 1,187
+   modules under the native Agda at the tag (`agda --build-library`, exit
+   0, 209 s); the 253 that agda-algebras imports under the new `agda.wasm`
+   in the archives' build.
++  **agda-algebras checks whole under the compiler**: the interfaces build
+   checked all 343 of its modules and 253 of the standard library's, and
+   no builtin, in 641 s; the cold check, every root from only the
+   archives the index names, passed 343 of 343, its two controls 2 lines
+   each.  The archives are 392 (343 modules and 49 standard-library
+   groups), 73,285,365 bytes, against 398 and 71,419,730 at `d32f045f`.
++  **[#13]'s gate passes**: in headless Chromium 149 under the new site's
+   reactor, each root in a fresh session with only its archives, 343 of 343
+   checked `Main` alone, and both controls checked 2 modules, in 633 s four at
+   once; on main's site and archives the same gate passed 351 of 351 in 844 s,
+   beside the compiler's build (baseline, 2026-11-25).
++  **The page**: the browser check passes in Chromium 149, once its
+   hover expectation follows v11's rendering, which prints a type as Agda
+   does (`Level`, where v8 with the patch printed `Agda.Primitive.Level`);
+   the notices check passes; the conformance suite passes 13 of 13 in the
+   page and against the native Agda at the tag, 12 answered identically
+   and one differing only by the declared batch lane.  `make test` passes
+   all 5,552 tests once `make assets` has filled `static/` (without the
+   assets, the five that read the shipped index and module list skip),
+   and `make check` passes.
+
+**Status**.  Adopted in [#108]'s pull request.  Open: agda-native-air
+still pins the nightly and the patched v2.3 (`docs/agents.md`); the 2.8.0
+compiler's pin (row 22).
+
+---
+
+## 14.  Decision log
 
 | # | Decision | Status | Evidence |
 |---|---|---|---|
@@ -1222,6 +1324,11 @@ manifest, which generalizes the library's description.
 | 48 | A mount skips an archive whose interfaces the drive already holds | Adopted ([#14]) | Agda checks `iFullHash`, not the interface's bytes; the page's interfaces from source were byte-identical to the archives' (181 of 181) (§ 12) |
 | 49 | The index's digest joins the drive cache's namespace; drive databases of other namespaces are deleted when the page starts; a mounted archive's paths leave the drive's cache | Adopted ([#14]) | The browser check's second visit deletes a planted database; a unit test of the drive (§ 12) |
 | 50 | `static/_headers` is unchanged; a second visit's lack of requests comes from the store, whatever the host caches | Adopted ([#14]) | Cloudflare Pages joins two `Cache-Control` rules with a comma; the host is [#6]'s (§ 12) |
+| 51 | The compiler is built from the releases: Agda's tag `v2.9.0` (`da046d69`) and the language server's tag `v11` (`2aab2ac6`), with ghc-wasm-meta `58260711` and the Hackage index at the tag's time; supersedes row 16's sources | Adopted ([#108], 2026-11-25) | The same toolchain; the four files built and pinned, the same bytes again from an empty work directory (§ 13) |
+| 52 | Of the server's patches only the reactor's import of `Agda.Setup` remains, with the wasm project file | Adopted ([#108]) | v11 ports the server to Agda 2.9.0 itself; the old patch fails on 9 of its 11 files; v11's reactor module calls `setup`, and none of its imports provides it (§ 13) |
+| 53 | The binaries live in a new release, `agda-2.9.0-da046d6-als-11`; a release does not change once published | Adopted ([#108]) | The release's directory carries its sources, patches, plans, NOTICE and license texts, as row 19's (§ 13) |
+| 54 | The page ships the standard library 2.4.1 as released; `stdlib/patches/` is removed; supersedes row 21 | Adopted (William, 2026-11-24, 2.4.1 rather than a wait for 3.0) | All 1,187 modules check under the native Agda at the tag; the 253 agda-algebras imports under `agda.wasm` (§ 13) |
+| 55 | agda-algebras' sources, module list and archives come from `66c324f8`, its own move to the releases, built by the new `agda.wasm`; the companion's fixture and the native Agda move with them | Adopted ([#108]) | Every shipped interface at the tag's format, 202610261; the gate 343 of 343 under the page's reactor, the controls 2 and 2 (§ 13) |
 
 ---
 
@@ -1239,7 +1346,7 @@ manifest, which generalizes the library's description.
    notice), [#49] (the builtins), [#50] (the drive), [#53] (the license review
    before going public), [#58] (the 2.9.0 compiler), [#59] (the reactor),
    [#61] (the library under 2.9.0), [#62] (the shared core), [#64] (the
-   native engine).
+   native engine), [#108] (the releases).
 +  **Elsewhere**: agda-algebras PR [585][pr-585] and its [ADR-011][adr-011];
    agda-native-air's [browser IDE proposal][proposal]; [plfa-playground][upstream]
    at `ae0aa84c`.
@@ -1259,7 +1366,7 @@ manifest, which generalizes the library's description.
    `apps.browser-check`; `packages.compiler`, `packages.stdlib`,
    `packages.compiler-2_8_0`, `devShells.compiler`, `agdaWasm`),
    `compiler/build-agda-2.9.0.sh` with `compiler/patches/` and
-   `compiler/agda-2.9.0.sha256`, `stdlib/patches/`,
+   `compiler/agda-2.9.0.sha256`,
    `.github/workflows/compiler.yml`, `Makefile` (`assets`, `assets-check`,
    `dev`, `build`, `test`, `check`, `browser-check`,
    `browser-check-notices`, `provenance-check`, `library-gate`),
@@ -1334,6 +1441,8 @@ manifest, which generalizes the library's description.
 [#61]: https://github.com/formalverification/agda-native-ide/issues/61
 [#62]: https://github.com/formalverification/agda-native-ide/issues/62
 [#64]: https://github.com/formalverification/agda-native-ide/issues/64
+[#108]: https://github.com/formalverification/agda-native-ide/issues/108
+[ualib/agda-algebras#597]: https://github.com/ualib/agda-algebras/issues/597
 [pr-585]: https://github.com/ualib/agda-algebras/pull/585
 [adr-011]: https://github.com/ualib/agda-algebras/blob/577-an-interactive-agda-proof-environment/docs/adr/011-interactive-playground.md
 [proposal]: ../notes/browser-ide-proposal.md

@@ -1157,6 +1157,50 @@ Enabling Pages on the repository (source: GitHub Actions) is William's action.
 [M9-2]: https://github.com/formalverification/agda-native-ide/issues/98
 [M9-3]: https://github.com/formalverification/agda-native-ide/issues/99
 
+---
+
+### Issue M0-18: The released Agda 2.9.0 as the compiler, with standard-library 2.4.1 (#108)
+
+**Labels:** `milestone-0-foundations`, `runtime`, `build`, `provenance`
+
+## Description
+
+[#58] built the page's compiler, Agda 2.9.0 and the Agda Language Server for wasm32-wasi, from the pre-release Agda at `da66a8c` (the `nightly` of 2026-10-05), and the page ships standard-library 2.3 with five patches (`stdlib/patches/`) and agda-algebras' interface archives built by that compiler ([#61], [#12]).  Agda 2.9.0 and a standard library for it are now released, and on 2026-11-24 William decided that every Agda project moves to the releases, with standard-library 2.4.1 rather than a wait for 3.0.  agda-algebras moves first, in [ualib/agda-algebras#597]; this issue moves the page after it.
+
+**The releases**, checked 2026-11-24, are as follows:
+
++  **Agda 2.9.0**, released 2026-11-13 ([v2.9.0][agda-release]): tag commit `da046d6903b7f587f5add669650e52f378f57834`, 67 commits after the nightly `da66a8c` that the projects have pinned since October.
++  **Standard-library 2.4.1**, released 2026-11-17 ([v2.4.1][stdlib-release]), "compatibility release with Agda 2.9.0": commit `ac7c79b24ecf16cf82decc872d2690c2ee9d8498`, library name `standard-library-2.4`, so every `depend: standard-library-2.3` becomes `standard-library-2.4`.
+
+**What it touches here**, as follows:
+
++  **The compiler**: Agda and the language server rebuilt for wasm32-wasi from the `v2.9.0` tag by `compiler/build-agda-2.9.0.sh`, with `ghc-wasm-meta` moved to the commit Agda's own flake pins at that tag, new hashes in `compiler/agda-2.9.0.sha256`, and a new release in formalverification/agda-wasm-builds (today's is `agda-2.9.0-da66a8c-als-8`).  Agda's release notes list "Agda on WASM" among 2.9.0's highlights, so check whether each patch in `compiler/patches/` is still needed, and whether agda/agda-language-server has a commit for the release.
++  **`native-agda`**, the native build the companion's command tests use, to the same commit, and `agda-data.zip` rebuilt from the new compiler's `lib/prim`.
++  **The standard library**: v2.4.1 unpatched (`stdlib/patches/` retired, with a line in `docs/provenance.md` saying why), and every static file and record that names `agda-stdlib-2.3`.
++  **agda-algebras**: its sources, module list and interface archives from [ualib/agda-algebras#597]'s merge commit (today `d32f045f`), and `companion-fixture` with them if its module still checks.  The archives must be built by the wasm32 compiler itself: 2.9.0's interfaces do not cross word sizes (its serializer writes the machine's `Int`), so a native `_build` is never offered to the page.
++  **The gates**: [#13]'s proof that the shipped compiler accepts the shipped interfaces passes on the new files, and two builds of one commit stay identical (`nix build .#site --rebuild`).
+
+## Tasks
+
++  [x] Wait for [ualib/agda-algebras#597] to merge (the compiler can be rebuilt before it; the archives cannot).
++  [x] The compiler, its release and its hashes.
++  [x] The standard library and agda-algebras' archives.
++  [x] `docs/provenance.md`, the flake's header, and every file that names the nightly or the patched standard library.
+
+## Acceptance criteria
+
++  [ ] The page runs the released Agda 2.9.0 with standard-library 2.4.1 and agda-algebras at [ualib/agda-algebras#597]'s merge commit, and the gates pass.
++  [ ] `nix build .#site --rebuild` reproduces the site.
++  [ ] No file names the nightly or the patched standard library as the current target (dated records excepted).
+
+[#12]: https://github.com/formalverification/agda-native-ide/issues/12
+[#13]: https://github.com/formalverification/agda-native-ide/issues/13
+[#58]: https://github.com/formalverification/agda-native-ide/issues/58
+[#61]: https://github.com/formalverification/agda-native-ide/issues/61
+[ualib/agda-algebras#597]: https://github.com/ualib/agda-algebras/issues/597
+[agda-release]: https://github.com/agda/agda/releases/tag/v2.9.0
+[stdlib-release]: https://github.com/agda/agda-stdlib/releases/tag/v2.4.1
+
 <!-- END GENERATED: milestone-0 -->
 
 ## Milestone 1 — The agda-algebras IDE
